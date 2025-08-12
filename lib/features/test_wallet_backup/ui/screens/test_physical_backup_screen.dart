@@ -1,16 +1,17 @@
 import 'dart:async';
 
+import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/mixins/privacy_screen.dart';
+import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/widgets/bottom_sheet/x.dart';
+import 'package:bb_mobile/core/widgets/buttons/button.dart';
+import 'package:bb_mobile/core/widgets/loading/fading_linear_progress.dart';
+import 'package:bb_mobile/core/widgets/navbar/top_bar.dart';
+import 'package:bb_mobile/core/widgets/text/text.dart';
 import 'package:bb_mobile/features/test_wallet_backup/presentation/bloc/test_wallet_backup_bloc.dart';
 import 'package:bb_mobile/features/test_wallet_backup/ui/test_wallet_backup_router.dart';
 import 'package:bb_mobile/locator.dart';
-import 'package:bb_mobile/ui/components/bottom_sheet/x.dart';
-import 'package:bb_mobile/ui/components/buttons/button.dart';
-import 'package:bb_mobile/ui/components/loading/fading_linear_progress.dart';
-import 'package:bb_mobile/ui/components/navbar/top_bar.dart';
-import 'package:bb_mobile/ui/components/text/text.dart';
-import 'package:bb_mobile/ui/themes/app_theme.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -57,11 +58,11 @@ class _TestPhysicalBackupFlowState extends State<TestPhysicalBackupFlow>
 
               final mnemonicWallets =
                   state.wallets
-                      .where((w) => w.source == WalletSource.mnemonic)
+                      .where((w) => w.signer == SignerEntity.local)
                       .toList();
 
               final title =
-                  'Test ${state.selectedWallet?.isDefault ?? false ? 'Default Wallets' : state.selectedWallet?.getLabel() ?? ''}';
+                  'Test ${state.selectedWallet?.isDefault ?? false ? 'Default Wallets' : state.selectedWallet?.displayLabel ?? ''}';
 
               return Scaffold(
                 backgroundColor: context.colour.onSecondary,
@@ -184,7 +185,7 @@ class _TestPhysicalBackupFlowState extends State<TestPhysicalBackupFlow>
                       child: BBText(
                         wallet.isDefault
                             ? 'Default Wallets'
-                            : wallet.getLabel() ?? '',
+                            : wallet.displayLabel,
                         style: context.font.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                           fontSize: 18,
@@ -457,15 +458,19 @@ class ShuffledMnemonicGrid extends StatelessWidget {
       (TestWalletBackupBloc bloc) => bloc.state.shuffledMnemonic,
     );
 
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 3.0,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      itemCount: shuffledMnemonic.length,
-      itemBuilder: (context, index) => ShuffledWordItem(index: index),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (shuffledMnemonic.length == 12) ...[
+          for (var i = 0; i < 6; i++)
+            Row(
+              children: [
+                ShuffledWordItem(index: i),
+                ShuffledWordItem(index: i + 6),
+              ],
+            ),
+        ],
+      ],
     );
   }
 }
@@ -483,18 +488,20 @@ class ShuffledWordItem extends StatelessWidget {
           (TestWalletBackupBloc bloc) => bloc.state.shuffleElementAt(index),
         );
 
-        return VerificationWordItem(
-          word: word,
-          isSelected: isSelected,
-          actualIdx: actualIdx,
-          onTap:
-              isSelected
-                  ? null
-                  : () {
-                    context.read<TestWalletBackupBloc>().add(
-                      OnWordsSelected(shuffledIdx: index),
-                    );
-                  },
+        return Expanded(
+          child: VerificationWordItem(
+            word: word,
+            isSelected: isSelected,
+            actualIdx: actualIdx,
+            onTap:
+                isSelected
+                    ? null
+                    : () {
+                      context.read<TestWalletBackupBloc>().add(
+                        OnWordsSelected(shuffledIdx: index),
+                      );
+                    },
+          ),
         );
       },
     );
@@ -569,60 +576,55 @@ class VerificationWordItem extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              flex: 2,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (Widget child, Animation<double> animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(scale: animation, child: child),
-                  );
-                },
-                child: Container(
-                  key: ValueKey(isSelected),
-                  width: 34.48,
-                  height: 34.48,
-                  decoration: BoxDecoration(
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(scale: animation, child: child),
+                );
+              },
+              child: Container(
+                key: ValueKey(isSelected),
+                width: 34.48,
+                height: 34.48,
+                decoration: BoxDecoration(
+                  color:
+                      isSelected
+                          ? const Color(0xFFE53935)
+                          : const Color(0xFFA9A9A9),
+                  border: Border.all(
                     color:
                         isSelected
                             ? const Color(0xFFE53935)
                             : const Color(0xFFA9A9A9),
-                    border: Border.all(
-                      color:
-                          isSelected
-                              ? const Color(0xFFE53935)
-                              : const Color(0xFFA9A9A9),
-                      width: 0.82,
-                    ),
-                    borderRadius: BorderRadius.circular(2.46),
+                    width: 0.82,
                   ),
-                  child: Center(
-                    child: BBText(
-                      isSelected ? '${actualIdx + 1}' : '00',
-                      style: context.font.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        letterSpacing: 0.15,
-                        color: Colors.white,
-                      ),
+                  borderRadius: BorderRadius.circular(2.46),
+                ),
+                child: Center(
+                  child: BBText(
+                    isSelected ? '${actualIdx + 1}' : '00',
+                    style: context.font.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      letterSpacing: 0.15,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               ),
             ),
+
             const Gap(12),
-            Expanded(
-              flex: 6,
-              child: BBText(
-                word,
-                textAlign: TextAlign.start,
-                maxLines: 2,
-                style: context.font.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: context.colour.secondary,
-                ),
+            BBText(
+              word,
+              textAlign: TextAlign.start,
+              maxLines: 2,
+              style: context.font.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: context.colour.secondary,
               ),
             ),
           ],
