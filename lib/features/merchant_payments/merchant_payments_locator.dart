@@ -1,11 +1,21 @@
+import 'package:bb_mobile/features/merchant_payments/application/merchant_key_derivation_service.dart';
+import 'package:bb_mobile/features/merchant_payments/application/ports/key_derivation_port.dart';
 import 'package:get_it/get_it.dart';
 
 class MerchantPaymentsLocator {
   static void setup(GetIt locator) {
-    // TODO: Register blocs, use cases, repositories, and services
+    registerServices(locator);
+    // TODO: Register blocs, use cases, and repositories
     // registerBlocs(locator);
     // registerUsecases(locator);
     // registerRepositories(locator);
+  }
+
+  static void registerServices(GetIt locator) {
+    // Register merchant key derivation service
+    locator.registerLazySingleton<KeyDerivationPort>(
+      () => MerchantKeyDerivationService(),
+    );
   }
 
   // static void registerBlocs(GetIt locator) {
