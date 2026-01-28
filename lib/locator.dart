@@ -22,6 +22,7 @@ import 'package:bb_mobile/features/import_mnemonic/locator.dart';
 import 'package:bb_mobile/features/import_watch_only_wallet/import_watch_only_locator.dart';
 import 'package:bb_mobile/features/ledger/ledger_locator.dart';
 import 'package:bb_mobile/features/legacy_seed_view/legacy_seed_view_locator.dart';
+import 'package:bb_mobile/features/merchant_payments/merchant_payments_locator.dart';
 import 'package:bb_mobile/features/onboarding/onboarding_locator.dart';
 import 'package:bb_mobile/features/pay/pay_locator.dart';
 import 'package:bb_mobile/features/pin_code/pin_code_locator.dart';
@@ -101,5 +102,6 @@ class AppLocator {
     RecipientsLocator.setup(locator);
     BitBoxLocator.setup(locator);
     ArkCoreLocator.setup(locator);
+    MerchantPaymentsLocator.setup(locator);
   }
 }
