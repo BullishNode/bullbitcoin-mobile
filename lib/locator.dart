@@ -15,6 +15,7 @@ import 'package:bb_mobile/features/broadcast_signed_tx/locator.dart';
 import 'package:bb_mobile/features/buy/buy_locator.dart';
 import 'package:bb_mobile/features/dca/dca_locator.dart';
 import 'package:bb_mobile/features/electrum_settings/electrum_settings_locator.dart';
+import 'package:bb_mobile/features/lightning_address/lightning_address_locator.dart';
 import 'package:bb_mobile/features/exchange/exchange_locator.dart';
 import 'package:bb_mobile/features/exchange_settings/exchange_settings_locator.dart';
 import 'package:bb_mobile/features/mempool_settings/mempool_settings_locator.dart';
@@ -105,5 +106,6 @@ class AppLocator {
     RecipientsLocator.setup(locator);
     BitBoxLocator.setup(locator);
     ArkCoreLocator.setup(locator);
+    LightningAddressLocator.setup(locator);
   }
 }
