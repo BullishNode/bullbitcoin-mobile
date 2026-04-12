@@ -9,6 +9,32 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 
+Future<bool> _showDeleteConfirmation(BuildContext context, String address) async {
+  return await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Delete Lightning Address?'),
+      content: Text(
+        'People will no longer be able to send funds to $address. '
+        'This action cannot be undone — the address cannot be reclaimed.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text(
+            'Delete',
+            style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+          ),
+        ),
+      ],
+    ),
+  ) ?? false;
+}
+
 class LightningAddressSettingsScreen extends StatefulWidget {
   const LightningAddressSettingsScreen({super.key});
 
@@ -40,32 +66,41 @@ class _LightningAddressSettingsScreenState
     return Scaffold(
       appBar: AppBar(title: Text(context.loc.lightningAddressTitle)),
       body: SafeArea(
-        child: BlocBuilder<LightningAddressCubit, LightningAddressState>(
-          builder: (context, state) {
-            if (state.loading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state.lightningAddress != null) {
-              return _ActivatedView(
-                address: state.lightningAddress!,
-                deleting: state.registering,
-              );
-            }
-            return _RegistrationView(
-              controller: _nymController,
-              registering: state.registering,
-              error: state.error,
-              onRegister: () {
-                final env =
-                    context.read<SettingsCubit>().state.environment ??
-                        Environment.mainnet;
-                context.read<LightningAddressCubit>().registerNym(
-                      _nymController.text.trim().toLowerCase(),
-                      env,
-                    );
-              },
+        child: BlocListener<LightningAddressCubit, LightningAddressState>(
+          listenWhen: (prev, curr) =>
+              prev.lightningAddress != null && curr.lightningAddress == null && !curr.loading,
+          listener: (context, state) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Lightning Address deleted')),
             );
           },
+          child: BlocBuilder<LightningAddressCubit, LightningAddressState>(
+            builder: (context, state) {
+              if (state.loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state.lightningAddress != null) {
+                return _ActivatedView(
+                  address: state.lightningAddress!,
+                  deleting: state.registering,
+                );
+              }
+              return _RegistrationView(
+                controller: _nymController,
+                registering: state.registering,
+                error: state.error,
+                onRegister: () {
+                  final env =
+                      context.read<SettingsCubit>().state.environment ??
+                          Environment.mainnet;
+                  context.read<LightningAddressCubit>().registerNym(
+                        _nymController.text.trim().toLowerCase(),
+                        env,
+                      );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -160,7 +195,12 @@ class _ActivatedView extends StatelessWidget {
             child: TextButton(
               onPressed: deleting
                   ? null
-                  : () => context.read<LightningAddressCubit>().deleteAddress(),
+                  : () async {
+                      final confirmed = await _showDeleteConfirmation(context, address);
+                      if (confirmed && context.mounted) {
+                        context.read<LightningAddressCubit>().deleteAddress();
+                      }
+                    },
               child: deleting
                   ? const SizedBox(
                       height: 20,

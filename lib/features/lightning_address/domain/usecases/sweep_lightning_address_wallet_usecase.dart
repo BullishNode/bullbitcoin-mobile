@@ -8,7 +8,7 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_er
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 
 class SweepLightningAddressWalletUsecase {
-  static const int _dustThresholdSat = 546;
+  static const int _dustThresholdSat = 100;
 
   final GetLightningAddressWalletUsecase _getWallet;
   final WalletRepository _walletRepository;

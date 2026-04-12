@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/ark/usecases/check_ark_wallet_setup_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/core/ark/usecases/get_ark_wallet_usecase.dart';
 import 'package:bb_mobile/core/seed/data/datasources/seed_store_type_datasource.dart';
 import 'package:bb_mobile/core/swaps/data/repository/boltz_swap_repository.dart';
@@ -59,6 +60,7 @@ class WalletLocator {
         autoSwapExecutionUsecase: locator<AutoSwapExecutionUsecase>(),
         deleteWalletUsecase: locator<DeleteWalletUsecase>(),
         seedStoreTypeDatasource: locator<SeedStoreTypeDatasource>(),
+        lightningAddressFacade: locator<LightningAddressFacade>(),
       ),
     );
   }
