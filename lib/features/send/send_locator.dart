@@ -34,6 +34,7 @@ import 'package:bb_mobile/features/send/domain/usecases/prepare_liquid_send_usec
 import 'package:bb_mobile/features/send/domain/usecases/select_best_wallet_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_bitcoin_tx_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.dart';
+import 'package:bb_mobile/features/send/domain/usecases/try_liquid_direct_pay_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/update_paid_send_swap_usecase.dart';
 import 'package:bb_mobile/features/send/presentation/bloc/send_cubit.dart';
 import 'package:get_it/get_it.dart';
@@ -123,6 +124,9 @@ class SendLocator {
         walletRepository: locator<WalletRepository>(),
       ),
     );
+    locator.registerFactory<TryLiquidDirectPayUsecase>(
+      () => TryLiquidDirectPayUsecase(),
+    );
   }
 
   static void registerBlocs(GetIt locator) {
@@ -167,6 +171,7 @@ class SendLocator {
             locator<UpdateSendSwapLockupFeesUsecase>(),
         verifyChainSwapAmountSendUsecase:
             locator<VerifyChainSwapAmountSendUsecase>(),
+        tryLiquidDirectPayUsecase: locator<TryLiquidDirectPayUsecase>(),
       ),
     );
   }
