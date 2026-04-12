@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
@@ -9,14 +10,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class LightningAddressCubit extends Cubit<LightningAddressState> {
   final GetLightningAddressWalletUsecase _getWallet;
   final RegisterLightningAddressUsecase _register;
+  final DeleteLightningAddressUsecase _delete;
   final PayServiceDatasource _payService;
 
   LightningAddressCubit({
     required GetLightningAddressWalletUsecase getWallet,
     required RegisterLightningAddressUsecase register,
+    required DeleteLightningAddressUsecase delete,
     required PayServiceDatasource payService,
   })  : _getWallet = getWallet,
         _register = register,
+        _delete = delete,
         _payService = payService,
         super(const LightningAddressState());
 
@@ -47,6 +51,18 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       );
       if (isClosed) return;
       emit(state.copyWith(registering: false, lightningAddress: address));
+    } on Exception catch (e) {
+      if (isClosed) return;
+      emit(state.copyWith(registering: false, error: _mapError(e)));
+    }
+  }
+
+  Future<void> deleteAddress() async {
+    emit(state.copyWith(registering: true, error: null));
+    try {
+      await _delete.execute();
+      if (isClosed) return;
+      emit(const LightningAddressState(loading: false));
     } on Exception catch (e) {
       if (isClosed) return;
       emit(state.copyWith(registering: false, error: _mapError(e)));

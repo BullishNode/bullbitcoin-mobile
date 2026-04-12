@@ -12916,5 +12916,6 @@
   "lightningAddressNymHint": "satoshi",
   "lightningAddressRegister": "Register",
   "lightningAddressCopied": "Copied to clipboard",
-  "lightningAddressReceiveInfo": "Anyone can send you bitcoin via Lightning using this address."
+  "lightningAddressReceiveInfo": "Anyone can send you bitcoin via Lightning using this address.",
+  "lightningAddressDelete": "Delete Lightning Address"
 }

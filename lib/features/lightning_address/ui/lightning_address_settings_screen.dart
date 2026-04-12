@@ -46,7 +46,10 @@ class _LightningAddressSettingsScreenState
               return const Center(child: CircularProgressIndicator());
             }
             if (state.lightningAddress != null) {
-              return _ActivatedView(address: state.lightningAddress!);
+              return _ActivatedView(
+                address: state.lightningAddress!,
+                deleting: state.registering,
+              );
             }
             return _RegistrationView(
               controller: _nymController,
@@ -71,7 +74,8 @@ class _LightningAddressSettingsScreenState
 
 class _ActivatedView extends StatelessWidget {
   final String address;
-  const _ActivatedView({required this.address});
+  final bool deleting;
+  const _ActivatedView({required this.address, this.deleting = false});
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +154,26 @@ class _ActivatedView extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: deleting
+                  ? null
+                  : () => context.read<LightningAddressCubit>().deleteAddress(),
+              child: deleting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      context.loc.lightningAddressDelete,
+                      style: TextStyle(color: context.appColors.error),
+                    ),
+            ),
+          ),
+          const Gap(16),
         ],
       ),
     );

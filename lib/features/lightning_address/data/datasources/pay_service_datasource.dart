@@ -49,6 +49,29 @@ class PayServiceDatasource {
     final box = await Hive.openBox<String>(_boxName);
     return box.get(_addressKey);
   }
+
+  /// Deletes the registration on the server and clears local storage.
+  Future<void> deleteRegistration({
+    required String npubHex,
+    required String signatureHex,
+  }) async {
+    final response = await _dio.delete<dynamic>(
+      '/register',
+      data: {
+        'npub': npubHex,
+        'signature': signatureHex,
+      },
+    );
+
+    if (response.data is Map && response.data['status'] == 'ERROR') {
+      throw PayServiceException(
+        response.data['reason'] as String? ?? 'Unknown error',
+      );
+    }
+
+    final box = await Hive.openBox<String>(_boxName);
+    await box.delete(_addressKey);
+  }
 }
 
 class PayServiceException implements Exception {
