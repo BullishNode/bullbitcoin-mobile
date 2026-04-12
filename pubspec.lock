@@ -131,6 +131,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.1"
+  bip340:
+    dependency: transitive
+    description:
+      name: bip340
+      sha256: "2a92f6ed68959f75d67c9a304c17928b9c9449587d4f75ee68f34152f7f69e87"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
   bip39_mnemonic:
     dependency: "direct main"
     description:
@@ -1399,6 +1407,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.2"
+  nostr:
+    dependency: "direct main"
+    description:
+      name: nostr
+      sha256: a99942e4eedd5823d16f42e6df96240488028666a329ee1047552f79db564123
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.0"
   objective_c:
     dependency: transitive
     description:

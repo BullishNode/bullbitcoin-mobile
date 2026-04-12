@@ -9,9 +9,10 @@ const int nostrBip85Application = 86;
 
 class NostrIdentity {
   final String npubHex;
+  final String nsecHex;
   final ECPrivate _ecPrivate;
 
-  NostrIdentity._(this.npubHex, this._ecPrivate);
+  NostrIdentity._(this.npubHex, this.nsecHex, this._ecPrivate);
 
   /// Derive a Nostr identity from a master xprv at the given identity/account index.
   /// Path: m/83696968'/{nostrBip85Application}'/{identity}'/{account}'
@@ -32,7 +33,7 @@ class NostrIdentity {
     final ecPrivate = ECPrivate.fromHex(nsecHex);
     final npubHex = ecPrivate.getPublic().toXOnlyHex();
 
-    return NostrIdentity._(npubHex, ecPrivate);
+    return NostrIdentity._(npubHex, nsecHex, ecPrivate);
   }
 
   /// Sign a message with schnorr (SHA256 hash then sign).

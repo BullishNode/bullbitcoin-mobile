@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/nostr/nostr_identity.dart';
+import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -34,6 +35,13 @@ class DeleteLightningAddressUsecase {
         npubHex: nostr.npubHex,
         signatureHex: signature,
       );
+
+      // Clear NIP-05 profile on nostr relays (best-effort)
+      try {
+        await NostrRelayClient.clearProfile(
+          privateKeyHex: nostr.nsecHex,
+        );
+      } catch (_) {}
     } on PayServiceException catch (e) {
       throw LightningAddressRegistrationException(e.message);
     }
