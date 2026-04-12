@@ -54,6 +54,13 @@ class BitcoinSettingsScreen extends StatelessWidget {
                   ),
                 ),
                 SettingsEntryItem(
+                  icon: Icons.bolt,
+                  title: context.loc.lightningAddressTitle,
+                  onTap: () {
+                    context.pushNamed(SettingsRoute.lightningAddress.name);
+                  },
+                ),
+                SettingsEntryItem(
                   icon: Icons.swap_horiz,
                   title: context.loc.bitcoinSettingsAutoTransferTitle,
                   onTap: () {
