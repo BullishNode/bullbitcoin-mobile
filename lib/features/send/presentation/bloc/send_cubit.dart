@@ -40,6 +40,7 @@ import 'package:bb_mobile/features/send/domain/usecases/prepare_liquid_send_usec
 import 'package:bb_mobile/features/send/domain/usecases/select_best_wallet_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_bitcoin_tx_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.dart';
+import 'package:bb_mobile/features/send/domain/usecases/try_liquid_direct_pay_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/update_paid_send_swap_usecase.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 
@@ -82,6 +83,7 @@ class SendCubit extends Cubit<SendState> {
     calculateBitcoinAbsoluteFeesUsecase,
     required UpdateSendSwapLockupFeesUsecase updateSendSwapLockupFeesUsecase,
     required VerifyChainSwapAmountSendUsecase verifyChainSwapAmountSendUsecase,
+    required TryLiquidDirectPayUsecase tryLiquidDirectPayUsecase,
   }) : _wallet = wallet,
        _labelsFacade = labelsFacade,
        _getSettingsUsecase = getSettingsUsecase,
@@ -114,6 +116,7 @@ class SendCubit extends Cubit<SendState> {
            calculateBitcoinAbsoluteFeesUsecase,
        _updateSendSwapLockupFeesUsecase = updateSendSwapLockupFeesUsecase,
        _verifyChainSwapAmountSendUsecase = verifyChainSwapAmountSendUsecase,
+       _tryLiquidDirectPayUsecase = tryLiquidDirectPayUsecase,
        super(const SendState());
 
   // ignore: unused_field
@@ -152,6 +155,7 @@ class SendCubit extends Cubit<SendState> {
   _calculateBitcoinAbsoluteFeesUsecase;
   final UpdateSendSwapLockupFeesUsecase _updateSendSwapLockupFeesUsecase;
   final VerifyChainSwapAmountSendUsecase _verifyChainSwapAmountSendUsecase;
+  final TryLiquidDirectPayUsecase _tryLiquidDirectPayUsecase;
 
   StreamSubscription<Swap>? _swapSubscription;
   StreamSubscription<Wallet>? _selectedWalletSyncingSubscription;
@@ -971,6 +975,31 @@ class SendCubit extends Cubit<SendState> {
         );
         return;
       }
+      // LUD-22: try Liquid-direct payment before falling back to swap
+      if (state.selectedWallet!.isLiquid &&
+          state.paymentRequest is LnAddressPaymentRequest &&
+          state.confirmedAmountSat != null) {
+        final liquidDirect = await _tryLiquidDirectPayUsecase.execute(
+          lnAddress: state.paymentRequestAddress,
+          amountSat: state.confirmedAmountSat!,
+        );
+        if (liquidDirect != null) {
+          // Switch to direct Liquid send — no swap needed.
+          final liquidRequest = PaymentRequest.liquid(
+            address: liquidDirect.address,
+            isTestnet: state.selectedWallet!.network.isTestnet,
+          );
+          emit(state.copyWith(
+            sendType: SendType.liquid,
+            paymentRequest: liquidRequest,
+            confirmedAmountSat: liquidDirect.amountSat,
+            step: SendStep.confirm,
+          ));
+          await createTransaction();
+          return;
+        }
+      }
+
       try {
         emit(state.copyWith(creatingSwap: true));
 
