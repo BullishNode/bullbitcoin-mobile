@@ -8,6 +8,7 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_co
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:dio/dio.dart';
 
 class RegisterLightningAddressUsecase {
   final CreateLightningAddressWalletUsecase _createWallet;
@@ -55,6 +56,10 @@ class RegisterLightningAddressUsecase {
       );
     } on PayServiceException catch (e) {
       throw LightningAddressRegistrationException(e.message);
+    } on DioException catch (e) {
+      throw LightningAddressRegistrationException(
+        e.response?.data?.toString() ?? e.message ?? 'Network error',
+      );
     }
   }
 

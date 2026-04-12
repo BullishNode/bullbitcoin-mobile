@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
@@ -51,9 +52,12 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       );
       if (isClosed) return;
       emit(state.copyWith(registering: false, lightningAddress: address));
-    } on Exception catch (e) {
+    } catch (e, stack) {
+      debugPrint('Lightning address registration error: $e');
+      debugPrint('$stack');
       if (isClosed) return;
-      emit(state.copyWith(registering: false, error: _mapError(e)));
+      final msg = e is Exception ? _mapError(e) : e.toString();
+      emit(state.copyWith(registering: false, error: msg));
     }
   }
 
@@ -78,6 +82,6 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       return 'No wallet available';
     }
     if (e is LightningAddressSweepException) return e.message;
-    return 'Something went wrong. Please try again.';
+    return e.toString();
   }
 }
