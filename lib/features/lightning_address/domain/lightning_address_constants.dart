@@ -1,6 +1,6 @@
 const String lightningAddressWalletLabel = 'Lightning Address';
 const String lightningAddressDomain = 'bullpay.ca';
-const String payServiceBaseUrl = 'http://10.0.2.2:8080';
+const String payServiceBaseUrl = 'https://bullpay.ca';
 
 /// BIP85 index for the Lightning Address receive wallet (boltz = 75).
 const int lightningAddressWalletBip85Index = 75;

@@ -12911,9 +12911,10 @@
     "description": "Label on the collapsed section that reveals the raw exception text"
   },
   "lightningAddressTitle": "Lightning Address",
-  "lightningAddressActive": "Lightning Address is active",
-  "lightningAddressChoose": "Choose your Lightning Address",
-  "lightningAddressActivate": "Activate",
+  "lightningAddressActive": "Your Lightning Address is active",
+  "lightningAddressChooseNym": "Choose your nym",
+  "lightningAddressNymHint": "satoshi",
+  "lightningAddressRegister": "Register",
   "lightningAddressCopied": "Copied to clipboard",
-  "lightningAddressHint": "yourname"
+  "lightningAddressReceiveInfo": "Anyone can send you bitcoin via Lightning using this address."
 }

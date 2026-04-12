@@ -1,5 +1,5 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
-import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
+import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
@@ -9,23 +9,26 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class LightningAddressCubit extends Cubit<LightningAddressState> {
   final GetLightningAddressWalletUsecase _getWallet;
   final RegisterLightningAddressUsecase _register;
+  final PayServiceDatasource _payService;
 
   LightningAddressCubit({
     required GetLightningAddressWalletUsecase getWallet,
     required RegisterLightningAddressUsecase register,
+    required PayServiceDatasource payService,
   })  : _getWallet = getWallet,
         _register = register,
+        _payService = payService,
         super(const LightningAddressState());
 
   Future<void> checkStatus(Environment environment) async {
     try {
       final wallet = await _getWallet.execute(environment: environment);
+      final storedAddress = await _payService.getStoredAddress();
       if (isClosed) return;
       emit(state.copyWith(
         loading: false,
-        lightningAddress: wallet != null
-            ? '${wallet.label ?? ""}@$lightningAddressDomain'
-            : null,
+        walletExists: wallet != null,
+        lightningAddress: storedAddress,
       ));
     } on Exception catch (e) {
       if (isClosed) return;

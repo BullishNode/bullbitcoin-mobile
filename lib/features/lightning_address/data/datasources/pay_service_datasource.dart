@@ -1,7 +1,11 @@
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:dio/dio.dart';
+import 'package:hive/hive.dart';
 
 class PayServiceDatasource {
+  static const _boxName = 'lightning_address';
+  static const _addressKey = 'address';
+
   final Dio _dio;
 
   PayServiceDatasource({Dio? dio})
@@ -9,7 +13,7 @@ class PayServiceDatasource {
 
   /// Registers a nym with the pay service.
   /// Returns the lightning address on success.
-  /// Throws on nym taken, invalid signature, or network error.
+  /// Persists the address locally for later retrieval.
   Future<String> register({
     required String nym,
     required String ctDescriptor,
@@ -28,12 +32,22 @@ class PayServiceDatasource {
 
     final data = response.data!;
 
-    // LNURL-style error: HTTP 200 with {"status": "ERROR", "reason": "..."}
     if (data['status'] == 'ERROR') {
       throw PayServiceException(data['reason'] as String? ?? 'Unknown error');
     }
 
-    return data['lightning_address'] as String;
+    final address = data['lightning_address'] as String;
+
+    final box = await Hive.openBox<String>(_boxName);
+    await box.put(_addressKey, address);
+
+    return address;
+  }
+
+  /// Returns the locally stored lightning address, or null if not registered.
+  Future<String?> getStoredAddress() async {
+    final box = await Hive.openBox<String>(_boxName);
+    return box.get(_addressKey);
   }
 }
 

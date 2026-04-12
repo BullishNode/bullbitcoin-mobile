@@ -7,6 +7,7 @@ sealed class LightningAddressState with _$LightningAddressState {
   const factory LightningAddressState({
     @Default(true) bool loading,
     @Default(false) bool registering,
+    @Default(false) bool walletExists,
     String? lightningAddress,
     String? error,
   }) = _LightningAddressState;

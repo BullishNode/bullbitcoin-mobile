@@ -1,13 +1,13 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gap/gap.dart';
 
 class LightningAddressSettingsScreen extends StatefulWidget {
   const LightningAddressSettingsScreen({super.key});
@@ -40,32 +40,29 @@ class _LightningAddressSettingsScreenState
     return Scaffold(
       appBar: AppBar(title: Text(context.loc.lightningAddressTitle)),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: BlocBuilder<LightningAddressCubit, LightningAddressState>(
-            builder: (context, state) {
-              if (state.loading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (state.lightningAddress != null) {
-                return _ActivatedView(address: state.lightningAddress!);
-              }
-              return _RegistrationView(
-                controller: _nymController,
-                registering: state.registering,
-                error: state.error,
-                onRegister: () {
-                  final env =
-                      context.read<SettingsCubit>().state.environment ??
-                          Environment.mainnet;
-                  context.read<LightningAddressCubit>().registerNym(
-                        _nymController.text.trim().toLowerCase(),
-                        env,
-                      );
-                },
-              );
-            },
-          ),
+        child: BlocBuilder<LightningAddressCubit, LightningAddressState>(
+          builder: (context, state) {
+            if (state.loading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state.lightningAddress != null) {
+              return _ActivatedView(address: state.lightningAddress!);
+            }
+            return _RegistrationView(
+              controller: _nymController,
+              registering: state.registering,
+              error: state.error,
+              onRegister: () {
+                final env =
+                    context.read<SettingsCubit>().state.environment ??
+                        Environment.mainnet;
+                context.read<LightningAddressCubit>().registerNym(
+                      _nymController.text.trim().toLowerCase(),
+                      env,
+                    );
+              },
+            );
+          },
         ),
       ),
     );
@@ -78,46 +75,83 @@ class _ActivatedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.check_circle, color: context.appColors.success, size: 48),
-        const SizedBox(height: 16),
-        Text(
-          context.loc.lightningAddressActive,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: context.appColors.surface,
-            borderRadius: BorderRadius.circular(12),
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const Gap(32),
+          Icon(
+            Icons.bolt,
+            color: context.appColors.success,
+            size: 64,
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  address,
-                  style: Theme.of(context).textTheme.titleLarge,
+          const Gap(16),
+          Text(
+            context.loc.lightningAddressActive,
+            style: theme.textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          const Gap(24),
+          GestureDetector(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: address));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(context.loc.lightningAddressCopied)),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              decoration: BoxDecoration(
+                color: context.appColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: context.appColors.success.withValues(alpha: 0.3),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.copy),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: address));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(context.loc.lightningAddressCopied),
+              child: Column(
+                children: [
+                  Text(
+                    address,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                  );
-                },
+                    textAlign: TextAlign.center,
+                  ),
+                  const Gap(12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.copy,
+                        size: 16,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const Gap(4),
+                      Text(
+                        context.loc.lightningAddressCopied,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ],
+          const Gap(24),
+          Text(
+            context.loc.lightningAddressReceiveInfo,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -137,47 +171,55 @@ class _RegistrationView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          context.loc.lightningAddressChoose,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: controller,
-          enabled: !registering,
-          autocorrect: false,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9\-]')),
-            LengthLimitingTextInputFormatter(32),
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Gap(16),
+          Text(
+            context.loc.lightningAddressChooseNym,
+            style: theme.textTheme.titleLarge,
+          ),
+          const Gap(24),
+          TextField(
+            controller: controller,
+            enabled: !registering,
+            autocorrect: false,
+            textInputAction: TextInputAction.done,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9\-]')),
+              LengthLimitingTextInputFormatter(32),
+            ],
+            decoration: InputDecoration(
+              hintText: context.loc.lightningAddressNymHint,
+              border: const OutlineInputBorder(),
+            ),
+            onSubmitted: (_) => onRegister(),
+          ),
+          if (error != null) ...[
+            const Gap(12),
+            Text(error!, style: TextStyle(color: context.appColors.error)),
           ],
-          decoration: InputDecoration(
-            suffixText: '@$lightningAddressDomain',
-            hintText: context.loc.lightningAddressHint,
+          const Gap(24),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton(
+              onPressed: registering ? null : onRegister,
+              child: registering
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(context.loc.lightningAddressRegister),
+            ),
           ),
-          onSubmitted: (_) => onRegister(),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: registering ? null : onRegister,
-            child: registering
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(context.loc.lightningAddressActivate),
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 16),
-          Text(error!, style: TextStyle(color: context.appColors.error)),
         ],
-      ],
+      ),
     );
   }
 }

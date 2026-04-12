@@ -58,6 +58,7 @@ class LightningAddressLocator {
       () => LightningAddressCubit(
         getWallet: locator<GetLightningAddressWalletUsecase>(),
         register: locator<RegisterLightningAddressUsecase>(),
+        payService: locator<PayServiceDatasource>(),
       ),
     );
 
