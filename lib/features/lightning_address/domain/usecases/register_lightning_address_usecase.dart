@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:bb_mobile/core/nostr/nostr_identity.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
@@ -8,9 +7,6 @@ import 'package:bb_mobile/features/lightning_address/data/datasources/pay_servic
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
-import 'package:bip85_entropy/bip85_entropy.dart' as bip85;
-import 'package:bitcoin_base/bitcoin_base.dart';
-import 'package:crypto/crypto.dart';
 
 class RegisterLightningAddressUsecase {
   final CreateLightningAddressWalletUsecase _createWallet;
@@ -39,29 +35,20 @@ class RegisterLightningAddressUsecase {
     wallet ??= await _createWallet.execute(environment: environment);
 
     final xprv = await _deriveXprv();
-    final nostrPath = bip85.Bip85HardenedPath(
-      "$nostrBip85Application'/$lightningAddressNostrIdentity'/$lightningAddressNostrAccount'",
-    );
-    final entropyHex = bip85.Bip85Entropy.deriveFromHardenedPath(
+    final nostr = NostrIdentity.derive(
       xprvBase58: xprv,
-      path: nostrPath,
+      identity: lightningAddressNostrIdentity,
+      account: lightningAddressNostrAccount,
     );
-
-    final nsecHex = entropyHex.substring(0, 64);
-    final ecPrivate = ECPrivate.fromHex(nsecHex);
-    final npubHex = ecPrivate.getPublic().toXOnlyHex();
 
     final ctDescriptor = wallet.externalPublicDescriptor;
     final message = '$nym$ctDescriptor';
-    final messageHash = sha256.convert(message.codeUnits).bytes;
-    final signature = ecPrivate.signSchnorr(
-      Uint8List.fromList(messageHash),
-    );
+    final signature = nostr.signSchnorr(message.codeUnits);
 
     return await _payService.register(
       nym: nym,
       ctDescriptor: ctDescriptor,
-      npubHex: npubHex,
+      npubHex: nostr.npubHex,
       signatureHex: signature,
     );
   }
