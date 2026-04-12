@@ -10,10 +10,6 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_co
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 
 class CreateLightningAddressWalletUsecase {
-  /// BIP85 index for lightning address wallet.
-  /// Derived from the sum of alphabetical positions in "boltz":
-  /// b(2) + o(15) + l(12) + t(20) + z(26) = 75
-  static const int bip85Index = 75;
 
   final Bip85Repository _bip85Repository;
   final WalletRepository _walletRepository;
@@ -51,11 +47,10 @@ class CreateLightningAddressWalletUsecase {
       defaultWallet.network,
     );
 
-    // 3. Derive BIP85 child mnemonic at fixed index 75
     final bip85 = await _bip85Repository.deriveMnemonic(
       xprvBase58: xprv,
       length: bip39.MnemonicLength.words12,
-      index: bip85Index,
+      index: lightningAddressWalletBip85Index,
       alias: lightningAddressWalletLabel,
     );
 
