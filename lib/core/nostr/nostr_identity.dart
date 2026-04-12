@@ -36,9 +36,12 @@ class NostrIdentity {
     return NostrIdentity._(npubHex, nsecHex, ecPrivate);
   }
 
-  /// Sign a message with schnorr (SHA256 hash then sign).
+  /// Sign a message with BIP-340 schnorr (SHA256 hash then sign).
   String signSchnorr(List<int> message) {
     final messageHash = sha256.convert(message).bytes;
-    return _ecPrivate.signSchnorr(Uint8List.fromList(messageHash));
+    return _ecPrivate.signBip340(
+      Uint8List.fromList(messageHash),
+      tweak: false,
+    );
   }
 }
