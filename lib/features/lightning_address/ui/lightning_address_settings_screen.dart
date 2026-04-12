@@ -1,10 +1,10 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
+import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
-import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -19,16 +19,14 @@ class LightningAddressSettingsScreen extends StatefulWidget {
 
 class _LightningAddressSettingsScreenState
     extends State<LightningAddressSettingsScreen> {
-  bool _loading = true;
-  String? _lightningAddress;
-  String? _error;
   final _nymController = TextEditingController();
-  bool _registering = false;
 
   @override
   void initState() {
     super.initState();
-    _checkStatus();
+    final env =
+        context.read<SettingsCubit>().state.environment ?? Environment.mainnet;
+    context.read<LightningAddressCubit>().checkStatus(env);
   }
 
   @override
@@ -37,85 +35,56 @@ class _LightningAddressSettingsScreenState
     super.dispose();
   }
 
-  Environment get _environment =>
-      context.read<SettingsCubit>().state.environment ?? Environment.mainnet;
-
-  Future<void> _checkStatus() async {
-    try {
-      final wallet = await locator<GetLightningAddressWalletUsecase>().execute(
-        environment: _environment,
-      );
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        if (wallet != null && wallet.label == lightningAddressWalletLabel) {
-          // TODO: persist and retrieve the registered nym locally
-          // For now we just show the wallet is active
-        }
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = e.toString();
-      });
-    }
-  }
-
-  Future<void> _register() async {
-    final nym = _nymController.text.trim().toLowerCase();
-    if (nym.isEmpty) return;
-
-    setState(() {
-      _registering = true;
-      _error = null;
-    });
-
-    try {
-      final address =
-          await locator<RegisterLightningAddressUsecase>().execute(
-        nym: nym,
-        environment: _environment,
-      );
-      if (!mounted) return;
-      setState(() {
-        _lightningAddress = address;
-        _registering = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _registering = false;
-        _error = e.toString();
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Lightning Address')),
+      appBar: AppBar(title: Text(context.loc.lightningAddressTitle)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _lightningAddress != null
-                  ? _buildActivatedView(context)
-                  : _buildRegistrationView(context),
+          child: BlocBuilder<LightningAddressCubit, LightningAddressState>(
+            builder: (context, state) {
+              if (state.loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state.lightningAddress != null) {
+                return _ActivatedView(address: state.lightningAddress!);
+              }
+              return _RegistrationView(
+                controller: _nymController,
+                registering: state.registering,
+                error: state.error,
+                onRegister: () {
+                  final env =
+                      context.read<SettingsCubit>().state.environment ??
+                          Environment.mainnet;
+                  context.read<LightningAddressCubit>().registerNym(
+                        _nymController.text.trim().toLowerCase(),
+                        env,
+                      );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildActivatedView(BuildContext context) {
+class _ActivatedView extends StatelessWidget {
+  final String address;
+  const _ActivatedView({required this.address});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(Icons.check_circle, color: context.appColors.success, size: 48),
         const SizedBox(height: 16),
         Text(
-          'Lightning Address is active',
+          context.loc.lightningAddressActive,
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 16),
@@ -130,18 +99,18 @@ class _LightningAddressSettingsScreenState
             children: [
               Expanded(
                 child: Text(
-                  _lightningAddress!,
+                  address,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.copy),
                 onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(text: _lightningAddress!),
-                  );
+                  Clipboard.setData(ClipboardData(text: address));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Copied to clipboard')),
+                    SnackBar(
+                      content: Text(context.loc.lightningAddressCopied),
+                    ),
                   );
                 },
               ),
@@ -151,19 +120,34 @@ class _LightningAddressSettingsScreenState
       ],
     );
   }
+}
 
-  Widget _buildRegistrationView(BuildContext context) {
+class _RegistrationView extends StatelessWidget {
+  final TextEditingController controller;
+  final bool registering;
+  final String? error;
+  final VoidCallback onRegister;
+
+  const _RegistrationView({
+    required this.controller,
+    required this.registering,
+    required this.error,
+    required this.onRegister,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Choose your Lightning Address',
+          context.loc.lightningAddressChoose,
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 16),
         TextField(
-          controller: _nymController,
-          enabled: !_registering,
+          controller: controller,
+          enabled: !registering,
           autocorrect: false,
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9\-]')),
@@ -171,27 +155,27 @@ class _LightningAddressSettingsScreenState
           ],
           decoration: InputDecoration(
             suffixText: '@$lightningAddressDomain',
-            hintText: 'yourname',
+            hintText: context.loc.lightningAddressHint,
           ),
-          onSubmitted: (_) => _register(),
+          onSubmitted: (_) => onRegister(),
         ),
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: _registering ? null : _register,
-            child: _registering
+            onPressed: registering ? null : onRegister,
+            child: registering
                 ? const SizedBox(
                     height: 20,
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Activate'),
+                : Text(context.loc.lightningAddressActivate),
           ),
         ),
-        if (_error != null) ...[
+        if (error != null) ...[
           const SizedBox(height: 16),
-          Text(_error!, style: TextStyle(color: context.appColors.error)),
+          Text(error!, style: TextStyle(color: context.appColors.error)),
         ],
       ],
     );

@@ -9,6 +9,7 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/create_ligh
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/sweep_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:get_it/get_it.dart';
 
@@ -50,6 +51,13 @@ class LightningAddressLocator {
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
         payService: locator<PayServiceDatasource>(),
+      ),
+    );
+
+    locator.registerFactory<LightningAddressCubit>(
+      () => LightningAddressCubit(
+        getWallet: locator<GetLightningAddressWalletUsecase>(),
+        register: locator<RegisterLightningAddressUsecase>(),
       ),
     );
 

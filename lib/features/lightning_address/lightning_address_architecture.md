@@ -30,6 +30,8 @@ wallet on every sync cycle.
 - `LightningAddressWalletAlreadyExistsException` — create called when wallet exists
 - `LightningAddressWalletNotFoundException` — operation requires wallet that doesn't exist
 - `LightningAddressSweepException` — sweep failed (e.g., no default Liquid wallet)
+- `LightningAddressNoDefaultWalletException` — no default Bitcoin wallet for BIP85 derivation
+- `LightningAddressRegistrationException` — pay service returned an error (mapped from PayServiceException)
 
 ## Public Facade
 
@@ -38,9 +40,29 @@ wallet on every sync cycle.
 - `isLightningAddressWallet(Wallet)` — static predicate
 - `sweep(isTestnet:)` — triggers sweep from WalletBloc
 
+## Presentation
+
+`LightningAddressCubit` owns all screen state (loading, registering, address,
+error). The UI dispatches `checkStatus()` and `registerNym()` — the cubit calls
+use cases and maps errors to user-facing strings. No business logic in widgets.
+
 ## Data Flows
 
-### Activation
+### Registration
+```
+LightningAddressSettingsScreen → LightningAddressCubit.registerNym()
+  → GetLightningAddressWalletUsecase (find or create wallet)
+  → CreateLightningAddressWalletUsecase (if needed)
+    → Bip85Repository.deriveMnemonic(index: 75)
+    → SeedRepository.createFromMnemonic()
+    → WalletRepository.createWallet(label: "Lightning Address")
+  → NostrIdentity.derive(identity: 75, account: 0) [from core/nostr]
+  → sign(nym + ctDescriptor) with Nostr schnorr key
+  → PayServiceDatasource.register(nym, descriptor, npub, signature)
+  → returns "nym@bullpay.ca"
+```
+
+### Activation (wallet only, no server)
 ```
 Settings UI → CreateLightningAddressWalletUsecase
   → Bip85Repository.deriveMnemonic(index: 75)
@@ -81,5 +103,5 @@ wallet, syncs to detect UTXOs, and auto-sweeps on next sync.
 
 ## Feature Dependencies
 
-- **Depends on:** core/wallet, core/bip85, core/seed, core/blockchain, core/fees
+- **Depends on:** core/wallet, core/bip85, core/seed, core/blockchain, core/fees, core/nostr
 - **Depended on by:** wallet (via public facade only)

@@ -5,6 +5,7 @@ import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 
@@ -45,12 +46,16 @@ class RegisterLightningAddressUsecase {
     final message = '$nym$ctDescriptor';
     final signature = nostr.signSchnorr(message.codeUnits);
 
-    return await _payService.register(
-      nym: nym,
-      ctDescriptor: ctDescriptor,
-      npubHex: nostr.npubHex,
-      signatureHex: signature,
-    );
+    try {
+      return await _payService.register(
+        nym: nym,
+        ctDescriptor: ctDescriptor,
+        npubHex: nostr.npubHex,
+        signatureHex: signature,
+      );
+    } on PayServiceException catch (e) {
+      throw LightningAddressRegistrationException(e.message);
+    }
   }
 
   Future<String> _deriveXprv() async {
@@ -58,7 +63,7 @@ class RegisterLightningAddressUsecase {
       onlyDefaults: true,
       onlyBitcoin: true,
     );
-    if (wallets.isEmpty) throw Exception('No default Bitcoin wallet found');
+    if (wallets.isEmpty) throw LightningAddressNoDefaultWalletException();
     final defaultWallet = wallets.first;
 
     final seed = await _seedRepository.get(defaultWallet.masterFingerprint);

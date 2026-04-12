@@ -37,7 +37,7 @@ class CreateLightningAddressWalletUsecase {
       onlyDefaults: true,
       onlyBitcoin: true,
     );
-    if (wallets.isEmpty) throw Exception('No default Bitcoin wallet found');
+    if (wallets.isEmpty) throw LightningAddressNoDefaultWalletException();
     final defaultWallet = wallets.first;
 
     // 2. Get seed and derive xprv

@@ -56,7 +56,7 @@ class SweepLightningAddressWalletUsecase {
     }
 
     final destinationAddress =
-        await _walletAddressRepository.getLastUnusedReceiveAddress(
+        await _walletAddressRepository.getLastRevealedReceiveAddress(
       walletId: defaultLiquid.id,
     );
 

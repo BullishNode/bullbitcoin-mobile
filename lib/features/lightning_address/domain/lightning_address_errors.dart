@@ -13,3 +13,12 @@ class LightningAddressWalletNotFoundException extends BullException {
 class LightningAddressSweepException extends BullException {
   LightningAddressSweepException(super.message);
 }
+
+class LightningAddressNoDefaultWalletException extends BullException {
+  LightningAddressNoDefaultWalletException()
+    : super('No default Bitcoin wallet found');
+}
+
+class LightningAddressRegistrationException extends BullException {
+  LightningAddressRegistrationException(super.message);
+}
