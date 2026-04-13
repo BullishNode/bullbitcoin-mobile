@@ -6,36 +6,38 @@ class LightningAddressSettingsDatasource {
   static const _hideWalletKey = 'hide_wallet';
   static const _nymHistoryKey = 'nym_history';
 
+  Future<Box<dynamic>> _openBox() => Hive.openBox<dynamic>(_boxName);
+
   Future<bool> getAutoSweep() async {
-    final box = await Hive.openBox<bool>(_boxName);
-    return box.get(_autoSweepKey, defaultValue: true)!;
+    final box = await _openBox();
+    return box.get(_autoSweepKey, defaultValue: true) as bool;
   }
 
   Future<void> setAutoSweep(bool value) async {
-    final box = await Hive.openBox<bool>(_boxName);
+    final box = await _openBox();
     await box.put(_autoSweepKey, value);
   }
 
   Future<bool> getHideWallet() async {
-    final box = await Hive.openBox<bool>(_boxName);
-    return box.get(_hideWalletKey, defaultValue: true)!;
+    final box = await _openBox();
+    return box.get(_hideWalletKey, defaultValue: true) as bool;
   }
 
   Future<void> setHideWallet(bool value) async {
-    final box = await Hive.openBox<bool>(_boxName);
+    final box = await _openBox();
     await box.put(_hideWalletKey, value);
   }
 
   Future<List<String>> getNymHistory() async {
-    final box = await Hive.openBox<List>(_boxName);
+    final box = await _openBox();
     final history = box.get(_nymHistoryKey);
     if (history == null) return [];
-    return history.cast<String>();
+    return (history as List).cast<String>();
   }
 
   Future<void> addToNymHistory(String nym) async {
-    final box = await Hive.openBox<List>(_boxName);
-    final history = (box.get(_nymHistoryKey) ?? []).cast<String>();
+    final box = await _openBox();
+    final history = ((box.get(_nymHistoryKey) ?? []) as List).cast<String>();
     if (!history.contains(nym)) {
       history.add(nym);
       await box.put(_nymHistoryKey, history);
