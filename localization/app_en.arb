@@ -12917,5 +12917,31 @@
   "lightningAddressRegister": "Register",
   "lightningAddressCopied": "Copied to clipboard",
   "lightningAddressReceiveInfo": "Any Lightning Address compatible wallet can send funds to this address. Incoming Lightning Network payments will be automatically swapped to Liquid Network (L-BTC). Swap fees and Liquid Network fees will be deducted from the amount you receive.",
-  "lightningAddressDelete": "Deactivate Lightning Address"
+  "lightningAddressDelete": "Deactivate Lightning Address",
+  "lightningAddressActivated": "Lightning Address activated: {address}",
+  "@lightningAddressActivated": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+  "lightningAddressDeactivated": "Lightning Address deactivated",
+  "lightningAddressCreating": "Your nym is being created",
+  "lightningAddressCreatingDesc": "Registering your Lightning Address...",
+  "lightningAddressAutoSweep": "Auto-sweep to Instant Payments",
+  "lightningAddressAutoSweepSub": "Automatically move received funds for privacy",
+  "lightningAddressAutoSweepInfo": "All funds received via your Lightning Address are automatically sent to your Instant Payments wallet.\n\nWhy? The Lightning Address server knows the public key (xpub) of your Lightning Address wallet, which means it can see all transactions in that wallet. Sweeping to your Instant Payments wallet protects your privacy.\n\nDownside: You pay a small Liquid Network fee (~20 sats) each time funds are swept.",
+  "lightningAddressHideWallet": "Hide wallet on home",
+  "lightningAddressHideWalletSub": "Keep home screen clean",
+  "lightningAddressHideWalletInfo": "The Lightning Address wallet is a dedicated wallet used only for receiving Lightning Address payments. Hiding it keeps your home screen clean — funds are auto-swept to your Instant Payments wallet anyway.\n\nYou can always find this wallet in Settings > Wallets.",
+  "lightningAddressDeactivateTitle": "Deactivate Lightning Address?",
+  "lightningAddressDeactivateBody": "People will no longer be able to send funds to {address} until you reactivate it. No one else can claim this address — it stays reserved for you.",
+  "@lightningAddressDeactivateBody": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+  "lightningAddressDeactivateCancel": "Cancel",
+  "lightningAddressDeactivateConfirm": "Deactivate",
+  "lightningAddressTapToCopy": "Tap to copy",
+  "lightningAddressPreviousFound": "Previous address found",
+  "lightningAddressPreviousBody": "{nym}@{domain} was deactivated. Tap Register to reactivate it.",
+  "@lightningAddressPreviousBody": {
+    "placeholders": { "nym": { "type": "String" }, "domain": { "type": "String" } }
+  }
 }

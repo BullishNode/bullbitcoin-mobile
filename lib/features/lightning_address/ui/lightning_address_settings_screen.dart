@@ -57,14 +57,15 @@ class _LightningAddressSettingsScreenState
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Lightning Address activated: ${state.lightningAddress}',
+                    context.loc.lightningAddressActivated(
+                        state.lightningAddress!),
                   ),
                 ),
               );
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Lightning Address deactivated'),
+                SnackBar(
+                  content: Text(context.loc.lightningAddressDeactivated),
                 ),
               );
             }
@@ -74,9 +75,9 @@ class _LightningAddressSettingsScreenState
               return const Center(child: CircularProgressIndicator());
             }
             if (state.registering && state.lightningAddress == null) {
-              return const StatusScreen(
-                title: 'Your nym is being created',
-                description: 'Registering your Lightning Address...',
+              return StatusScreen(
+                title: context.loc.lightningAddressCreating,
+                description: context.loc.lightningAddressCreatingDesc,
               );
             }
             if (state.lightningAddress != null) {
@@ -207,7 +208,7 @@ class _ActivatedViewState extends State<_ActivatedView> {
                           color: theme.colorScheme.onSurfaceVariant),
                       const Gap(4),
                       Text(
-                        context.loc.lightningAddressCopied,
+                        context.loc.lightningAddressTapToCopy,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -228,37 +229,26 @@ class _ActivatedViewState extends State<_ActivatedView> {
           ),
           const Gap(32),
           _OptionTile(
-            title: 'Auto-sweep to Instant Payments',
-            subtitle: 'Automatically move received funds for privacy',
+            title: context.loc.lightningAddressAutoSweep,
+            subtitle: context.loc.lightningAddressAutoSweepSub,
             value: _autoSweep,
             onChanged: _saveAutoSweep,
             onInfoTap: () => _showBottomSheet(
               context,
-              'Auto-sweep to Instant Payments',
-              'All funds received via your Lightning Address are automatically '
-                  'sent to your Instant Payments wallet.\n\n'
-                  'Why? The Lightning Address server knows the public key (xpub) of '
-                  'your Lightning Address wallet, which means it can see all '
-                  'transactions in that wallet. Sweeping to your Instant Payments '
-                  'wallet protects your privacy.\n\n'
-                  'Downside: You pay a small Liquid Network fee (~20 sats) each '
-                  'time funds are swept.',
+              context.loc.lightningAddressAutoSweep,
+              context.loc.lightningAddressAutoSweepInfo,
             ),
           ),
           const Gap(16),
           _OptionTile(
-            title: 'Hide wallet on home',
-            subtitle: 'Keep home screen clean',
+            title: context.loc.lightningAddressHideWallet,
+            subtitle: context.loc.lightningAddressHideWalletSub,
             value: _hideWallet,
             onChanged: _saveHideWallet,
             onInfoTap: () => _showBottomSheet(
               context,
-              'Hide Lightning Address wallet',
-              'The Lightning Address wallet is a dedicated wallet used only '
-                  'for receiving Lightning Address payments. Hiding it keeps your '
-                  'home screen clean — funds are auto-swept to your Instant '
-                  'Payments wallet anyway.\n\n'
-                  'You can always find this wallet in Settings > Wallets.',
+              context.loc.lightningAddressHideWallet,
+              context.loc.lightningAddressHideWalletInfo,
             ),
           ),
           const Gap(32),
@@ -271,24 +261,21 @@ class _ActivatedViewState extends State<_ActivatedView> {
                       final confirmed = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title:
-                                  const Text('Deactivate Lightning Address?'),
+                              title: Text(context.loc.lightningAddressDeactivateTitle),
                               content: Text(
-                                'People will no longer be able to send funds to ${widget.address} '
-                                'until you reactivate it. No one else can claim this address — '
-                                'it stays reserved for you.',
+                                context.loc.lightningAddressDeactivateBody(widget.address),
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.of(ctx).pop(false),
-                                  child: const Text('Cancel'),
+                                  child: Text(context.loc.lightningAddressDeactivateCancel),
                                 ),
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.of(ctx).pop(true),
                                   child: Text(
-                                    'Deactivate',
+                                    context.loc.lightningAddressDeactivateConfirm,
                                     style: TextStyle(
                                       color: Theme.of(ctx).colorScheme.error,
                                     ),
@@ -381,13 +368,13 @@ class _RegistrationView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Previous address found',
+                    context.loc.lightningAddressPreviousFound,
                     style: theme.textTheme.titleSmall,
                   ),
                   const Gap(4),
                   Text(
-                    '$previousNym@$lightningAddressDomain was deactivated. '
-                    'Tap Register to reactivate it.',
+                    context.loc.lightningAddressPreviousBody(
+                      previousNym ?? '', lightningAddressDomain),
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
