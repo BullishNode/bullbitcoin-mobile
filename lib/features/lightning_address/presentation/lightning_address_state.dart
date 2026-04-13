@@ -9,6 +9,7 @@ sealed class LightningAddressState with _$LightningAddressState {
     @Default(false) bool registering,
     @Default(false) bool walletExists,
     String? lightningAddress,
+    String? previousNym,
     String? error,
   }) = _LightningAddressState;
 }

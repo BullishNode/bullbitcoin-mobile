@@ -74,6 +74,8 @@ class LightningAddressLocator {
         register: locator<RegisterLightningAddressUsecase>(),
         delete: locator<DeleteLightningAddressUsecase>(),
         payService: locator<PayServiceDatasource>(),
+        walletRepository: locator<WalletRepository>(),
+        seedRepository: locator<SeedRepository>(),
       ),
     );
 

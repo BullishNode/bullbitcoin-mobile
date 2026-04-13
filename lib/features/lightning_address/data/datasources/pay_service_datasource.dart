@@ -50,6 +50,28 @@ class PayServiceDatasource {
     return box.get(_addressKey);
   }
 
+  /// Stores a lightning address locally (for recovery without re-registering).
+  Future<void> storeAddress(String address) async {
+    final box = await Hive.openBox<String>(_boxName);
+    await box.put(_addressKey, address);
+  }
+
+  /// Checks if an npub has an existing registration on the server.
+  /// Returns (nym, active) or null if not found.
+  Future<({String nym, bool active})?> lookupByNpub(String npubHex) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/register/lookup',
+        queryParameters: {'npub': npubHex},
+      );
+      final data = response.data;
+      if (data == null || data['status'] == 'ERROR') return null;
+      return (nym: data['nym'] as String, active: data['active'] as bool);
+    } on DioException {
+      return null;
+    }
+  }
+
   /// Deletes the registration on the server and clears local storage.
   Future<void> deleteRegistration({
     required String npubHex,

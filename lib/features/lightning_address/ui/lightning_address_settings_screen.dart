@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_address_settings_datasource.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
@@ -77,10 +78,15 @@ class _LightningAddressSettingsScreenState
                 deleting: state.registering,
               );
             }
+            // Pre-fill nym controller if we found a previous registration
+            if (state.previousNym != null && _nymController.text.isEmpty) {
+              _nymController.text = state.previousNym!;
+            }
             return _RegistrationView(
               controller: _nymController,
               registering: state.registering,
               error: state.error,
+              previousNym: state.previousNym,
               onRegister: () {
                 final env =
                     context.read<SettingsCubit>().state.environment ??
@@ -335,6 +341,7 @@ class _RegistrationView extends StatelessWidget {
   final TextEditingController controller;
   final bool registering;
   final String? error;
+  final String? previousNym;
   final VoidCallback onRegister;
 
   const _RegistrationView({
@@ -342,6 +349,7 @@ class _RegistrationView extends StatelessWidget {
     required this.registering,
     required this.error,
     required this.onRegister,
+    this.previousNym,
   });
 
   @override
@@ -354,6 +362,32 @@ class _RegistrationView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Gap(16),
+          if (previousNym != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Previous address found',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  const Gap(4),
+                  Text(
+                    '$previousNym@$lightningAddressDomain was deactivated. '
+                    'Tap Register to reactivate it.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const Gap(16),
+          ],
           Text(
             context.loc.lightningAddressChooseNym,
             style: theme.textTheme.titleLarge,
