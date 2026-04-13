@@ -358,19 +358,23 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
         );
         add(const ExecuteAutoSwap());
 
-        // Sweep Lightning Address wallet if auto-sweep is enabled
-        try {
-          final shouldSweep = await _lightningAddressFacade.shouldAutoSweep();
-          if (shouldSweep) {
-            final txid = await _lightningAddressFacade.sweep(
-              isTestnet: event.wallet.network.isTestnet,
-            );
-            if (txid != null) {
-              debugPrint('Lightning Address sweep: $txid');
+        // Sweep Lightning Address wallet — only on default Liquid wallet sync
+        if (event.wallet.isDefault &&
+            !LightningAddressFacade.isLightningAddressWallet(event.wallet)) {
+          try {
+            final shouldSweep =
+                await _lightningAddressFacade.shouldAutoSweep();
+            if (shouldSweep) {
+              final txid = await _lightningAddressFacade.sweep(
+                isTestnet: event.wallet.network.isTestnet,
+              );
+              if (txid != null) {
+                debugPrint('Lightning Address sweep: $txid');
+              }
             }
+          } catch (e) {
+            debugPrint('Lightning Address sweep failed: $e');
           }
-        } catch (e) {
-          debugPrint('Lightning Address sweep failed: $e');
         }
       }
 

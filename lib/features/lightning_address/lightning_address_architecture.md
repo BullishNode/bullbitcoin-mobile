@@ -92,8 +92,8 @@ WalletBloc._filterDisplayWallets()
 
 ## Concurrency
 
-- `lightningAddressSweepExecuting` flag in WalletState prevents concurrent sweeps
 - Sweep only fires on default Liquid wallet sync (not on LA wallet's own sync)
+- The `!state.autoSwapExecuting` guard prevents sweep from running during auto-swap execution
 
 ## Recovery
 
