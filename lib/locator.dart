@@ -75,6 +75,7 @@ class AppLocator {
     AllSeedViewLocator.setup(locator);
     SettingsLocator.setup(locator);
     BitcoinPriceLocator.setup(locator);
+    LightningAddressLocator.setup(locator);
     WalletLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);
     TransactionsLocator.registerBlocs(locator);
@@ -106,6 +107,5 @@ class AppLocator {
     RecipientsLocator.setup(locator);
     BitBoxLocator.setup(locator);
     ArkCoreLocator.setup(locator);
-    LightningAddressLocator.setup(locator);
   }
 }
