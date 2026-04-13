@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:nostr/nostr.dart';
 
+// TODO: move relay list to app config so it can be updated without a release
 const _defaultRelays = [
   'wss://relay.damus.io',
   'wss://nos.lol',
