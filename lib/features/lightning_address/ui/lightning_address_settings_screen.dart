@@ -49,7 +49,7 @@ class _LightningAddressSettingsScreenState
               !curr.loading,
           listener: (context, state) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Lightning Address deleted')),
+              const SnackBar(content: Text('Lightning Address deactivated')),
             );
           },
           child: BlocBuilder<LightningAddressCubit, LightningAddressState>(
@@ -83,10 +83,10 @@ Future<bool> _showDeleteConfirmation(
   return await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Delete Lightning Address?'),
+          title: const Text('Deactivate Lightning Address?'),
           content: Text(
-            'People will no longer be able to send funds to $address. '
-            'This action cannot be undone — the address cannot be reclaimed by someone else.',
+            'People will no longer be able to send funds to $address until you reactivate it. '
+            'No one else can claim this address — it stays reserved for you.',
           ),
           actions: [
             TextButton(
@@ -96,7 +96,7 @@ Future<bool> _showDeleteConfirmation(
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
               child: Text(
-                'Delete',
+                'Deactivate',
                 style: TextStyle(color: Theme.of(ctx).colorScheme.error),
               ),
             ),
@@ -106,16 +106,102 @@ Future<bool> _showDeleteConfirmation(
       false;
 }
 
-class _ActivatedView extends StatelessWidget {
+class _ActivatedView extends StatefulWidget {
   final String address;
   final bool deleting;
   const _ActivatedView({required this.address, this.deleting = false});
 
   @override
+  State<_ActivatedView> createState() => _ActivatedViewState();
+}
+
+class _ActivatedViewState extends State<_ActivatedView> {
+  bool _autoSweep = true;
+  bool _hideWallet = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final settings = GetIt.I<LightningAddressSettingsDatasource>();
+    final autoSweep = await settings.getAutoSweep();
+    final hideWallet = await settings.getHideWallet();
+    if (mounted) setState(() { _autoSweep = autoSweep; _hideWallet = hideWallet; });
+  }
+
+  Future<void> _saveAutoSweep(bool value) async {
+    setState(() => _autoSweep = value);
+    await GetIt.I<LightningAddressSettingsDatasource>().setAutoSweep(value);
+  }
+
+  Future<void> _saveHideWallet(bool value) async {
+    setState(() => _hideWallet = value);
+    await GetIt.I<LightningAddressSettingsDatasource>().setHideWallet(value);
+  }
+
+  void _showAutoSweepInfo(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Auto-sweep to Instant Payments',
+                style: Theme.of(ctx).textTheme.titleMedium),
+            const Gap(16),
+            const Text(
+              'All funds received via your Lightning Address are automatically '
+              'sent to your Instant Payments wallet.\n\n'
+              'Why? The Lightning Address server knows the public key (xpub) of '
+              'your Lightning Address wallet, which means it can see all '
+              'transactions in that wallet. Sweeping to your Instant Payments '
+              'wallet protects your privacy.\n\n'
+              'Downside: You pay a small Liquid Network fee (~20 sats) each '
+              'time funds are swept.',
+            ),
+            const Gap(24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showHideWalletInfo(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Hide Lightning Address wallet',
+                style: Theme.of(ctx).textTheme.titleMedium),
+            const Gap(16),
+            const Text(
+              'The Lightning Address wallet is a dedicated wallet used only '
+              'for receiving Lightning Address payments. Hiding it keeps your '
+              'home screen clean — funds are auto-swept to your Instant '
+              'Payments wallet anyway.\n\n'
+              'You can always find this wallet in Settings > Wallets.',
+            ),
+            const Gap(24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
@@ -130,7 +216,7 @@ class _ActivatedView extends StatelessWidget {
           const Gap(24),
           GestureDetector(
             onTap: () {
-              Clipboard.setData(ClipboardData(text: address));
+              Clipboard.setData(ClipboardData(text: widget.address));
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(context.loc.lightningAddressCopied)),
               );
@@ -149,7 +235,7 @@ class _ActivatedView extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    address,
+                    widget.address,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -183,22 +269,38 @@ class _ActivatedView extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-          const Spacer(),
+          const Gap(32),
+          _OptionTile(
+            title: 'Auto-sweep to Instant Payments',
+            subtitle: 'Automatically move received funds for privacy',
+            value: _autoSweep,
+            onChanged: _saveAutoSweep,
+            onInfoTap: () => _showAutoSweepInfo(context),
+          ),
+          const Gap(16),
+          _OptionTile(
+            title: 'Hide wallet on home',
+            subtitle: 'Keep home screen clean',
+            value: _hideWallet,
+            onChanged: _saveHideWallet,
+            onInfoTap: () => _showHideWalletInfo(context),
+          ),
+          const Gap(32),
           SizedBox(
             width: double.infinity,
             child: TextButton(
-              onPressed: deleting
+              onPressed: widget.deleting
                   ? null
                   : () async {
                       final confirmed =
-                          await _showDeleteConfirmation(context, address);
+                          await _showDeleteConfirmation(context, widget.address);
                       if (confirmed && context.mounted) {
                         context
                             .read<LightningAddressCubit>()
                             .deleteAddress();
                       }
                     },
-              child: deleting
+              child: widget.deleting
                   ? const SizedBox(
                       height: 20,
                       width: 20,
