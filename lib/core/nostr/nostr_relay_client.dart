@@ -10,6 +10,8 @@ const _defaultRelays = [
   'wss://relay.nostr.band',
   'wss://no.str.cr',
   'wss://relay.primal.net',
+  'wss://relay.nostr.bg',
+  'wss://nostr.wine',
 ];
 
 class NostrRelayClient {
