@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/widgets/loading/status_screen.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_address_settings_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
@@ -71,6 +72,12 @@ class _LightningAddressSettingsScreenState
           builder: (context, state) {
             if (state.loading) {
               return const Center(child: CircularProgressIndicator());
+            }
+            if (state.registering && state.lightningAddress == null) {
+              return const StatusScreen(
+                title: 'Your nym is being created',
+                description: 'Registering your Lightning Address...',
+              );
             }
             if (state.lightningAddress != null) {
               return _ActivatedView(
