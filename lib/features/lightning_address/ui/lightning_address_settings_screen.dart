@@ -42,69 +42,63 @@ class _LightningAddressSettingsScreenState
     return Scaffold(
       appBar: AppBar(title: Text(context.loc.lightningAddressTitle)),
       body: SafeArea(
-        child: BlocListener<LightningAddressCubit, LightningAddressState>(
+        child: BlocConsumer<LightningAddressCubit, LightningAddressState>(
           listenWhen: (prev, curr) =>
-              prev.lightningAddress != null &&
-              curr.lightningAddress == null &&
-              !curr.loading,
+              // Registration succeeded
+              (prev.lightningAddress == null && curr.lightningAddress != null) ||
+              // Deactivation succeeded
+              (prev.lightningAddress != null &&
+                  curr.lightningAddress == null &&
+                  !curr.loading),
           listener: (context, state) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Lightning Address deactivated')),
+            if (state.lightningAddress != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Lightning Address activated: ${state.lightningAddress}',
+                  ),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Lightning Address deactivated'),
+                ),
+              );
+            }
+          },
+          builder: (context, state) {
+            if (state.loading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state.lightningAddress != null) {
+              return _ActivatedView(
+                address: state.lightningAddress!,
+                deleting: state.registering,
+              );
+            }
+            return _RegistrationView(
+              controller: _nymController,
+              registering: state.registering,
+              error: state.error,
+              onRegister: () {
+                final env =
+                    context.read<SettingsCubit>().state.environment ??
+                        Environment.mainnet;
+                context.read<LightningAddressCubit>().registerNym(
+                      _nymController.text.trim().toLowerCase(),
+                      env,
+                    );
+              },
             );
           },
-          child: BlocBuilder<LightningAddressCubit, LightningAddressState>(
-            builder: (context, state) {
-              if (state.loading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (state.lightningAddress != null) {
-                return _ActivatedView(
-                  address: state.lightningAddress!,
-                  deleting: state.registering,
-                );
-              }
-              return _RegistrationView(
-                controller: _nymController,
-                registering: state.registering,
-                error: state.error,
-              );
-            },
-          ),
         ),
       ),
     );
   }
 }
 
-// --- Activated view ---
-
-Future<bool> _showDeleteConfirmation(
-    BuildContext context, String address) async {
-  return await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Deactivate Lightning Address?'),
-          content: Text(
-            'People will no longer be able to send funds to $address until you reactivate it. '
-            'No one else can claim this address — it stays reserved for you.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(
-                'Deactivate',
-                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-              ),
-            ),
-          ],
-        ),
-      ) ??
-      false;
-}
+// --- Activated view with settings ---
 
 class _ActivatedView extends StatefulWidget {
   final String address;
@@ -129,7 +123,12 @@ class _ActivatedViewState extends State<_ActivatedView> {
     final settings = GetIt.I<LightningAddressSettingsDatasource>();
     final autoSweep = await settings.getAutoSweep();
     final hideWallet = await settings.getHideWallet();
-    if (mounted) setState(() { _autoSweep = autoSweep; _hideWallet = hideWallet; });
+    if (mounted) {
+      setState(() {
+        _autoSweep = autoSweep;
+        _hideWallet = hideWallet;
+      });
+    }
   }
 
   Future<void> _saveAutoSweep(bool value) async {
@@ -140,61 +139,6 @@ class _ActivatedViewState extends State<_ActivatedView> {
   Future<void> _saveHideWallet(bool value) async {
     setState(() => _hideWallet = value);
     await GetIt.I<LightningAddressSettingsDatasource>().setHideWallet(value);
-  }
-
-  void _showAutoSweepInfo(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Auto-sweep to Instant Payments',
-                style: Theme.of(ctx).textTheme.titleMedium),
-            const Gap(16),
-            const Text(
-              'All funds received via your Lightning Address are automatically '
-              'sent to your Instant Payments wallet.\n\n'
-              'Why? The Lightning Address server knows the public key (xpub) of '
-              'your Lightning Address wallet, which means it can see all '
-              'transactions in that wallet. Sweeping to your Instant Payments '
-              'wallet protects your privacy.\n\n'
-              'Downside: You pay a small Liquid Network fee (~20 sats) each '
-              'time funds are swept.',
-            ),
-            const Gap(24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showHideWalletInfo(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Hide Lightning Address wallet',
-                style: Theme.of(ctx).textTheme.titleMedium),
-            const Gap(16),
-            const Text(
-              'The Lightning Address wallet is a dedicated wallet used only '
-              'for receiving Lightning Address payments. Hiding it keeps your '
-              'home screen clean — funds are auto-swept to your Instant '
-              'Payments wallet anyway.\n\n'
-              'You can always find this wallet in Settings > Wallets.',
-            ),
-            const Gap(24),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -275,7 +219,18 @@ class _ActivatedViewState extends State<_ActivatedView> {
             subtitle: 'Automatically move received funds for privacy',
             value: _autoSweep,
             onChanged: _saveAutoSweep,
-            onInfoTap: () => _showAutoSweepInfo(context),
+            onInfoTap: () => _showBottomSheet(
+              context,
+              'Auto-sweep to Instant Payments',
+              'All funds received via your Lightning Address are automatically '
+                  'sent to your Instant Payments wallet.\n\n'
+                  'Why? The Lightning Address server knows the public key (xpub) of '
+                  'your Lightning Address wallet, which means it can see all '
+                  'transactions in that wallet. Sweeping to your Instant Payments '
+                  'wallet protects your privacy.\n\n'
+                  'Downside: You pay a small Liquid Network fee (~20 sats) each '
+                  'time funds are swept.',
+            ),
           ),
           const Gap(16),
           _OptionTile(
@@ -283,7 +238,15 @@ class _ActivatedViewState extends State<_ActivatedView> {
             subtitle: 'Keep home screen clean',
             value: _hideWallet,
             onChanged: _saveHideWallet,
-            onInfoTap: () => _showHideWalletInfo(context),
+            onInfoTap: () => _showBottomSheet(
+              context,
+              'Hide Lightning Address wallet',
+              'The Lightning Address wallet is a dedicated wallet used only '
+                  'for receiving Lightning Address payments. Hiding it keeps your '
+                  'home screen clean — funds are auto-swept to your Instant '
+                  'Payments wallet anyway.\n\n'
+                  'You can always find this wallet in Settings > Wallets.',
+            ),
           ),
           const Gap(32),
           SizedBox(
@@ -292,8 +255,36 @@ class _ActivatedViewState extends State<_ActivatedView> {
               onPressed: widget.deleting
                   ? null
                   : () async {
-                      final confirmed =
-                          await _showDeleteConfirmation(context, widget.address);
+                      final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title:
+                                  const Text('Deactivate Lightning Address?'),
+                              content: Text(
+                                'People will no longer be able to send funds to ${widget.address} '
+                                'until you reactivate it. No one else can claim this address — '
+                                'it stays reserved for you.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(ctx).pop(false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(ctx).pop(true),
+                                  child: Text(
+                                    'Deactivate',
+                                    style: TextStyle(
+                                      color: Theme.of(ctx).colorScheme.error,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ) ??
+                          false;
                       if (confirmed && context.mounted) {
                         context
                             .read<LightningAddressCubit>()
@@ -319,81 +310,44 @@ class _ActivatedViewState extends State<_ActivatedView> {
   }
 }
 
-// --- Registration view with options ---
+void _showBottomSheet(BuildContext context, String title, String content) {
+  showModalBottomSheet(
+    context: context,
+    builder: (ctx) => Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(ctx).textTheme.titleMedium),
+          const Gap(16),
+          Text(content),
+          const Gap(24),
+        ],
+      ),
+    ),
+  );
+}
 
-class _RegistrationView extends StatefulWidget {
+// --- Simple registration view ---
+
+class _RegistrationView extends StatelessWidget {
   final TextEditingController controller;
   final bool registering;
   final String? error;
+  final VoidCallback onRegister;
 
   const _RegistrationView({
     required this.controller,
     required this.registering,
     required this.error,
+    required this.onRegister,
   });
-
-  @override
-  State<_RegistrationView> createState() => _RegistrationViewState();
-}
-
-class _RegistrationViewState extends State<_RegistrationView> {
-  bool _showOptions = false;
-  bool _autoSweep = true;
-  bool _hideWallet = true;
-  List<String> _nymHistory = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final settings = GetIt.I<LightningAddressSettingsDatasource>();
-    final autoSweep = await settings.getAutoSweep();
-    final hideWallet = await settings.getHideWallet();
-    final history = await settings.getNymHistory();
-    if (mounted) {
-      setState(() {
-        _autoSweep = autoSweep;
-        _hideWallet = hideWallet;
-        _nymHistory = history;
-      });
-    }
-  }
-
-  Future<void> _onRegister() async {
-    final nym = widget.controller.text.trim().toLowerCase();
-    if (nym.isEmpty) return;
-
-    if (_showOptions) {
-      // Persist settings and register
-      final settings = GetIt.I<LightningAddressSettingsDatasource>();
-      await settings.setAutoSweep(_autoSweep);
-      await settings.setHideWallet(_hideWallet);
-      await settings.addToNymHistory(nym);
-
-      if (!mounted) return;
-      final env = context.read<SettingsCubit>().state.environment ??
-          Environment.mainnet;
-      context.read<LightningAddressCubit>().registerNym(nym, env);
-    } else {
-      // Show options step
-      setState(() => _showOptions = true);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    if (_showOptions) {
-      return _buildOptionsStep(theme);
-    }
-    return _buildNymEntryStep(theme);
-  }
-
-  Widget _buildNymEntryStep(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -406,8 +360,8 @@ class _RegistrationViewState extends State<_RegistrationView> {
           ),
           const Gap(24),
           TextField(
-            controller: widget.controller,
-            enabled: !widget.registering,
+            controller: controller,
+            enabled: !registering,
             autocorrect: false,
             textInputAction: TextInputAction.done,
             inputFormatters: [
@@ -418,43 +372,19 @@ class _RegistrationViewState extends State<_RegistrationView> {
               hintText: context.loc.lightningAddressNymHint,
               border: const OutlineInputBorder(),
             ),
-            onSubmitted: (_) => _onRegister(),
+            onSubmitted: (_) => onRegister(),
           ),
-          if (widget.error != null) ...[
+          if (error != null) ...[
             const Gap(12),
-            Text(widget.error!,
-                style: TextStyle(color: context.appColors.error)),
-          ],
-          if (_nymHistory.isNotEmpty) ...[
-            const Gap(24),
-            Text('Previous addresses',
-                style: theme.textTheme.titleSmall),
-            const Gap(8),
-            ..._nymHistory.map(
-              (nym) => ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text('$nym@bullpay.ca',
-                    style: theme.textTheme.bodyMedium),
-                trailing: TextButton(
-                  onPressed: widget.registering
-                      ? null
-                      : () {
-                          widget.controller.text = nym;
-                          _onRegister();
-                        },
-                  child: const Text('Reactivate'),
-                ),
-              ),
-            ),
+            Text(error!, style: TextStyle(color: context.appColors.error)),
           ],
           const Gap(24),
           SizedBox(
             width: double.infinity,
             height: 48,
             child: FilledButton(
-              onPressed: widget.registering ? null : _onRegister,
-              child: widget.registering
+              onPressed: registering ? null : onRegister,
+              child: registering
                   ? const SizedBox(
                       height: 20,
                       width: 20,
@@ -467,122 +397,9 @@ class _RegistrationViewState extends State<_RegistrationView> {
       ),
     );
   }
-
-  Widget _buildOptionsStep(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Gap(16),
-          Text('Settings', style: theme.textTheme.titleLarge),
-          const Gap(8),
-          Text(
-            'Configure your Lightning Address before activating.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const Gap(24),
-          _OptionTile(
-            title: 'Auto-sweep to Instant Payments',
-            subtitle: 'Automatically move received funds for privacy',
-            value: _autoSweep,
-            onChanged: (v) => setState(() => _autoSweep = v),
-            onInfoTap: () => _showAutoSweepInfo(context),
-          ),
-          const Gap(16),
-          _OptionTile(
-            title: 'Hide wallet on home',
-            subtitle: 'Keep home screen clean',
-            value: _hideWallet,
-            onChanged: (v) => setState(() => _hideWallet = v),
-            onInfoTap: () => _showHideWalletInfo(context),
-          ),
-          const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton(
-              onPressed: widget.registering ? null : _onRegister,
-              child: widget.registering
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Activate Lightning Address'),
-            ),
-          ),
-          const Gap(8),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: () => setState(() => _showOptions = false),
-              child: const Text('Back'),
-            ),
-          ),
-          const Gap(16),
-        ],
-      ),
-    );
-  }
-
-  void _showAutoSweepInfo(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Auto-sweep to Instant Payments',
-                style: Theme.of(ctx).textTheme.titleMedium),
-            const Gap(16),
-            const Text(
-              'All funds received via your Lightning Address are automatically '
-              'sent to your Instant Payments wallet.\n\n'
-              'Why? The Lightning Address server knows the public key (xpub) of '
-              'your Lightning Address wallet, which means it can see all '
-              'transactions in that wallet. Sweeping to your Instant Payments '
-              'wallet protects your privacy.\n\n'
-              'Downside: You pay a small Liquid Network fee (~20 sats) each '
-              'time funds are swept.',
-            ),
-            const Gap(24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showHideWalletInfo(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Hide Lightning Address wallet',
-                style: Theme.of(ctx).textTheme.titleMedium),
-            const Gap(16),
-            const Text(
-              'The Lightning Address wallet is a dedicated wallet used only '
-              'for receiving Lightning Address payments. Hiding it keeps your '
-              'home screen clean — funds are auto-swept to your Instant '
-              'Payments wallet anyway.\n\n'
-              'You can always find this wallet in Settings > Wallets.',
-            ),
-            const Gap(24),
-          ],
-        ),
-      ),
-    );
-  }
 }
+
+// --- Shared option tile ---
 
 class _OptionTile extends StatelessWidget {
   final String title;
