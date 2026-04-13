@@ -3,19 +3,20 @@ import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
-import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
+import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
+import 'package:flutter/foundation.dart';
 
 class DeleteLightningAddressUsecase {
   final WalletRepository _walletRepository;
   final SeedRepository _seedRepository;
-  final PayServiceDatasource _payService;
+  final PayServicePort _payService;
 
   DeleteLightningAddressUsecase({
     required WalletRepository walletRepository,
     required SeedRepository seedRepository,
-    required PayServiceDatasource payService,
+    required PayServicePort payService,
   })  : _walletRepository = walletRepository,
         _seedRepository = seedRepository,
         _payService = payService;
@@ -41,7 +42,9 @@ class DeleteLightningAddressUsecase {
         await NostrRelayClient.clearProfile(
           privateKeyHex: nostr.nsecHex,
         );
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Nostr relay profile clear failed: $e');
+      }
     } on PayServiceException catch (e) {
       throw LightningAddressRegistrationException(e.message);
     }

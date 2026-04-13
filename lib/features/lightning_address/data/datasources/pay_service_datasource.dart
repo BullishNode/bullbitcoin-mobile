@@ -1,63 +1,74 @@
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
+import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 
-class PayServiceDatasource {
+class PayServiceDatasource implements PayServicePort {
   static const _boxName = 'lightning_address';
   static const _addressKey = 'address';
 
   final Dio _dio;
 
   PayServiceDatasource({Dio? dio})
-    : _dio = dio ?? Dio(BaseOptions(baseUrl: payServiceBaseUrl));
+      : _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: payServiceBaseUrl,
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 15),
+            ));
 
-  /// Registers a nym with the pay service.
-  /// Returns the lightning address on success.
-  /// Persists the address locally for later retrieval.
+  @override
   Future<String> register({
     required String nym,
     required String ctDescriptor,
     required String npubHex,
     required String signatureHex,
   }) async {
-    final response = await _dio.post<Map<String, dynamic>>(
-      '/register',
-      data: {
-        'nym': nym,
-        'ct_descriptor': ctDescriptor,
-        'npub': npubHex,
-        'signature': signatureHex,
-      },
-    );
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/register',
+        data: {
+          'nym': nym,
+          'ct_descriptor': ctDescriptor,
+          'npub': npubHex,
+          'signature': signatureHex,
+        },
+      );
 
-    final data = response.data!;
+      final data = response.data;
+      if (data == null) throw PayServiceException('Invalid server response');
 
-    if (data['status'] == 'ERROR') {
-      throw PayServiceException(data['reason'] as String? ?? 'Unknown error');
+      if (data['status'] == 'ERROR') {
+        throw PayServiceException(
+            data['reason'] as String? ?? 'Unknown error');
+      }
+
+      final address = data['lightning_address'] as String;
+
+      final box = await Hive.openBox<String>(_boxName);
+      await box.put(_addressKey, address);
+
+      return address;
+    } on DioException catch (e) {
+      throw PayServiceException(
+        _extractDioErrorMessage(e),
+      );
     }
-
-    final address = data['lightning_address'] as String;
-
-    final box = await Hive.openBox<String>(_boxName);
-    await box.put(_addressKey, address);
-
-    return address;
   }
 
-  /// Returns the locally stored lightning address, or null if not registered.
+  @override
   Future<String?> getStoredAddress() async {
     final box = await Hive.openBox<String>(_boxName);
     return box.get(_addressKey);
   }
 
-  /// Stores a lightning address locally (for recovery without re-registering).
+  @override
   Future<void> storeAddress(String address) async {
     final box = await Hive.openBox<String>(_boxName);
     await box.put(_addressKey, address);
   }
 
-  /// Checks if an npub has an existing registration on the server.
-  /// Returns (nym, active) or null if not found.
+  @override
   Future<({String nym, bool active})?> lookupByNpub(String npubHex) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -72,34 +83,44 @@ class PayServiceDatasource {
     }
   }
 
-  /// Deletes the registration on the server and clears local storage.
+  @override
   Future<void> deleteRegistration({
     required String npubHex,
     required String signatureHex,
   }) async {
-    final response = await _dio.delete<dynamic>(
-      '/register',
-      data: {
-        'npub': npubHex,
-        'signature': signatureHex,
-      },
-    );
+    try {
+      final response = await _dio.delete<dynamic>(
+        '/register',
+        data: {
+          'npub': npubHex,
+          'signature': signatureHex,
+        },
+      );
 
-    if (response.data is Map && response.data['status'] == 'ERROR') {
+      if (response.data is Map && response.data['status'] == 'ERROR') {
+        throw PayServiceException(
+          response.data['reason'] as String? ?? 'Unknown error',
+        );
+      }
+
+      final box = await Hive.openBox<String>(_boxName);
+      await box.delete(_addressKey);
+    } on DioException catch (e) {
       throw PayServiceException(
-        response.data['reason'] as String? ?? 'Unknown error',
+        _extractDioErrorMessage(e),
       );
     }
-
-    final box = await Hive.openBox<String>(_boxName);
-    await box.delete(_addressKey);
   }
-}
 
-class PayServiceException implements Exception {
-  final String message;
-  PayServiceException(this.message);
-
-  @override
-  String toString() => message;
+  String _extractDioErrorMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is Map && data['reason'] != null) {
+      return data['reason'] as String;
+    }
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      return 'Server is not responding. Please try again.';
+    }
+    return 'Network error. Please check your connection.';
+  }
 }

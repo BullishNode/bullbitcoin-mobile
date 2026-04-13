@@ -6,6 +6,7 @@ import 'package:bb_mobile/core/wallet/data/repositories/wallet_address_repositor
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_address_settings_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
+import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
@@ -20,6 +21,9 @@ class LightningAddressLocator {
   static void setup(GetIt locator) {
     locator.registerLazySingleton<PayServiceDatasource>(
       () => PayServiceDatasource(),
+    );
+    locator.registerLazySingleton<PayServicePort>(
+      () => locator<PayServiceDatasource>(),
     );
 
     locator.registerLazySingleton<LightningAddressSettingsDatasource>(
@@ -57,7 +61,7 @@ class LightningAddressLocator {
         getWallet: locator<GetLightningAddressWalletUsecase>(),
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
-        payService: locator<PayServiceDatasource>(),
+        payService: locator<PayServicePort>(),
       ),
     );
 
@@ -65,7 +69,7 @@ class LightningAddressLocator {
       () => DeleteLightningAddressUsecase(
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
-        payService: locator<PayServiceDatasource>(),
+        payService: locator<PayServicePort>(),
       ),
     );
 
@@ -74,7 +78,7 @@ class LightningAddressLocator {
         getWallet: locator<GetLightningAddressWalletUsecase>(),
         register: locator<RegisterLightningAddressUsecase>(),
         delete: locator<DeleteLightningAddressUsecase>(),
-        payService: locator<PayServiceDatasource>(),
+        payService: locator<PayServicePort>(),
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
       ),
@@ -84,7 +88,7 @@ class LightningAddressLocator {
       () => RecoverLightningAddressUsecase(
         getWallet: locator<GetLightningAddressWalletUsecase>(),
         createWallet: locator<CreateLightningAddressWalletUsecase>(),
-        payService: locator<PayServiceDatasource>(),
+        payService: locator<PayServicePort>(),
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
       ),

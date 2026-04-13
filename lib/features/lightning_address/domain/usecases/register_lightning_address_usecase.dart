@@ -4,26 +4,26 @@ import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
-import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
+import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
-import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 class RegisterLightningAddressUsecase {
   final CreateLightningAddressWalletUsecase _createWallet;
   final GetLightningAddressWalletUsecase _getWallet;
   final WalletRepository _walletRepository;
   final SeedRepository _seedRepository;
-  final PayServiceDatasource _payService;
+  final PayServicePort _payService;
 
   RegisterLightningAddressUsecase({
     required CreateLightningAddressWalletUsecase createWallet,
     required GetLightningAddressWalletUsecase getWallet,
     required WalletRepository walletRepository,
     required SeedRepository seedRepository,
-    required PayServiceDatasource payService,
+    required PayServicePort payService,
   }) : _createWallet = createWallet,
        _getWallet = getWallet,
        _walletRepository = walletRepository,
@@ -64,15 +64,13 @@ class RegisterLightningAddressUsecase {
           nip05: '$nym@$lightningAddressDomain',
           lud16: '$nym@$lightningAddressDomain',
         );
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Nostr relay publish failed: $e');
+      }
 
       return address;
     } on PayServiceException catch (e) {
       throw LightningAddressRegistrationException(e.message);
-    } on DioException catch (e) {
-      throw LightningAddressRegistrationException(
-        e.response?.data?.toString() ?? e.message ?? 'Network error',
-      );
     }
   }
 

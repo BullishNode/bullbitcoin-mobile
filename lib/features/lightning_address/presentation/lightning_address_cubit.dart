@@ -1,7 +1,7 @@
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
-import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
+import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
@@ -15,7 +15,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   final GetLightningAddressWalletUsecase _getWallet;
   final RegisterLightningAddressUsecase _register;
   final DeleteLightningAddressUsecase _delete;
-  final PayServiceDatasource _payService;
+  final PayServicePort _payService;
   final WalletRepository _walletRepository;
   final SeedRepository _seedRepository;
 
@@ -23,7 +23,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     required GetLightningAddressWalletUsecase getWallet,
     required RegisterLightningAddressUsecase register,
     required DeleteLightningAddressUsecase delete,
-    required PayServiceDatasource payService,
+    required PayServicePort payService,
     required WalletRepository walletRepository,
     required SeedRepository seedRepository,
   })  : _getWallet = getWallet,
