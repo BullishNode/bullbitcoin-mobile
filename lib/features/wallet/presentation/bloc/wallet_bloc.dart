@@ -142,8 +142,18 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     try {
       // Don't sync the wallets here so the wallet list is shown immediately
       // and the sync is done after that
-      final wallets = await _getWalletsUsecase.execute();
+      var wallets = await _getWalletsUsecase.execute();
       final isSyncing = _checkWalletSyncingUsecase.execute();
+
+      // Filter out Lightning Address wallet if hidden
+      try {
+        final hideLA = await _lightningAddressFacade.isWalletHidden();
+        if (hideLA) {
+          wallets = wallets
+              .where((w) => !LightningAddressFacade.isLightningAddressWallet(w))
+              .toList();
+        }
+      } catch (_) {}
 
       // Initialize sync status map with all wallets
       final syncStatus = {
@@ -201,7 +211,17 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) async {
     try {
-      final wallets = await _getWalletsUsecase.execute(sync: true);
+      var wallets = await _getWalletsUsecase.execute(sync: true);
+
+      // Filter out Lightning Address wallet if hidden
+      try {
+        final hideLA = await _lightningAddressFacade.isWalletHidden();
+        if (hideLA) {
+          wallets = wallets
+              .where((w) => !LightningAddressFacade.isLightningAddressWallet(w))
+              .toList();
+        }
+      } catch (_) {}
 
       // Initialize all wallets as not syncing
       final syncStatus = {for (final wallet in wallets) wallet.id: false};
