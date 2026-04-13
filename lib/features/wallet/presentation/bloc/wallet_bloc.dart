@@ -24,6 +24,7 @@ import 'package:bb_mobile/core/wallet/domain/usecases/watch_electrum_sync_result
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_finished_wallet_syncs_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_started_wallet_syncs_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/wallet_error.dart';
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/features/electrum_settings/frameworks/ui/routing/electrum_settings_router.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/wallet/domain/entity/warning.dart';
@@ -177,6 +178,9 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
 
       add(const RefreshArkWalletBalance());
 
+      // Recover Lightning Address if the user had one before (sequential, last step)
+      await _tryRecoverLightningAddress(wallets);
+
       // Now that the wallets are loaded, we can sync them as done by the refresh
       add(const WalletRefreshed());
 
@@ -203,6 +207,27 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
       );
     } catch (e) {
       emit(WalletState(status: WalletStatus.failure, error: e));
+    }
+  }
+
+  Future<void> _tryRecoverLightningAddress(List<Wallet> wallets) async {
+    final hasDefault = wallets.any((w) => w.isDefault);
+    if (!hasDefault) return;
+
+    final isTestnet = wallets
+        .where((w) => w.isDefault)
+        .any((w) => w.network.isTestnet);
+    final env = isTestnet ? Environment.testnet : Environment.mainnet;
+
+    try {
+      final address = await _lightningAddressFacade.recoverIfNeeded(
+        environment: env,
+      );
+      if (address != null) {
+        debugPrint('Lightning Address recovered: $address');
+      }
+    } catch (e) {
+      debugPrint('Lightning Address recovery check failed: $e');
     }
   }
 

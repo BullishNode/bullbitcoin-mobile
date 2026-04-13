@@ -9,6 +9,7 @@ import 'package:bb_mobile/features/lightning_address/data/datasources/pay_servic
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/recover_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/sweep_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
@@ -79,9 +80,20 @@ class LightningAddressLocator {
       ),
     );
 
+    locator.registerFactory<RecoverLightningAddressUsecase>(
+      () => RecoverLightningAddressUsecase(
+        getWallet: locator<GetLightningAddressWalletUsecase>(),
+        createWallet: locator<CreateLightningAddressWalletUsecase>(),
+        payService: locator<PayServiceDatasource>(),
+        walletRepository: locator<WalletRepository>(),
+        seedRepository: locator<SeedRepository>(),
+      ),
+    );
+
     locator.registerFactory<LightningAddressFacade>(
       () => LightningAddressFacade(
         sweep: locator<SweepLightningAddressWalletUsecase>(),
+        recover: locator<RecoverLightningAddressUsecase>(),
         settings: locator<LightningAddressSettingsDatasource>(),
       ),
     );
