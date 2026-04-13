@@ -12916,6 +12916,6 @@
   "lightningAddressNymHint": "satoshi",
   "lightningAddressRegister": "Register",
   "lightningAddressCopied": "Copied to clipboard",
-  "lightningAddressReceiveInfo": "Anyone can send you bitcoin via Lightning using this address.",
-  "lightningAddressDelete": "Delete Lightning Address"
+  "lightningAddressReceiveInfo": "Any Lightning Address compatible wallet can send funds to this address. Incoming Lightning Network payments will be automatically swapped to Liquid Network (L-BTC). Swap fees and Liquid Network fees will be deducted from the amount you receive.",
+  "lightningAddressDelete": "Deactivate Lightning Address"
 }

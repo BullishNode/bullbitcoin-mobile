@@ -363,13 +363,14 @@ class _RegistrationViewState extends State<_RegistrationView> {
   }
 
   Future<void> _onRegister() async {
+    final nym = widget.controller.text.trim().toLowerCase();
+    if (nym.isEmpty) return;
+
     if (_showOptions) {
       // Persist settings and register
       final settings = GetIt.I<LightningAddressSettingsDatasource>();
       await settings.setAutoSweep(_autoSweep);
       await settings.setHideWallet(_hideWallet);
-
-      final nym = widget.controller.text.trim().toLowerCase();
       await settings.addToNymHistory(nym);
 
       if (!mounted) return;
