@@ -25,7 +25,6 @@ import 'package:bb_mobile/core/wallet/domain/usecases/watch_finished_wallet_sync
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_started_wallet_syncs_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/wallet_error.dart';
 import 'package:bb_mobile/features/electrum_settings/frameworks/ui/routing/electrum_settings_router.dart';
-import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/wallet/domain/entity/warning.dart';
 import 'package:bb_mobile/features/wallet/domain/usecase/get_unconfirmed_incoming_balance_usecase.dart';
 import 'package:flutter/material.dart';
@@ -57,7 +56,6 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     required GetArkWalletUsecase getArkWalletUsecase,
     required CheckArkWalletSetupUsecase checkArkWalletSetupUsecase,
     required SeedStoreTypeDatasource seedStoreTypeDatasource,
-    required LightningAddressFacade lightningAddressFacade,
   }) : _getWalletsUsecase = getWalletsUsecase,
        _checkWalletSyncingUsecase = checkWalletSyncingUsecase,
        _watchStartedWalletSyncsUsecase = watchStartedWalletSyncsUsecase,
@@ -78,7 +76,6 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
        _getArkWalletUsecase = getArkWalletUsecase,
        _checkArkWalletSetupUsecase = checkArkWalletSetupUsecase,
        _seedStoreTypeDatasource = seedStoreTypeDatasource,
-       _lightningAddressFacade = lightningAddressFacade,
        super(const WalletState()) {
     on<WalletStarted>(_onStarted);
     on<WalletRefreshed>(_onRefreshed);
@@ -116,7 +113,6 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   final GetArkWalletUsecase _getArkWalletUsecase;
   final CheckArkWalletSetupUsecase _checkArkWalletSetupUsecase;
   final SeedStoreTypeDatasource _seedStoreTypeDatasource;
-  final LightningAddressFacade _lightningAddressFacade;
 
   StreamSubscription? _startedSyncsSubscription;
   StreamSubscription? _finishedSyncsSubscription;
@@ -313,20 +309,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
         );
         add(const ExecuteAutoSwap());
 
-        // Sweep Lightning Address wallet if auto-sweep is enabled
-        try {
-          final shouldSweep = await _lightningAddressFacade.shouldAutoSweep();
-          if (shouldSweep) {
-            final txid = await _lightningAddressFacade.sweep(
-              isTestnet: event.wallet.network.isTestnet,
-            );
-            if (txid != null) {
-              debugPrint('Lightning Address sweep: $txid');
-            }
-          }
-        } catch (e) {
-          debugPrint('Lightning Address sweep failed: $e');
-        }
+        // TODO: Sweep Lightning Address wallet — temporarily disabled pending DI fix
       }
 
       // Set sync status to false for the wallet that finished syncing
