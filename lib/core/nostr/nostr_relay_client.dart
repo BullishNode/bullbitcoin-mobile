@@ -8,6 +8,8 @@ const _defaultRelays = [
   'wss://relay.damus.io',
   'wss://nos.lol',
   'wss://relay.nostr.band',
+  'wss://no.str.cr',
+  'wss://relay.primal.net',
 ];
 
 class NostrRelayClient {
