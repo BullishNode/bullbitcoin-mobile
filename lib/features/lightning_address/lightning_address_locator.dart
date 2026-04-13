@@ -4,6 +4,7 @@ import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/liquid_wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_address_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
+import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_address_settings_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
@@ -18,6 +19,10 @@ class LightningAddressLocator {
   static void setup(GetIt locator) {
     locator.registerLazySingleton<PayServiceDatasource>(
       () => PayServiceDatasource(),
+    );
+
+    locator.registerLazySingleton<LightningAddressSettingsDatasource>(
+      () => LightningAddressSettingsDatasource(),
     );
 
     locator.registerFactory<GetLightningAddressWalletUsecase>(
@@ -75,6 +80,7 @@ class LightningAddressLocator {
     locator.registerFactory<LightningAddressFacade>(
       () => LightningAddressFacade(
         sweep: locator<SweepLightningAddressWalletUsecase>(),
+        settings: locator<LightningAddressSettingsDatasource>(),
       ),
     );
   }
