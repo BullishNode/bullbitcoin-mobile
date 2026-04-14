@@ -125,6 +125,11 @@ abstract class SendState with _$SendState {
     SwapFees? btcToLbtcChainSwapFees,
     SwapFees? lbtcToBtcChainSwapFees,
     SwapFees? selectedSwapFees,
+
+    /// Original Lightning Address when LUD-22 resolved to a Liquid address.
+    /// Used by the confirm screen to show the LN address instead of the
+    /// resolved Liquid address.
+    String? lud22OriginalAddress,
   }) = _SendState;
   const SendState._();
 

@@ -832,9 +832,13 @@ class _OnchainSendInfoSection extends StatelessWidget {
     final selectedWallet = context.select(
       (SendCubit cubit) => cubit.state.selectedWallet,
     );
-    final paymentRequestAddress = context.select(
+    final lud22Address = context.select(
+      (SendCubit cubit) => cubit.state.lud22OriginalAddress,
+    );
+    final rawPaymentRequestAddress = context.select(
       (SendCubit cubit) => cubit.state.paymentRequestAddress,
     );
+    final paymentRequestAddress = lud22Address ?? rawPaymentRequestAddress;
     final formattedBitcoinAmount = context.select(
       (SendCubit cubit) => cubit.state.formattedConfirmedAmountBitcoin,
     );
@@ -917,6 +921,18 @@ class _OnchainSendInfoSection extends StatelessWidget {
             //   ),
             // ),
           ),
+          if (lud22Address != null) ...[
+            _divider(context),
+            InfoRow(
+              title: 'Network',
+              details: BBText(
+                'Liquid',
+                style: context.font.bodyLarge,
+                color: context.appColors.secondary,
+                textAlign: .end,
+              ),
+            ),
+          ],
           if (isToSelf) ...[
             _divider(context),
             InfoRow(

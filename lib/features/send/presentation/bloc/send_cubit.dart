@@ -985,6 +985,8 @@ class SendCubit extends Cubit<SendState> {
         );
         if (liquidDirect != null) {
           // Switch to direct Liquid send — no swap needed.
+          // Preserve the original LN address for the confirm screen.
+          final originalAddress = state.paymentRequestAddress;
           final liquidRequest = PaymentRequest.liquid(
             address: liquidDirect.address,
             isTestnet: state.selectedWallet!.network.isTestnet,
@@ -993,6 +995,7 @@ class SendCubit extends Cubit<SendState> {
             sendType: SendType.liquid,
             paymentRequest: liquidRequest,
             confirmedAmountSat: liquidDirect.amountSat,
+            lud22OriginalAddress: originalAddress,
             step: SendStep.confirm,
           ));
           await createTransaction();
