@@ -197,27 +197,6 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     }
   }
 
-  Future<void> _tryRecoverLightningAddress(List<Wallet> wallets) async {
-    final hasDefault = wallets.any((w) => w.isDefault);
-    if (!hasDefault) return;
-
-    final isTestnet = wallets
-        .where((w) => w.isDefault)
-        .any((w) => w.network.isTestnet);
-    final env = isTestnet ? Environment.testnet : Environment.mainnet;
-
-    try {
-      final address = await _lightningAddressFacade.recoverIfNeeded(
-        environment: env,
-      );
-      if (address != null) {
-        debugPrint('Lightning Address recovered: $address');
-        add(const WalletRefreshed());
-      }
-    } catch (e) {
-      debugPrint('Lightning Address recovery check failed: $e');
-    }
-  }
 
   Future<void> _onRefreshed(
     WalletRefreshed event,
