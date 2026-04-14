@@ -183,6 +183,94 @@ class _ActivatedViewState extends State<_ActivatedView> {
     await GetIt.I<LightningAddressSettingsDatasource>().setHideWallet(value);
   }
 
+  void _showHowItWorksSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (_, scrollController) => SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  context.loc.lightningAddressHowItWorksTitle,
+                  style: theme.textTheme.titleLarge,
+                ),
+                const Gap(12),
+                Text(
+                  context.loc.lightningAddressHowItWorksBody,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const Gap(24),
+                Text(
+                  context.loc.lightningAddressSecurityTitle,
+                  style: theme.textTheme.titleLarge,
+                ),
+                const Gap(12),
+                Text(
+                  context.loc.lightningAddressSecurityBody1,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const Gap(8),
+                Text(
+                  context.loc.lightningAddressSecurityBold,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Gap(8),
+                Text(
+                  context.loc.lightningAddressSecurityBody2,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const Gap(24),
+                Text(
+                  context.loc.lightningAddressFeesTitle,
+                  style: theme.textTheme.titleLarge,
+                ),
+                const Gap(12),
+                Text(
+                  context.loc.lightningAddressFeesBody,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const Gap(24),
+                Text(
+                  context.loc.lightningAddressPrivacyTitle,
+                  style: theme.textTheme.titleLarge,
+                ),
+                const Gap(12),
+                Text(
+                  context.loc.lightningAddressPrivacyBody,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const Gap(32),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -248,12 +336,27 @@ class _ActivatedViewState extends State<_ActivatedView> {
             ),
           ),
           const Gap(24),
-          Text(
-            context.loc.lightningAddressReceiveInfo,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          GestureDetector(
+            onTap: () => _showHowItWorksSheet(context),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+                const Gap(6),
+                Text(
+                  context.loc.lightningAddressHowItWorksLink,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    decoration: TextDecoration.underline,
+                    decorationColor: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
           ),
           const Gap(32),
           _OptionTile(
