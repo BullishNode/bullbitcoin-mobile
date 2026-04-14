@@ -120,11 +120,18 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   }
 
   Future<void> deleteAddress() async {
+    final currentAddress = state.lightningAddress;
     emit(state.copyWith(registering: true, error: null));
     try {
       await _delete.execute();
       if (isClosed) return;
-      emit(const LightningAddressState(loading: false));
+      // Extract nym from "nym@domain" for the previousNym banner
+      final nym = currentAddress?.split('@').firstOrNull;
+      emit(LightningAddressState(
+        loading: false,
+        walletExists: state.walletExists,
+        previousNym: nym,
+      ));
     } on Exception catch (e) {
       if (isClosed) return;
       emit(state.copyWith(registering: false, error: _mapError(e)));
