@@ -12923,6 +12923,7 @@
     "placeholders": { "address": { "type": "String" } }
   },
   "lightningAddressDeactivated": "Lightning Address deactivated",
+  "lightningAddressLoading": "Setting up your identity...",
   "lightningAddressCreating": "Your nym is being created",
   "lightningAddressCreatingDesc": "Registering your Lightning Address...",
   "lightningAddressAutoSweep": "Auto-sweep to Instant Payments",

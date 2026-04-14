@@ -5,6 +5,7 @@ import 'package:bb_mobile/core/wallet/data/repositories/liquid_wallet_repository
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_address_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_address_settings_datasource.dart';
+import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
@@ -52,6 +53,7 @@ class LightningAddressLocator {
         walletAddressRepository: locator<WalletAddressRepository>(),
         liquidWalletRepository: locator<LiquidWalletRepository>(),
         broadcast: locator<BroadcastLiquidTransactionUsecase>(),
+        labelsFacade: locator<LabelsFacade>(),
       ),
     );
 

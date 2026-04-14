@@ -4,6 +4,8 @@ import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/liquid_wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_address_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
+import 'package:bb_mobile/features/labels/labels_facade.dart';
+import 'package:bb_mobile/features/labels/new_label.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 
@@ -15,6 +17,7 @@ class SweepLightningAddressWalletUsecase {
   final WalletAddressRepository _walletAddressRepository;
   final LiquidWalletRepository _liquidWalletRepository;
   final BroadcastLiquidTransactionUsecase _broadcast;
+  final LabelsFacade _labelsFacade;
 
   SweepLightningAddressWalletUsecase({
     required GetLightningAddressWalletUsecase getWallet,
@@ -22,11 +25,13 @@ class SweepLightningAddressWalletUsecase {
     required WalletAddressRepository walletAddressRepository,
     required LiquidWalletRepository liquidWalletRepository,
     required BroadcastLiquidTransactionUsecase broadcast,
+    required LabelsFacade labelsFacade,
   }) : _getWallet = getWallet,
        _walletRepository = walletRepository,
        _walletAddressRepository = walletAddressRepository,
        _liquidWalletRepository = liquidWalletRepository,
-       _broadcast = broadcast;
+       _broadcast = broadcast,
+       _labelsFacade = labelsFacade;
 
   /// Sweeps all funds from the lightning address wallet to the default
   /// Liquid wallet. Returns the txid if a sweep was broadcast, null if
@@ -73,6 +78,17 @@ class SweepLightningAddressWalletUsecase {
       walletId: laWallet.id,
     );
 
-    return await _broadcast.execute(signedPset, isTestnet: isTestnet);
+    final txid = await _broadcast.execute(signedPset, isTestnet: isTestnet);
+
+    // Label the sweep transaction so it shows "Lightning Address" in the tx list
+    if (txid != null) {
+      await _labelsFacade.store(NewLabel.tx(
+        transactionId: txid,
+        label: 'Lightning Address',
+        origin: laWallet.id,
+      ));
+    }
+
+    return txid;
   }
 }

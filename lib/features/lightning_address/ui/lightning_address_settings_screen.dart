@@ -72,7 +72,9 @@ class _LightningAddressSettingsScreenState
           },
           builder: (context, state) {
             if (state.loading) {
-              return const Center(child: CircularProgressIndicator());
+              return StatusScreen(
+                title: context.loc.lightningAddressLoading,
+              );
             }
             if (state.registering && state.lightningAddress == null) {
               return StatusScreen(
