@@ -472,8 +472,12 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
       log.fine('Vault recovered');
 
       // After recovery, check for Lightning Address (non-blocking)
+      final isTestnet = _walletBloc.state.wallets
+          .where((w) => w.isDefault)
+          .any((w) => w.network.isTestnet);
+      final env = isTestnet ? Environment.testnet : Environment.mainnet;
       _lightningAddressFacade
-          .recoverIfNeeded(environment: Environment.mainnet)
+          .recoverIfNeeded(environment: env)
           .then((addr) {
         if (addr != null) log.fine('Lightning Address recovered: $addr');
       }).catchError((_) {});

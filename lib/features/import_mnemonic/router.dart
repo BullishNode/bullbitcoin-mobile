@@ -4,6 +4,7 @@ import 'package:bb_mobile/features/import_mnemonic/ui/mnemonic_page.dart';
 import 'package:bb_mobile/features/import_mnemonic/ui/select_purpose_page.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
 import 'package:bb_mobile/locator.dart';
@@ -58,7 +59,9 @@ class ImportMnemonicRouter {
               context.goNamed(WalletRoute.walletHome.name);
 
               // After recovery, check if user had a Lightning Address (non-blocking)
-              _tryRecoverLightningAddress();
+              final env = context.read<SettingsCubit>().state.environment ??
+                  Environment.mainnet;
+              _tryRecoverLightningAddress(env);
             },
             child: const SelectScriptTypePage(),
           );
@@ -68,12 +71,11 @@ class ImportMnemonicRouter {
   );
 }
 
-void _tryRecoverLightningAddress() async {
+void _tryRecoverLightningAddress(Environment environment) async {
   try {
     final facade = locator<LightningAddressFacade>();
-    // Default to mainnet — recovery checks the server for this npub
     final address = await facade.recoverIfNeeded(
-      environment: Environment.mainnet,
+      environment: environment,
     );
     if (address != null) {
       debugPrint('Lightning Address recovered after import: $address');
