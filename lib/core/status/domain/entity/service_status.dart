@@ -102,6 +102,14 @@ sealed class AllServicesStatus with _$AllServicesStatus {
       ),
     )
     ServiceStatusInfo ark,
+    @Default(
+      ServiceStatusInfo(
+        status: ServiceStatus.unknown,
+        name: 'Lightning Address',
+        lastChecked: null,
+      ),
+    )
+    ServiceStatusInfo lightningAddress,
     @Default(null) DateTime? lastChecked,
   }) = _AllServicesStatus;
 
@@ -117,7 +125,8 @@ sealed class AllServicesStatus with _$AllServicesStatus {
       mempool.isOnline &&
       (tor.isOnline || tor.isUnknown) &&
       (recoverbull.isOnline || recoverbull.isUnknown) &&
-      (ark.isOnline || ark.isUnknown);
+      (ark.isOnline || ark.isUnknown) &&
+      (lightningAddress.isOnline || lightningAddress.isUnknown);
 
   bool get hasAnyServiceOffline => !allServicesOnline;
 }

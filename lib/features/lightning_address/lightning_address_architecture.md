@@ -2,106 +2,146 @@
 
 ## Overview
 
-The lightning_address feature creates a BIP85-derived Liquid wallet dedicated to
-receiving Lightning Address payments via Boltz reverse submarine swaps. Funds
-that arrive in this wallet are automatically swept to the user's default Liquid
-wallet on every sync cycle.
+Users register a nym (e.g. `francis@bullpay.ca`) with the bullnym pay service.
+Incoming Lightning payments are settled on Liquid via Boltz reverse submarine
+swaps. The mobile app creates a BIP85-derived Liquid wallet to receive these
+funds and automatically sweeps them to the default Instant Payments wallet.
+
+When sending TO a Lightning Address, if the recipient's server supports LUD-22
+and advertises Liquid, the app pays directly on Liquid — bypassing the Boltz
+swap entirely.
+
+## BIP85 Derivation Paths
+
+### Lightning Address Wallet (index 75)
+```
+Master Seed
+  → BIP85 mnemonic derivation at index 75
+  → 12-word child mnemonic
+  → LWK Liquid wallet (CT descriptor shared with pay service)
+```
+Index 75 derived from "boltz": b(2)+o(15)+l(12)+t(20)+z(26) = 75.
+The wallet is labeled "Lightning Address" and identified by this label.
+
+### Nostr Identity (application 86, identity 75, account 0)
+```
+Master Seed
+  → BIP32 xprv
+  → BIP85 entropy at path 86'/75'/0'
+  → 32-byte secret key → Nostr keypair (nsec/npub)
+```
+Application 86 is the NIP-06 Nostr application number. Identity index 75
+matches the wallet index. Used for:
+- Schnorr signing registration/deletion requests (BIP-340)
+- NIP-05 identity (`npub` stored on server)
+- Nostr profile publishing (kind 0 with `nip05` and `lud16` fields)
 
 ## Domain
 
+### Ports
+- **PayServicePort** — abstract interface for pay service HTTP calls
+  (register, delete, lookup, store/get address). Implemented by
+  PayServiceDatasource. Domain use cases depend on the port, not the concrete
+  datasource.
+
 ### Use Cases
-
-- **CreateLightningAddressWalletUsecase** — Derives a BIP85 child mnemonic at
-  fixed index 75 (from "boltz": b+o+l+t+z = 2+15+12+20+26) from the default
-  Bitcoin wallet, creates a Liquid wallet labeled "Lightning Address". Idempotent
-  check via GetLightningAddressWalletUsecase (composition, not duplication).
-
-- **GetLightningAddressWalletUsecase** — Finds the lightning address wallet by
-  label match within the current environment. Returns null if not activated.
-
-- **SweepLightningAddressWalletUsecase** — Drains all funds above dust threshold
-  from the lightning address wallet to the default Liquid wallet. Uses existing
-  LiquidWalletRepository.buildPset(drain: true), signPset, and
-  BroadcastLiquidTransactionUsecase. Returns null (no-op) if wallet doesn't
-  exist or balance is at/below dust.
+- **CreateLightningAddressWalletUsecase** — BIP85 child mnemonic → LWK wallet
+- **GetLightningAddressWalletUsecase** — find wallet by label
+- **RegisterLightningAddressUsecase** — create wallet + derive Nostr key + sign + call server + publish Nostr profile
+- **DeleteLightningAddressUsecase** — sign "delete" + call server + clear Nostr profile
+- **SweepLightningAddressWalletUsecase** — drain LA wallet to Instant Payments, label tx "Lightning Address"
+- **RecoverLightningAddressUsecase** — derive Nostr key + check server for existing registration + create wallet if found
 
 ### Error Types
+- `LightningAddressWalletAlreadyExistsException`
+- `LightningAddressWalletNotFoundException`
+- `LightningAddressSweepException`
+- `LightningAddressNoDefaultWalletException`
+- `LightningAddressRegistrationException` (mapped from PayServiceException)
 
-- `LightningAddressWalletAlreadyExistsException` — create called when wallet exists
-- `LightningAddressWalletNotFoundException` — operation requires wallet that doesn't exist
-- `LightningAddressSweepException` — sweep failed (e.g., no default Liquid wallet)
-- `LightningAddressNoDefaultWalletException` — no default Bitcoin wallet for BIP85 derivation
-- `LightningAddressRegistrationException` — pay service returned an error (mapped from PayServiceException)
+### Key Derivation
+`lightning_address_key_derivation.dart` — shared helpers:
+- `deriveDefaultWalletXprv()` — get default Bitcoin wallet → seed → xprv
+- `deriveNostrIdentityForLightningAddress()` — xprv → NostrIdentity
 
-## Public Facade
+## LUD-22: Liquid Direct Pay
 
-`LightningAddressFacade` is the only cross-feature interface. Exposes:
-- `walletLabel` constant — used by wallet feature to filter display
-- `isLightningAddressWallet(Wallet)` — static predicate
-- `sweep(isTestnet:)` — triggers sweep from WalletBloc
+When sending to a Lightning Address, the app checks if the server supports
+Liquid via LUD-22 currency negotiation. If it does, the callback is called
+with `&network=liquid` and the server returns a Liquid address directly instead
+of a Lightning invoice.
+
+```
+User enters: francis@bullpay.ca
+  → LNURL metadata: check for currencies[].network == "liquid"
+  → If supported: callback with &network=liquid → get Liquid address
+  → Confirm screen shows: To: francis@bullpay.ca, Network: Liquid
+  → Direct Liquid payment (no Boltz swap, no fees, no trust)
+```
+
+The original Lightning Address is preserved in `SendState.lud22OriginalAddress`
+so the confirm screen displays the nym, not the resolved Liquid address.
 
 ## Presentation
 
-`LightningAddressCubit` owns all screen state (loading, registering, address,
-error). The UI dispatches `checkStatus()` and `registerNym()` — the cubit calls
-use cases and maps errors to user-facing strings. No business logic in widgets.
+`LightningAddressCubit` — owns screen state (loading, registering, address,
+error, walletExists, previousNym). UI dispatches `checkStatus()`,
+`registerNym()`, `deleteAddress()`.
+
+Settings screen shows:
+- Registration form (choose nym) with StatusScreen progress animation
+- Activated view: address display, tap-to-copy, auto-sweep toggle, hide wallet toggle, deactivate button with confirmation dialog
 
 ## Data Flows
 
 ### Registration
 ```
-LightningAddressSettingsScreen → LightningAddressCubit.registerNym()
-  → GetLightningAddressWalletUsecase (find or create wallet)
-  → CreateLightningAddressWalletUsecase (if needed)
-    → Bip85Repository.deriveMnemonic(index: 75)
-    → SeedRepository.createFromMnemonic()
-    → WalletRepository.createWallet(label: "Lightning Address")
-  → NostrIdentity.derive(identity: 75, account: 0) [from core/nostr]
-  → sign(nym + ctDescriptor) with Nostr schnorr key
-  → PayServiceDatasource.register(nym, descriptor, npub, signature)
-  → returns "nym@bullpay.ca"
+Settings UI → LightningAddressCubit.registerNym()
+  → RegisterLightningAddressUsecase
+    → Create/get wallet (BIP85 index 75)
+    → Derive Nostr key (BIP85 86'/75'/0')
+    → Sign(nym + ctDescriptor) with BIP-340 schnorr
+    → PayServicePort.register() → server returns "nym@bullpay.ca"
+    → NostrRelayClient.publishProfile(nip05, lud16) to 7 relays
 ```
 
-### Activation (wallet only, no server)
+### Auto-Sweep
 ```
-Settings UI → CreateLightningAddressWalletUsecase
-  → Bip85Repository.deriveMnemonic(index: 75)
-  → SeedRepository.createFromMnemonic()
-  → WalletRepository.createWallet(label: "Lightning Address")
-```
-
-### Auto-Sweep (triggered by wallet sync)
-```
-WalletBloc._onWalletSyncFinished (default Liquid wallet only)
+WalletBloc._onWalletSyncFinished (default Liquid, not LA wallet)
+  → LightningAddressFacade.shouldAutoSweep()
   → LightningAddressFacade.sweep()
-    → SweepLightningAddressWalletUsecase.execute()
-      → GetLightningAddressWalletUsecase (find wallet)
-      → Check balance > dust
-      → WalletAddressRepository.getLastUnusedReceiveAddress (destination)
-      → LiquidWalletRepository.buildPset(drain: true)
-      → LiquidWalletRepository.signPset()
-      → BroadcastLiquidTransactionUsecase.execute()
+    → SweepLightningAddressWalletUsecase
+      → buildPset(drain: true) → sign → broadcast
+      → LabelsFacade.store("Lightning Address" label on txid)
 ```
 
-### Home Screen Filtering
+### Recovery (mnemonic import / RecoverBull only)
 ```
-WalletBloc._filterDisplayWallets()
-  → LightningAddressFacade.isLightningAddressWallet()
-  → Excluded from state.wallets (and therefore totalBalance)
+ImportMnemonicRouter / RecoverBullBloc (after WalletStarted)
+  → LightningAddressFacade.recoverIfNeeded()
+    → RecoverLightningAddressUsecase
+      → Check stored address (skip if exists)
+      → Derive Nostr key → PayServicePort.lookupByNpub()
+      → If found + active: create wallet + store address
+```
+Non-blocking, fire-and-forget. Does NOT run on new wallet creation or normal
+app startup.
+
+### Wallet Hiding
+```
+WalletBloc._onStarted / _onRefreshed
+  → Check if any wallet has label "Lightning Address" (zero-cost if none)
+  → If yes: check isWalletHidden() setting → filter from list
 ```
 
 ## Concurrency
 
-- Sweep only fires on default Liquid wallet sync (not on LA wallet's own sync)
-- The `!state.autoSwapExecuting` guard prevents sweep from running during auto-swap execution
-
-## Recovery
-
-The wallet is deterministically derived from the master BIP85 seed at a fixed
-index. On restore, the app re-derives the child mnemonic, creates the LWK
-wallet, syncs to detect UTXOs, and auto-sweeps on next sync.
+- Sweep only fires on default Liquid wallet sync (not LA wallet's own sync)
+- Guard: `!state.autoSwapExecuting` prevents sweep during auto-swap
+- No dedicated sweep mutex — acceptable since sweep is idempotent
 
 ## Feature Dependencies
 
-- **Depends on:** core/wallet, core/bip85, core/seed, core/blockchain, core/fees, core/nostr
-- **Depended on by:** wallet (via public facade only)
+- **Depends on:** core/wallet, core/bip85, core/seed, core/blockchain, core/fees, core/nostr, features/labels
+- **Depended on by:** wallet (via public facade), settings (via public facade + cubit), import_mnemonic (via facade), recoverbull (via facade)
+- **Cross-feature imports:** settings_router imports cubit + UI directly (follows codebase convention for routing)
