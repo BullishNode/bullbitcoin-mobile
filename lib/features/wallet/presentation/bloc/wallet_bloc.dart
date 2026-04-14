@@ -146,16 +146,6 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
       var wallets = await _getWalletsUsecase.execute();
       final isSyncing = _checkWalletSyncingUsecase.execute();
 
-      // Filter out Lightning Address wallet if hidden
-      try {
-        final hideLA = await _lightningAddressFacade.isWalletHidden();
-        if (hideLA) {
-          wallets = wallets
-              .where((w) => !LightningAddressFacade.isLightningAddressWallet(w))
-              .toList();
-        }
-      } catch (_) {}
-
       // Initialize sync status map with all wallets
       final syncStatus = {
         for (final wallet in wallets)
@@ -177,9 +167,6 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
       );
 
       add(const RefreshArkWalletBalance());
-
-      // Recover Lightning Address if the user had one before (sequential, last step)
-      await _tryRecoverLightningAddress(wallets);
 
       // Now that the wallets are loaded, we can sync them as done by the refresh
       add(const WalletRefreshed());
@@ -225,6 +212,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
       );
       if (address != null) {
         debugPrint('Lightning Address recovered: $address');
+        add(const WalletRefreshed());
       }
     } catch (e) {
       debugPrint('Lightning Address recovery check failed: $e');
@@ -237,16 +225,6 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   ) async {
     try {
       var wallets = await _getWalletsUsecase.execute(sync: true);
-
-      // Filter out Lightning Address wallet if hidden
-      try {
-        final hideLA = await _lightningAddressFacade.isWalletHidden();
-        if (hideLA) {
-          wallets = wallets
-              .where((w) => !LightningAddressFacade.isLightningAddressWallet(w))
-              .toList();
-        }
-      } catch (_) {}
 
       // Initialize all wallets as not syncing
       final syncStatus = {for (final wallet in wallets) wallet.id: false};
