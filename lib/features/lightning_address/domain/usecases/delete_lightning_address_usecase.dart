@@ -1,10 +1,10 @@
 import 'package:bb_mobile/core/nostr/nostr_identity.dart';
 import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
-import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_key_derivation.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:flutter/foundation.dart';
 
@@ -22,7 +22,10 @@ class DeleteLightningAddressUsecase {
         _payService = payService;
 
   Future<void> execute() async {
-    final xprv = await _deriveXprv();
+    final xprv = await deriveDefaultWalletXprv(
+      walletRepository: _walletRepository,
+      seedRepository: _seedRepository,
+    );
     final nostr = NostrIdentity.derive(
       xprvBase58: xprv,
       identity: lightningAddressNostrIdentity,
@@ -50,18 +53,4 @@ class DeleteLightningAddressUsecase {
     }
   }
 
-  Future<String> _deriveXprv() async {
-    final wallets = await _walletRepository.getWallets(
-      onlyDefaults: true,
-      onlyBitcoin: true,
-    );
-    if (wallets.isEmpty) throw LightningAddressNoDefaultWalletException();
-    final defaultWallet = wallets.first;
-
-    final seed = await _seedRepository.get(defaultWallet.masterFingerprint);
-    return Bip32Derivation.getXprvFromSeed(
-      seed.bytes,
-      defaultWallet.network,
-    );
-  }
 }
