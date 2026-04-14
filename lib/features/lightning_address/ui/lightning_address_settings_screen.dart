@@ -1,6 +1,5 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
-import 'package:bb_mobile/core/widgets/loading/status_screen.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_address_settings_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
@@ -72,14 +71,41 @@ class _LightningAddressSettingsScreenState
           },
           builder: (context, state) {
             if (state.loading) {
-              return StatusScreen(
-                title: context.loc.lightningAddressLoading,
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const Gap(24),
+                    Text(
+                      context.loc.lightningAddressLoading,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               );
             }
             if (state.registering && state.lightningAddress == null) {
-              return StatusScreen(
-                title: context.loc.lightningAddressCreating,
-                description: context.loc.lightningAddressCreatingDesc,
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const Gap(24),
+                    Text(
+                      context.loc.lightningAddressCreating,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const Gap(8),
+                    Text(
+                      context.loc.lightningAddressCreatingDesc,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               );
             }
             if (state.lightningAddress != null) {
