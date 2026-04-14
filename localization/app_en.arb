@@ -12942,6 +12942,8 @@
   "lightningAddressTapToCopy": "Tap to copy",
   "lightningAddressPreviousFound": "Previous address found",
   "lightningAddressPreviousBody": "{nym}@{domain} was deactivated. Tap Register to reactivate it.",
+  "sendNetworkLabel": "Network",
+  "sendNetworkLiquid": "Liquid",
   "@lightningAddressPreviousBody": {
     "placeholders": { "nym": { "type": "String" }, "domain": { "type": "String" } }
   }

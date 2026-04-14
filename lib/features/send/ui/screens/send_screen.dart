@@ -924,9 +924,9 @@ class _OnchainSendInfoSection extends StatelessWidget {
           if (lud22Address != null) ...[
             _divider(context),
             InfoRow(
-              title: 'Network',
+              title: context.loc.sendNetworkLabel,
               details: BBText(
-                'Liquid',
+                context.loc.sendNetworkLiquid,
                 style: context.font.bodyLarge,
                 color: context.appColors.secondary,
                 textAlign: .end,
