@@ -6,11 +6,13 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_co
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
+import 'package:bb_mobile/generated/flutter_gen/assets.gen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:get_it/get_it.dart';
+import 'package:gif/gif.dart';
 
 class LightningAddressSettingsScreen extends StatefulWidget {
   const LightningAddressSettingsScreen({super.key});
@@ -75,7 +77,11 @@ class _LightningAddressSettingsScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const CircularProgressIndicator(),
+                    Gif(
+                      autostart: Autostart.loop,
+                      height: 123,
+                      image: AssetImage(Assets.animations.cubesLoading.path),
+                    ),
                     const Gap(24),
                     Text(
                       context.loc.lightningAddressLoading,
@@ -91,7 +97,11 @@ class _LightningAddressSettingsScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const CircularProgressIndicator(),
+                    Gif(
+                      autostart: Autostart.loop,
+                      height: 123,
+                      image: AssetImage(Assets.animations.cubesLoading.path),
+                    ),
                     const Gap(24),
                     Text(
                       context.loc.lightningAddressCreating,

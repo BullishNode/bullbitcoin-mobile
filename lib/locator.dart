@@ -75,8 +75,8 @@ class AppLocator {
     AllSeedViewLocator.setup(locator);
     SettingsLocator.setup(locator);
     BitcoinPriceLocator.setup(locator);
-    LightningAddressLocator.setup(locator);
     WalletLocator.setup(locator);
+    LightningAddressLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);
     TransactionsLocator.registerBlocs(locator);
     ReceiveLocator.setup(locator);
