@@ -25,6 +25,7 @@ import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_utxos_usecase.d
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_finished_wallet_syncs_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_wallet_transaction_by_tx_id_usecase.dart';
+import 'package:bb_mobile/features/send/domain/usecases/build_bullpay_proof_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/calculate_bitcoin_absolute_fees_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/calculate_liquid_absolute_fees_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/create_send_swap_usecase.dart';
@@ -124,8 +125,17 @@ class SendLocator {
         walletRepository: locator<WalletRepository>(),
       ),
     );
+    locator.registerFactory<BuildBullpayProofUsecase>(
+      () => BuildBullpayProofUsecase(
+        walletRepository: locator<WalletRepository>(),
+        seedRepository: locator<SeedRepository>(),
+        getWalletUtxosUsecase: locator<GetWalletUtxosUsecase>(),
+      ),
+    );
     locator.registerFactory<TryLiquidDirectPayUsecase>(
-      () => TryLiquidDirectPayUsecase(),
+      () => TryLiquidDirectPayUsecase(
+        buildProof: locator<BuildBullpayProofUsecase>(),
+      ),
     );
   }
 

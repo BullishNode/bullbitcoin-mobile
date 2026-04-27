@@ -24,6 +24,7 @@ import 'package:bb_mobile/features/bitcoin_price/ui/currency_text.dart';
 import 'package:bb_mobile/features/ledger/ui/ledger_router.dart';
 import 'package:bb_mobile/features/ledger/ui/screens/ledger_action_screen.dart';
 import 'package:bb_mobile/features/psbt_flow/psbt_router.dart';
+import 'package:bb_mobile/features/send/domain/errors/bullpay_proof_error.dart';
 import 'package:bb_mobile/features/send/presentation/bloc/send_cubit.dart';
 import 'package:bb_mobile/features/send/presentation/bloc/send_state.dart';
 import 'package:bb_mobile/features/send/ui/screens/open_the_camera_widget.dart';
@@ -506,6 +507,7 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
                             const Gap(16),
                             const _SendError(),
                           ],
+                          const _BullpayProofErrorBlock(),
 
                           const Spacer(),
                           Padding(
@@ -930,6 +932,16 @@ class _OnchainSendInfoSection extends StatelessWidget {
                 style: context.font.bodyLarge,
                 color: context.appColors.secondary,
                 textAlign: .end,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
+              child: BBText(
+                context.loc.sendBullpayLud22PrivacyDisclosure,
+                style: context.font.bodySmall,
+                color: context.appColors.secondaryFixedDim,
+                textAlign: TextAlign.center,
+                maxLines: 3,
               ),
             ),
           ],
@@ -1978,4 +1990,59 @@ String _getSwapLimitsErrorMessage(
     return context.loc.sendErrorAmountAboveMaximum(error.maxLimit.toString());
   }
   return context.loc.sendErrorAmountBelowSwapLimits;
+}
+
+class _BullpayProofErrorBlock extends StatelessWidget {
+  const _BullpayProofErrorBlock();
+
+  @override
+  Widget build(BuildContext context) {
+    final error = context.select(
+      (SendCubit cubit) => cubit.state.bullpayProofError,
+    );
+    if (error == null) return const SizedBox.shrink();
+
+    final message = switch (error) {
+      BullpayProofRequiresProof(:final minSat) =>
+          context.loc.sendErrorBullpayProofRequired(minSat.toString()),
+      BullpayProofInsufficientFunds(:final minSat) =>
+          context.loc.sendErrorBullpayInsufficientFunds(minSat.toString()),
+      BullpayProofUtxoSpent() => context.loc.sendErrorBullpayUtxoSpent,
+      BullpayProofUtxoNotFound() => context.loc.sendErrorBullpayUtxoNotFound,
+      BullpayProofRateLimited() => context.loc.sendErrorBullpayRateLimited,
+      BullpayProofTooManyReservations() =>
+          context.loc.sendErrorBullpayTooManyReservations,
+      BullpayProofInternal() => context.loc.sendErrorBullpayInternal,
+    };
+
+    final showFallback = error is BullpayProofRequiresProof ||
+        error is BullpayProofInsufficientFunds;
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          BBText(
+            message,
+            style: context.font.bodyMedium,
+            color: context.appColors.error,
+            textAlign: TextAlign.center,
+            maxLines: 4,
+          ),
+          if (showFallback) ...[
+            const Gap(12),
+            BBButton.small(
+              label: context.loc.sendBullpayPayViaLightningCta,
+              onPressed: () =>
+                  context.read<SendCubit>().onPayViaLightningRequested(),
+              bgColor: context.appColors.secondary,
+              textColor: context.appColors.onSecondary,
+              outlined: true,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }

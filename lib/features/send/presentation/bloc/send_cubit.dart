@@ -37,6 +37,7 @@ import 'package:bb_mobile/features/send/domain/usecases/create_send_swap_usecase
 import 'package:bb_mobile/features/send/domain/usecases/detect_bitcoin_string_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/prepare_bitcoin_send_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/prepare_liquid_send_usecase.dart';
+import 'package:bb_mobile/features/send/domain/errors/bullpay_proof_error.dart';
 import 'package:bb_mobile/features/send/domain/usecases/select_best_wallet_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_bitcoin_tx_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.dart';
@@ -180,15 +181,33 @@ class SendCubit extends Cubit<SendState> {
         invalidBitcoinStringException: null,
         buildTransactionException: null,
         confirmTransactionException: null,
+        bullpayProofError: null,
+        forceLightningFallback: false,
       ),
     );
   }
 
+  Future<void> onPayViaLightningRequested() async {
+    emit(state.copyWith(
+      bullpayProofError: null,
+      forceLightningFallback: true,
+    ));
+    await onAmountConfirmed();
+  }
+
   void backClicked() {
     if (state.step == SendStep.address) {
-      emit(state.copyWith(step: SendStep.address));
+      emit(state.copyWith(
+        step: SendStep.address,
+        forceLightningFallback: false,
+        bullpayProofError: null,
+      ));
     } else if (state.step == SendStep.amount) {
-      emit(state.copyWith(step: SendStep.address));
+      emit(state.copyWith(
+        step: SendStep.address,
+        forceLightningFallback: false,
+        bullpayProofError: null,
+      ));
     } else if (state.step == SendStep.confirm) {
       emit(
         state.copyWith(step: SendStep.amount, buildTransactionException: null),
@@ -978,14 +997,14 @@ class SendCubit extends Cubit<SendState> {
       // LUD-22: try Liquid-direct payment before falling back to swap
       if (state.selectedWallet!.isLiquid &&
           state.paymentRequest is LnAddressPaymentRequest &&
-          state.confirmedAmountSat != null) {
-        final liquidDirect = await _tryLiquidDirectPayUsecase.execute(
-          lnAddress: state.paymentRequestAddress,
-          amountSat: state.confirmedAmountSat!,
-        );
-        if (liquidDirect != null) {
-          // Switch to direct Liquid send — no swap needed.
-          // Preserve the original LN address for the confirm screen.
+          state.confirmedAmountSat != null &&
+          !state.forceLightningFallback) {
+        try {
+          final liquidDirect = await _tryLiquidDirectPayUsecase.execute(
+            lnAddress: state.paymentRequestAddress,
+            amountSat: state.confirmedAmountSat!,
+            walletId: state.selectedWallet!.id,
+          );
           final originalAddress = state.paymentRequestAddress;
           final liquidRequest = PaymentRequest.liquid(
             address: liquidDirect.address,
@@ -997,8 +1016,17 @@ class SendCubit extends Cubit<SendState> {
             confirmedAmountSat: liquidDirect.amountSat,
             lud22OriginalAddress: originalAddress,
             step: SendStep.confirm,
+            bullpayProofError: null,
           ));
           await createTransaction();
+          return;
+        } on LiquidDirectPayUnavailable {
+          // fall through to the standard Lightning/Boltz swap path
+        } on BullpayProofError catch (e) {
+          emit(state.copyWith(
+            bullpayProofError: e,
+            amountConfirmedClicked: false,
+          ));
           return;
         }
       }
