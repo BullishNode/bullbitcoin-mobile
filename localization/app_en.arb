@@ -7226,15 +7226,6 @@
       }
     }
   },
-  "sendErrorBullpayInsufficientFunds": "You need at least {minSat} sats in a single confirmed Liquid output to send directly. You can pay via Lightning instead.",
-  "@sendErrorBullpayInsufficientFunds": {
-    "description": "Shown when the wallet's qualifying Liquid UTXO is below the recipient's minimum.",
-    "placeholders": {
-      "minSat": {
-        "type": "String"
-      }
-    }
-  },
   "sendErrorBullpayUtxoSpent": "The Liquid funds your wallet tried to use have already been spent. Please refresh your wallet and try again.",
   "@sendErrorBullpayUtxoSpent": {
     "description": "Shown when the UTXO used as proof has been spent before the request reached the server."
@@ -7259,7 +7250,7 @@
   "@sendBullpayPayViaLightningCta": {
     "description": "Button label that switches the send flow to the Lightning + swap path."
   },
-  "sendBullpayLud22PrivacyDisclosure": "Direct Liquid payment shares one of your UTXO's value with the recipient's server.",
+  "sendBullpayLud22PrivacyDisclosure": "Direct Liquid payment links one of your wallet's UTXOs to this Lightning Address. The amount stays private.",
   "@sendBullpayLud22PrivacyDisclosure": {
     "description": "Privacy notice on the LUD-22 confirm screen explaining the proof-of-funds disclosure."
   },

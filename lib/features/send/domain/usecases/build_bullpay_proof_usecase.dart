@@ -13,23 +13,20 @@ import 'package:bitcoin_base/bitcoin_base.dart' show ECPrivate;
 import 'package:crypto/crypto.dart';
 
 const String kBullpayMessageTag = 'bullpay-lnurlp-v1';
-const int kBullpayMinProofValueSat = kBullpayDefaultMinProofValueSat;
+
+// The server no longer enforces a minimum proof value. We still skip truly-dust
+// UTXOs (< 100 sat) because spending them later is anti-economic on Liquid.
+const int kBullpayMinProofValueSat = 100;
 
 class BullpayProofParams {
   final String outpoint;
   final String pubkeyHex;
   final String sigDerHex;
-  final int valueSat;
-  final String valueBfHex;
-  final String assetBfHex;
 
   const BullpayProofParams({
     required this.outpoint,
     required this.pubkeyHex,
     required this.sigDerHex,
-    required this.valueSat,
-    required this.valueBfHex,
-    required this.assetBfHex,
   });
 }
 
@@ -139,9 +136,6 @@ class BuildBullpayProofUsecase {
       outpoint: outpoint,
       pubkeyHex: pubkeyHex,
       sigDerHex: sigDerHex,
-      valueSat: utxo.amountSat.toInt(),
-      valueBfHex: utxo.valueBfHex,
-      assetBfHex: utxo.assetBfHex,
     );
   }
 }

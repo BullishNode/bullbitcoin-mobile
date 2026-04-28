@@ -81,10 +81,7 @@ class TryLiquidDirectPayUsecase {
         '&network=liquid'
         '&outpoint=${proof.outpoint}'
         '&pubkey=${proof.pubkeyHex}'
-        '&sig=${proof.sigDerHex}'
-        '&value=${proof.valueSat}'
-        '&value_bf=${proof.valueBfHex}'
-        '&asset_bf=${proof.assetBfHex}';
+        '&sig=${proof.sigDerHex}';
 
     final Map<String, dynamic> data;
     try {

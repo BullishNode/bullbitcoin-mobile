@@ -39,8 +39,6 @@ class WalletUtxoMapper {
           standardAddress: model.standardAddress,
           confidentialAddress: model.confidentialAddress,
           assetIdHex: model.assetIdHex,
-          valueBfHex: model.valueBfHex,
-          assetBfHex: model.assetBfHex,
           addressIndex: model.addressIndex,
           labels: labels,
           txLabels: txLabels,
@@ -71,8 +69,6 @@ class WalletUtxoMapper {
           standardAddress: entity.standardAddress,
           confidentialAddress: entity.confidentialAddress,
           assetIdHex: entity.assetIdHex,
-          valueBfHex: entity.valueBfHex,
-          assetBfHex: entity.assetBfHex,
           addressIndex: entity.addressIndex,
         );
     }

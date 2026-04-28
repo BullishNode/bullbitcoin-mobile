@@ -16,11 +16,6 @@ sealed class BullpayProofError implements Exception {
         return BullpayProofRequiresProof(
           minSat: _parseMinSatFromReason(reason),
         );
-      case 'InsufficientFunds':
-        return BullpayProofInsufficientFunds(
-          minSat: _parseMinSatFromReason(reason),
-          reason: reason,
-        );
       case 'UtxoNotFound':
         return const BullpayProofUtxoNotFound();
       case 'UtxoSpent':
@@ -38,15 +33,6 @@ sealed class BullpayProofError implements Exception {
 final class BullpayProofRequiresProof extends BullpayProofError {
   final int minSat;
   const BullpayProofRequiresProof({this.minSat = kBullpayDefaultMinProofValueSat});
-}
-
-final class BullpayProofInsufficientFunds extends BullpayProofError {
-  final int minSat;
-  final String? reason;
-  const BullpayProofInsufficientFunds({
-    this.minSat = kBullpayDefaultMinProofValueSat,
-    this.reason,
-  });
 }
 
 final class BullpayProofUtxoNotFound extends BullpayProofError {

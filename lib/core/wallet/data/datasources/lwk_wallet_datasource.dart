@@ -123,8 +123,6 @@ class LwkWalletDatasource {
           standardAddress: utxo.address.standard,
           confidentialAddress: utxo.address.confidential,
           assetIdHex: utxo.unblinded.asset,
-          valueBfHex: utxo.unblinded.valueBf,
-          assetBfHex: utxo.unblinded.assetBf,
           addressIndex: utxo.address.index,
         );
       });

@@ -2005,8 +2005,6 @@ class _BullpayProofErrorBlock extends StatelessWidget {
     final message = switch (error) {
       BullpayProofRequiresProof(:final minSat) =>
           context.loc.sendErrorBullpayProofRequired(minSat.toString()),
-      BullpayProofInsufficientFunds(:final minSat) =>
-          context.loc.sendErrorBullpayInsufficientFunds(minSat.toString()),
       BullpayProofUtxoSpent() => context.loc.sendErrorBullpayUtxoSpent,
       BullpayProofUtxoNotFound() => context.loc.sendErrorBullpayUtxoNotFound,
       BullpayProofRateLimited() => context.loc.sendErrorBullpayRateLimited,
@@ -2015,8 +2013,7 @@ class _BullpayProofErrorBlock extends StatelessWidget {
       BullpayProofInternal() => context.loc.sendErrorBullpayInternal,
     };
 
-    final showFallback = error is BullpayProofRequiresProof ||
-        error is BullpayProofInsufficientFunds;
+    final showFallback = error is BullpayProofRequiresProof;
 
     return Padding(
       padding: const EdgeInsets.all(8.0),

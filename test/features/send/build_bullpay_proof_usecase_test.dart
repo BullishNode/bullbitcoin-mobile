@@ -51,10 +51,6 @@ LiquidWalletUtxo _utxo({
   required String assetIdHex,
   String scriptPubkey = '00140000000000000000000000000000000000000000',
   int? addressIndex = 0,
-  String valueBfHex =
-      '0000000000000000000000000000000000000000000000000000000000000001',
-  String assetBfHex =
-      '0000000000000000000000000000000000000000000000000000000000000002',
 }) {
   return WalletUtxo.liquid(
     walletId: _kWalletId,
@@ -65,8 +61,6 @@ LiquidWalletUtxo _utxo({
     standardAddress: 'ex1qfake',
     confidentialAddress: 'lq1qfake',
     assetIdHex: assetIdHex,
-    valueBfHex: valueBfHex,
-    assetBfHex: assetBfHex,
     addressIndex: addressIndex,
   ) as LiquidWalletUtxo;
 }
@@ -177,8 +171,7 @@ void main() {
       );
     });
 
-    test('throws RequiresProof when all LBTC UTXOs are below threshold',
-        () async {
+    test('throws RequiresProof when all LBTC UTXOs are dust', () async {
       when(() => walletRepository.getWallet(any()))
           .thenAnswer((_) async => _liquidWallet());
       when(() => getUtxos.execute(walletId: any(named: 'walletId')))
@@ -186,13 +179,13 @@ void main() {
                 _utxo(
                   txId:
                       '2222222222222222222222222222222222222222222222222222222222222222',
-                  amountSat: 999,
+                  amountSat: 50,
                   assetIdHex: AssetConstants.lbtcMainnet,
                 ),
                 _utxo(
                   txId:
                       '3333333333333333333333333333333333333333333333333333333333333333',
-                  amountSat: 500,
+                  amountSat: 10,
                   assetIdHex: AssetConstants.lbtcMainnet,
                 ),
               ]);
@@ -240,7 +233,7 @@ void main() {
                 _utxo(
                   txId:
                       'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
-                  amountSat: 500,
+                  amountSat: 50,
                   assetIdHex: AssetConstants.lbtcMainnet,
                   scriptPubkey: derived.scriptPubkey,
                   addressIndex: derived.index,
@@ -250,13 +243,10 @@ void main() {
       final proof = await usecase.execute(walletId: _kWalletId, nym: 'alice');
 
       expect(proof.outpoint, '$winningTxId:0');
-      expect(proof.valueSat, 1500);
       expect(proof.pubkeyHex, derived.pubkeyHex);
       expect(proof.pubkeyHex.length, 66);
       expect(proof.sigDerHex.length, greaterThan(120));
       expect(proof.sigDerHex.startsWith('30'), isTrue);
-      expect(proof.valueBfHex.length, 64);
-      expect(proof.assetBfHex.length, 64);
     });
 
     test('throws Internal when scriptPubkey does not match derived key',

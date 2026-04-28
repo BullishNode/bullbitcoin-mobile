@@ -32,8 +32,6 @@ sealed class WalletUtxo with _$WalletUtxo {
     required String standardAddress,
     required String confidentialAddress,
     required String assetIdHex,
-    required String valueBfHex,
-    required String assetBfHex,
     int? addressIndex,
     @Default(WalletAddressKeyChain.external)
     WalletAddressKeyChain addressKeyChain,
