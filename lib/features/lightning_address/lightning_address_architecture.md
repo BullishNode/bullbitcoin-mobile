@@ -67,14 +67,15 @@ matches the wallet index. Used for:
 ## LUD-22: Liquid Direct Pay
 
 When sending to a Lightning Address, the app checks if the server supports
-Liquid via LUD-22 currency negotiation. If it does, the callback is called
-with `&network=liquid` and the server returns a Liquid address directly instead
-of a Lightning invoice.
+Liquid via LUD-22 alternative payment methods. If it does, the callback is
+called with `&payment_method=L-BTC` and the server returns a Liquid address
+directly instead of a Lightning invoice.
 
 ```
 User enters: francis@bullpay.ca
-  → LNURL metadata: check for currencies[].network == "liquid"
-  → If supported: callback with &network=liquid → get Liquid address
+  → LNURL metadata: check for payment_methods including "L-BTC"
+  → If supported: callback with &payment_method=L-BTC
+  → Server returns { "L-BTC": { "address": "lq1qq..." } }
   → Confirm screen shows: To: francis@bullpay.ca, Network: Liquid
   → Direct Liquid payment (no Boltz swap, no fees, no trust)
 ```

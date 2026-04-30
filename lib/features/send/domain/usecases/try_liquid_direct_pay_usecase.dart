@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/utils/constants.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/send/domain/errors/bullpay_proof_error.dart';
 import 'package:bb_mobile/features/send/domain/usecases/build_bullpay_proof_usecase.dart';
@@ -53,13 +54,8 @@ class TryLiquidDirectPayUsecase {
       throw const LiquidDirectPayUnavailable();
     }
 
-    final currencies = metadata['currencies'] as List<dynamic>?;
-    if (currencies == null) {
-      throw const LiquidDirectPayUnavailable();
-    }
-    final hasLiquid = currencies.any(
-      (c) => c is Map && c['network'] == 'liquid',
-    );
+    final paymentMethods = metadata['payment_methods'] as List<dynamic>?;
+    final hasLiquid = paymentMethods?.contains('L-BTC') ?? false;
     if (!hasLiquid) {
       throw const LiquidDirectPayUnavailable();
     }
@@ -78,7 +74,7 @@ class TryLiquidDirectPayUsecase {
     final msats = amountSat * 1000;
     final callbackUrl = '$callback'
         '${separator}amount=$msats'
-        '&network=liquid'
+        '&payment_method=L-BTC'
         '&outpoint=${proof.outpoint}'
         '&pubkey=${proof.pubkeyHex}'
         '&sig=${proof.sigDerHex}';
@@ -105,14 +101,18 @@ class TryLiquidDirectPayUsecase {
     }
 
     try {
-      final onchain = data['onchain'] as Map<String, dynamic>?;
-      if (onchain == null || onchain['network'] != 'liquid') {
+      final lbtc = data['L-BTC'] as Map<String, dynamic>?;
+      if (lbtc == null) {
         throw const BullpayProofInternal('MalformedResponse');
       }
+      final address = lbtc['address'] as String;
+      final btcDecimal = (amountSat / 100000000).toStringAsFixed(8);
+      final bip21 =
+          'liquidnetwork:$address?amount=$btcDecimal&assetid=${AssetConstants.lbtcMainnet}';
       return LiquidDirectPayment(
-        address: onchain['address'] as String,
-        amountSat: (onchain['amount_sat'] as num).toInt(),
-        bip21: onchain['bip21'] as String,
+        address: address,
+        amountSat: amountSat,
+        bip21: bip21,
       );
     } on BullpayProofError {
       rethrow;
