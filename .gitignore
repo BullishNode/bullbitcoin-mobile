@@ -101,3 +101,8 @@ today.md
 
 CLAUDE.md
 .zed/
+
+# Local-only review / log artifacts. Never committed (workspace policy).
+REVIEW-*.md
+bull_logs.tsv
+bull_logs.*

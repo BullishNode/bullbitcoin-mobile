@@ -1,13 +1,12 @@
-import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
-import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
+import 'package:bb_mobile/features/lightning_address/domain/entities/lookup_result.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
-import 'package:bb_mobile/features/lightning_address/domain/lightning_address_key_derivation.dart';
+import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,23 +15,20 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   final GetLightningAddressWalletUsecase _getWallet;
   final RegisterLightningAddressUsecase _register;
   final DeleteLightningAddressUsecase _delete;
+  final LookupLightningAddressStatusUsecase _lookupStatus;
   final PayServicePort _payService;
-  final WalletRepository _walletRepository;
-  final SeedRepository _seedRepository;
 
   LightningAddressCubit({
     required GetLightningAddressWalletUsecase getWallet,
     required RegisterLightningAddressUsecase register,
     required DeleteLightningAddressUsecase delete,
+    required LookupLightningAddressStatusUsecase lookupStatus,
     required PayServicePort payService,
-    required WalletRepository walletRepository,
-    required SeedRepository seedRepository,
   })  : _getWallet = getWallet,
         _register = register,
         _delete = delete,
+        _lookupStatus = lookupStatus,
         _payService = payService,
-        _walletRepository = walletRepository,
-        _seedRepository = seedRepository,
         super(const LightningAddressState());
 
   Future<void> checkStatus(Environment environment) async {
@@ -40,6 +36,9 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       final wallet = await _getWallet.execute(environment: environment);
       final storedAddress = await _payService.getStoredAddress();
 
+      // Local cache hit: keep the cached address but still refresh quota
+      // from the server in the background — the address is local truth,
+      // the quota is server truth.
       if (storedAddress != null) {
         if (isClosed) return;
         emit(state.copyWith(
@@ -47,74 +46,77 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
           walletExists: wallet != null,
           lightningAddress: storedAddress,
         ));
+        await _refreshStatusBestEffort();
         return;
       }
 
-      // No local state — check server for existing registration
+      // No local state — consult the server.
+      LookupResult? lookup;
       try {
-        final nostr = await deriveNostrIdentityForLightningAddress(
-          walletRepository: _walletRepository,
-          seedRepository: _seedRepository,
-        );
-        if (nostr != null) {
-          final lookup = await _payService.lookupByNpub(nostr.npubHex);
-          if (lookup != null) {
-            final address = '${lookup.nym}@$lightningAddressDomain';
-            if (lookup.active) {
-              await _payService.storeAddress(address);
-              if (isClosed) return;
-              emit(state.copyWith(
-                loading: false,
-                walletExists: wallet != null,
-                lightningAddress: address,
-              ));
-              return;
-            } else {
-              if (isClosed) return;
-              emit(state.copyWith(
-                loading: false,
-                walletExists: wallet != null,
-                previousNym: lookup.nym,
-              ));
-              return;
-            }
-          }
-        }
-      } catch (e, stack) {
+        lookup = await _lookupStatus.execute();
+      } on PayServiceException catch (e, stack) {
         log.warning('LA server lookup failed', error: e, trace: stack);
       }
 
       if (isClosed) return;
-      emit(state.copyWith(
-        loading: false,
-        walletExists: wallet != null,
-      ));
+      switch (lookup) {
+        case ActiveLookupResult(:final nym, :final quota):
+          final address = '$nym@$lightningAddressDomain';
+          await _payService.storeAddress(address);
+          if (isClosed) return;
+          emit(state.copyWith(
+            loading: false,
+            walletExists: wallet != null,
+            lightningAddress: address,
+            quota: quota,
+            quotaStale: false,
+          ));
+        case InactiveLookupResult(:final nym, :final quota):
+          emit(state.copyWith(
+            loading: false,
+            walletExists: wallet != null,
+            previousNym: nym,
+            quota: quota,
+            quotaStale: false,
+          ));
+        case null:
+          emit(state.copyWith(
+            loading: false,
+            walletExists: wallet != null,
+          ));
+      }
     } on Exception catch (e) {
       if (isClosed) return;
       emit(state.copyWith(loading: false, error: _mapError(e)));
     }
   }
 
-  Future<void> registerNym(String nym, Environment environment) async {
+  Future<void> registerNym(
+    String nym,
+    Environment environment, {
+    bool publishOnNostr = true,
+  }) async {
     if (nym.isEmpty || state.registering) return;
     emit(state.copyWith(registering: true, error: null));
 
     try {
-      final address = await _register.execute(
+      final result = await _register.execute(
         nym: nym,
         environment: environment,
+        publishOnNostr: publishOnNostr,
       );
       if (isClosed) return;
       emit(state.copyWith(
         registering: false,
-        lightningAddress: address,
+        lightningAddress: result.address,
         previousNym: null,
+        quota: result.quota,
+        quotaStale: false,
       ));
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.severe(message: 'register failed', error: e, trace: stack);
       if (isClosed) return;
-      final msg = e is Exception ? _mapError(e) : e.toString();
-      emit(state.copyWith(registering: false, error: msg));
+      emit(state.copyWith(registering: false, error: _mapError(e)));
     }
   }
 
@@ -123,7 +125,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     final currentAddress = state.lightningAddress;
     emit(state.copyWith(registering: true, error: null));
     try {
-      await _delete.execute();
+      final quota = await _delete.execute();
       if (isClosed) return;
       // Extract nym from "nym@domain" for the previousNym banner
       final nym = currentAddress?.split('@').firstOrNull;
@@ -131,10 +133,35 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         loading: false,
         walletExists: state.walletExists,
         previousNym: nym,
+        quota: quota,
+        quotaStale: false,
       ));
     } on Exception catch (e) {
       if (isClosed) return;
       emit(state.copyWith(registering: false, error: _mapError(e)));
+    }
+  }
+
+  /// Refresh quota / status from the server without clobbering existing
+  /// state when the lookup fails. Marks the cached quota stale so the UI
+  /// can render a "couldn't refresh" hint if it cares.
+  Future<void> _refreshStatusBestEffort() async {
+    try {
+      final lookup = await _lookupStatus.execute();
+      if (isClosed) return;
+      switch (lookup) {
+        case ActiveLookupResult(:final quota) ||
+              InactiveLookupResult(:final quota):
+          emit(state.copyWith(quota: quota, quotaStale: false));
+        case null:
+          // Server has no row but we have a cached address — leave the
+          // quota alone (cache might be stale; next register will reset).
+          break;
+      }
+    } on Exception catch (e, stack) {
+      if (isClosed) return;
+      log.warning('LA quota refresh failed', error: e, trace: stack);
+      emit(state.copyWith(quotaStale: true));
     }
   }
 

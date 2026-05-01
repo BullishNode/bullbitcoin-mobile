@@ -1,10 +1,10 @@
-import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
-import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -15,11 +15,10 @@ class _MockRegister extends Mock implements RegisterLightningAddressUsecase {}
 
 class _MockDelete extends Mock implements DeleteLightningAddressUsecase {}
 
+class _MockLookupStatus extends Mock
+    implements LookupLightningAddressStatusUsecase {}
+
 class _MockPayService extends Mock implements PayServicePort {}
-
-class _MockWalletRepository extends Mock implements WalletRepository {}
-
-class _MockSeedRepository extends Mock implements SeedRepository {}
 
 void main() {
   setUpAll(() {
@@ -29,33 +28,40 @@ void main() {
   late _MockGetWallet getWallet;
   late _MockRegister register;
   late _MockDelete delete;
+  late _MockLookupStatus lookupStatus;
   late _MockPayService payService;
-  late _MockWalletRepository walletRepo;
-  late _MockSeedRepository seedRepo;
 
   setUp(() {
     getWallet = _MockGetWallet();
     register = _MockRegister();
     delete = _MockDelete();
+    lookupStatus = _MockLookupStatus();
     payService = _MockPayService();
-    walletRepo = _MockWalletRepository();
-    seedRepo = _MockSeedRepository();
   });
 
   LightningAddressCubit build() => LightningAddressCubit(
         getWallet: getWallet,
         register: register,
         delete: delete,
+        lookupStatus: lookupStatus,
         payService: payService,
-        walletRepository: walletRepo,
-        seedRepository: seedRepo,
       );
 
-  test('registerNym is reentrancy-guarded (I-2)', () async {
+  // Default register/delete responses for the happy-path tests.
+  void stubRegisterOk({NymQuota quota = const NymQuota(used: 1, cap: 3)}) {
     when(() => register.execute(
           nym: any(named: 'nym'),
           environment: any(named: 'environment'),
-        )).thenAnswer((_) async => 'alice@bullpay.ca');
+          publishOnNostr: any(named: 'publishOnNostr'),
+        )).thenAnswer((_) async => (address: 'alice@bullpay.ca', quota: quota));
+  }
+
+  void stubDeleteOk({NymQuota quota = const NymQuota(used: 1, cap: 3)}) {
+    when(() => delete.execute()).thenAnswer((_) async => quota);
+  }
+
+  test('registerNym is reentrancy-guarded (I-2)', () async {
+    stubRegisterOk();
 
     final cubit = build();
     // Fire both calls before awaiting either. Cubit `emit` is synchronous,
@@ -68,12 +74,13 @@ void main() {
     verify(() => register.execute(
           nym: any(named: 'nym'),
           environment: any(named: 'environment'),
+          publishOnNostr: any(named: 'publishOnNostr'),
         )).called(1);
     await cubit.close();
   });
 
   test('deleteAddress is reentrancy-guarded (I-2)', () async {
-    when(() => delete.execute()).thenAnswer((_) async {});
+    stubDeleteOk();
 
     final cubit = build();
     await Future.wait([cubit.deleteAddress(), cubit.deleteAddress()]);
@@ -88,6 +95,7 @@ void main() {
     verifyNever(() => register.execute(
           nym: any(named: 'nym'),
           environment: any(named: 'environment'),
+          publishOnNostr: any(named: 'publishOnNostr'),
         ));
     expect(cubit.state.registering, isFalse);
     await cubit.close();
@@ -97,6 +105,7 @@ void main() {
     when(() => register.execute(
           nym: any(named: 'nym'),
           environment: any(named: 'environment'),
+          publishOnNostr: any(named: 'publishOnNostr'),
         )).thenThrow(Exception('NymTaken'));
 
     final cubit = build();
@@ -108,16 +117,15 @@ void main() {
     await cubit.close();
   });
 
-  test('successful register populates address + clears registering', () async {
-    when(() => register.execute(
-          nym: any(named: 'nym'),
-          environment: any(named: 'environment'),
-        )).thenAnswer((_) async => 'alice@bullpay.ca');
+  test('successful register populates address + quota + clears registering',
+      () async {
+    stubRegisterOk(quota: const NymQuota(used: 2, cap: 3));
 
     final cubit = build();
     await cubit.registerNym('alice', Environment.mainnet);
 
     expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
+    expect(cubit.state.quota, const NymQuota(used: 2, cap: 3));
     expect(cubit.state.registering, isFalse);
     expect(cubit.state.error, isNull);
     await cubit.close();
@@ -125,11 +133,8 @@ void main() {
 
   test('successful delete leaves previousNym set for reactivation banner',
       () async {
-    when(() => register.execute(
-          nym: any(named: 'nym'),
-          environment: any(named: 'environment'),
-        )).thenAnswer((_) async => 'alice@bullpay.ca');
-    when(() => delete.execute()).thenAnswer((_) async {});
+    stubRegisterOk();
+    stubDeleteOk();
 
     final cubit = build();
     await cubit.registerNym('alice', Environment.mainnet);
@@ -138,6 +143,35 @@ void main() {
     expect(cubit.state.previousNym, 'alice');
     expect(cubit.state.lightningAddress, isNull);
     expect(cubit.state.registering, isFalse);
+    await cubit.close();
+  });
+
+  test('quota.state() boundaries drive the dereg-warning logic', () {
+    expect(const NymQuota(used: 0, cap: 3).state(), QuotaState.available);
+    expect(const NymQuota(used: 1, cap: 3).state(), QuotaState.available);
+    expect(const NymQuota(used: 2, cap: 3).state(), QuotaState.lastSlot);
+    expect(const NymQuota(used: 3, cap: 3).state(), QuotaState.exhausted);
+    // Defensive — server-reported `used > cap` clamps remaining at zero.
+    expect(const NymQuota(used: 4, cap: 3).state(), QuotaState.exhausted);
+  });
+
+  test('publishOnNostr=false threads through to the register usecase',
+      () async {
+    stubRegisterOk();
+
+    final cubit = build();
+    await cubit.registerNym(
+      'alice',
+      Environment.mainnet,
+      publishOnNostr: false,
+    );
+
+    final captured = verify(() => register.execute(
+          nym: any(named: 'nym'),
+          environment: any(named: 'environment'),
+          publishOnNostr: captureAny(named: 'publishOnNostr'),
+        )).captured;
+    expect(captured.single, isFalse);
     await cubit.close();
   });
 }

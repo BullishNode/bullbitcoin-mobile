@@ -142,25 +142,9 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     try {
       // Don't sync the wallets here so the wallet list is shown immediately
       // and the sync is done after that
-      var wallets = await _getWalletsUsecase.execute();
+      final wallets = await _getWalletsUsecase.execute();
       final isSyncing = _checkWalletSyncingUsecase.execute();
-
-      // Hide LA wallet if it exists and the user toggled "hide wallet on home"
-      // Hide LA wallet if it exists and the user toggled "hide wallet on home"
-      final hasLaWallet = wallets.any(LightningAddressFacade.isLightningAddressWallet);
-      if (hasLaWallet) {
-        try {
-          final hide = await _lightningAddressFacade.isWalletHidden();
-          debugPrint('LA wallet found, hide=$hide');
-          if (hide) {
-            wallets = wallets
-                .where((w) => !LightningAddressFacade.isLightningAddressWallet(w))
-                .toList();
-          }
-        } catch (e) {
-          debugPrint('LA wallet hide check failed: $e');
-        }
-      }
+      final hideLa = await _resolveHideLightningAddress(wallets);
 
       // Initialize sync status map with all wallets
       final syncStatus = {
@@ -179,6 +163,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
           wallets: wallets,
           syncStatus: syncStatus,
           isOnLegacyStorage: isOnLegacyStorage,
+          hideLightningAddressFromHome: hideLa,
         ),
       );
 
@@ -219,22 +204,8 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) async {
     try {
-      var wallets = await _getWalletsUsecase.execute(sync: true);
-
-      // Hide LA wallet if it exists and the user toggled "hide wallet on home"
-      final hasLaWallet2 = wallets.any(LightningAddressFacade.isLightningAddressWallet);
-      if (hasLaWallet2) {
-        try {
-          final hide = await _lightningAddressFacade.isWalletHidden();
-          if (hide) {
-            wallets = wallets
-                .where((w) => !LightningAddressFacade.isLightningAddressWallet(w))
-                .toList();
-          }
-        } catch (e) {
-          debugPrint('LA wallet hide check (refresh) failed: $e');
-        }
-      }
+      final wallets = await _getWalletsUsecase.execute(sync: true);
+      final hideLa = await _resolveHideLightningAddress(wallets);
 
       // Initialize all wallets as not syncing
       final syncStatus = {for (final wallet in wallets) wallet.id: false};
@@ -262,6 +233,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
           error: null,
           syncStatus: syncStatus,
           autoSwapSettings: autoSwapSettings,
+          hideLightningAddressFromHome: hideLa,
         ),
       );
       // After the wallets are synced we also restart the swap watcher.
@@ -327,22 +299,8 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) async {
     try {
-      var wallets = await _getWalletsUsecase.execute();
-
-      // Hide LA wallet if it exists and the user toggled "hide wallet on home"
-      final hasLaWallet = wallets.any(LightningAddressFacade.isLightningAddressWallet);
-      if (hasLaWallet) {
-        try {
-          final hide = await _lightningAddressFacade.isWalletHidden();
-          if (hide) {
-            wallets = wallets
-                .where((w) => !LightningAddressFacade.isLightningAddressWallet(w))
-                .toList();
-          }
-        } catch (e) {
-          debugPrint('LA wallet hide check (syncFinished) failed: $e');
-        }
-      }
+      final wallets = await _getWalletsUsecase.execute();
+      final hideLa = await _resolveHideLightningAddress(wallets);
 
       if (wallets.isNotEmpty) {
         final walletIds = wallets.map((w) => w.id).toList();
@@ -353,6 +311,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
         emit(
           state.copyWith(
             unconfirmedIncomingBalance: unconfirmedIncomingBalance,
+            hideLightningAddressFromHome: hideLa,
           ),
         );
       }
@@ -706,5 +665,16 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) {
     emit(state.copyWith(legacyStorageWarningDismissed: true));
+  }
+
+  Future<bool> _resolveHideLightningAddress(List<Wallet> wallets) async {
+    if (!wallets.any(LightningAddressFacade.isLightningAddressWallet)) {
+      return false;
+    }
+    try {
+      return await _lightningAddressFacade.isWalletHidden();
+    } catch (_) {
+      return false;
+    }
   }
 }

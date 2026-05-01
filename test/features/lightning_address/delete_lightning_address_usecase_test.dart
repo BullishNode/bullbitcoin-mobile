@@ -6,7 +6,9 @@ import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_v1_signing.dart';
+import 'package:bb_mobile/features/lightning_address/domain/ports/nostr_publish_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:bitcoin_base/bitcoin_base.dart';
@@ -15,6 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockPayService extends Mock implements PayServicePort {}
+
+class _MockNostrPublish extends Mock implements NostrPublishPort {}
 
 class _MockWalletRepository extends Mock implements WalletRepository {}
 
@@ -58,16 +62,21 @@ void main() {
   late _MockPayService payService;
   late _MockWalletRepository walletRepo;
   late _MockSeedRepository seedRepo;
+  late _MockNostrPublish nostrPublish;
   late DeleteLightningAddressUsecase usecase;
 
   setUp(() {
     payService = _MockPayService();
     walletRepo = _MockWalletRepository();
     seedRepo = _MockSeedRepository();
+    nostrPublish = _MockNostrPublish();
+    when(() => nostrPublish.clearProfile(privateKeyHex: any(named: 'privateKeyHex')))
+        .thenAnswer((_) async {});
     usecase = DeleteLightningAddressUsecase(
       walletRepository: walletRepo,
       seedRepository: seedRepo,
       payService: payService,
+      nostrPublish: nostrPublish,
     );
 
     when(() => walletRepo.getWallets(
@@ -79,7 +88,7 @@ void main() {
           npubHex: any(named: 'npubHex'),
           signatureHex: any(named: 'signatureHex'),
           timestampSecs: any(named: 'timestampSecs'),
-        )).thenAnswer((_) async {});
+        )).thenAnswer((_) async => const NymQuota(used: 1, cap: 3));
   });
 
   ({String npubHex, String sigHex, int ts}) _capture() {

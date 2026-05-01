@@ -1,5 +1,7 @@
+import 'package:bb_mobile/features/lightning_address/domain/entities/lookup_result.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 
@@ -18,7 +20,7 @@ class PayServiceDatasource implements PayServicePort {
             ));
 
   @override
-  Future<String> register({
+  Future<({String address, NymQuota quota})> register({
     required String nym,
     required String ctDescriptor,
     required String npubHex,
@@ -46,11 +48,12 @@ class PayServiceDatasource implements PayServicePort {
       }
 
       final address = data['lightning_address'] as String;
+      final quota = _quotaFromJson(data['quota']);
 
       final box = await Hive.openBox<String>(_boxName);
       await box.put(_addressKey, address);
 
-      return address;
+      return (address: address, quota: quota);
     } on DioException catch (e) {
       throw PayServiceException(
         _extractDioErrorMessage(e),
@@ -71,7 +74,7 @@ class PayServiceDatasource implements PayServicePort {
   }
 
   @override
-  Future<({String nym, bool active})?> lookupByNpub(String npubHex) async {
+  Future<LookupResult?> lookupByNpub(String npubHex) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '/register/lookup',
@@ -79,7 +82,12 @@ class PayServiceDatasource implements PayServicePort {
       );
       final data = response.data;
       if (data == null || data['status'] == 'ERROR') return null;
-      return (nym: data['nym'] as String, active: data['active'] as bool);
+      final nym = data['nym'] as String;
+      final active = data['active'] as bool;
+      final quota = _quotaFromJson(data['quota']);
+      return active
+          ? ActiveLookupResult(nym: nym, quota: quota)
+          : InactiveLookupResult(nym: nym, quota: quota);
     } on DioException catch (e) {
       // 404 = npub has no registration. Anything else (5xx, timeout,
       // connection-reset) is a transient failure the caller must distinguish
@@ -91,13 +99,13 @@ class PayServiceDatasource implements PayServicePort {
   }
 
   @override
-  Future<void> deleteRegistration({
+  Future<NymQuota> deleteRegistration({
     required String npubHex,
     required String signatureHex,
     required int timestampSecs,
   }) async {
     try {
-      final response = await _dio.delete<dynamic>(
+      final response = await _dio.delete<Map<String, dynamic>>(
         '/register',
         data: {
           'npub': npubHex,
@@ -106,19 +114,33 @@ class PayServiceDatasource implements PayServicePort {
         },
       );
 
-      if (response.data is Map && response.data['status'] == 'ERROR') {
+      final data = response.data;
+      if (data != null && data['status'] == 'ERROR') {
         throw PayServiceException(
-          response.data['reason'] as String? ?? 'Unknown error',
+          data['reason'] as String? ?? 'Unknown error',
         );
       }
 
       final box = await Hive.openBox<String>(_boxName);
       await box.delete(_addressKey);
+
+      // Server returns the post-delete quota; mobile uses it to drive the
+      // dereg-warning copy without an extra `lookupByNpub` round trip.
+      return _quotaFromJson(data?['quota']);
     } on DioException catch (e) {
       throw PayServiceException(
         _extractDioErrorMessage(e),
       );
     }
+  }
+
+  /// Parse the server's `quota: {used, cap, remaining}` block. `remaining`
+  /// is recomputed locally — never trust a derived field over the wire.
+  NymQuota _quotaFromJson(dynamic raw) {
+    final m = raw is Map ? raw : const {};
+    final used = (m['used'] as num?)?.toInt() ?? 0;
+    final cap = (m['cap'] as num?)?.toInt() ?? 0;
+    return NymQuota(used: used, cap: cap);
   }
 
   String _extractDioErrorMessage(DioException e) {

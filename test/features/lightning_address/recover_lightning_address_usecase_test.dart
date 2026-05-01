@@ -6,7 +6,9 @@ import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/features/lightning_address/domain/entities/lookup_result.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/recover_lightning_address_usecase.dart';
@@ -132,7 +134,7 @@ void main() {
 
   test('returns null on inactive registration', () async {
     when(() => payService.lookupByNpub(any()))
-        .thenAnswer((_) async => (nym: 'alice', active: false));
+        .thenAnswer((_) async => const InactiveLookupResult(nym: 'alice', quota: NymQuota(used: 1, cap: 3)));
 
     final out = await usecase.execute(environment: Environment.mainnet);
 
@@ -156,7 +158,7 @@ void main() {
     when(() => getWallet.execute(environment: any(named: 'environment')))
         .thenAnswer((_) async => null);
     when(() => payService.lookupByNpub(any()))
-        .thenAnswer((_) async => (nym: 'alice', active: true));
+        .thenAnswer((_) async => const ActiveLookupResult(nym: 'alice', quota: NymQuota(used: 1, cap: 3)));
 
     final out = await usecase.execute(environment: Environment.mainnet);
 
@@ -169,7 +171,7 @@ void main() {
   test('on active record: skips wallet create when wallet already present',
       () async {
     when(() => payService.lookupByNpub(any()))
-        .thenAnswer((_) async => (nym: 'alice', active: true));
+        .thenAnswer((_) async => const ActiveLookupResult(nym: 'alice', quota: NymQuota(used: 1, cap: 3)));
 
     final out = await usecase.execute(environment: Environment.mainnet);
 

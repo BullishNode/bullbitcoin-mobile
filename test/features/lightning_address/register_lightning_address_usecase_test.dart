@@ -8,7 +8,9 @@ import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_v1_signing.dart';
+import 'package:bb_mobile/features/lightning_address/domain/ports/nostr_publish_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
@@ -19,6 +21,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockPayService extends Mock implements PayServicePort {}
+
+class _MockNostrPublish extends Mock implements NostrPublishPort {}
 
 class _MockWalletRepository extends Mock implements WalletRepository {}
 
@@ -85,6 +89,7 @@ void main() {
   late _MockSeedRepository seedRepo;
   late _MockGetWallet getWallet;
   late _MockCreateWallet createWallet;
+  late _MockNostrPublish nostrPublish;
   late RegisterLightningAddressUsecase usecase;
 
   setUp(() {
@@ -93,12 +98,20 @@ void main() {
     seedRepo = _MockSeedRepository();
     getWallet = _MockGetWallet();
     createWallet = _MockCreateWallet();
+    nostrPublish = _MockNostrPublish();
+    when(() => nostrPublish.publishProfile(
+          privateKeyHex: any(named: 'privateKeyHex'),
+          name: any(named: 'name'),
+          nip05: any(named: 'nip05'),
+          lud16: any(named: 'lud16'),
+        )).thenAnswer((_) async {});
     usecase = RegisterLightningAddressUsecase(
       createWallet: createWallet,
       getWallet: getWallet,
       walletRepository: walletRepo,
       seedRepository: seedRepo,
       payService: payService,
+      nostrPublish: nostrPublish,
     );
 
     when(() => walletRepo.getWallets(
@@ -116,7 +129,10 @@ void main() {
           npubHex: any(named: 'npubHex'),
           signatureHex: any(named: 'signatureHex'),
           timestampSecs: any(named: 'timestampSecs'),
-        )).thenAnswer((_) async => 'alice@bullpay.ca');
+        )).thenAnswer((_) async => (
+              address: 'alice@bullpay.ca',
+              quota: const NymQuota(used: 1, cap: 3),
+            ));
   });
 
   ({String nym, String ctDescriptor, String npubHex, String sigHex, int ts})

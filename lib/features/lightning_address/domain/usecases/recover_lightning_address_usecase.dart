@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
+import 'package:bb_mobile/features/lightning_address/domain/entities/lookup_result.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_key_derivation.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
@@ -36,15 +37,11 @@ class RecoverLightningAddressUsecase {
     );
     if (nostr == null) return null;
 
-    final ({String nym, bool active})? lookup;
-    try {
-      lookup = await _payService.lookupByNpub(nostr.npubHex);
-    } on PayServiceException {
-      // Transient server/network failure — don't mark recovery complete so
-      // it'll retry on the next launch.
-      return null;
-    }
-    if (lookup == null || !lookup.active) return null;
+    final lookup = await _safeLookup(nostr.npubHex);
+    // Recovery only auto-restores active registrations; an inactive row
+    // means the user previously deactivated and we don't want to silently
+    // re-activate. The settings flow will surface the "previousNym" banner.
+    if (lookup is! ActiveLookupResult) return null;
 
     final existing = await _getWallet.execute(
       environment: environment,
@@ -57,5 +54,15 @@ class RecoverLightningAddressUsecase {
     await _payService.storeAddress(address);
 
     return address;
+  }
+
+  Future<LookupResult?> _safeLookup(String npubHex) async {
+    try {
+      return await _payService.lookupByNpub(npubHex);
+    } on PayServiceException {
+      // Transient server/network failure — don't mark recovery complete so
+      // the next launch retries.
+      return null;
+    }
   }
 }

@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_address_settings_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
@@ -133,13 +134,14 @@ class _LightningAddressSettingsScreenState
               registering: state.registering,
               error: state.error,
               previousNym: state.previousNym,
-              onRegister: () {
+              onRegister: (publishOnNostr) {
                 final env =
                     context.read<SettingsCubit>().state.environment ??
                         Environment.mainnet;
                 context.read<LightningAddressCubit>().registerNym(
                       _nymController.text.trim().toLowerCase(),
                       env,
+                      publishOnNostr: publishOnNostr,
                     );
               },
             );
@@ -399,12 +401,39 @@ class _ActivatedViewState extends State<_ActivatedView> {
               onPressed: widget.deleting
                   ? null
                   : () async {
+                      final quotaState = context
+                          .read<LightningAddressCubit>()
+                          .state
+                          .quota
+                          ?.state();
                       final confirmed = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: Text(context.loc.lightningAddressDeactivateTitle),
-                              content: Text(
-                                context.loc.lightningAddressDeactivateBody(widget.address),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    context.loc.lightningAddressDeactivateBody(widget.address),
+                                  ),
+                                  if (quotaState case QuotaState.lastSlot ||
+                                      QuotaState.exhausted) ...[
+                                    const Gap(12),
+                                    Text(
+                                      switch (quotaState) {
+                                        QuotaState.lastSlot => context.loc
+                                            .lightningAddressDeactivateLastSlotWarning,
+                                        QuotaState.exhausted => context.loc
+                                            .lightningAddressDeactivateExhaustedWarning,
+                                        _ => '',
+                                      },
+                                      style: TextStyle(
+                                        color: Theme.of(ctx).colorScheme.error,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               actions: [
                                 TextButton(
@@ -472,12 +501,12 @@ void _showBottomSheet(BuildContext context, String title, String content) {
 
 // --- Simple registration view ---
 
-class _RegistrationView extends StatelessWidget {
+class _RegistrationView extends StatefulWidget {
   final TextEditingController controller;
   final bool registering;
   final String? error;
   final String? previousNym;
-  final VoidCallback onRegister;
+  final ValueChanged<bool> onRegister;
 
   const _RegistrationView({
     required this.controller,
@@ -486,6 +515,15 @@ class _RegistrationView extends StatelessWidget {
     required this.onRegister,
     this.previousNym,
   });
+
+  @override
+  State<_RegistrationView> createState() => _RegistrationViewState();
+}
+
+class _RegistrationViewState extends State<_RegistrationView> {
+  bool _publishOnNostr = true;
+
+  void _submit() => widget.onRegister(_publishOnNostr);
 
   @override
   Widget build(BuildContext context) {
@@ -497,7 +535,7 @@ class _RegistrationView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Gap(16),
-          if (previousNym != null) ...[
+          if (widget.previousNym != null) ...[
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -515,7 +553,7 @@ class _RegistrationView extends StatelessWidget {
                   const Gap(4),
                   Text(
                     context.loc.lightningAddressPreviousBody(
-                      previousNym ?? '', lightningAddressDomain),
+                      widget.previousNym ?? '', lightningAddressDomain),
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
@@ -529,8 +567,8 @@ class _RegistrationView extends StatelessWidget {
           ),
           const Gap(24),
           TextField(
-            controller: controller,
-            enabled: !registering,
+            controller: widget.controller,
+            enabled: !widget.registering,
             autocorrect: false,
             textInputAction: TextInputAction.done,
             inputFormatters: [
@@ -541,19 +579,31 @@ class _RegistrationView extends StatelessWidget {
               hintText: context.loc.lightningAddressNymHint,
               border: const OutlineInputBorder(),
             ),
-            onSubmitted: (_) => onRegister(),
+            onSubmitted: (_) => _submit(),
           ),
-          if (error != null) ...[
+          if (widget.error != null) ...[
             const Gap(12),
-            Text(error!, style: TextStyle(color: context.appColors.error)),
+            Text(widget.error!,
+                style: TextStyle(color: context.appColors.error)),
           ],
-          const Gap(24),
+          const Gap(8),
+          CheckboxListTile(
+            value: _publishOnNostr,
+            onChanged: widget.registering
+                ? null
+                : (v) => setState(() => _publishOnNostr = v ?? true),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            title: Text(context.loc.lightningAddressPublishNostrTitle),
+            subtitle: Text(context.loc.lightningAddressPublishNostrSubtitle),
+          ),
+          const Gap(16),
           SizedBox(
             width: double.infinity,
             height: 48,
             child: FilledButton(
-              onPressed: registering ? null : onRegister,
-              child: registering
+              onPressed: widget.registering ? null : _submit,
+              child: widget.registering
                   ? const SizedBox(
                       height: 20,
                       width: 20,

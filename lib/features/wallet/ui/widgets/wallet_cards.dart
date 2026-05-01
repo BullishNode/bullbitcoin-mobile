@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/widgets/cards/wallet_card.dart';
 import 'package:bb_mobile/features/ark/router.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -41,11 +42,14 @@ class WalletCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wallets = context.select(
-      (WalletBloc bloc) => localSignersOnly
-          ? bloc.state.wallets.where((w) => w.signsLocally)
-          : bloc.state.wallets,
-    );
+    final wallets = context.select((WalletBloc bloc) {
+      Iterable<Wallet> ws = bloc.state.wallets;
+      if (localSignersOnly) ws = ws.where((w) => w.signsLocally);
+      if (bloc.state.hideLightningAddressFromHome) {
+        ws = ws.where((w) => !LightningAddressFacade.isLightningAddressWallet(w));
+      }
+      return ws.toList();
+    });
     final syncStatus = context.select(
       (WalletBloc bloc) => bloc.state.syncStatus,
     );
