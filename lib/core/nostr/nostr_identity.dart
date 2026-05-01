@@ -9,10 +9,10 @@ const int nostrBip85Application = 86;
 
 class NostrIdentity {
   final String npubHex;
-  final String nsecHex;
+  final String _nsecHex;
   final ECPrivate _ecPrivate;
 
-  NostrIdentity._(this.npubHex, this.nsecHex, this._ecPrivate);
+  NostrIdentity._(this.npubHex, this._nsecHex, this._ecPrivate);
 
   /// Derive a Nostr identity from a master xprv at the given identity/account index.
   /// Path: m/83696968'/{nostrBip85Application}'/{identity}'/{account}'
@@ -44,4 +44,10 @@ class NostrIdentity {
       tweak: false,
     );
   }
+
+  // Scoped access to the private key. Don't retain `nsec` past the callback.
+  T withPrivateKeyHex<T>(T Function(String nsec) fn) => fn(_nsecHex);
+
+  @override
+  String toString() => 'NostrIdentity(npub: $npubHex)';
 }

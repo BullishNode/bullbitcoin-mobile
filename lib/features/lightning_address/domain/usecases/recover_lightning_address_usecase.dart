@@ -3,11 +3,9 @@ import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_key_derivation.dart';
-import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
-import 'package:flutter/foundation.dart';
 
 class RecoverLightningAddressUsecase {
   final GetLightningAddressWalletUsecase _getWallet;
@@ -38,22 +36,26 @@ class RecoverLightningAddressUsecase {
     );
     if (nostr == null) return null;
 
-    final lookup = await _payService.lookupByNpub(nostr.npubHex);
+    final ({String nym, bool active})? lookup;
+    try {
+      lookup = await _payService.lookupByNpub(nostr.npubHex);
+    } on PayServiceException {
+      // Transient server/network failure — don't mark recovery complete so
+      // it'll retry on the next launch.
+      return null;
+    }
     if (lookup == null || !lookup.active) return null;
 
-    final existing = await _getWallet.execute(environment: environment);
+    final existing = await _getWallet.execute(
+      environment: environment,
+    );
     if (existing == null) {
-      try {
-        await _createWallet.execute(environment: environment);
-      } on LightningAddressWalletAlreadyExistsException {
-        // Race condition — wallet created between check and create
-      }
+      await _createWallet.execute(environment: environment);
     }
 
     final address = '${lookup.nym}@$lightningAddressDomain';
     await _payService.storeAddress(address);
 
-    debugPrint('Lightning Address recovered: $address');
     return address;
   }
 }

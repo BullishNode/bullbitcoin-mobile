@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
@@ -9,7 +10,6 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_ligh
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class LightningAddressCubit extends Cubit<LightningAddressState> {
@@ -80,8 +80,8 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
             }
           }
         }
-      } catch (e) {
-        debugPrint('LA server lookup failed: $e');
+      } catch (e, stack) {
+        log.warning('LA server lookup failed', error: e, trace: stack);
       }
 
       if (isClosed) return;
@@ -96,7 +96,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   }
 
   Future<void> registerNym(String nym, Environment environment) async {
-    if (nym.isEmpty) return;
+    if (nym.isEmpty || state.registering) return;
     emit(state.copyWith(registering: true, error: null));
 
     try {
@@ -111,8 +111,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         previousNym: null,
       ));
     } catch (e, stack) {
-      debugPrint('Lightning address registration error: $e');
-      debugPrint('$stack');
+      log.severe(message: 'register failed', error: e, trace: stack);
       if (isClosed) return;
       final msg = e is Exception ? _mapError(e) : e.toString();
       emit(state.copyWith(registering: false, error: msg));
@@ -120,6 +119,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   }
 
   Future<void> deleteAddress() async {
+    if (state.registering) return;
     final currentAddress = state.lightningAddress;
     emit(state.copyWith(registering: true, error: null));
     try {

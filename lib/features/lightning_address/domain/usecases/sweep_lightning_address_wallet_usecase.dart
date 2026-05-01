@@ -5,7 +5,7 @@ import 'package:bb_mobile/core/wallet/data/repositories/liquid_wallet_repository
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_address_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
-import 'package:bb_mobile/features/labels/new_label.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 
@@ -61,7 +61,7 @@ class SweepLightningAddressWalletUsecase {
     }
 
     final destinationAddress =
-        await _walletAddressRepository.getLastRevealedReceiveAddress(
+        await _walletAddressRepository.generateNewReceiveAddress(
       walletId: defaultLiquid.id,
     );
 
@@ -78,16 +78,14 @@ class SweepLightningAddressWalletUsecase {
       walletId: laWallet.id,
     );
 
-    final txid = await _broadcast.execute(signedPset, isTestnet: isTestnet);
+    final txid =
+        await _broadcast.execute(signedPset, isTestnet: isTestnet);
 
-    // Label the sweep transaction so it shows "Lightning Address" in the tx list
-    if (txid != null) {
-      await _labelsFacade.store(NewLabel.tx(
-        transactionId: txid,
-        label: 'Lightning Address',
-        origin: laWallet.id,
-      ));
-    }
+    await _labelsFacade.store(NewLabel.tx(
+      transactionId: txid,
+      label: lightningAddressWalletLabel,
+      origin: laWallet.id,
+    ));
 
     return txid;
   }

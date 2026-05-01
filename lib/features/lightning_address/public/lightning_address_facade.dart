@@ -37,6 +37,4 @@ class LightningAddressFacade {
   Future<String?> recoverIfNeeded({required Environment environment}) =>
       _recover.execute(environment: environment);
 
-  Future<List<String>> getNymHistory() => _settings.getNymHistory();
-  Future<void> addToNymHistory(String nym) => _settings.addToNymHistory(nym);
 }

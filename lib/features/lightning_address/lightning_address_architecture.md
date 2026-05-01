@@ -1,148 +1,125 @@
-# Lightning Address Feature Architecture
+# Lightning Address
 
-## Overview
-
-Users register a nym (e.g. `francis@bullpay.ca`) with the bullnym pay service.
+A user nym (`alice@bullpay.ca`) registered with the bullnym pay service.
 Incoming Lightning payments are settled on Liquid via Boltz reverse submarine
-swaps. The mobile app creates a BIP85-derived Liquid wallet to receive these
-funds and automatically sweeps them to the default Instant Payments wallet.
+swaps into a BIP85-derived Liquid wallet on the device. Funds are auto-swept
+to the default Liquid wallet on every sync.
 
-When sending TO a Lightning Address, if the recipient's server supports LUD-22
-and advertises Liquid, the app pays directly on Liquid — bypassing the Boltz
-swap entirely.
+When sending TO a Lightning Address, if the recipient's pay service advertises
+LUD-22 with `payment_method=L-BTC`, the app pays directly on Liquid and skips
+the Boltz swap.
 
-## BIP85 Derivation Paths
+## BIP85 derivations
 
-### Lightning Address Wallet (index 75)
-```
-Master Seed
-  → BIP85 mnemonic derivation at index 75
-  → 12-word child mnemonic
-  → LWK Liquid wallet (CT descriptor shared with pay service)
-```
-Index 75 derived from "boltz": b(2)+o(15)+l(12)+t(20)+z(26) = 75.
-The wallet is labeled "Lightning Address" and identified by this label.
+| What | Path | Source |
+|---|---|---|
+| LA wallet mnemonic | BIP85 index 75 → 12-word mnemonic | `lightning_address_constants.dart` |
+| Nostr identity | BIP85 `86'/75'/0'` → 32-byte secret | `nostr_identity.dart` (NIP-06 application 86) |
 
-### Nostr Identity (application 86, identity 75, account 0)
-```
-Master Seed
-  → BIP32 xprv
-  → BIP85 entropy at path 86'/75'/0'
-  → 32-byte secret key → Nostr keypair (nsec/npub)
-```
-Application 86 is the NIP-06 Nostr application number. Identity index 75
-matches the wallet index. Used for:
-- Schnorr signing registration/deletion requests (BIP-340)
-- NIP-05 identity (`npub` stored on server)
-- Nostr profile publishing (kind 0 with `nip05` and `lud16` fields)
+The LA wallet is created from the child mnemonic and labeled
+`"Lightning Address"`. `GetLightningAddressWalletUsecase` finds it by label.
 
-## Domain
+## Use cases
 
-### Ports
-- **PayServicePort** — abstract interface for pay service HTTP calls
-  (register, delete, lookup, store/get address). Implemented by
-  PayServiceDatasource. Domain use cases depend on the port, not the concrete
-  datasource.
+`lib/features/lightning_address/domain/usecases/`
 
-### Use Cases
-- **CreateLightningAddressWalletUsecase** — BIP85 child mnemonic → LWK wallet
-- **GetLightningAddressWalletUsecase** — find wallet by label
-- **RegisterLightningAddressUsecase** — create wallet + derive Nostr key + sign + call server + publish Nostr profile
-- **DeleteLightningAddressUsecase** — sign "delete" + call server + clear Nostr profile
-- **SweepLightningAddressWalletUsecase** — drain LA wallet to Instant Payments, label tx "Lightning Address"
-- **RecoverLightningAddressUsecase** — derive Nostr key + check server for existing registration + create wallet if found
+| Use case | Inputs | Outputs |
+|---|---|---|
+| `CreateLightningAddressWalletUsecase` | environment | `Wallet` |
+| `GetLightningAddressWalletUsecase` | environment | `Wallet?` (label match) |
+| `RegisterLightningAddressUsecase` | nym, environment | `String` (`nym@domain`) |
+| `DeleteLightningAddressUsecase` | — | void |
+| `RecoverLightningAddressUsecase` | environment | `String?` |
+| `SweepLightningAddressWalletUsecase` | isTestnet | `String?` (txid) |
 
-### Error Types
-- `LightningAddressWalletAlreadyExistsException`
-- `LightningAddressWalletNotFoundException`
-- `LightningAddressSweepException`
-- `LightningAddressNoDefaultWalletException`
-- `LightningAddressRegistrationException` (mapped from PayServiceException)
+Setter use cases take `…Command` objects; getters take named params.
 
-### Key Derivation
-`lightning_address_key_derivation.dart` — shared helpers:
-- `deriveDefaultWalletXprv()` — get default Bitcoin wallet → seed → xprv
-- `deriveNostrIdentityForLightningAddress()` — xprv → NostrIdentity
+## Wire: register / delete / update
 
-## LUD-22: Liquid Direct Pay
-
-When sending to a Lightning Address, the app checks if the server supports
-Liquid via LUD-22 alternative payment methods. If it does, the callback is
-called with `&payment_method=L-BTC` and the server returns a Liquid address
-directly instead of a Lightning invoice.
+Mobile signs a v1 message, server verifies. Format mirrored on both sides
+(see `lightning_address_v1_signing.dart` and `pay-service/src/auth.rs`):
 
 ```
-User enters: francis@bullpay.ca
-  → LNURL metadata: check for payment_methods including "L-BTC"
-  → If supported: callback with &payment_method=L-BTC
-  → Server returns { "L-BTC": { "address": "lq1qq..." } }
-  → Confirm screen shows: To: francis@bullpay.ca, Network: Liquid
-  → Direct Liquid payment (no Boltz swap, no fees, no trust)
+bullpay-la-v1\x00<action>\x00<npub_hex>\x00(<field>\x00)*<timestamp>
 ```
 
-The original Lightning Address is preserved in `SendState.lud22OriginalAddress`
-so the confirm screen displays the nym, not the resolved Liquid address.
+| Action | Payload fields |
+|---|---|
+| `register` | nym, ct_descriptor |
+| `update` | ct_descriptor |
+| `delete` | (none) |
+| `purge` | (none) |
 
-## Presentation
+Schnorr-signed (BIP-340). Server enforces ±300 s freshness.
 
-`LightningAddressCubit` — owns screen state (loading, registering, address,
-error, walletExists, previousNym). UI dispatches `checkStatus()`,
-`registerNym()`, `deleteAddress()`.
+## LUD-22 send
 
-Settings screen shows:
-- Registration form (choose nym) with StatusScreen progress animation
-- Activated view: address display, tap-to-copy, auto-sweep toggle, hide wallet toggle, deactivate button with confirmation dialog
+`try_liquid_direct_pay_usecase.dart`:
 
-## Data Flows
+1. Validate `<nym>@<domain>` against strict regexes (LUD-16 local-part + RFC 1035 hostname).
+2. `GET https://<domain>/.well-known/lnurlp/<nym>` (no redirects).
+3. Require `payment_methods` array containing `"L-BTC"`.
+4. Validate `metadata.callback`: `scheme == 'https' && host == domain`.
+5. POST proof of funds (`outpoint`, `pubkey`, `sig`) via the same callback.
+6. Server returns `{ "L-BTC": { "address": "lq1q…" } }` → BIP21 Liquid URI.
 
-### Registration
-```
-Settings UI → LightningAddressCubit.registerNym()
-  → RegisterLightningAddressUsecase
-    → Create/get wallet (BIP85 index 75)
-    → Derive Nostr key (BIP85 86'/75'/0')
-    → Sign(nym + ctDescriptor) with BIP-340 schnorr
-    → PayServicePort.register() → server returns "nym@bullpay.ca"
-    → NostrRelayClient.publishProfile(nip05, lud16) to 7 relays
-```
+`SendState.lud22OriginalAddress` preserves the user-pasted nym for display
+on the confirm screen.
 
-### Auto-Sweep
-```
-WalletBloc._onWalletSyncFinished (default Liquid, not LA wallet)
-  → LightningAddressFacade.shouldAutoSweep()
-  → LightningAddressFacade.sweep()
-    → SweepLightningAddressWalletUsecase
-      → buildPset(drain: true) → sign → broadcast
-      → LabelsFacade.store("Lightning Address" label on txid)
-```
+## Auto-sweep
 
-### Recovery (mnemonic import / RecoverBull only)
-```
-ImportMnemonicRouter / RecoverBullBloc (after WalletStarted)
-  → LightningAddressFacade.recoverIfNeeded()
-    → RecoverLightningAddressUsecase
-      → Check stored address (skip if exists)
-      → Derive Nostr key → PayServicePort.lookupByNpub()
-      → If found + active: create wallet + store address
-```
-Non-blocking, fire-and-forget. Does NOT run on new wallet creation or normal
-app startup.
+`WalletBloc._onWalletSyncFinished` (for the default Liquid wallet only) calls
+`LightningAddressFacade.sweep()` if `shouldAutoSweep()` is true and the
+auto-swap executor is idle. Sweep:
 
-### Wallet Hiding
-```
-WalletBloc._onStarted / _onRefreshed
-  → Check if any wallet has label "Lightning Address" (zero-cost if none)
-  → If yes: check isWalletHidden() setting → filter from list
-```
+1. `getWallet(LA)`. Bail if balance ≤ 100 sats (dust).
+2. `generateNewReceiveAddress(default Liquid)` — fresh index per sweep.
+3. Build drain PSET → sign → broadcast.
+4. Label the resulting txid `"Lightning Address"`.
 
-## Concurrency
+## Recovery
 
-- Sweep only fires on default Liquid wallet sync (not LA wallet's own sync)
-- Guard: `!state.autoSwapExecuting` prevents sweep during auto-swap
-- No dedicated sweep mutex — acceptable since sweep is idempotent
+`LightningAddressFacade.recoverIfNeeded()` runs after `WalletStarted` on
+mnemonic import / RecoverBull. Fire-and-forget; does NOT run on fresh
+install or normal startup.
 
-## Feature Dependencies
+1. If `getStoredAddress()` is non-null, exit.
+2. Derive Nostr identity, `lookupByNpub()` on the pay service.
+   - 404 → no record, exit.
+   - 5xx / timeout → throws `PayServiceException`; caller catches and exits
+     so recovery retries on the next launch.
+3. If active record: create wallet (if missing) + store the address.
 
-- **Depends on:** core/wallet, core/bip85, core/seed, core/blockchain, core/fees, core/nostr, features/labels
-- **Depended on by:** wallet (via public facade), settings (via public facade + cubit), import_mnemonic (via facade), recoverbull (via facade)
-- **Cross-feature imports:** settings_router imports cubit + UI directly (follows codebase convention for routing)
+## Hide wallet
+
+`WalletBloc._onStarted / _onRefreshed` calls
+`LightningAddressFacade.isWalletHidden()`; if true, the LA wallet is filtered
+out of the wallet list. `SendCubit.loadWalletWithRatesAndFees` always filters
+the LA wallet out of selectable send sources.
+
+## Privacy boundaries
+
+- Nostr `nsecHex` is private on `NostrIdentity`; access via
+  `withPrivateKeyHex((nsec) => …)`. `toString()` prints only `npub`.
+- LUD-22 callback is pinned to `https` + the metadata host. Redirects
+  disabled on both metadata fetch and callback POST.
+- Sweep destination is a fresh receive index per sweep (not address-reused).
+
+## Files
+
+- `domain/usecases/` — six use cases above
+- `domain/lightning_address_v1_signing.dart` — v1 message bytes
+- `domain/lightning_address_key_derivation.dart` — xprv + Nostr derivation helpers
+- `domain/ports/pay_service_port.dart` — abstract HTTP interface
+- `domain/lightning_address_errors.dart` — feature errors
+- `data/datasources/pay_service_datasource.dart` — Dio impl
+- `data/datasources/lightning_address_settings_datasource.dart` — Hive: auto-sweep, hide-wallet, stored address
+- `presentation/lightning_address_cubit.dart` — screen state machine
+- `public/lightning_address_facade.dart` — cross-feature surface
+- `ui/lightning_address_settings_screen.dart` — registration + activated views
+- `lightning_address_locator.dart` — DI
+
+## Server
+
+`bullnym/pay-service` — register/update/delete/lookup, LUD-16 metadata, LUD-22
+callback, Boltz reverse-swap orchestration.

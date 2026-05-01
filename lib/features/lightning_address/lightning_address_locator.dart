@@ -23,12 +23,12 @@ class LightningAddressLocator {
     locator.registerLazySingleton<PayServiceDatasource>(
       () => PayServiceDatasource(),
     );
-    locator.registerLazySingleton<PayServicePort>(
-      () => locator<PayServiceDatasource>(),
-    );
-
     locator.registerLazySingleton<LightningAddressSettingsDatasource>(
       () => LightningAddressSettingsDatasource(),
+    );
+
+    locator.registerLazySingleton<PayServicePort>(
+      () => locator<PayServiceDatasource>(),
     );
 
     locator.registerFactory<GetLightningAddressWalletUsecase>(
@@ -75,21 +75,21 @@ class LightningAddressLocator {
       ),
     );
 
-    locator.registerFactory<LightningAddressCubit>(
-      () => LightningAddressCubit(
+    locator.registerFactory<RecoverLightningAddressUsecase>(
+      () => RecoverLightningAddressUsecase(
         getWallet: locator<GetLightningAddressWalletUsecase>(),
-        register: locator<RegisterLightningAddressUsecase>(),
-        delete: locator<DeleteLightningAddressUsecase>(),
+        createWallet: locator<CreateLightningAddressWalletUsecase>(),
         payService: locator<PayServicePort>(),
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
       ),
     );
 
-    locator.registerFactory<RecoverLightningAddressUsecase>(
-      () => RecoverLightningAddressUsecase(
+    locator.registerFactory<LightningAddressCubit>(
+      () => LightningAddressCubit(
         getWallet: locator<GetLightningAddressWalletUsecase>(),
-        createWallet: locator<CreateLightningAddressWalletUsecase>(),
+        register: locator<RegisterLightningAddressUsecase>(),
+        delete: locator<DeleteLightningAddressUsecase>(),
         payService: locator<PayServicePort>(),
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),

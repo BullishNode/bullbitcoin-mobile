@@ -6,11 +6,13 @@ abstract class PayServicePort {
     required String ctDescriptor,
     required String npubHex,
     required String signatureHex,
+    required int timestampSecs,
   });
 
   Future<void> deleteRegistration({
     required String npubHex,
     required String signatureHex,
+    required int timestampSecs,
   });
 
   Future<({String nym, bool active})?> lookupByNpub(String npubHex);

@@ -44,6 +44,7 @@ import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.d
 import 'package:bb_mobile/features/send/domain/usecases/try_liquid_direct_pay_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/update_paid_send_swap_usecase.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 
 import 'package:bb_mobile/features/send/presentation/bloc/send_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -219,7 +220,15 @@ class SendCubit extends Cubit<SendState> {
     try {
       final wallets = await _getWalletsUsecase.execute();
       emit(
-        state.copyWith(wallets: wallets.where((w) => !w.isWatchOnly).toList()),
+        state.copyWith(
+          wallets: wallets
+              .where(
+                (w) =>
+                    !w.isWatchOnly &&
+                    !LightningAddressFacade.isLightningAddressWallet(w),
+              )
+              .toList(),
+        ),
       );
       await getCurrencies();
       await getExchangeRate();

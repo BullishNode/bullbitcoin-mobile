@@ -6,6 +6,7 @@ import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_key_derivation.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_v1_signing.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
@@ -48,8 +49,14 @@ class RegisterLightningAddressUsecase {
     );
 
     final ctDescriptor = wallet.externalPublicDescriptor;
-    final message = '$nym$ctDescriptor';
-    final signature = nostr.signSchnorr(message.codeUnits);
+    final timestampSecs = currentUnixTimestampSecs();
+    final messageBytes = buildLaV1Message(
+      action: 'register',
+      npubHex: nostr.npubHex,
+      payloadFields: [nym, ctDescriptor],
+      timestampSecs: timestampSecs,
+    );
+    final signature = nostr.signSchnorr(messageBytes);
 
     try {
       final address = await _payService.register(
@@ -57,15 +64,18 @@ class RegisterLightningAddressUsecase {
         ctDescriptor: ctDescriptor,
         npubHex: nostr.npubHex,
         signatureHex: signature,
+        timestampSecs: timestampSecs,
       );
 
       // Publish NIP-05 profile to nostr relays (best-effort)
       try {
-        await NostrRelayClient.publishProfile(
-          privateKeyHex: nostr.nsecHex,
-          name: nym,
-          nip05: '$nym@$lightningAddressDomain',
-          lud16: '$nym@$lightningAddressDomain',
+        await nostr.withPrivateKeyHex(
+          (nsec) => NostrRelayClient.publishProfile(
+            privateKeyHex: nsec,
+            name: nym,
+            nip05: '$nym@$lightningAddressDomain',
+            lud16: '$nym@$lightningAddressDomain',
+          ),
         );
       } catch (e) {
         debugPrint('Nostr relay publish failed: $e');

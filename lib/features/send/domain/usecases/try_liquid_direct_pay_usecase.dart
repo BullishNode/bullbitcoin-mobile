@@ -16,6 +16,17 @@ class LiquidDirectPayment {
   });
 }
 
+// LUD-16 username: lowercase alnum + `._-`, max 64. Rejects path traversal,
+// scheme bleed, whitespace, etc.
+final _usernameRegex = RegExp(r'^[a-z0-9._-]{1,64}$');
+// Strict hostname: dot-separated lowercase labels, max 253 chars, no `..`,
+// no `/`, no `:` (port not allowed in metadata host).
+// TLD must start with a letter — rejects IP literals (127.0.0.1) and bare
+// hostnames; only DNS-resolved domains pass.
+final _domainRegex = RegExp(
+  r'^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.[a-z]([a-z0-9-]{0,61}[a-z0-9])?$',
+);
+
 class TryLiquidDirectPayUsecase {
   final BuildBullpayProofUsecase _buildProof;
   final Dio _dio;
@@ -39,11 +50,19 @@ class TryLiquidDirectPayUsecase {
 
     final username = parts[0].toLowerCase();
     final domain = parts[1].toLowerCase();
+    if (!_usernameRegex.hasMatch(username) ||
+        domain.length > 253 ||
+        !_domainRegex.hasMatch(domain)) {
+      throw const LiquidDirectPayUnavailable();
+    }
+
+    final metadataUrl = Uri.https(domain, '/.well-known/lnurlp/$username');
 
     final Map<String, dynamic> metadata;
     try {
-      final metadataResp = await _dio.get<Map<String, dynamic>>(
-        'https://$domain/.well-known/lnurlp/$username',
+      final metadataResp = await _dio.getUri<Map<String, dynamic>>(
+        metadataUrl,
+        options: Options(followRedirects: false),
       );
       final data = metadataResp.data;
       if (data == null || data['tag'] != 'payRequest') {
@@ -60,8 +79,19 @@ class TryLiquidDirectPayUsecase {
       throw const LiquidDirectPayUnavailable();
     }
 
-    final callback = metadata['callback'] as String?;
-    if (callback == null) {
+    final callbackStr = metadata['callback'] as String?;
+    if (callbackStr == null) {
+      throw const LiquidDirectPayUnavailable();
+    }
+    final Uri callback;
+    try {
+      callback = Uri.parse(callbackStr);
+    } on FormatException {
+      throw const LiquidDirectPayUnavailable();
+    }
+    // Pin to https + the same domain we just validated. Defeats a malicious
+    // LNURLP responder redirecting the proof-of-funds POST to attacker hosts.
+    if (callback.scheme != 'https' || callback.host != domain) {
       throw const LiquidDirectPayUnavailable();
     }
 
@@ -70,18 +100,24 @@ class TryLiquidDirectPayUsecase {
       nym: username,
     );
 
-    final separator = callback.contains('?') ? '&' : '?';
     final msats = amountSat * 1000;
-    final callbackUrl = '$callback'
-        '${separator}amount=$msats'
-        '&payment_method=L-BTC'
-        '&outpoint=${proof.outpoint}'
-        '&pubkey=${proof.pubkeyHex}'
-        '&sig=${proof.sigDerHex}';
+    final signedCallback = callback.replace(
+      queryParameters: {
+        ...callback.queryParameters,
+        'amount': msats.toString(),
+        'payment_method': 'L-BTC',
+        'outpoint': proof.outpoint,
+        'pubkey': proof.pubkeyHex,
+        'sig': proof.sigDerHex,
+      },
+    );
 
     final Map<String, dynamic> data;
     try {
-      final callbackResp = await _dio.get<Map<String, dynamic>>(callbackUrl);
+      final callbackResp = await _dio.getUri<Map<String, dynamic>>(
+        signedCallback,
+        options: Options(followRedirects: false),
+      );
       final body = callbackResp.data;
       if (body == null) {
         throw const BullpayProofInternal('EmptyResponse');

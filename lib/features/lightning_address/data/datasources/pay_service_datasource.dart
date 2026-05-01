@@ -23,6 +23,7 @@ class PayServiceDatasource implements PayServicePort {
     required String ctDescriptor,
     required String npubHex,
     required String signatureHex,
+    required int timestampSecs,
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -32,6 +33,7 @@ class PayServiceDatasource implements PayServicePort {
           'ct_descriptor': ctDescriptor,
           'npub': npubHex,
           'signature': signatureHex,
+          'timestamp': timestampSecs,
         },
       );
 
@@ -78,8 +80,13 @@ class PayServiceDatasource implements PayServicePort {
       final data = response.data;
       if (data == null || data['status'] == 'ERROR') return null;
       return (nym: data['nym'] as String, active: data['active'] as bool);
-    } on DioException {
-      return null;
+    } on DioException catch (e) {
+      // 404 = npub has no registration. Anything else (5xx, timeout,
+      // connection-reset) is a transient failure the caller must distinguish
+      // from "not registered" — otherwise one network blip silently kills
+      // recovery on this device.
+      if (e.response?.statusCode == 404) return null;
+      throw PayServiceException(_extractDioErrorMessage(e));
     }
   }
 
@@ -87,6 +94,7 @@ class PayServiceDatasource implements PayServicePort {
   Future<void> deleteRegistration({
     required String npubHex,
     required String signatureHex,
+    required int timestampSecs,
   }) async {
     try {
       final response = await _dio.delete<dynamic>(
@@ -94,6 +102,7 @@ class PayServiceDatasource implements PayServicePort {
         data: {
           'npub': npubHex,
           'signature': signatureHex,
+          'timestamp': timestampSecs,
         },
       );
 
