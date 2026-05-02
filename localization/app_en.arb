@@ -12996,6 +12996,8 @@
   "lightningAddressTapToCopy": "Tap to copy",
   "lightningAddressPreviousFound": "Previous address found",
   "lightningAddressPreviousBody": "{nym}@{domain} was deactivated. Tap Register to reactivate it.",
+  "lightningAddressPreviousDetectedTitle": "Previous Lightning Addresses detected",
+  "lightningAddressPreviousDetectedBody": "Click to view and reactivate.",
   "sendNetworkLabel": "Network",
   "sendNetworkLiquid": "Liquid",
   "@lightningAddressPreviousBody": {

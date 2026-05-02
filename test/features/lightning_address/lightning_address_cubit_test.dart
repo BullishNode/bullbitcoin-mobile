@@ -11,7 +11,9 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightni
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/publish_lightning_address_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/entities/lookup_result.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/previous_nym.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -223,7 +225,7 @@ void main() {
     await cubit.close();
   });
 
-  test('successful delete leaves previousNym set + clears persisted outcome',
+  test('successful delete prepends deactivated nym to previousNyms + clears persisted outcome',
       () async {
     stubRegisterOk();
     stubDeleteOk();
@@ -233,11 +235,68 @@ void main() {
     await cubit.deleteAddress();
     await Future<void>.delayed(Duration.zero);
 
-    expect(cubit.state.previousNym, 'alice');
+    expect(cubit.state.previousNyms.length, 1);
+    expect(cubit.state.previousNyms.first.nym, 'alice');
     expect(cubit.state.lightningAddress, isNull);
     expect(cubit.state.nostrPublishStatus, NostrPublishStatus.none);
     verify(() => settings.clearNostrPublishOutcome()).called(greaterThan(0));
     verify(() => clearProfile.execute()).called(1);
+    await cubit.close();
+  });
+
+  test('checkStatus surfaces full previousNyms list from inactive lookup',
+      () async {
+    when(() => getWallet.execute(environment: any(named: 'environment')))
+        .thenAnswer((_) async => null);
+    when(() => payService.getStoredAddress()).thenAnswer((_) async => null);
+    when(() => lookupStatus.execute()).thenAnswer((_) async =>
+        InactiveLookupResult(
+          nym: 'tester3',
+          quota: const NymQuota(used: 3, cap: 3),
+          previousNyms: [
+            PreviousNym(
+                nym: 'tester3', createdAt: DateTime.utc(2026, 5, 2, 21, 5)),
+            PreviousNym(
+                nym: 'tester2', createdAt: DateTime.utc(2026, 5, 2, 20, 58)),
+            PreviousNym(
+                nym: 'tester1', createdAt: DateTime.utc(2026, 5, 2, 1, 56)),
+          ],
+        ));
+
+    final cubit = build();
+    await cubit.checkStatus(Environment.mainnet);
+
+    expect(cubit.state.previousNyms.length, 3);
+    expect(cubit.state.previousNyms.first.nym, 'tester3');
+    expect(cubit.state.previousNyms.last.nym, 'tester1');
+    await cubit.close();
+  });
+
+  test('registerNym strips just-registered nym from previousNyms', () async {
+    stubRegisterOk();
+    when(() => getWallet.execute(environment: any(named: 'environment')))
+        .thenAnswer((_) async => null);
+    when(() => payService.getStoredAddress()).thenAnswer((_) async => null);
+    when(() => lookupStatus.execute()).thenAnswer((_) async =>
+        InactiveLookupResult(
+          nym: 'alice',
+          quota: const NymQuota(used: 2, cap: 3),
+          previousNyms: [
+            PreviousNym(nym: 'alice', createdAt: DateTime.utc(2026, 5, 1)),
+            PreviousNym(nym: 'bob', createdAt: DateTime.utc(2026, 4, 30)),
+          ],
+        ));
+
+    final cubit = build();
+    await cubit.checkStatus(Environment.mainnet);
+    await cubit.registerNym('alice', Environment.mainnet,
+        publishOnNostr: false);
+
+    expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
+    expect(
+      cubit.state.previousNyms.map((p) => p.nym).toList(),
+      ['bob'],
+    );
     await cubit.close();
   });
 

@@ -5,6 +5,7 @@ import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/primitives/nostr_publish_status.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/previous_nym.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
@@ -69,7 +70,14 @@ class _LightningAddressSettingsScreenState
                 ),
               );
             }
-            if (state.registering && state.lightningAddress == null) {
+            // Heavy "Creating your Nostr identity" loader is only relevant
+            // the first time — it covers the slow path that runs the BIP85
+            // derivation and persists the LA wallet. On re-register the
+            // wallet already exists; the inline button spinner in
+            // _RegistrationView is the right indicator.
+            if (state.registering &&
+                state.lightningAddress == null &&
+                !state.walletExists) {
               return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -101,15 +109,11 @@ class _LightningAddressSettingsScreenState
                 deleting: state.registering,
               );
             }
-            // Pre-fill nym controller if we found a previous registration
-            if (state.previousNym != null && _nymController.text.isEmpty) {
-              _nymController.text = state.previousNym!;
-            }
             return _RegistrationView(
               controller: _nymController,
               registering: state.registering,
               error: state.error,
-              previousNym: state.previousNym,
+              previousNyms: state.previousNyms,
               onRegister: (publishOnNostr) {
                 final env =
                     context.read<SettingsCubit>().state.environment ??
@@ -526,7 +530,7 @@ class _RegistrationView extends StatefulWidget {
   final TextEditingController controller;
   final bool registering;
   final String? error;
-  final String? previousNym;
+  final List<PreviousNym> previousNyms;
   final ValueChanged<bool> onRegister;
 
   const _RegistrationView({
@@ -534,7 +538,7 @@ class _RegistrationView extends StatefulWidget {
     required this.registering,
     required this.error,
     required this.onRegister,
-    this.previousNym,
+    this.previousNyms = const [],
   });
 
   @override
@@ -546,6 +550,69 @@ class _RegistrationViewState extends State<_RegistrationView> {
 
   void _submit() => widget.onRegister(_publishOnNostr);
 
+  Future<void> _showPreviousNymsSheet(
+    BuildContext context,
+    List<PreviousNym> nyms,
+  ) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollController) => Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  context.loc.lightningAddressPreviousDetectedTitle,
+                  style: theme.textTheme.titleLarge,
+                ),
+                const Gap(12),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: nyms.length,
+                    itemBuilder: (_, i) => ListTile(
+                      leading: const Icon(Icons.history),
+                      title: Text(
+                        '${nyms[i].nym}@$lightningAddressDomain',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(ctx).pop(nyms[i].nym),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (selected != null && context.mounted) {
+      final env = context.read<SettingsCubit>().state.environment ??
+          Environment.mainnet;
+      context.read<LightningAddressCubit>().registerNym(selected, env);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -556,28 +623,31 @@ class _RegistrationViewState extends State<_RegistrationView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Gap(16),
-          if (widget.previousNym != null) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.loc.lightningAddressPreviousFound,
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  const Gap(4),
-                  Text(
-                    context.loc.lightningAddressPreviousBody(
-                      widget.previousNym ?? '', lightningAddressDomain),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
+          if (widget.previousNyms.isNotEmpty) ...[
+            GestureDetector(
+              onTap: () =>
+                  _showPreviousNymsSheet(context, widget.previousNyms),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.loc.lightningAddressPreviousDetectedTitle,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                    const Gap(4),
+                    Text(
+                      context.loc.lightningAddressPreviousDetectedBody,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
             ),
             const Gap(16),

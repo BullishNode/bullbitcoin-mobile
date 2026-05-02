@@ -2,6 +2,7 @@ import 'package:bb_mobile/features/lightning_address/domain/entities/lookup_resu
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/previous_nym.dart';
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 
@@ -85,9 +86,18 @@ class PayServiceDatasource implements PayServicePort {
       final nym = data['nym'] as String;
       final active = data['active'] as bool;
       final quota = _quotaFromJson(data['quota']);
+      final previousNyms = _previousNymsFromJson(data['previous_nyms']);
       return active
-          ? ActiveLookupResult(nym: nym, quota: quota)
-          : InactiveLookupResult(nym: nym, quota: quota);
+          ? ActiveLookupResult(
+              nym: nym,
+              quota: quota,
+              previousNyms: previousNyms,
+            )
+          : InactiveLookupResult(
+              nym: nym,
+              quota: quota,
+              previousNyms: previousNyms,
+            );
     } on DioException catch (e) {
       // 404 = npub has no registration. Anything else (5xx, timeout,
       // connection-reset) is a transient failure the caller must distinguish
@@ -130,6 +140,17 @@ class PayServiceDatasource implements PayServicePort {
         _extractDioErrorMessage(e),
       );
     }
+  }
+
+  List<PreviousNym> _previousNymsFromJson(dynamic raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final item in raw.cast<Map<String, dynamic>>())
+        PreviousNym(
+          nym: item['nym'] as String,
+          createdAt: DateTime.parse(item['created_at'] as String),
+        ),
+    ];
   }
 
   // remaining is recomputed locally; never trust a derived field over the wire.

@@ -15,6 +15,7 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_ligh
 import 'package:bb_mobile/features/lightning_address/domain/usecases/publish_lightning_address_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
+import 'package:bb_mobile/features/lightning_address/domain/value_objects/previous_nym.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -70,7 +71,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
 
       if (isClosed) return;
       switch (lookup) {
-        case ActiveLookupResult(:final nym, :final quota):
+        case ActiveLookupResult(:final nym, :final quota, :final previousNyms):
           final address = '$nym@$lightningAddressDomain';
           await _payService.storeAddress(address);
           if (isClosed) return;
@@ -78,12 +79,13 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
             address: address,
             walletExists: wallet != null,
             quota: quota,
+            previousNyms: previousNyms,
           );
-        case InactiveLookupResult(:final nym, :final quota):
+        case InactiveLookupResult(:final quota, :final previousNyms):
           emit(state.copyWith(
             loading: false,
             walletExists: wallet != null,
-            previousNym: nym,
+            previousNyms: previousNyms,
             quota: quota,
             quotaStale: false,
             nostrPublishStatus: NostrPublishStatus.none,
@@ -117,7 +119,8 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       emit(state.copyWith(
         registering: false,
         lightningAddress: result.address,
-        previousNym: null,
+        previousNyms:
+            state.previousNyms.where((p) => p.nym != nym).toList(),
         quota: result.quota,
         quotaStale: false,
         nostrPublishStatus: publishOnNostr
@@ -144,10 +147,16 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       final quota = await _delete.execute();
       if (isClosed) return;
       final nym = currentAddress?.split('@').firstOrNull;
+      final previousNyms = nym == null
+          ? state.previousNyms
+          : [
+              PreviousNym(nym: nym, createdAt: DateTime.now()),
+              ...state.previousNyms.where((p) => p.nym != nym),
+            ];
       emit(LightningAddressState(
         loading: false,
         walletExists: state.walletExists,
-        previousNym: nym,
+        previousNyms: previousNyms,
         quota: quota,
         quotaStale: false,
       ));
@@ -174,6 +183,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     required String address,
     required bool walletExists,
     NymQuota? quota,
+    List<PreviousNym>? previousNyms,
   }) async {
     final persisted = await _settings.getNostrPublishOutcome();
     if (isClosed) return;
@@ -182,6 +192,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       loading: false,
       walletExists: walletExists,
       lightningAddress: address,
+      previousNyms: previousNyms ?? state.previousNyms,
       quota: quota ?? state.quota,
       quotaStale: false,
       nostrPublishStatus: status,

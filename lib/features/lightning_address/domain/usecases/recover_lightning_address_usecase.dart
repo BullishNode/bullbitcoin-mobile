@@ -40,7 +40,7 @@ class RecoverLightningAddressUsecase {
     final lookup = await _safeLookup(nostr.npubHex);
     // Recovery only auto-restores active registrations; an inactive row
     // means the user previously deactivated and we don't want to silently
-    // re-activate. The settings flow will surface the "previousNym" banner.
+    // re-activate. The settings flow surfaces the previous-addresses banner.
     if (lookup is! ActiveLookupResult) return null;
 
     final existing = await _getWallet.execute(
