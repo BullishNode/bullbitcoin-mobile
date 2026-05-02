@@ -1,3 +1,4 @@
+import 'package:bb_mobile/features/lightning_address/domain/primitives/nostr_publish_status.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -14,6 +15,6 @@ sealed class LightningAddressState with _$LightningAddressState {
     String? error,
     NymQuota? quota,
     @Default(false) bool quotaStale,
-    String? nostrPublishWarning,
+    @Default(NostrPublishStatus.none) NostrPublishStatus nostrPublishStatus,
   }) = _LightningAddressState;
 }

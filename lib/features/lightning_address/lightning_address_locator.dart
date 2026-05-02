@@ -10,10 +10,12 @@ import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/nostr_publish_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/clear_lightning_address_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/publish_lightning_address_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/recover_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/sweep_lightning_address_wallet_usecase.dart';
@@ -71,7 +73,6 @@ class LightningAddressLocator {
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
         payService: locator<PayServicePort>(),
-        nostrPublish: locator<NostrPublishPort>(),
       ),
     );
 
@@ -80,6 +81,21 @@ class LightningAddressLocator {
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
         payService: locator<PayServicePort>(),
+      ),
+    );
+
+    locator.registerFactory<PublishLightningAddressNostrProfileUsecase>(
+      () => PublishLightningAddressNostrProfileUsecase(
+        walletRepository: locator<WalletRepository>(),
+        seedRepository: locator<SeedRepository>(),
+        nostrPublish: locator<NostrPublishPort>(),
+      ),
+    );
+
+    locator.registerFactory<ClearLightningAddressNostrProfileUsecase>(
+      () => ClearLightningAddressNostrProfileUsecase(
+        walletRepository: locator<WalletRepository>(),
+        seedRepository: locator<SeedRepository>(),
         nostrPublish: locator<NostrPublishPort>(),
       ),
     );
@@ -108,7 +124,10 @@ class LightningAddressLocator {
         register: locator<RegisterLightningAddressUsecase>(),
         delete: locator<DeleteLightningAddressUsecase>(),
         lookupStatus: locator<LookupLightningAddressStatusUsecase>(),
+        publishProfile: locator<PublishLightningAddressNostrProfileUsecase>(),
+        clearProfile: locator<ClearLightningAddressNostrProfileUsecase>(),
         payService: locator<PayServicePort>(),
+        settings: locator<LightningAddressSettingsDatasource>(),
       ),
     );
 

@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_address_settings_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
+import 'package:bb_mobile/features/lightning_address/domain/primitives/nostr_publish_status.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
@@ -46,59 +47,8 @@ class _LightningAddressSettingsScreenState
     return Scaffold(
       appBar: AppBar(title: Text(context.loc.lightningAddressTitle)),
       body: SafeArea(
-        child: MultiBlocListener(
-          listeners: [
-            // Registration succeeded — Activated SnackBar.
-            BlocListener<LightningAddressCubit, LightningAddressState>(
-              listenWhen: (prev, curr) =>
-                  prev.lightningAddress == null &&
-                  curr.lightningAddress != null,
-              listener: (context, state) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      context.loc.lightningAddressActivated(
-                          state.lightningAddress!),
-                    ),
-                  ),
-                );
-              },
-            ),
-            // Deactivation succeeded — Deactivated SnackBar.
-            BlocListener<LightningAddressCubit, LightningAddressState>(
-              listenWhen: (prev, curr) =>
-                  prev.lightningAddress != null &&
-                  curr.lightningAddress == null &&
-                  !curr.loading,
-              listener: (context, _) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(context.loc.lightningAddressDeactivated),
-                  ),
-                );
-              },
-            ),
-            // Nostr publish failure — rising-edge surface; the warning stays
-            // in state until the next user action sets it back to null, but
-            // the listener won't re-fire because the rising-edge predicate
-            // requires `prev == null`.
-            BlocListener<LightningAddressCubit, LightningAddressState>(
-              listenWhen: (prev, curr) =>
-                  prev.nostrPublishWarning == null &&
-                  curr.nostrPublishWarning != null,
-              listener: (context, state) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.nostrPublishWarning!),
-                    duration: const Duration(seconds: 6),
-                  ),
-                );
-              },
-            ),
-          ],
-          child:
-              BlocBuilder<LightningAddressCubit, LightningAddressState>(
-            builder: (context, state) {
+        child: BlocBuilder<LightningAddressCubit, LightningAddressState>(
+          builder: (context, state) {
             if (state.loading) {
               return Center(
                 child: Column(
@@ -172,7 +122,6 @@ class _LightningAddressSettingsScreenState
               },
             );
           },
-          ),
         ),
       ),
     );
@@ -333,9 +282,6 @@ class _ActivatedViewState extends State<_ActivatedView> {
           GestureDetector(
             onTap: () {
               Clipboard.setData(ClipboardData(text: widget.address));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(context.loc.lightningAddressCopied)),
-              );
             },
             child: Container(
               width: double.infinity,
@@ -400,6 +346,51 @@ class _ActivatedViewState extends State<_ActivatedView> {
               ],
             ),
           ),
+          const Gap(16),
+          switch (context.watch<LightningAddressCubit>().state.nostrPublishStatus) {
+            NostrPublishStatus.pending => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const Gap(8),
+                  Text(
+                    context.loc.lightningAddressNostrPublishing,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            NostrPublishStatus.success => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    size: 16,
+                    color: context.appColors.success,
+                  ),
+                  const Gap(8),
+                  Text(
+                    context.loc.lightningAddressNostrPublished,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            NostrPublishStatus.failed => SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () =>
+                      context.read<LightningAddressCubit>().republishOnNostr(),
+                  child: Text(
+                    context.loc.lightningAddressNostrRepublish,
+                    style: TextStyle(color: context.appColors.warning),
+                  ),
+                ),
+              ),
+            NostrPublishStatus.none => const SizedBox.shrink(),
+          },
           const Gap(32),
           _OptionTile(
             title: context.loc.lightningAddressAutoSweep,

@@ -2,13 +2,6 @@
 // coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
-//
-// NOTE: this file currently includes a hand-written addition for the new
-// `nostrPublishWarning` field because the local build_runner setup was
-// broken at edit time. Re-run
-// `dart run build_runner build --delete-conflicting-outputs` (or the
-// flutter equivalent) to regenerate cleanly before merge — the codegen
-// output should be byte-equivalent or close to what's here.
 
 part of 'lightning_address_state.dart';
 
@@ -21,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LightningAddressState {
 
- bool get loading; bool get registering; bool get walletExists; String? get lightningAddress; String? get previousNym; String? get error; NymQuota? get quota; bool get quotaStale; String? get nostrPublishWarning;
+ bool get loading; bool get registering; bool get walletExists; String? get lightningAddress; String? get previousNym; String? get error; NymQuota? get quota; bool get quotaStale; NostrPublishStatus get nostrPublishStatus;
 /// Create a copy of LightningAddressState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -32,16 +25,16 @@ $LightningAddressStateCopyWith<LightningAddressState> get copyWith => _$Lightnin
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LightningAddressState&&(identical(other.loading, loading) || other.loading == loading)&&(identical(other.registering, registering) || other.registering == registering)&&(identical(other.walletExists, walletExists) || other.walletExists == walletExists)&&(identical(other.lightningAddress, lightningAddress) || other.lightningAddress == lightningAddress)&&(identical(other.previousNym, previousNym) || other.previousNym == previousNym)&&(identical(other.error, error) || other.error == error)&&(identical(other.quota, quota) || other.quota == quota)&&(identical(other.quotaStale, quotaStale) || other.quotaStale == quotaStale)&&(identical(other.nostrPublishWarning, nostrPublishWarning) || other.nostrPublishWarning == nostrPublishWarning));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LightningAddressState&&(identical(other.loading, loading) || other.loading == loading)&&(identical(other.registering, registering) || other.registering == registering)&&(identical(other.walletExists, walletExists) || other.walletExists == walletExists)&&(identical(other.lightningAddress, lightningAddress) || other.lightningAddress == lightningAddress)&&(identical(other.previousNym, previousNym) || other.previousNym == previousNym)&&(identical(other.error, error) || other.error == error)&&(identical(other.quota, quota) || other.quota == quota)&&(identical(other.quotaStale, quotaStale) || other.quotaStale == quotaStale)&&(identical(other.nostrPublishStatus, nostrPublishStatus) || other.nostrPublishStatus == nostrPublishStatus));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,loading,registering,walletExists,lightningAddress,previousNym,error,quota,quotaStale,nostrPublishWarning);
+int get hashCode => Object.hash(runtimeType,loading,registering,walletExists,lightningAddress,previousNym,error,quota,quotaStale,nostrPublishStatus);
 
 @override
 String toString() {
-  return 'LightningAddressState(loading: $loading, registering: $registering, walletExists: $walletExists, lightningAddress: $lightningAddress, previousNym: $previousNym, error: $error, quota: $quota, quotaStale: $quotaStale, nostrPublishWarning: $nostrPublishWarning)';
+  return 'LightningAddressState(loading: $loading, registering: $registering, walletExists: $walletExists, lightningAddress: $lightningAddress, previousNym: $previousNym, error: $error, quota: $quota, quotaStale: $quotaStale, nostrPublishStatus: $nostrPublishStatus)';
 }
 
 
@@ -52,7 +45,7 @@ abstract mixin class $LightningAddressStateCopyWith<$Res>  {
   factory $LightningAddressStateCopyWith(LightningAddressState value, $Res Function(LightningAddressState) _then) = _$LightningAddressStateCopyWithImpl;
 @useResult
 $Res call({
- bool loading, bool registering, bool walletExists, String? lightningAddress, String? previousNym, String? error, NymQuota? quota, bool quotaStale, String? nostrPublishWarning
+ bool loading, bool registering, bool walletExists, String? lightningAddress, String? previousNym, String? error, NymQuota? quota, bool quotaStale, NostrPublishStatus nostrPublishStatus
 });
 
 
@@ -69,7 +62,7 @@ class _$LightningAddressStateCopyWithImpl<$Res>
 
 /// Create a copy of LightningAddressState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? loading = null,Object? registering = null,Object? walletExists = null,Object? lightningAddress = freezed,Object? previousNym = freezed,Object? error = freezed,Object? quota = freezed,Object? quotaStale = null,Object? nostrPublishWarning = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? loading = null,Object? registering = null,Object? walletExists = null,Object? lightningAddress = freezed,Object? previousNym = freezed,Object? error = freezed,Object? quota = freezed,Object? quotaStale = null,Object? nostrPublishStatus = null,}) {
   return _then(_self.copyWith(
 loading: null == loading ? _self.loading : loading // ignore: cast_nullable_to_non_nullable
 as bool,registering: null == registering ? _self.registering : registering // ignore: cast_nullable_to_non_nullable
@@ -79,8 +72,8 @@ as String?,previousNym: freezed == previousNym ? _self.previousNym : previousNym
 as String?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as String?,quota: freezed == quota ? _self.quota : quota // ignore: cast_nullable_to_non_nullable
 as NymQuota?,quotaStale: null == quotaStale ? _self.quotaStale : quotaStale // ignore: cast_nullable_to_non_nullable
-as bool,nostrPublishWarning: freezed == nostrPublishWarning ? _self.nostrPublishWarning : nostrPublishWarning // ignore: cast_nullable_to_non_nullable
-as String?,
+as bool,nostrPublishStatus: null == nostrPublishStatus ? _self.nostrPublishStatus : nostrPublishStatus // ignore: cast_nullable_to_non_nullable
+as NostrPublishStatus,
   ));
 }
 
@@ -89,6 +82,18 @@ as String?,
 
 /// Adds pattern-matching-related methods to [LightningAddressState].
 extension LightningAddressStatePatterns on LightningAddressState {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
 @optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LightningAddressState value)?  $default,{required TResult orElse(),}){
 final _that = this;
 switch (_that) {
@@ -98,12 +103,37 @@ return $default(_that);case _:
 
 }
 }
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
 @optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LightningAddressState value)  $default,){
 final _that = this;
 switch (_that) {
 case _LightningAddressState():
 return $default(_that);}
 }
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
 @optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LightningAddressState value)?  $default,){
 final _that = this;
 switch (_that) {
@@ -113,23 +143,60 @@ return $default(_that);case _:
 
 }
 }
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool loading,  bool registering,  bool walletExists,  String? lightningAddress,  String? previousNym,  String? error,  NymQuota? quota,  bool quotaStale,  String? nostrPublishWarning)?  $default,{required TResult orElse(),}) {final _that = this;
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool loading,  bool registering,  bool walletExists,  String? lightningAddress,  String? previousNym,  String? error,  NymQuota? quota,  bool quotaStale,  NostrPublishStatus nostrPublishStatus)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LightningAddressState() when $default != null:
-return $default(_that.loading,_that.registering,_that.walletExists,_that.lightningAddress,_that.previousNym,_that.error,_that.quota,_that.quotaStale,_that.nostrPublishWarning);case _:
+return $default(_that.loading,_that.registering,_that.walletExists,_that.lightningAddress,_that.previousNym,_that.error,_that.quota,_that.quotaStale,_that.nostrPublishStatus);case _:
   return orElse();
 
 }
 }
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool loading,  bool registering,  bool walletExists,  String? lightningAddress,  String? previousNym,  String? error,  NymQuota? quota,  bool quotaStale,  String? nostrPublishWarning)  $default,) {final _that = this;
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool loading,  bool registering,  bool walletExists,  String? lightningAddress,  String? previousNym,  String? error,  NymQuota? quota,  bool quotaStale,  NostrPublishStatus nostrPublishStatus)  $default,) {final _that = this;
 switch (_that) {
 case _LightningAddressState():
-return $default(_that.loading,_that.registering,_that.walletExists,_that.lightningAddress,_that.previousNym,_that.error,_that.quota,_that.quotaStale,_that.nostrPublishWarning);}
+return $default(_that.loading,_that.registering,_that.walletExists,_that.lightningAddress,_that.previousNym,_that.error,_that.quota,_that.quotaStale,_that.nostrPublishStatus);}
 }
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool loading,  bool registering,  bool walletExists,  String? lightningAddress,  String? previousNym,  String? error,  NymQuota? quota,  bool quotaStale,  String? nostrPublishWarning)?  $default,) {final _that = this;
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool loading,  bool registering,  bool walletExists,  String? lightningAddress,  String? previousNym,  String? error,  NymQuota? quota,  bool quotaStale,  NostrPublishStatus nostrPublishStatus)?  $default,) {final _that = this;
 switch (_that) {
 case _LightningAddressState() when $default != null:
-return $default(_that.loading,_that.registering,_that.walletExists,_that.lightningAddress,_that.previousNym,_that.error,_that.quota,_that.quotaStale,_that.nostrPublishWarning);case _:
+return $default(_that.loading,_that.registering,_that.walletExists,_that.lightningAddress,_that.previousNym,_that.error,_that.quota,_that.quotaStale,_that.nostrPublishStatus);case _:
   return null;
 
 }
@@ -141,8 +208,8 @@ return $default(_that.loading,_that.registering,_that.walletExists,_that.lightni
 
 
 class _LightningAddressState implements LightningAddressState {
-  const _LightningAddressState({this.loading = true, this.registering = false, this.walletExists = false, this.lightningAddress, this.previousNym, this.error, this.quota, this.quotaStale = false, this.nostrPublishWarning});
-
+  const _LightningAddressState({this.loading = true, this.registering = false, this.walletExists = false, this.lightningAddress, this.previousNym, this.error, this.quota, this.quotaStale = false, this.nostrPublishStatus = NostrPublishStatus.none});
+  
 
 @override@JsonKey() final  bool loading;
 @override@JsonKey() final  bool registering;
@@ -152,7 +219,7 @@ class _LightningAddressState implements LightningAddressState {
 @override final  String? error;
 @override final  NymQuota? quota;
 @override@JsonKey() final  bool quotaStale;
-@override final  String? nostrPublishWarning;
+@override@JsonKey() final  NostrPublishStatus nostrPublishStatus;
 
 /// Create a copy of LightningAddressState
 /// with the given fields replaced by the non-null parameter values.
@@ -164,16 +231,16 @@ _$LightningAddressStateCopyWith<_LightningAddressState> get copyWith => __$Light
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LightningAddressState&&(identical(other.loading, loading) || other.loading == loading)&&(identical(other.registering, registering) || other.registering == registering)&&(identical(other.walletExists, walletExists) || other.walletExists == walletExists)&&(identical(other.lightningAddress, lightningAddress) || other.lightningAddress == lightningAddress)&&(identical(other.previousNym, previousNym) || other.previousNym == previousNym)&&(identical(other.error, error) || other.error == error)&&(identical(other.quota, quota) || other.quota == quota)&&(identical(other.quotaStale, quotaStale) || other.quotaStale == quotaStale)&&(identical(other.nostrPublishWarning, nostrPublishWarning) || other.nostrPublishWarning == nostrPublishWarning));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LightningAddressState&&(identical(other.loading, loading) || other.loading == loading)&&(identical(other.registering, registering) || other.registering == registering)&&(identical(other.walletExists, walletExists) || other.walletExists == walletExists)&&(identical(other.lightningAddress, lightningAddress) || other.lightningAddress == lightningAddress)&&(identical(other.previousNym, previousNym) || other.previousNym == previousNym)&&(identical(other.error, error) || other.error == error)&&(identical(other.quota, quota) || other.quota == quota)&&(identical(other.quotaStale, quotaStale) || other.quotaStale == quotaStale)&&(identical(other.nostrPublishStatus, nostrPublishStatus) || other.nostrPublishStatus == nostrPublishStatus));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,loading,registering,walletExists,lightningAddress,previousNym,error,quota,quotaStale,nostrPublishWarning);
+int get hashCode => Object.hash(runtimeType,loading,registering,walletExists,lightningAddress,previousNym,error,quota,quotaStale,nostrPublishStatus);
 
 @override
 String toString() {
-  return 'LightningAddressState(loading: $loading, registering: $registering, walletExists: $walletExists, lightningAddress: $lightningAddress, previousNym: $previousNym, error: $error, quota: $quota, quotaStale: $quotaStale, nostrPublishWarning: $nostrPublishWarning)';
+  return 'LightningAddressState(loading: $loading, registering: $registering, walletExists: $walletExists, lightningAddress: $lightningAddress, previousNym: $previousNym, error: $error, quota: $quota, quotaStale: $quotaStale, nostrPublishStatus: $nostrPublishStatus)';
 }
 
 
@@ -184,7 +251,7 @@ abstract mixin class _$LightningAddressStateCopyWith<$Res> implements $Lightning
   factory _$LightningAddressStateCopyWith(_LightningAddressState value, $Res Function(_LightningAddressState) _then) = __$LightningAddressStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool loading, bool registering, bool walletExists, String? lightningAddress, String? previousNym, String? error, NymQuota? quota, bool quotaStale, String? nostrPublishWarning
+ bool loading, bool registering, bool walletExists, String? lightningAddress, String? previousNym, String? error, NymQuota? quota, bool quotaStale, NostrPublishStatus nostrPublishStatus
 });
 
 
@@ -201,7 +268,7 @@ class __$LightningAddressStateCopyWithImpl<$Res>
 
 /// Create a copy of LightningAddressState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? loading = null,Object? registering = null,Object? walletExists = null,Object? lightningAddress = freezed,Object? previousNym = freezed,Object? error = freezed,Object? quota = freezed,Object? quotaStale = null,Object? nostrPublishWarning = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? loading = null,Object? registering = null,Object? walletExists = null,Object? lightningAddress = freezed,Object? previousNym = freezed,Object? error = freezed,Object? quota = freezed,Object? quotaStale = null,Object? nostrPublishStatus = null,}) {
   return _then(_LightningAddressState(
 loading: null == loading ? _self.loading : loading // ignore: cast_nullable_to_non_nullable
 as bool,registering: null == registering ? _self.registering : registering // ignore: cast_nullable_to_non_nullable
@@ -211,8 +278,8 @@ as String?,previousNym: freezed == previousNym ? _self.previousNym : previousNym
 as String?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as String?,quota: freezed == quota ? _self.quota : quota // ignore: cast_nullable_to_non_nullable
 as NymQuota?,quotaStale: null == quotaStale ? _self.quotaStale : quotaStale // ignore: cast_nullable_to_non_nullable
-as bool,nostrPublishWarning: freezed == nostrPublishWarning ? _self.nostrPublishWarning : nostrPublishWarning // ignore: cast_nullable_to_non_nullable
-as String?,
+as bool,nostrPublishStatus: null == nostrPublishStatus ? _self.nostrPublishStatus : nostrPublishStatus // ignore: cast_nullable_to_non_nullable
+as NostrPublishStatus,
   ));
 }
 

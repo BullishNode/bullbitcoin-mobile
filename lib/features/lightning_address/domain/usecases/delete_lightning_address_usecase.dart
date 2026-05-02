@@ -5,7 +5,6 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_co
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_key_derivation.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_v1_signing.dart';
-import 'package:bb_mobile/features/lightning_address/domain/ports/nostr_publish_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 
@@ -13,17 +12,14 @@ class DeleteLightningAddressUsecase {
   final WalletRepository _walletRepository;
   final SeedRepository _seedRepository;
   final PayServicePort _payService;
-  final NostrPublishPort _nostrPublish;
 
   DeleteLightningAddressUsecase({
     required WalletRepository walletRepository,
     required SeedRepository seedRepository,
     required PayServicePort payService,
-    required NostrPublishPort nostrPublish,
   })  : _walletRepository = walletRepository,
         _seedRepository = seedRepository,
-        _payService = payService,
-        _nostrPublish = nostrPublish;
+        _payService = payService;
 
   Future<NymQuota> execute() async {
     final xprv = await deriveDefaultWalletXprv(
@@ -46,23 +42,13 @@ class DeleteLightningAddressUsecase {
     final signature = nostr.signSchnorr(messageBytes);
 
     try {
-      final quota = await _payService.deleteRegistration(
+      return await _payService.deleteRegistration(
         npubHex: nostr.npubHex,
         signatureHex: signature,
         timestampSecs: timestampSecs,
       );
-
-      // Best-effort kind:0 clear. On zero-relay failure the adapter throws
-      // [LightningAddressNostrPublishFailedException] which propagates —
-      // the bullpay deactivation is already committed and is not unwound.
-      await nostr.withPrivateKeyHex(
-        (nsec) => _nostrPublish.clearProfile(privateKeyHex: nsec),
-      );
-
-      return quota;
     } on PayServiceException catch (e) {
       throw LightningAddressRegistrationException(e.message);
     }
   }
-
 }

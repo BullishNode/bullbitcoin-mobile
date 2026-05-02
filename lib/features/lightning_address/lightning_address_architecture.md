@@ -123,3 +123,17 @@ the LA wallet out of selectable send sources.
 
 `bullnym/pay-service` — register/update/delete/lookup, LUD-16 metadata, LUD-22
 callback, Boltz reverse-swap orchestration.
+
+## Known limitations
+
+**Clear-profile failure on deactivation is silent.** When the user deactivates,
+the cubit fires a background `clear_lightning_address_nostr_profile_usecase`
+that publishes an empty kind:0. If the broadcast reaches zero relays, the
+failure is logged only — there is no UI surface and no in-app retry. This is
+intentional:
+- `bullpay.ca`'s NIP-05 endpoint stops resolving the deactivated nym
+  immediately; the namespace is reclaimed regardless of relay state.
+- kind:0 events are timestamp-replaceable; any later register on the same
+  npub overwrites the old metadata.
+- Users who want to scrub their old kind:0 from relays can broadcast an empty
+  kind:0 from any external Nostr client.
