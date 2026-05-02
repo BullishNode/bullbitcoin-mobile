@@ -8,20 +8,17 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_ligh
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/republish_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 const _kNostrPublishWarning =
-    'Saved on bullpay, but couldn’t reach Nostr relays. '
-    'Tap “Republish to Nostr” to retry.';
+    'Saved on bullpay, but couldn’t reach Nostr relays.';
 
 class LightningAddressCubit extends Cubit<LightningAddressState> {
   final GetLightningAddressWalletUsecase _getWallet;
   final RegisterLightningAddressUsecase _register;
   final DeleteLightningAddressUsecase _delete;
   final LookupLightningAddressStatusUsecase _lookupStatus;
-  final RepublishNostrProfileUsecase _republishNostrProfile;
   final PayServicePort _payService;
 
   LightningAddressCubit({
@@ -29,13 +26,11 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     required RegisterLightningAddressUsecase register,
     required DeleteLightningAddressUsecase delete,
     required LookupLightningAddressStatusUsecase lookupStatus,
-    required RepublishNostrProfileUsecase republishNostrProfile,
     required PayServicePort payService,
   })  : _getWallet = getWallet,
         _register = register,
         _delete = delete,
         _lookupStatus = lookupStatus,
-        _republishNostrProfile = republishNostrProfile,
         _payService = payService,
         super(const LightningAddressState());
 
@@ -123,8 +118,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       ));
     } on LightningAddressNostrPublishFailedException catch (e, stack) {
       // Server-side register succeeded; only the relay broadcast failed.
-      // Emit the registered state but flag the warning so the UI can prompt
-      // a manual retry via "Republish to Nostr".
+      // Emit the registered state but surface a one-shot warning SnackBar.
       log.warning('LA register: nostr publish failed',
           error: e, trace: stack);
       if (isClosed) return;
@@ -183,37 +177,6 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     } on Exception catch (e) {
       if (isClosed) return;
       emit(state.copyWith(registering: false, error: _mapError(e)));
-    }
-  }
-
-  /// Manual retry: re-asserts the canonical bullpay state on Nostr relays.
-  /// Idempotent — looks up the npub on the server and either re-publishes
-  /// the active profile or clears it.
-  Future<void> republishNostrProfile() async {
-    if (state.republishingNostr) return;
-    emit(state.copyWith(
-      republishingNostr: true,
-      nostrPublishWarning: null,
-    ));
-    try {
-      await _republishNostrProfile.execute();
-      if (isClosed) return;
-      emit(state.copyWith(republishingNostr: false));
-    } on LightningAddressNostrPublishFailedException catch (e, stack) {
-      log.warning('LA republish failed', error: e, trace: stack);
-      if (isClosed) return;
-      emit(state.copyWith(
-        republishingNostr: false,
-        nostrPublishWarning: _kNostrPublishWarning,
-      ));
-    } on Exception catch (e, stack) {
-      log.severe(message: 'LA republish unexpected error',
-          error: e, trace: stack);
-      if (isClosed) return;
-      emit(state.copyWith(
-        republishingNostr: false,
-        nostrPublishWarning: _kNostrPublishWarning,
-      ));
     }
   }
 

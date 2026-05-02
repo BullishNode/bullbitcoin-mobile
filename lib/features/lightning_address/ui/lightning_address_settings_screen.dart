@@ -149,7 +149,6 @@ class _LightningAddressSettingsScreenState
               return _ActivatedView(
                 address: state.lightningAddress!,
                 deleting: state.registering,
-                republishing: state.republishingNostr,
               );
             }
             // Pre-fill nym controller if we found a previous registration
@@ -161,7 +160,6 @@ class _LightningAddressSettingsScreenState
               registering: state.registering,
               error: state.error,
               previousNym: state.previousNym,
-              republishing: state.republishingNostr,
               onRegister: (publishOnNostr) {
                 final env =
                     context.read<SettingsCubit>().state.environment ??
@@ -186,11 +184,9 @@ class _LightningAddressSettingsScreenState
 class _ActivatedView extends StatefulWidget {
   final String address;
   final bool deleting;
-  final bool republishing;
   const _ActivatedView({
     required this.address,
     this.deleting = false,
-    this.republishing = false,
   });
 
   @override
@@ -428,25 +424,6 @@ class _ActivatedViewState extends State<_ActivatedView> {
               context.loc.lightningAddressHideWalletInfo,
             ),
           ),
-          const Gap(16),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: widget.republishing || widget.deleting
-                  ? null
-                  : () => context
-                      .read<LightningAddressCubit>()
-                      .republishNostrProfile(),
-              icon: widget.republishing
-                  ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh, size: 18),
-              label: const Text('Republish to Nostr'),
-            ),
-          ),
           const Gap(32),
           SizedBox(
             width: double.infinity,
@@ -559,7 +536,6 @@ class _RegistrationView extends StatefulWidget {
   final bool registering;
   final String? error;
   final String? previousNym;
-  final bool republishing;
   final ValueChanged<bool> onRegister;
 
   const _RegistrationView({
@@ -568,7 +544,6 @@ class _RegistrationView extends StatefulWidget {
     required this.error,
     required this.onRegister,
     this.previousNym,
-    this.republishing = false,
   });
 
   @override
@@ -611,31 +586,6 @@ class _RegistrationViewState extends State<_RegistrationView> {
                       widget.previousNym ?? '', lightningAddressDomain),
                     style: theme.textTheme.bodySmall,
                   ),
-                  const Gap(8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: widget.republishing || widget.registering
-                          ? null
-                          : () => context
-                              .read<LightningAddressCubit>()
-                              .republishNostrProfile(),
-                      icon: widget.republishing
-                          ? const SizedBox(
-                              height: 14,
-                              width: 14,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.refresh, size: 16),
-                      label: const Text('Republish to Nostr'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -667,15 +617,21 @@ class _RegistrationViewState extends State<_RegistrationView> {
                 style: TextStyle(color: context.appColors.error)),
           ],
           const Gap(8),
-          CheckboxListTile(
-            value: _publishOnNostr,
-            onChanged: widget.registering
-                ? null
-                : (v) => setState(() => _publishOnNostr = v ?? true),
-            controlAffinity: ListTileControlAffinity.leading,
-            contentPadding: EdgeInsets.zero,
-            title: Text(context.loc.lightningAddressPublishNostrTitle),
-            subtitle: Text(context.loc.lightningAddressPublishNostrSubtitle),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.loc.lightningAddressPublishNostrTitle,
+                  style: theme.textTheme.bodyLarge,
+                ),
+              ),
+              Switch(
+                value: _publishOnNostr,
+                onChanged: widget.registering
+                    ? null
+                    : (v) => setState(() => _publishOnNostr = v),
+              ),
+            ],
           ),
           const Gap(16),
           SizedBox(

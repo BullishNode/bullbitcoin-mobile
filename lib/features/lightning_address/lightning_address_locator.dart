@@ -16,7 +16,6 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightni
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/recover_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/republish_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/sweep_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
@@ -103,22 +102,12 @@ class LightningAddressLocator {
       ),
     );
 
-    locator.registerFactory<RepublishNostrProfileUsecase>(
-      () => RepublishNostrProfileUsecase(
-        walletRepository: locator<WalletRepository>(),
-        seedRepository: locator<SeedRepository>(),
-        payService: locator<PayServicePort>(),
-        nostrPublish: locator<NostrPublishPort>(),
-      ),
-    );
-
     locator.registerFactory<LightningAddressCubit>(
       () => LightningAddressCubit(
         getWallet: locator<GetLightningAddressWalletUsecase>(),
         register: locator<RegisterLightningAddressUsecase>(),
         delete: locator<DeleteLightningAddressUsecase>(),
         lookupStatus: locator<LookupLightningAddressStatusUsecase>(),
-        republishNostrProfile: locator<RepublishNostrProfileUsecase>(),
         payService: locator<PayServicePort>(),
       ),
     );

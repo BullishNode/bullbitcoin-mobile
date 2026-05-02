@@ -15,6 +15,5 @@ sealed class LightningAddressState with _$LightningAddressState {
     NymQuota? quota,
     @Default(false) bool quotaStale,
     String? nostrPublishWarning,
-    @Default(false) bool republishingNostr,
   }) = _LightningAddressState;
 }
