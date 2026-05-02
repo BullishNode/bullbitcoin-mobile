@@ -9,9 +9,9 @@ const _defaultRelays = [
   'wss://relay.damus.io',
   'wss://nos.lol',
   'wss://relay.nostr.band',
+  'wss://relay.snort.social',
   'wss://no.str.cr',
   'wss://relay.primal.net',
-  'wss://relay.nostr.bg',
   'wss://nostr.wine',
 ];
 
