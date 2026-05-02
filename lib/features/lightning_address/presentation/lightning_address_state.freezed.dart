@@ -2,6 +2,13 @@
 // coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
+//
+// NOTE: this file currently includes hand-written additions for the new
+// `nostrPublishWarning` and `republishingNostr` fields because the local
+// build_runner setup was broken at edit time. Re-run
+// `dart run build_runner build --delete-conflicting-outputs` (or the
+// flutter equivalent) to regenerate cleanly before merge — the codegen
+// output should be byte-equivalent or close to what's here.
 
 part of 'lightning_address_state.dart';
 

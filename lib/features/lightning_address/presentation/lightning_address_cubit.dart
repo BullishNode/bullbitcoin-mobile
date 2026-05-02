@@ -164,7 +164,9 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       ));
     } on LightningAddressNostrPublishFailedException catch (e, stack) {
       // Server-side deactivation succeeded; only the relay clear failed.
-      // Emit the deactivated state and surface the warning.
+      // The post-delete quota the usecase would have returned was lost when
+      // the exception was thrown — fall back to the stale pre-delete quota
+      // and best-effort refresh from the server.
       log.warning('LA delete: nostr publish failed',
           error: e, trace: stack);
       if (isClosed) return;
@@ -174,9 +176,10 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         walletExists: state.walletExists,
         previousNym: nym,
         quota: state.quota,
-        quotaStale: false,
+        quotaStale: true,
         nostrPublishWarning: _kNostrPublishWarning,
       ));
+      await _refreshQuota();
     } on Exception catch (e) {
       if (isClosed) return;
       emit(state.copyWith(registering: false, error: _mapError(e)));
@@ -212,14 +215,6 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         nostrPublishWarning: _kNostrPublishWarning,
       ));
     }
-  }
-
-  /// Clears a one-shot warning after the UI has surfaced it. Called by the
-  /// settings screen's BlocListener once the SnackBar is shown so it doesn't
-  /// re-fire on the next state emission.
-  void acknowledgeNostrPublishWarning() {
-    if (state.nostrPublishWarning == null) return;
-    emit(state.copyWith(nostrPublishWarning: null));
   }
 
   Future<void> _refreshQuota() async {

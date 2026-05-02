@@ -1,10 +1,8 @@
 import 'package:bb_mobile/core/nostr/nostr_identity.dart';
-import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/domain/entities/lookup_result.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
-import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_key_derivation.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/nostr_publish_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
@@ -47,25 +45,21 @@ class RepublishNostrProfileUsecase {
 
     final lookup = await _payService.lookupByNpub(nostr.npubHex);
 
-    try {
-      switch (lookup) {
-        case ActiveLookupResult(:final nym):
-          final address = '$nym@$lightningAddressDomain';
-          await nostr.withPrivateKeyHex(
-            (nsec) => _nostrPublish.publishProfile(
-              privateKeyHex: nsec,
-              name: nym,
-              nip05: address,
-              lud16: address,
-            ),
-          );
-        case InactiveLookupResult() || null:
-          await nostr.withPrivateKeyHex(
-            (nsec) => _nostrPublish.clearProfile(privateKeyHex: nsec),
-          );
-      }
-    } on NostrPublishFailedException catch (e) {
-      throw LightningAddressNostrPublishFailedException(e.message);
+    switch (lookup) {
+      case ActiveLookupResult(:final nym):
+        final address = '$nym@$lightningAddressDomain';
+        await nostr.withPrivateKeyHex(
+          (nsec) => _nostrPublish.publishProfile(
+            privateKeyHex: nsec,
+            name: nym,
+            nip05: address,
+            lud16: address,
+          ),
+        );
+      case InactiveLookupResult() || null:
+        await nostr.withPrivateKeyHex(
+          (nsec) => _nostrPublish.clearProfile(privateKeyHex: nsec),
+        );
     }
   }
 }

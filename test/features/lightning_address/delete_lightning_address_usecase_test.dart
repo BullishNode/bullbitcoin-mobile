@@ -5,7 +5,6 @@ import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
-import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_v1_signing.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/nostr_publish_port.dart';
@@ -176,11 +175,14 @@ void main() {
   });
 
   test(
-      'NostrPublishFailedException after server delete rethrows as '
+      'port-level publish failure after server delete propagates as '
       'LightningAddressNostrPublishFailedException', () async {
+    // The adapter is responsible for translating the framework exception
+    // into the feature-level type; we mock the port throwing it directly.
     when(() => nostrPublish.clearProfile(
             privateKeyHex: any(named: 'privateKeyHex')))
-        .thenThrow(NostrPublishFailedException('all relays unreachable'));
+        .thenThrow(LightningAddressNostrPublishFailedException(
+            'all relays unreachable'));
 
     await expectLater(
       usecase.execute(),

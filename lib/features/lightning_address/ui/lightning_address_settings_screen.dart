@@ -46,55 +46,59 @@ class _LightningAddressSettingsScreenState
     return Scaffold(
       appBar: AppBar(title: Text(context.loc.lightningAddressTitle)),
       body: SafeArea(
-        child: BlocConsumer<LightningAddressCubit, LightningAddressState>(
-          listenWhen: (prev, curr) =>
-              // Registration succeeded
-              (prev.lightningAddress == null && curr.lightningAddress != null) ||
-              // Deactivation succeeded
-              (prev.lightningAddress != null &&
-                  curr.lightningAddress == null &&
-                  !curr.loading) ||
-              // Nostr publish warning appeared / republish completed
-              (prev.nostrPublishWarning != curr.nostrPublishWarning) ||
-              (prev.republishingNostr && !curr.republishingNostr),
-          listener: (context, state) {
-            // Surface the registration/deactivation outcome SnackBar only on
-            // the actual transition, then surface the Nostr warning (if any)
-            // separately so the user sees both.
-            final addressTransitioned =
-                state.lightningAddress != null ||
-                    (state.previousNym != null && !state.registering);
-            if (addressTransitioned && state.lightningAddress != null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    context.loc.lightningAddressActivated(
-                        state.lightningAddress!),
+        child: MultiBlocListener(
+          listeners: [
+            // Registration succeeded — Activated SnackBar.
+            BlocListener<LightningAddressCubit, LightningAddressState>(
+              listenWhen: (prev, curr) =>
+                  prev.lightningAddress == null &&
+                  curr.lightningAddress != null,
+              listener: (context, state) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      context.loc.lightningAddressActivated(
+                          state.lightningAddress!),
+                    ),
                   ),
-                ),
-              );
-            } else if (addressTransitioned && state.lightningAddress == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(context.loc.lightningAddressDeactivated),
-                ),
-              );
-            }
-            if (state.nostrPublishWarning != null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.nostrPublishWarning!),
-                  duration: const Duration(seconds: 6),
-                ),
-              );
-              // Clear the one-shot warning so it doesn't re-fire on the next
-              // emission.
-              context
-                  .read<LightningAddressCubit>()
-                  .acknowledgeNostrPublishWarning();
-            }
-          },
-          builder: (context, state) {
+                );
+              },
+            ),
+            // Deactivation succeeded — Deactivated SnackBar.
+            BlocListener<LightningAddressCubit, LightningAddressState>(
+              listenWhen: (prev, curr) =>
+                  prev.lightningAddress != null &&
+                  curr.lightningAddress == null &&
+                  !curr.loading,
+              listener: (context, _) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(context.loc.lightningAddressDeactivated),
+                  ),
+                );
+              },
+            ),
+            // Nostr publish failure — rising-edge surface; the warning stays
+            // in state until the next user action sets it back to null, but
+            // the listener won't re-fire because the rising-edge predicate
+            // requires `prev == null`.
+            BlocListener<LightningAddressCubit, LightningAddressState>(
+              listenWhen: (prev, curr) =>
+                  prev.nostrPublishWarning == null &&
+                  curr.nostrPublishWarning != null,
+              listener: (context, state) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.nostrPublishWarning!),
+                    duration: const Duration(seconds: 6),
+                  ),
+                );
+              },
+            ),
+          ],
+          child:
+              BlocBuilder<LightningAddressCubit, LightningAddressState>(
+            builder: (context, state) {
             if (state.loading) {
               return Center(
                 child: Column(
@@ -170,6 +174,7 @@ class _LightningAddressSettingsScreenState
               },
             );
           },
+          ),
         ),
       ),
     );

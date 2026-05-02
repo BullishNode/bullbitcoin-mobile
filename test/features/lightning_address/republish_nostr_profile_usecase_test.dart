@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/entities/signer_entity.dart';
-import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -141,7 +140,7 @@ void main() {
   });
 
   test(
-      'NostrPublishFailedException is rethrown as '
+      'port-level publish failure propagates as '
       'LightningAddressNostrPublishFailedException', () async {
     when(() => payService.lookupByNpub(any())).thenAnswer(
       (_) async => const ActiveLookupResult(
@@ -154,7 +153,8 @@ void main() {
           name: any(named: 'name'),
           nip05: any(named: 'nip05'),
           lud16: any(named: 'lud16'),
-        )).thenThrow(NostrPublishFailedException('all relays unreachable'));
+        )).thenThrow(LightningAddressNostrPublishFailedException(
+        'all relays unreachable'));
 
     await expectLater(
       usecase.execute(),

@@ -1,5 +1,4 @@
 import 'package:bb_mobile/core/nostr/nostr_identity.dart';
-import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
@@ -53,18 +52,12 @@ class DeleteLightningAddressUsecase {
         timestampSecs: timestampSecs,
       );
 
-      // Clear NIP-05 profile on nostr relays. The bullpay deactivation has
-      // already succeeded; if the broadcast reaches zero relays we surface a
-      // typed exception so the cubit can prompt a manual retry via
-      // "Republish to Nostr" in settings — the deletion itself is not
-      // unwound.
-      try {
-        await nostr.withPrivateKeyHex(
-          (nsec) => _nostrPublish.clearProfile(privateKeyHex: nsec),
-        );
-      } on NostrPublishFailedException catch (e) {
-        throw LightningAddressNostrPublishFailedException(e.message);
-      }
+      // Best-effort kind:0 clear. On zero-relay failure the adapter throws
+      // [LightningAddressNostrPublishFailedException] which propagates —
+      // the bullpay deactivation is already committed and is not unwound.
+      await nostr.withPrivateKeyHex(
+        (nsec) => _nostrPublish.clearProfile(privateKeyHex: nsec),
+      );
 
       return quota;
     } on PayServiceException catch (e) {

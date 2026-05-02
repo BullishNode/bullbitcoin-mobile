@@ -1,5 +1,4 @@
 import 'package:bb_mobile/core/nostr/nostr_identity.dart';
-import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -72,28 +71,20 @@ class RegisterLightningAddressUsecase {
         timestampSecs: timestampSecs,
       );
 
-      // Publish NIP-05 profile to nostr relays (opt-out via
-      // `publishOnNostr: false`). Skipping it leaves the user discoverable
-      // by the bullpay.ca NIP-05 endpoint but means no kind:0 profile event
-      // is broadcast under their npub.
-      //
-      // If the broadcast reaches zero relays, surface a typed exception so
-      // the cubit can show a non-blocking warning — the bullpay registration
-      // already succeeded and the user can retry via "Republish to Nostr"
-      // in settings.
+      // Best-effort kind:0 broadcast. Opt-out via `publishOnNostr: false`
+      // skips it entirely; on zero-relay failure the adapter throws
+      // [LightningAddressNostrPublishFailedException] which propagates to
+      // the cubit (server registration is already committed and is not
+      // unwound).
       if (publishOnNostr) {
-        try {
-          await nostr.withPrivateKeyHex(
-            (nsec) => _nostrPublish.publishProfile(
-              privateKeyHex: nsec,
-              name: nym,
-              nip05: '$nym@$lightningAddressDomain',
-              lud16: '$nym@$lightningAddressDomain',
-            ),
-          );
-        } on NostrPublishFailedException catch (e) {
-          throw LightningAddressNostrPublishFailedException(e.message);
-        }
+        await nostr.withPrivateKeyHex(
+          (nsec) => _nostrPublish.publishProfile(
+            privateKeyHex: nsec,
+            name: nym,
+            nip05: '$nym@$lightningAddressDomain',
+            lud16: '$nym@$lightningAddressDomain',
+          ),
+        );
       }
 
       return result;
