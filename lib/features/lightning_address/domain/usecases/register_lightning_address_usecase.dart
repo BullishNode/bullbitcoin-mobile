@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/nostr/nostr_identity.dart';
+import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -11,7 +12,6 @@ import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_po
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
-import 'package:flutter/foundation.dart';
 
 class RegisterLightningAddressUsecase {
   final CreateLightningAddressWalletUsecase _createWallet;
@@ -72,10 +72,15 @@ class RegisterLightningAddressUsecase {
         timestampSecs: timestampSecs,
       );
 
-      // Publish NIP-05 profile to nostr relays (best-effort, opt-out via
+      // Publish NIP-05 profile to nostr relays (opt-out via
       // `publishOnNostr: false`). Skipping it leaves the user discoverable
       // by the bullpay.ca NIP-05 endpoint but means no kind:0 profile event
       // is broadcast under their npub.
+      //
+      // If the broadcast reaches zero relays, surface a typed exception so
+      // the cubit can show a non-blocking warning — the bullpay registration
+      // already succeeded and the user can retry via "Republish to Nostr"
+      // in settings.
       if (publishOnNostr) {
         try {
           await nostr.withPrivateKeyHex(
@@ -86,8 +91,8 @@ class RegisterLightningAddressUsecase {
               lud16: '$nym@$lightningAddressDomain',
             ),
           );
-        } catch (e) {
-          debugPrint('Nostr relay publish failed: $e');
+        } on NostrPublishFailedException catch (e) {
+          throw LightningAddressNostrPublishFailedException(e.message);
         }
       }
 

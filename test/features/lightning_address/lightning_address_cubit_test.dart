@@ -4,6 +4,7 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_ligh
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/republish_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,9 @@ class _MockLookupStatus extends Mock
 
 class _MockPayService extends Mock implements PayServicePort {}
 
+class _MockRepublishNostrProfile extends Mock
+    implements RepublishNostrProfileUsecase {}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(Environment.mainnet);
@@ -30,6 +34,7 @@ void main() {
   late _MockDelete delete;
   late _MockLookupStatus lookupStatus;
   late _MockPayService payService;
+  late _MockRepublishNostrProfile republishNostrProfile;
 
   setUp(() {
     getWallet = _MockGetWallet();
@@ -37,6 +42,8 @@ void main() {
     delete = _MockDelete();
     lookupStatus = _MockLookupStatus();
     payService = _MockPayService();
+    republishNostrProfile = _MockRepublishNostrProfile();
+    when(() => republishNostrProfile.execute()).thenAnswer((_) async {});
   });
 
   LightningAddressCubit build() => LightningAddressCubit(
@@ -44,10 +51,10 @@ void main() {
         register: register,
         delete: delete,
         lookupStatus: lookupStatus,
+        republishNostrProfile: republishNostrProfile,
         payService: payService,
       );
 
-  // Default register/delete responses for the happy-path tests.
   void stubRegisterOk({NymQuota quota = const NymQuota(used: 1, cap: 3)}) {
     when(() => register.execute(
           nym: any(named: 'nym'),

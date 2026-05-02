@@ -124,8 +124,6 @@ class PayServiceDatasource implements PayServicePort {
       final box = await Hive.openBox<String>(_boxName);
       await box.delete(_addressKey);
 
-      // Server returns the post-delete quota; mobile uses it to drive the
-      // dereg-warning copy without an extra `lookupByNpub` round trip.
       return _quotaFromJson(data?['quota']);
     } on DioException catch (e) {
       throw PayServiceException(
@@ -134,8 +132,7 @@ class PayServiceDatasource implements PayServicePort {
     }
   }
 
-  /// Parse the server's `quota: {used, cap, remaining}` block. `remaining`
-  /// is recomputed locally — never trust a derived field over the wire.
+  // remaining is recomputed locally; never trust a derived field over the wire.
   NymQuota _quotaFromJson(dynamic raw) {
     final m = raw is Map ? raw : const {};
     final used = (m['used'] as num?)?.toInt() ?? 0;

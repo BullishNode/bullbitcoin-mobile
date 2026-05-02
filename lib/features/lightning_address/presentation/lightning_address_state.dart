@@ -12,16 +12,9 @@ sealed class LightningAddressState with _$LightningAddressState {
     String? lightningAddress,
     String? previousNym,
     String? error,
-
-    /// Lifetime nym quota for this wallet's npub. `null` until the cubit
-    /// has hit the server at least once. Drives the deactivate-warning UX
-    /// via `quota.state()` — the UI reads the enum, never the raw counts.
     NymQuota? quota,
-
-    /// True when the most recent lookup attempt failed and the cubit is
-    /// showing a `quota` carried over from a prior request. UI may render a
-    /// "couldn't refresh" hint; copy decisions still flow through
-    /// `quota.state()` against the cached value.
     @Default(false) bool quotaStale,
+    String? nostrPublishWarning,
+    @Default(false) bool republishingNostr,
   }) = _LightningAddressState;
 }

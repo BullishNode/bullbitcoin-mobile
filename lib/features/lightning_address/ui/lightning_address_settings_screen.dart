@@ -53,9 +53,18 @@ class _LightningAddressSettingsScreenState
               // Deactivation succeeded
               (prev.lightningAddress != null &&
                   curr.lightningAddress == null &&
-                  !curr.loading),
+                  !curr.loading) ||
+              // Nostr publish warning appeared / republish completed
+              (prev.nostrPublishWarning != curr.nostrPublishWarning) ||
+              (prev.republishingNostr && !curr.republishingNostr),
           listener: (context, state) {
-            if (state.lightningAddress != null) {
+            // Surface the registration/deactivation outcome SnackBar only on
+            // the actual transition, then surface the Nostr warning (if any)
+            // separately so the user sees both.
+            final addressTransitioned =
+                state.lightningAddress != null ||
+                    (state.previousNym != null && !state.registering);
+            if (addressTransitioned && state.lightningAddress != null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
@@ -64,12 +73,25 @@ class _LightningAddressSettingsScreenState
                   ),
                 ),
               );
-            } else {
+            } else if (addressTransitioned && state.lightningAddress == null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(context.loc.lightningAddressDeactivated),
                 ),
               );
+            }
+            if (state.nostrPublishWarning != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.nostrPublishWarning!),
+                  duration: const Duration(seconds: 6),
+                ),
+              );
+              // Clear the one-shot warning so it doesn't re-fire on the next
+              // emission.
+              context
+                  .read<LightningAddressCubit>()
+                  .acknowledgeNostrPublishWarning();
             }
           },
           builder: (context, state) {
@@ -123,6 +145,7 @@ class _LightningAddressSettingsScreenState
               return _ActivatedView(
                 address: state.lightningAddress!,
                 deleting: state.registering,
+                republishing: state.republishingNostr,
               );
             }
             // Pre-fill nym controller if we found a previous registration
@@ -134,6 +157,7 @@ class _LightningAddressSettingsScreenState
               registering: state.registering,
               error: state.error,
               previousNym: state.previousNym,
+              republishing: state.republishingNostr,
               onRegister: (publishOnNostr) {
                 final env =
                     context.read<SettingsCubit>().state.environment ??
@@ -157,7 +181,12 @@ class _LightningAddressSettingsScreenState
 class _ActivatedView extends StatefulWidget {
   final String address;
   final bool deleting;
-  const _ActivatedView({required this.address, this.deleting = false});
+  final bool republishing;
+  const _ActivatedView({
+    required this.address,
+    this.deleting = false,
+    this.republishing = false,
+  });
 
   @override
   State<_ActivatedView> createState() => _ActivatedViewState();
@@ -394,6 +423,25 @@ class _ActivatedViewState extends State<_ActivatedView> {
               context.loc.lightningAddressHideWalletInfo,
             ),
           ),
+          const Gap(16),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: widget.republishing || widget.deleting
+                  ? null
+                  : () => context
+                      .read<LightningAddressCubit>()
+                      .republishNostrProfile(),
+              icon: widget.republishing
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh, size: 18),
+              label: const Text('Republish to Nostr'),
+            ),
+          ),
           const Gap(32),
           SizedBox(
             width: double.infinity,
@@ -506,6 +554,7 @@ class _RegistrationView extends StatefulWidget {
   final bool registering;
   final String? error;
   final String? previousNym;
+  final bool republishing;
   final ValueChanged<bool> onRegister;
 
   const _RegistrationView({
@@ -514,6 +563,7 @@ class _RegistrationView extends StatefulWidget {
     required this.error,
     required this.onRegister,
     this.previousNym,
+    this.republishing = false,
   });
 
   @override
@@ -555,6 +605,31 @@ class _RegistrationViewState extends State<_RegistrationView> {
                     context.loc.lightningAddressPreviousBody(
                       widget.previousNym ?? '', lightningAddressDomain),
                     style: theme.textTheme.bodySmall,
+                  ),
+                  const Gap(8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: widget.republishing || widget.registering
+                          ? null
+                          : () => context
+                              .read<LightningAddressCubit>()
+                              .republishNostrProfile(),
+                      icon: widget.republishing
+                          ? const SizedBox(
+                              height: 14,
+                              width: 14,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh, size: 16),
+                      label: const Text('Republish to Nostr'),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
                   ),
                 ],
               ),

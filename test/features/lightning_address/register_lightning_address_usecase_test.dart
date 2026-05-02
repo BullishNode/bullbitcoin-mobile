@@ -7,6 +7,8 @@ import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_v1_signing.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/nostr_publish_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
@@ -255,6 +257,46 @@ void main() {
         isTrue,
       )),
     );
+  });
+
+  test(
+      'NostrPublishFailedException after server register rethrows as '
+      'LightningAddressNostrPublishFailedException', () async {
+    when(() => nostrPublish.publishProfile(
+          privateKeyHex: any(named: 'privateKeyHex'),
+          name: any(named: 'name'),
+          nip05: any(named: 'nip05'),
+          lud16: any(named: 'lud16'),
+        )).thenThrow(NostrPublishFailedException('all relays unreachable'));
+
+    await expectLater(
+      usecase.execute(nym: 'alice', environment: Environment.mainnet),
+      throwsA(isA<LightningAddressNostrPublishFailedException>()),
+    );
+
+    // The server register must have already happened — we don't unwind it.
+    verify(() => payService.register(
+          nym: any(named: 'nym'),
+          ctDescriptor: any(named: 'ctDescriptor'),
+          npubHex: any(named: 'npubHex'),
+          signatureHex: any(named: 'signatureHex'),
+          timestampSecs: any(named: 'timestampSecs'),
+        )).called(1);
+  });
+
+  test('publishOnNostr=false skips the relay call entirely', () async {
+    await usecase.execute(
+      nym: 'alice',
+      environment: Environment.mainnet,
+      publishOnNostr: false,
+    );
+
+    verifyNever(() => nostrPublish.publishProfile(
+          privateKeyHex: any(named: 'privateKeyHex'),
+          name: any(named: 'name'),
+          nip05: any(named: 'nip05'),
+          lud16: any(named: 'lud16'),
+        ));
   });
 }
 

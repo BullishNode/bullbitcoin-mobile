@@ -8,14 +8,20 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_ligh
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/republish_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+const _kNostrPublishWarning =
+    'Saved on bullpay, but couldn’t reach Nostr relays. '
+    'Tap “Republish to Nostr” to retry.';
 
 class LightningAddressCubit extends Cubit<LightningAddressState> {
   final GetLightningAddressWalletUsecase _getWallet;
   final RegisterLightningAddressUsecase _register;
   final DeleteLightningAddressUsecase _delete;
   final LookupLightningAddressStatusUsecase _lookupStatus;
+  final RepublishNostrProfileUsecase _republishNostrProfile;
   final PayServicePort _payService;
 
   LightningAddressCubit({
@@ -23,11 +29,13 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     required RegisterLightningAddressUsecase register,
     required DeleteLightningAddressUsecase delete,
     required LookupLightningAddressStatusUsecase lookupStatus,
+    required RepublishNostrProfileUsecase republishNostrProfile,
     required PayServicePort payService,
   })  : _getWallet = getWallet,
         _register = register,
         _delete = delete,
         _lookupStatus = lookupStatus,
+        _republishNostrProfile = republishNostrProfile,
         _payService = payService,
         super(const LightningAddressState());
 
@@ -36,9 +44,6 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       final wallet = await _getWallet.execute(environment: environment);
       final storedAddress = await _payService.getStoredAddress();
 
-      // Local cache hit: keep the cached address but still refresh quota
-      // from the server in the background — the address is local truth,
-      // the quota is server truth.
       if (storedAddress != null) {
         if (isClosed) return;
         emit(state.copyWith(
@@ -46,11 +51,10 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
           walletExists: wallet != null,
           lightningAddress: storedAddress,
         ));
-        await _refreshStatusBestEffort();
+        await _refreshQuota();
         return;
       }
 
-      // No local state — consult the server.
       LookupResult? lookup;
       try {
         lookup = await _lookupStatus.execute();
@@ -97,7 +101,11 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     bool publishOnNostr = true,
   }) async {
     if (nym.isEmpty || state.registering) return;
-    emit(state.copyWith(registering: true, error: null));
+    emit(state.copyWith(
+      registering: true,
+      error: null,
+      nostrPublishWarning: null,
+    ));
 
     try {
       final result = await _register.execute(
@@ -113,6 +121,21 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         quota: result.quota,
         quotaStale: false,
       ));
+    } on LightningAddressNostrPublishFailedException catch (e, stack) {
+      // Server-side register succeeded; only the relay broadcast failed.
+      // Emit the registered state but flag the warning so the UI can prompt
+      // a manual retry via "Republish to Nostr".
+      log.warning('LA register: nostr publish failed',
+          error: e, trace: stack);
+      if (isClosed) return;
+      final address = '$nym@$lightningAddressDomain';
+      emit(state.copyWith(
+        registering: false,
+        lightningAddress: address,
+        previousNym: null,
+        quotaStale: false,
+        nostrPublishWarning: _kNostrPublishWarning,
+      ));
     } on Exception catch (e, stack) {
       log.severe(message: 'register failed', error: e, trace: stack);
       if (isClosed) return;
@@ -123,11 +146,14 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   Future<void> deleteAddress() async {
     if (state.registering) return;
     final currentAddress = state.lightningAddress;
-    emit(state.copyWith(registering: true, error: null));
+    emit(state.copyWith(
+      registering: true,
+      error: null,
+      nostrPublishWarning: null,
+    ));
     try {
       final quota = await _delete.execute();
       if (isClosed) return;
-      // Extract nym from "nym@domain" for the previousNym banner
       final nym = currentAddress?.split('@').firstOrNull;
       emit(LightningAddressState(
         loading: false,
@@ -136,16 +162,67 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         quota: quota,
         quotaStale: false,
       ));
+    } on LightningAddressNostrPublishFailedException catch (e, stack) {
+      // Server-side deactivation succeeded; only the relay clear failed.
+      // Emit the deactivated state and surface the warning.
+      log.warning('LA delete: nostr publish failed',
+          error: e, trace: stack);
+      if (isClosed) return;
+      final nym = currentAddress?.split('@').firstOrNull;
+      emit(LightningAddressState(
+        loading: false,
+        walletExists: state.walletExists,
+        previousNym: nym,
+        quota: state.quota,
+        quotaStale: false,
+        nostrPublishWarning: _kNostrPublishWarning,
+      ));
     } on Exception catch (e) {
       if (isClosed) return;
       emit(state.copyWith(registering: false, error: _mapError(e)));
     }
   }
 
-  /// Refresh quota / status from the server without clobbering existing
-  /// state when the lookup fails. Marks the cached quota stale so the UI
-  /// can render a "couldn't refresh" hint if it cares.
-  Future<void> _refreshStatusBestEffort() async {
+  /// Manual retry: re-asserts the canonical bullpay state on Nostr relays.
+  /// Idempotent — looks up the npub on the server and either re-publishes
+  /// the active profile or clears it.
+  Future<void> republishNostrProfile() async {
+    if (state.republishingNostr) return;
+    emit(state.copyWith(
+      republishingNostr: true,
+      nostrPublishWarning: null,
+    ));
+    try {
+      await _republishNostrProfile.execute();
+      if (isClosed) return;
+      emit(state.copyWith(republishingNostr: false));
+    } on LightningAddressNostrPublishFailedException catch (e, stack) {
+      log.warning('LA republish failed', error: e, trace: stack);
+      if (isClosed) return;
+      emit(state.copyWith(
+        republishingNostr: false,
+        nostrPublishWarning: _kNostrPublishWarning,
+      ));
+    } on Exception catch (e, stack) {
+      log.severe(message: 'LA republish unexpected error',
+          error: e, trace: stack);
+      if (isClosed) return;
+      emit(state.copyWith(
+        republishingNostr: false,
+        nostrPublishWarning: _kNostrPublishWarning,
+      ));
+    }
+  }
+
+  /// Clears a one-shot warning after the UI has surfaced it. Called by the
+  /// settings screen's BlocListener once the SnackBar is shown so it doesn't
+  /// re-fire on the next state emission.
+  void acknowledgeNostrPublishWarning() {
+    if (state.nostrPublishWarning == null) return;
+    emit(state.copyWith(nostrPublishWarning: null));
+  }
+
+  Future<void> _refreshQuota() async {
     try {
       final lookup = await _lookupStatus.execute();
       if (isClosed) return;
@@ -154,8 +231,6 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
               InactiveLookupResult(:final quota):
           emit(state.copyWith(quota: quota, quotaStale: false));
         case null:
-          // Server has no row but we have a cached address — leave the
-          // quota alone (cache might be stale; next register will reset).
           break;
       }
     } on Exception catch (e, stack) {
