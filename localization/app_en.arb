@@ -7217,39 +7217,6 @@
   "@sendErrorConfirmationFailed": {
     "description": "Error title when transaction confirmation fails"
   },
-  "sendErrorBullpayProofRequired": "This Lightning Address requires a small Liquid balance to receive a payment. You need at least {minSat} sats in a single confirmed Liquid output to send directly. You can pay via Lightning instead.",
-  "@sendErrorBullpayProofRequired": {
-    "description": "Shown when the recipient server requires UTXO proof but the wallet has none qualifying.",
-    "placeholders": {
-      "minSat": {
-        "type": "String"
-      }
-    }
-  },
-  "sendErrorBullpayUtxoSpent": "The Liquid funds your wallet tried to use have already been spent. Please refresh your wallet and try again.",
-  "@sendErrorBullpayUtxoSpent": {
-    "description": "Shown when the UTXO used as proof has been spent before the request reached the server."
-  },
-  "sendErrorBullpayUtxoNotFound": "Your Liquid funds aren't visible on the network yet. Please wait for confirmation and try again.",
-  "@sendErrorBullpayUtxoNotFound": {
-    "description": "Shown when the proof UTXO can't be located on the chain (e.g. unconfirmed)."
-  },
-  "sendErrorBullpayRateLimited": "Too many requests to this address. Please wait a moment and try again.",
-  "@sendErrorBullpayRateLimited": {
-    "description": "Shown when the recipient server applies a rate limit."
-  },
-  "sendErrorBullpayTooManyReservations": "This address has too many pending payments. Please try again in a few minutes.",
-  "@sendErrorBullpayTooManyReservations": {
-    "description": "Shown when the recipient server has too many pending reservations for this nym."
-  },
-  "sendErrorBullpayInternal": "Something went wrong while preparing this Liquid payment. Please report this and pay via Lightning instead.",
-  "@sendErrorBullpayInternal": {
-    "description": "Shown for unexpected proof-of-funds errors that indicate a wallet bug."
-  },
-  "sendBullpayPayViaLightningCta": "Pay via Lightning",
-  "@sendBullpayPayViaLightningCta": {
-    "description": "Button label that switches the send flow to the Lightning + swap path."
-  },
   "sendBullpayLud22PrivacyDisclosure": "Direct Liquid payment links one of your wallet's UTXOs to this Lightning Address. The amount stays private.",
   "@sendBullpayLud22PrivacyDisclosure": {
     "description": "Privacy notice on the LUD-22 confirm screen explaining the proof-of-funds disclosure."

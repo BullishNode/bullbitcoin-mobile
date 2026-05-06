@@ -14,8 +14,7 @@ import 'package:crypto/crypto.dart';
 
 const String kBullpayMessageTag = 'bullpay-lnurlp-v1';
 
-// The server no longer enforces a minimum proof value. We still skip truly-dust
-// UTXOs (< 100 sat) because spending them later is anti-economic on Liquid.
+// Local UTXO filter — server is authoritative and may reject below its own bar.
 const int kBullpayMinProofValueSat = 100;
 
 class BullpayProofParams {

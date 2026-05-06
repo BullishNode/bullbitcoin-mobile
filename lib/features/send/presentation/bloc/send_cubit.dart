@@ -182,18 +182,8 @@ class SendCubit extends Cubit<SendState> {
         invalidBitcoinStringException: null,
         buildTransactionException: null,
         confirmTransactionException: null,
-        bullpayProofError: null,
-        forceLightningFallback: false,
       ),
     );
-  }
-
-  Future<void> onPayViaLightningRequested() async {
-    emit(state.copyWith(
-      bullpayProofError: null,
-      forceLightningFallback: true,
-    ));
-    await onAmountConfirmed();
   }
 
   void backClicked() {
@@ -201,13 +191,11 @@ class SendCubit extends Cubit<SendState> {
       emit(state.copyWith(
         step: SendStep.address,
         forceLightningFallback: false,
-        bullpayProofError: null,
       ));
     } else if (state.step == SendStep.amount) {
       emit(state.copyWith(
         step: SendStep.address,
         forceLightningFallback: false,
-        bullpayProofError: null,
       ));
     } else if (state.step == SendStep.confirm) {
       emit(
@@ -1025,17 +1013,20 @@ class SendCubit extends Cubit<SendState> {
             confirmedAmountSat: liquidDirect.amountSat,
             lud22OriginalAddress: originalAddress,
             step: SendStep.confirm,
-            bullpayProofError: null,
           ));
           await createTransaction();
           return;
         } on LiquidDirectPayUnavailable {
           // fall through to the standard Lightning/Boltz swap path
-        } on BullpayProofError catch (e) {
-          emit(state.copyWith(
-            bullpayProofError: e,
-            amountConfirmedClicked: false,
-          ));
+        } on BullpayProofError catch (e, st) {
+          log.warning(
+            'LUD-22 unavailable, falling back to Lightning',
+            error: e,
+            trace: st,
+          );
+          // Re-entry skips this branch via the forceLightningFallback guard above.
+          emit(state.copyWith(forceLightningFallback: true));
+          await onAmountConfirmed();
           return;
         }
       }

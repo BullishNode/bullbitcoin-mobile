@@ -10,7 +10,6 @@ import 'package:bb_mobile/core/utils/percentage.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet_transaction.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet_utxo.dart';
-import 'package:bb_mobile/features/send/domain/errors/bullpay_proof_error.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'send_state.freezed.dart';
@@ -131,7 +130,6 @@ abstract class SendState with _$SendState {
     /// Used by the confirm screen to show the LN address instead of the
     /// resolved Liquid address.
     String? lud22OriginalAddress,
-    BullpayProofError? bullpayProofError,
     @Default(false) bool forceLightningFallback,
   }) = _SendState;
   const SendState._();

@@ -1,5 +1,3 @@
-const int kBullpayDefaultMinProofValueSat = 1000;
-
 class LiquidDirectPayUnavailable implements Exception {
   const LiquidDirectPayUnavailable();
 }
@@ -13,9 +11,7 @@ sealed class BullpayProofError implements Exception {
   }) {
     switch (code) {
       case 'ProofOfFundsRequired':
-        return BullpayProofRequiresProof(
-          minSat: _parseMinSatFromReason(reason),
-        );
+        return const BullpayProofRequiresProof();
       case 'UtxoNotFound':
         return const BullpayProofUtxoNotFound();
       case 'UtxoSpent':
@@ -31,8 +27,7 @@ sealed class BullpayProofError implements Exception {
 }
 
 final class BullpayProofRequiresProof extends BullpayProofError {
-  final int minSat;
-  const BullpayProofRequiresProof({this.minSat = kBullpayDefaultMinProofValueSat});
+  const BullpayProofRequiresProof();
 }
 
 final class BullpayProofUtxoNotFound extends BullpayProofError {
@@ -54,11 +49,4 @@ final class BullpayProofTooManyReservations extends BullpayProofError {
 final class BullpayProofInternal extends BullpayProofError {
   final String code;
   const BullpayProofInternal(this.code);
-}
-
-int _parseMinSatFromReason(String? reason) {
-  if (reason == null) return kBullpayDefaultMinProofValueSat;
-  final match = RegExp(r'(\d+)\s*sat').firstMatch(reason);
-  if (match == null) return kBullpayDefaultMinProofValueSat;
-  return int.tryParse(match.group(1)!) ?? kBullpayDefaultMinProofValueSat;
 }
