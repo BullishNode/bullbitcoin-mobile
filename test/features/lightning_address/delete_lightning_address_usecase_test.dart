@@ -26,23 +26,22 @@ const _kZeroMnemonic =
 const _kFingerprint = '73c5da0a';
 
 Wallet _bitcoinDefault() => Wallet(
-      origin: 'btc-default',
-      network: Network.bitcoinMainnet,
-      isDefault: true,
-      masterFingerprint: _kFingerprint,
-      xpubFingerprint: _kFingerprint,
-      scriptType: ScriptType.bip84,
-      xpub: 'xpubFAKE',
-      externalPublicDescriptor: 'wpkh(xpubFAKE/0/*)',
-      internalPublicDescriptor: 'wpkh(xpubFAKE/1/*)',
-      signer: SignerEntity.local,
-      signerDevice: null,
-      balanceSat: BigInt.zero,
-    );
+  origin: 'btc-default',
+  network: Network.bitcoinMainnet,
+  isDefault: true,
+  masterFingerprint: _kFingerprint,
+  xpubFingerprint: _kFingerprint,
+  scriptType: ScriptType.bip84,
+  xpub: 'xpubFAKE',
+  externalPublicDescriptor: 'wpkh(xpubFAKE/0/*)',
+  internalPublicDescriptor: 'wpkh(xpubFAKE/1/*)',
+  signer: SignerEntity.local,
+  signerDevice: null,
+  balanceSat: BigInt.zero,
+);
 
 Seed _zeroSeed() {
-  final m =
-      bip39.Mnemonic.fromSentence(_kZeroMnemonic, bip39.Language.english);
+  final m = bip39.Mnemonic.fromSentence(_kZeroMnemonic, bip39.Language.english);
   return Seed.mnemonic(
     mnemonicWords: _kZeroMnemonic.split(' '),
     bytes: Uint8List.fromList(m.seed),
@@ -51,9 +50,9 @@ Seed _zeroSeed() {
 }
 
 List<int> _hexDecode(String hex) => [
-      for (var i = 0; i < hex.length; i += 2)
-        int.parse(hex.substring(i, i + 2), radix: 16),
-    ];
+  for (var i = 0; i < hex.length; i += 2)
+    int.parse(hex.substring(i, i + 2), radix: 16),
+];
 
 void main() {
   late _MockPayService payService;
@@ -71,24 +70,30 @@ void main() {
       payService: payService,
     );
 
-    when(() => walletRepo.getWallets(
-          onlyDefaults: any(named: 'onlyDefaults'),
-          onlyBitcoin: any(named: 'onlyBitcoin'),
-        )).thenAnswer((_) async => [_bitcoinDefault()]);
+    when(
+      () => walletRepo.getWallets(
+        onlyDefaults: any(named: 'onlyDefaults'),
+        onlyBitcoin: any(named: 'onlyBitcoin'),
+      ),
+    ).thenAnswer((_) async => [_bitcoinDefault()]);
     when(() => seedRepo.get(any())).thenAnswer((_) async => _zeroSeed());
-    when(() => payService.deleteRegistration(
-          npubHex: any(named: 'npubHex'),
-          signatureHex: any(named: 'signatureHex'),
-          timestampSecs: any(named: 'timestampSecs'),
-        )).thenAnswer((_) async => const NymQuota(used: 1, cap: 3));
+    when(
+      () => payService.deleteRegistration(
+        npubHex: any(named: 'npubHex'),
+        signatureHex: any(named: 'signatureHex'),
+        timestampSecs: any(named: 'timestampSecs'),
+      ),
+    ).thenAnswer((_) async => const NymQuota(used: 1, cap: 3));
   });
 
-  ({String npubHex, String sigHex, int ts}) _capture() {
-    final captured = verify(() => payService.deleteRegistration(
-          npubHex: captureAny(named: 'npubHex'),
-          signatureHex: captureAny(named: 'signatureHex'),
-          timestampSecs: captureAny(named: 'timestampSecs'),
-        )).captured;
+  ({String npubHex, String sigHex, int ts}) captureDelete() {
+    final captured = verify(
+      () => payService.deleteRegistration(
+        npubHex: captureAny(named: 'npubHex'),
+        signatureHex: captureAny(named: 'signatureHex'),
+        timestampSecs: captureAny(named: 'timestampSecs'),
+      ),
+    ).captured;
     return (
       npubHex: captured[0] as String,
       sigHex: captured[1] as String,
@@ -96,73 +101,82 @@ void main() {
     );
   }
 
-  test('signs the v1 wire format with action=delete and no payload fields',
-      () async {
-    final before = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
-    await usecase.execute();
-    final after = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
-    final c = _capture();
+  test(
+    'signs the v1 wire format with action=delete and no payload fields',
+    () async {
+      final before = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+      await usecase.execute();
+      final after = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+      final c = captureDelete();
 
-    expect(c.ts, inInclusiveRange(before, after));
+      expect(c.ts, inInclusiveRange(before, after));
 
-    final message = buildLaV1Message(
-      action: 'delete',
-      npubHex: c.npubHex,
-      payloadFields: const [],
-      timestampSecs: c.ts,
-    );
-    final digest = sha256.convert(message).bytes;
-    final pub = ECPublic.fromHex('02${c.npubHex}');
-    expect(
-      pub.verifyBip340Signature(
-        digest: digest,
-        signature: _hexDecode(c.sigHex),
-        tweak: false,
-      ),
-      isTrue,
-      reason: 'sig must verify against canonical delete v1 message bytes',
-    );
-  });
+      final message = buildLaV1Message(
+        action: 'delete',
+        npubHex: c.npubHex,
+        payloadFields: const [],
+        timestampSecs: c.ts,
+      );
+      final digest = sha256.convert(message).bytes;
+      final pub = ECPublic.fromHex('02${c.npubHex}');
+      expect(
+        pub.verifyBip340Signature(
+          digest: digest,
+          signature: _hexDecode(c.sigHex),
+          tweak: false,
+        ),
+        isTrue,
+        reason: 'sig must verify against canonical delete v1 message bytes',
+      );
+    },
+  );
 
-  test('a delete sig must not verify against a register-shaped message',
-      () async {
-    await usecase.execute();
-    final c = _capture();
+  test(
+    'a delete sig must not verify against a register-shaped message',
+    () async {
+      await usecase.execute();
+      final c = captureDelete();
 
-    final fakeRegisterMessage = buildLaV1Message(
-      action: 'register',
-      npubHex: c.npubHex,
-      payloadFields: const ['alice', 'ct(...)'],
-      timestampSecs: c.ts,
-    );
-    final digest = sha256.convert(fakeRegisterMessage).bytes;
-    final pub = ECPublic.fromHex('02${c.npubHex}');
-    expect(
-      pub.verifyBip340Signature(
-        digest: digest,
-        signature: _hexDecode(c.sigHex),
-        tweak: false,
-      ),
-      isFalse,
-    );
-  });
+      final fakeRegisterMessage = buildLaV1Message(
+        action: 'register',
+        npubHex: c.npubHex,
+        payloadFields: const ['alice', 'ct(...)'],
+        timestampSecs: c.ts,
+      );
+      final digest = sha256.convert(fakeRegisterMessage).bytes;
+      final pub = ECPublic.fromHex('02${c.npubHex}');
+      expect(
+        pub.verifyBip340Signature(
+          digest: digest,
+          signature: _hexDecode(c.sigHex),
+          tweak: false,
+        ),
+        isFalse,
+      );
+    },
+  );
 
-  test('PayServiceException maps to LightningAddressRegistrationException',
-      () async {
-    when(() => payService.deleteRegistration(
+  test(
+    'PayServiceException maps to LightningAddressRegistrationException',
+    () async {
+      when(
+        () => payService.deleteRegistration(
           npubHex: any(named: 'npubHex'),
           signatureHex: any(named: 'signatureHex'),
           timestampSecs: any(named: 'timestampSecs'),
-        )).thenThrow(PayServiceException('NotFound'));
+        ),
+      ).thenThrow(PayServiceException('NotFound'));
 
-    await expectLater(
-      usecase.execute(),
-      throwsA(isA<Exception>().having(
-        (e) => e.toString().contains('NotFound'),
-        'wraps server message',
-        isTrue,
-      )),
-    );
-  });
-
+      await expectLater(
+        usecase.execute(),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString().contains('NotFound'),
+            'wraps server message',
+            isTrue,
+          ),
+        ),
+      );
+    },
+  );
 }

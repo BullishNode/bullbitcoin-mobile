@@ -4,7 +4,6 @@ import 'package:bb_mobile/features/send/domain/errors/bullpay_proof_error.dart';
 import 'package:bb_mobile/features/send/domain/usecases/build_bullpay_proof_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/try_liquid_direct_pay_usecase.dart';
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -56,10 +55,12 @@ void main() {
 
   TryLiquidDirectPayUsecase build(Dio dio) {
     final mockProof = _MockBuildProof();
-    when(() => mockProof.execute(
-          walletId: any(named: 'walletId'),
-          nym: any(named: 'nym'),
-        )).thenAnswer((_) async => _proof);
+    when(
+      () => mockProof.execute(
+        walletId: any(named: 'walletId'),
+        nym: any(named: 'nym'),
+      ),
+    ).thenAnswer((_) async => _proof);
     return TryLiquidDirectPayUsecase(buildProof: mockProof, dio: dio);
   }
 
@@ -99,14 +100,14 @@ void main() {
           'L-BTC': {'address': 'lq1qfake'},
         },
       );
-      final out = await build(stub.dio).execute(
-        lnAddress: 'alice@bullpay.ca',
-        amountSat: 1000,
-        walletId: 'w',
-      );
+      final out = await build(
+        stub.dio,
+      ).execute(lnAddress: 'alice@bullpay.ca', amountSat: 1000, walletId: 'w');
       expect(out.address, 'lq1qfake');
-      expect(stub.captured.requests.first.uri.toString(),
-          'https://bullpay.ca/.well-known/lnurlp/alice');
+      expect(
+        stub.captured.requests.first.uri.toString(),
+        'https://bullpay.ca/.well-known/lnurlp/alice',
+      );
     });
   });
 
@@ -122,14 +123,19 @@ void main() {
 
     for (final cb in invalidCallbacks) {
       test('rejects callback "$cb"', () async {
-        final stub = _stubDio(metadataBody: {
-          'tag': 'payRequest',
-          'payment_methods': ['L-BTC'],
-          'callback': cb,
-        });
+        final stub = _stubDio(
+          metadataBody: {
+            'tag': 'payRequest',
+            'payment_methods': ['L-BTC'],
+            'callback': cb,
+          },
+        );
         await expectLater(
           build(stub.dio).execute(
-              lnAddress: 'alice@bullpay.ca', amountSat: 1000, walletId: 'w'),
+            lnAddress: 'alice@bullpay.ca',
+            amountSat: 1000,
+            walletId: 'w',
+          ),
           throwsA(isA<LiquidDirectPayUnavailable>()),
         );
       });
@@ -146,8 +152,9 @@ void main() {
           'L-BTC': {'address': 'lq1qfake'},
         },
       );
-      await build(stub.dio).execute(
-          lnAddress: 'alice@bullpay.ca', amountSat: 1000, walletId: 'w');
+      await build(
+        stub.dio,
+      ).execute(lnAddress: 'alice@bullpay.ca', amountSat: 1000, walletId: 'w');
       expect(stub.captured.requests, hasLength(2));
       for (final r in stub.captured.requests) {
         expect(r.followRedirects, isFalse);
@@ -157,14 +164,19 @@ void main() {
 
   group('happy path', () {
     test('payment_methods without L-BTC throws Unavailable', () async {
-      final stub = _stubDio(metadataBody: {
-        'tag': 'payRequest',
-        'payment_methods': ['BTC'],
-        'callback': 'https://bullpay.ca/cb',
-      });
+      final stub = _stubDio(
+        metadataBody: {
+          'tag': 'payRequest',
+          'payment_methods': ['BTC'],
+          'callback': 'https://bullpay.ca/cb',
+        },
+      );
       await expectLater(
         build(stub.dio).execute(
-            lnAddress: 'alice@bullpay.ca', amountSat: 1000, walletId: 'w'),
+          lnAddress: 'alice@bullpay.ca',
+          amountSat: 1000,
+          walletId: 'w',
+        ),
         throwsA(isA<LiquidDirectPayUnavailable>()),
       );
     });
@@ -173,7 +185,10 @@ void main() {
       final stub = _stubDio(metadataBody: {'tag': 'channelRequest'});
       await expectLater(
         build(stub.dio).execute(
-            lnAddress: 'alice@bullpay.ca', amountSat: 1000, walletId: 'w'),
+          lnAddress: 'alice@bullpay.ca',
+          amountSat: 1000,
+          walletId: 'w',
+        ),
         throwsA(isA<LiquidDirectPayUnavailable>()),
       );
     });
@@ -189,8 +204,9 @@ void main() {
           'L-BTC': {'address': 'lq1qfake'},
         },
       );
-      await build(stub.dio).execute(
-          lnAddress: 'alice@bullpay.ca', amountSat: 5000, walletId: 'w');
+      await build(
+        stub.dio,
+      ).execute(lnAddress: 'alice@bullpay.ca', amountSat: 5000, walletId: 'w');
       final cb = stub.captured.requests[1];
       expect(cb.uri.queryParameters, {
         'existing': '1',
@@ -217,7 +233,10 @@ void main() {
       );
       await expectLater(
         build(stub.dio).execute(
-            lnAddress: 'alice@bullpay.ca', amountSat: 1000, walletId: 'w'),
+          lnAddress: 'alice@bullpay.ca',
+          amountSat: 1000,
+          walletId: 'w',
+        ),
         throwsA(isA<BullpayProofError>()),
       );
     });

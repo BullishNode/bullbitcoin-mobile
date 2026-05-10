@@ -6,5 +6,10 @@ const String payServiceBaseUrl = 'https://bullpay.ca';
 const int lightningAddressWalletBip85Index = 75;
 
 /// Nostr identity/account indices for pay service authentication.
-const int lightningAddressNostrIdentity = 75;
-const int lightningAddressNostrAccount = 0;
+///
+/// These are under the BIP85 Nostr application path
+/// `m/83696968'/86'/{identity}'/{account}'`. They are deliberately separate
+/// from [lightningAddressWalletBip85Index], which is the Liquid receive wallet
+/// mnemonic index.
+const int lightningAddressNostrIdentity = 1;
+const int lightningAddressNostrAccount = 1;

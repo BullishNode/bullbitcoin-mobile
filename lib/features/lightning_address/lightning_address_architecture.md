@@ -14,10 +14,12 @@ the Boltz swap.
 | What | Path | Source |
 |---|---|---|
 | LA wallet mnemonic | BIP85 index 75 → 12-word mnemonic | `lightning_address_constants.dart` |
-| Nostr identity | BIP85 `86'/75'/0'` → 32-byte secret | `nostr_identity.dart` (NIP-06 application 86) |
+| Nostr identity | BIP85 `86'/1'/1'` → 32-byte secret | `nostr_identity.dart` (Nostr application 86) |
 
 The LA wallet is created from the child mnemonic and labeled
 `"Lightning Address"`. `GetLightningAddressWalletUsecase` finds it by label.
+The Nostr path is independent from the LA wallet index; `75` is not reused as
+a Nostr identity number.
 
 ## Use cases
 
@@ -99,8 +101,8 @@ the LA wallet out of selectable send sources.
 
 ## Privacy boundaries
 
-- Nostr `nsecHex` is private on `NostrIdentity`; access via
-  `withPrivateKeyHex((nsec) => …)`. `toString()` prints only `npub`.
+- Nostr secret keys stay behind the `NostrIdentity` / `NostrKeychainHandle`
+  callback boundary. `toString()` prints only the public key.
 - LUD-22 callback is pinned to `https` + the metadata host. Redirects
   disabled on both metadata fetch and callback POST.
 - Sweep destination is a fresh receive index per sweep (not address-reused).

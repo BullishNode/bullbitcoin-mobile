@@ -1,8 +1,8 @@
 /// PORT: publishing the user's Nostr kind:0 profile event under their npub.
 ///
 /// Pulled out of the application layer so the LA usecases never reach
-/// directly into the framework `NostrRelayClient` static. The adapter
-/// wraps that static; tests inject a fake.
+/// directly into core relay publishing. The adapter wraps `NostrFacade`;
+/// tests inject a fake.
 ///
 /// **Error contract**: both methods throw
 /// `LightningAddressNostrPublishFailedException` when the broadcast reached

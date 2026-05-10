@@ -37,38 +37,41 @@ const _kCtDescriptor =
     'ct(slip77(...),elwpkh([fingerprint/84h/1776h/0h]xpubFAKE/<0;1>/*))';
 
 Wallet _bitcoinDefault({Network network = Network.bitcoinMainnet}) => Wallet(
-      origin: 'btc-default',
-      network: network,
-      isDefault: true,
-      masterFingerprint: _kFingerprint,
-      xpubFingerprint: _kFingerprint,
-      scriptType: ScriptType.bip84,
-      xpub: 'xpubFAKE',
-      externalPublicDescriptor: 'wpkh(xpubFAKE/0/*)',
-      internalPublicDescriptor: 'wpkh(xpubFAKE/1/*)',
-      signer: SignerEntity.local,
-      signerDevice: null,
-      balanceSat: BigInt.zero,
-    );
+  origin: 'btc-default',
+  network: network,
+  isDefault: true,
+  masterFingerprint: _kFingerprint,
+  xpubFingerprint: _kFingerprint,
+  scriptType: ScriptType.bip84,
+  xpub: 'xpubFAKE',
+  externalPublicDescriptor: 'wpkh(xpubFAKE/0/*)',
+  internalPublicDescriptor: 'wpkh(xpubFAKE/1/*)',
+  signer: SignerEntity.local,
+  signerDevice: null,
+  balanceSat: BigInt.zero,
+);
 
 Wallet _liquidLaWallet() => Wallet(
-      origin: 'la-liquid',
-      network: Network.liquidMainnet,
-      isDefault: false,
-      masterFingerprint: 'aabbccdd',
-      xpubFingerprint: 'aabbccdd',
-      scriptType: ScriptType.bip84,
-      xpub: 'xpubLA',
-      externalPublicDescriptor: _kCtDescriptor,
-      internalPublicDescriptor: _kCtDescriptor,
-      signer: SignerEntity.local,
-      signerDevice: null,
-      balanceSat: BigInt.zero,
-      label: 'Lightning Address',
-    );
+  origin: 'la-liquid',
+  network: Network.liquidMainnet,
+  isDefault: false,
+  masterFingerprint: 'aabbccdd',
+  xpubFingerprint: 'aabbccdd',
+  scriptType: ScriptType.bip84,
+  xpub: 'xpubLA',
+  externalPublicDescriptor: _kCtDescriptor,
+  internalPublicDescriptor: _kCtDescriptor,
+  signer: SignerEntity.local,
+  signerDevice: null,
+  balanceSat: BigInt.zero,
+  label: 'Lightning Address',
+);
 
 Seed _zeroSeed() {
-  final mnemonic = bip39.Mnemonic.fromSentence(_kZeroMnemonic, bip39.Language.english);
+  final mnemonic = bip39.Mnemonic.fromSentence(
+    _kZeroMnemonic,
+    bip39.Language.english,
+  );
   return Seed.mnemonic(
     mnemonicWords: _kZeroMnemonic.split(' '),
     bytes: Uint8List.fromList(mnemonic.seed),
@@ -102,36 +105,44 @@ void main() {
       payService: payService,
     );
 
-    when(() => walletRepo.getWallets(
-          onlyDefaults: any(named: 'onlyDefaults'),
-          onlyBitcoin: any(named: 'onlyBitcoin'),
-        )).thenAnswer((_) async => [_bitcoinDefault()]);
+    when(
+      () => walletRepo.getWallets(
+        onlyDefaults: any(named: 'onlyDefaults'),
+        onlyBitcoin: any(named: 'onlyBitcoin'),
+      ),
+    ).thenAnswer((_) async => [_bitcoinDefault()]);
     when(() => seedRepo.get(any())).thenAnswer((_) async => _zeroSeed());
-    when(() => getWallet.execute(environment: any(named: 'environment')))
-        .thenAnswer((_) async => _liquidLaWallet());
-    when(() => createWallet.execute(environment: any(named: 'environment')))
-        .thenAnswer((_) async => _liquidLaWallet());
-    when(() => payService.register(
-          nym: any(named: 'nym'),
-          ctDescriptor: any(named: 'ctDescriptor'),
-          npubHex: any(named: 'npubHex'),
-          signatureHex: any(named: 'signatureHex'),
-          timestampSecs: any(named: 'timestampSecs'),
-        )).thenAnswer((_) async => (
-              address: 'alice@bullpay.ca',
-              quota: const NymQuota(used: 1, cap: 3),
-            ));
+    when(
+      () => getWallet.execute(environment: any(named: 'environment')),
+    ).thenAnswer((_) async => _liquidLaWallet());
+    when(
+      () => createWallet.execute(environment: any(named: 'environment')),
+    ).thenAnswer((_) async => _liquidLaWallet());
+    when(
+      () => payService.register(
+        nym: any(named: 'nym'),
+        ctDescriptor: any(named: 'ctDescriptor'),
+        npubHex: any(named: 'npubHex'),
+        signatureHex: any(named: 'signatureHex'),
+        timestampSecs: any(named: 'timestampSecs'),
+      ),
+    ).thenAnswer(
+      (_) async =>
+          (address: 'alice@bullpay.ca', quota: const NymQuota(used: 1, cap: 3)),
+    );
   });
 
   ({String nym, String ctDescriptor, String npubHex, String sigHex, int ts})
-      _captureRegister() {
-    final captured = verify(() => payService.register(
-          nym: captureAny(named: 'nym'),
-          ctDescriptor: captureAny(named: 'ctDescriptor'),
-          npubHex: captureAny(named: 'npubHex'),
-          signatureHex: captureAny(named: 'signatureHex'),
-          timestampSecs: captureAny(named: 'timestampSecs'),
-        )).captured;
+  captureRegister() {
+    final captured = verify(
+      () => payService.register(
+        nym: captureAny(named: 'nym'),
+        ctDescriptor: captureAny(named: 'ctDescriptor'),
+        npubHex: captureAny(named: 'npubHex'),
+        signatureHex: captureAny(named: 'signatureHex'),
+        timestampSecs: captureAny(named: 'timestampSecs'),
+      ),
+    ).captured;
     return (
       nym: captured[0] as String,
       ctDescriptor: captured[1] as String,
@@ -142,26 +153,30 @@ void main() {
   }
 
   test('uses get-or-create wallet flow', () async {
-    when(() => getWallet.execute(environment: any(named: 'environment')))
-        .thenAnswer((_) async => null);
+    when(
+      () => getWallet.execute(environment: any(named: 'environment')),
+    ).thenAnswer((_) async => null);
 
     await usecase.execute(nym: 'alice', environment: Environment.mainnet);
 
-    verify(() => createWallet.execute(environment: any(named: 'environment')))
-        .called(1);
+    verify(
+      () => createWallet.execute(environment: any(named: 'environment')),
+    ).called(1);
   });
 
   test('skips create when wallet already exists', () async {
     await usecase.execute(nym: 'alice', environment: Environment.mainnet);
 
-    verifyNever(() => createWallet.execute(environment: any(named: 'environment')));
+    verifyNever(
+      () => createWallet.execute(environment: any(named: 'environment')),
+    );
   });
 
   test('sends nym + ctDescriptor + recent timestamp', () async {
     final before = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
     await usecase.execute(nym: 'alice', environment: Environment.mainnet);
     final after = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
-    final c = _captureRegister();
+    final c = captureRegister();
 
     expect(c.nym, 'alice');
     expect(c.ctDescriptor, _kCtDescriptor);
@@ -170,7 +185,7 @@ void main() {
 
   test('signs the v1 wire format with the BIP85-derived Nostr key', () async {
     await usecase.execute(nym: 'alice', environment: Environment.mainnet);
-    final c = _captureRegister();
+    final c = captureRegister();
 
     final message = buildLaV1Message(
       action: 'register',
@@ -191,49 +206,57 @@ void main() {
     );
   });
 
-  test('cross-action replay: a register sig must not verify as a delete',
-      () async {
-    await usecase.execute(nym: 'alice', environment: Environment.mainnet);
-    final c = _captureRegister();
+  test(
+    'cross-action replay: a register sig must not verify as a delete',
+    () async {
+      await usecase.execute(nym: 'alice', environment: Environment.mainnet);
+      final c = captureRegister();
 
-    final fakeDeleteMessage = buildLaV1Message(
-      action: 'delete',
-      npubHex: c.npubHex,
-      payloadFields: const [],
-      timestampSecs: c.ts,
-    );
-    final digest = sha256.convert(fakeDeleteMessage).bytes;
-    final pub = ECPublic.fromHex('02${c.npubHex}');
-    expect(
-      pub.verifyBip340Signature(
-        digest: digest,
-        signature: _hexDecode(c.sigHex),
-        tweak: false,
-      ),
-      isFalse,
-      reason: 'register sig must not verify as delete (action separation)',
-    );
-  });
+      final fakeDeleteMessage = buildLaV1Message(
+        action: 'delete',
+        npubHex: c.npubHex,
+        payloadFields: const [],
+        timestampSecs: c.ts,
+      );
+      final digest = sha256.convert(fakeDeleteMessage).bytes;
+      final pub = ECPublic.fromHex('02${c.npubHex}');
+      expect(
+        pub.verifyBip340Signature(
+          digest: digest,
+          signature: _hexDecode(c.sigHex),
+          tweak: false,
+        ),
+        isFalse,
+        reason: 'register sig must not verify as delete (action separation)',
+      );
+    },
+  );
 
-  test('PayServiceException maps to LightningAddressRegistrationException',
-      () async {
-    when(() => payService.register(
+  test(
+    'PayServiceException maps to LightningAddressRegistrationException',
+    () async {
+      when(
+        () => payService.register(
           nym: any(named: 'nym'),
           ctDescriptor: any(named: 'ctDescriptor'),
           npubHex: any(named: 'npubHex'),
           signatureHex: any(named: 'signatureHex'),
           timestampSecs: any(named: 'timestampSecs'),
-        )).thenThrow(PayServiceException('NymTaken'));
+        ),
+      ).thenThrow(PayServiceException('NymTaken'));
 
-    await expectLater(
-      usecase.execute(nym: 'alice', environment: Environment.mainnet),
-      throwsA(isA<Exception>().having(
-        (e) => e.toString().contains('NymTaken'),
-        'wraps server message',
-        isTrue,
-      )),
-    );
-  });
+      await expectLater(
+        usecase.execute(nym: 'alice', environment: Environment.mainnet),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString().contains('NymTaken'),
+            'wraps server message',
+            isTrue,
+          ),
+        ),
+      );
+    },
+  );
 }
 
 List<int> _hexDecode(String hex) {

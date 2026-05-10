@@ -27,31 +27,29 @@ class NostrPublishFailedException implements Exception {
 }
 
 class NostrRelayClient {
+  const NostrRelayClient();
+
   /// Publish a NIP-05 profile (kind 0 metadata) to default relays.
   ///
   /// Empty fields are written as explicit empty strings (`""`) — not omitted
   /// — so clients that merge kind 0 fields (rather than replacing) drop any
   /// stale `nip05` / `lud16` claims. Throws [NostrPublishFailedException]
-  /// when no relay acknowledged the broadcast.
-  static Future<void> publishProfile({
+  /// when the event could not be sent to any relay.
+  Future<void> publishProfile({
     required String privateKeyHex,
     required String name,
     required String nip05,
     required String lud16,
   }) async {
-    final keychain = Keychain(privateKeyHex);
+    final keys = Keys(privateKeyHex);
 
-    final content = jsonEncode({
-      'name': name,
-      'nip05': nip05,
-      'lud16': lud16,
-    });
+    final content = jsonEncode({'name': name, 'nip05': nip05, 'lud16': lud16});
 
     final event = Event.from(
       kind: 0,
       tags: [],
       content: content,
-      privkey: keychain.private,
+      secretKey: keys.secret,
     );
 
     await _broadcast(event);
@@ -61,9 +59,7 @@ class NostrRelayClient {
   /// empty `name`, `nip05`, `lud16` fields. The empty strings (rather than
   /// field omission) defeat clients that merge kind 0 contents instead of
   /// replacing them.
-  static Future<void> clearProfile({
-    required String privateKeyHex,
-  }) async {
+  Future<void> clearProfile({required String privateKeyHex}) async {
     await publishProfile(
       privateKeyHex: privateKeyHex,
       name: '',
@@ -72,14 +68,14 @@ class NostrRelayClient {
     );
   }
 
-  static Future<void> _broadcast(Event event) async {
+  Future<void> _broadcast(Event event) async {
     final message = event.serialize();
     var acked = 0;
     for (final relay in _defaultRelays) {
       try {
-        final ws = await WebSocket.connect(relay).timeout(
-          const Duration(seconds: 5),
-        );
+        final ws = await WebSocket.connect(
+          relay,
+        ).timeout(const Duration(seconds: 5));
         ws.add(message);
         // Give the relay a moment to process before closing
         await Future.delayed(const Duration(milliseconds: 500));
