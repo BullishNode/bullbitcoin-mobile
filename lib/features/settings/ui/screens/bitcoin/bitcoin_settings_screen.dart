@@ -6,6 +6,7 @@ import 'package:bb_mobile/features/bip85_entropy/router.dart';
 import 'package:bb_mobile/features/broadcast_signed_tx/router.dart';
 import 'package:bb_mobile/features/electrum_settings/frameworks/ui/routing/electrum_settings_router.dart';
 import 'package:bb_mobile/features/import_wallet/router.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/mempool_settings/router.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:bb_mobile/features/settings/ui/settings_router.dart';
@@ -57,7 +58,7 @@ class BitcoinSettingsScreen extends StatelessWidget {
                   icon: Icons.bolt,
                   title: context.loc.lightningAddressTitle,
                   onTap: () {
-                    context.pushNamed(SettingsRoute.lightningAddress.name);
+                    context.pushNamed(LightningAddressFacade.manageRouteName);
                   },
                 ),
                 SettingsEntryItem(

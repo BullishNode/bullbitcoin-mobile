@@ -87,7 +87,9 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                     subtitle: state.hasLightningAddress
                         ? 'Coming soon'
                         : 'Create a Lightning Address first',
-                    actionLabel: 'Coming soon',
+                    actionLabel: state.hasLightningAddress
+                        ? 'Coming soon'
+                        : 'Locked',
                     onPressed: null,
                   ),
                 ],

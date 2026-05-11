@@ -7,6 +7,7 @@ import 'package:bb_mobile/features/backup_settings/ui/backup_settings_router.dar
 import 'package:bb_mobile/features/backup_settings/ui/screens/backup_settings_screen.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/lightning_address/ui/lightning_address_settings_screen.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_state.dart';
 import 'package:bb_mobile/features/exchange/ui/exchange_router.dart';
@@ -209,7 +210,7 @@ class SettingsRouter {
         builder: (context, state) => const AutoSwapSettingsScreen(),
       ),
       GoRoute(
-        name: SettingsRoute.lightningAddress.name,
+        name: LightningAddressFacade.manageRouteName,
         path: SettingsRoute.lightningAddress.path,
         builder: (context, state) => BlocProvider(
           create: (_) => locator<LightningAddressCubit>(),
