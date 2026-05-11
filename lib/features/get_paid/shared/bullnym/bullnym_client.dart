@@ -156,6 +156,153 @@ class BullnymClient {
     return BullnymDonationPageDto.fromJson(response);
   }
 
+  Future<BullnymCreateInvoiceResponseDto> createInvoice({
+    required NostrKeychainHandle handle,
+    required String? nym,
+    required int? amountSat,
+    required int? fiatAmountMinor,
+    required String? fiatCurrency,
+    required String? publicDescription,
+    required String? recipientName,
+    required String? invoiceNumber,
+    required bool acceptBtc,
+    required bool acceptLn,
+    required bool acceptLiquid,
+    required String? bitcoinAddress,
+    required String? liquidAddress,
+    required DateTime expiresAt,
+    int? timestampSecs,
+  }) async {
+    final ts = timestampSecs ?? currentBullpayTimestampSecs();
+    final nymOrEmpty = nym ?? '';
+    final amountSatValue = amountSat?.toString() ?? '';
+    final fiatAmountMinorValue = fiatAmountMinor?.toString() ?? '';
+    final fiatCurrencyValue = fiatCurrency ?? '';
+    final publicDescriptionValue = publicDescription ?? '';
+    final recipientNameValue = recipientName ?? '';
+    final invoiceNumberValue = invoiceNumber ?? '';
+    final acceptBtcValue = acceptBtc.toString();
+    final acceptLnValue = acceptLn.toString();
+    final acceptLiquidValue = acceptLiquid.toString();
+    final bitcoinAddressValue = bitcoinAddress ?? '';
+    final liquidAddressValue = liquidAddress ?? '';
+    final expiresAtUnix = expiresAt.toUtc().millisecondsSinceEpoch ~/ 1000;
+    final expiresAtValue = expiresAtUnix.toString();
+    final data = <String, dynamic>{
+      'npub': handle.publicKeyHex,
+      'accept_btc': acceptBtc,
+      'accept_ln': acceptLn,
+      'accept_liquid': acceptLiquid,
+      'expires_at_unix': expiresAtUnix,
+      'signature': signBullpayAction(
+        handle: handle,
+        action: bullpayActionInvoiceCreate,
+        nymOrEmpty: nymOrEmpty,
+        payloadFields: [
+          amountSatValue,
+          fiatAmountMinorValue,
+          fiatCurrencyValue,
+          publicDescriptionValue,
+          recipientNameValue,
+          invoiceNumberValue,
+          acceptBtcValue,
+          acceptLnValue,
+          acceptLiquidValue,
+          bitcoinAddressValue,
+          liquidAddressValue,
+          expiresAtValue,
+        ],
+        timestampSecs: ts,
+      ),
+      'timestamp': ts,
+    };
+    void addIfPresent(String key, Object? value) {
+      if (value != null) data[key] = value;
+    }
+
+    addIfPresent('amount_sat', amountSat);
+    addIfPresent('fiat_amount_minor', fiatAmountMinor);
+    addIfPresent('fiat_currency', fiatCurrency);
+    addIfPresent('public_description', publicDescription);
+    addIfPresent('recipient_name', recipientName);
+    addIfPresent('invoice_number', invoiceNumber);
+    addIfPresent('bitcoin_address', bitcoinAddress);
+    addIfPresent('liquid_address', liquidAddress);
+
+    final response = await _postMap(
+      nym == null ? '/api/v1/invoices' : '/api/v1/$nym/invoices',
+      data: data,
+    );
+    return BullnymCreateInvoiceResponseDto.fromJson(response);
+  }
+
+  Future<BullnymCancelInvoiceResponseDto> cancelInvoice({
+    required NostrKeychainHandle handle,
+    required String invoiceId,
+    required String? nym,
+    int? timestampSecs,
+  }) async {
+    final ts = timestampSecs ?? currentBullpayTimestampSecs();
+    final nymOrEmpty = nym ?? '';
+    final response = await _deleteMap(
+      nym == null
+          ? '/api/v1/invoices/$invoiceId'
+          : '/api/v1/$nym/invoices/$invoiceId',
+      data: {
+        'npub': handle.publicKeyHex,
+        'signature': signBullpayAction(
+          handle: handle,
+          action: bullpayActionInvoiceCancel,
+          nymOrEmpty: nymOrEmpty,
+          payloadFields: [invoiceId],
+          timestampSecs: ts,
+        ),
+        'timestamp': ts,
+      },
+    );
+    return BullnymCancelInvoiceResponseDto.fromJson(response);
+  }
+
+  Future<BullnymListInvoicesResponseDto> listInvoices({
+    required NostrKeychainHandle handle,
+    int? sinceUnix,
+    required int limit,
+    String? status,
+    int? timestampSecs,
+  }) async {
+    final ts = timestampSecs ?? currentBullpayTimestampSecs();
+    final sinceValue = (sinceUnix ?? 0).toString();
+    final limitValue = limit.toString();
+    final statusValue = status ?? '';
+    final queryParameters = <String, dynamic>{
+      'npub': handle.publicKeyHex,
+      'timestamp': ts,
+      'signature': signBullpayAction(
+        handle: handle,
+        action: bullpayActionInvoiceList,
+        nymOrEmpty: '',
+        payloadFields: [sinceValue, limitValue, statusValue],
+        timestampSecs: ts,
+      ),
+      'limit': limit,
+    };
+    if (sinceUnix != null) queryParameters['since_unix'] = sinceUnix;
+    if (status != null) queryParameters['status'] = status;
+
+    final response = await _getMap(
+      '/api/v1/invoices',
+      queryParameters: queryParameters,
+    );
+    return BullnymListInvoicesResponseDto.fromJson(response);
+  }
+
+  Future<BullnymInvoiceStatusDto> getInvoiceStatus({
+    required String invoiceId,
+  }) async {
+    final response = await _getMap('/api/v1/invoices/$invoiceId/status');
+    return BullnymInvoiceStatusDto.fromJson(response);
+  }
+
   Map<String, dynamic> _signedFields({
     required NostrKeychainHandle handle,
     required String action,

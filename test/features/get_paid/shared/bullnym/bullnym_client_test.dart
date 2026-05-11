@@ -310,6 +310,198 @@ void main() {
     );
   });
 
+  test(
+    'posts signed linked invoice create requests in backend field order',
+    () async {
+      final expiresAt = DateTime.fromMillisecondsSinceEpoch(
+        1710604800 * 1000,
+        isUtc: true,
+      );
+      final stub = _stubDio([
+        {
+          'invoice_id': '00000000-0000-0000-0000-000000000001',
+          'share_url':
+              'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+        },
+      ]);
+      final client = BullnymClient(dio: stub.dio);
+
+      final response = await client.createInvoice(
+        handle: handle,
+        nym: 'alice',
+        amountSat: 5000,
+        fiatAmountMinor: null,
+        fiatCurrency: null,
+        publicDescription: 'coffee',
+        recipientName: 'Alice',
+        invoiceNumber: 'INV-1',
+        acceptBtc: false,
+        acceptLn: true,
+        acceptLiquid: true,
+        bitcoinAddress: null,
+        liquidAddress: 'lq1qq...',
+        expiresAt: expiresAt,
+        timestampSecs: timestamp,
+      );
+
+      expect(response.invoiceId, '00000000-0000-0000-0000-000000000001');
+      final request = stub.captured.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/api/v1/alice/invoices');
+      expect(request.data, {
+        'npub': handle.publicKeyHex,
+        'amount_sat': 5000,
+        'public_description': 'coffee',
+        'recipient_name': 'Alice',
+        'invoice_number': 'INV-1',
+        'accept_btc': false,
+        'accept_ln': true,
+        'accept_liquid': true,
+        'liquid_address': 'lq1qq...',
+        'expires_at_unix': 1710604800,
+        'signature': isA<String>().having((s) => s.length, 'length', 128),
+        'timestamp': timestamp,
+      });
+      final payloadFields = [
+        '5000',
+        '',
+        '',
+        'coffee',
+        'Alice',
+        'INV-1',
+        'false',
+        'true',
+        'true',
+        '',
+        'lq1qq...',
+        '1710604800',
+      ];
+      _expectMessageBytes(
+        action: bullpayActionInvoiceCreate,
+        npubHex: handle.publicKeyHex,
+        nymOrEmpty: 'alice',
+        payloadFields: payloadFields,
+        timestampSecs: timestamp,
+      );
+      _expectSignatureValid(
+        handle: handle,
+        signatureHex:
+            (request.data as Map<String, dynamic>)['signature'] as String,
+        action: bullpayActionInvoiceCreate,
+        nymOrEmpty: 'alice',
+        payloadFields: payloadFields,
+        timestampSecs: timestamp,
+      );
+    },
+  );
+
+  test(
+    'deletes signed unlinked invoices with invoice id payload only',
+    () async {
+      final stub = _stubDio([
+        {
+          'invoice_id': '00000000-0000-0000-0000-000000000001',
+          'status': 'cancelled',
+        },
+      ]);
+      final client = BullnymClient(dio: stub.dio);
+
+      final response = await client.cancelInvoice(
+        handle: handle,
+        invoiceId: '00000000-0000-0000-0000-000000000001',
+        nym: null,
+        timestampSecs: timestamp,
+      );
+
+      expect(response.status, 'cancelled');
+      final request = stub.captured.requests.single;
+      expect(request.method, 'DELETE');
+      expect(
+        request.path,
+        '/api/v1/invoices/00000000-0000-0000-0000-000000000001',
+      );
+      _expectSignatureValid(
+        handle: handle,
+        signatureHex:
+            (request.data as Map<String, dynamic>)['signature'] as String,
+        action: bullpayActionInvoiceCancel,
+        nymOrEmpty: '',
+        payloadFields: ['00000000-0000-0000-0000-000000000001'],
+        timestampSecs: timestamp,
+      );
+    },
+  );
+
+  test('gets signed invoice list with approved query contract', () async {
+    final stub = _stubDio([
+      {
+        'invoices': [_invoiceListJson()],
+      },
+    ]);
+    final client = BullnymClient(dio: stub.dio);
+
+    final response = await client.listInvoices(
+      handle: handle,
+      sinceUnix: 1710000000,
+      limit: 25,
+      status: 'unpaid',
+      timestampSecs: timestamp,
+    );
+
+    expect(response.invoices.single.status, 'unpaid');
+    final request = stub.captured.requests.single;
+    expect(request.method, 'GET');
+    expect(request.path, '/api/v1/invoices');
+    expect(request.queryParameters['npub'], handle.publicKeyHex);
+    expect(request.queryParameters['since_unix'], 1710000000);
+    expect(request.queryParameters['limit'], 25);
+    expect(request.queryParameters['status'], 'unpaid');
+    _expectSignatureValid(
+      handle: handle,
+      signatureHex: request.queryParameters['signature'] as String,
+      action: bullpayActionInvoiceList,
+      nymOrEmpty: '',
+      payloadFields: ['1710000000', '25', 'unpaid'],
+      timestampSecs: timestamp,
+    );
+  });
+
+  test('parses invoice status response shape', () async {
+    final stub = _stubDio([
+      {
+        'status': 'in_progress',
+        'amount_sat': 1000,
+        'rate_minor_per_btc': null,
+        'rate_locks_until_unix': 1710000900,
+        'expires_at_unix': 1710604800,
+        'paid_via': null,
+        'paid_at_unix': null,
+        'paid_amount_sat': null,
+        'lightning_pr': 'lnbc...',
+        'liquid_address': 'lq1qq...',
+        'bitcoin_address': 'bc1q...',
+        'accept_btc': true,
+        'accept_ln': true,
+        'accept_liquid': true,
+        'rate_stale': false,
+      },
+    ]);
+    final client = BullnymClient(dio: stub.dio);
+
+    final response = await client.getInvoiceStatus(
+      invoiceId: '00000000-0000-0000-0000-000000000001',
+    );
+
+    expect(response.status, 'in_progress');
+    expect(response.lightningPr, 'lnbc...');
+    final request = stub.captured.requests.single;
+    expect(request.method, 'GET');
+    expect(
+      request.path,
+      '/api/v1/invoices/00000000-0000-0000-0000-000000000001/status',
+    );
+  });
+
   test('throws donation page backend errors with response status', () async {
     final stub = _stubDio(
       [
@@ -345,6 +537,31 @@ void main() {
       ),
     );
   });
+}
+
+Map<String, dynamic> _invoiceListJson() {
+  return {
+    'id': '00000000-0000-0000-0000-000000000001',
+    'nym_owner': 'alice',
+    'origin': 'wallet',
+    'status': 'unpaid',
+    'amount_sat': 1000,
+    'fiat_amount_minor': null,
+    'fiat_currency': null,
+    'public_description': 'Coffee',
+    'recipient_name': 'Alice',
+    'invoice_number': 'INV-1',
+    'accept_btc': true,
+    'accept_ln': true,
+    'accept_liquid': true,
+    'bitcoin_address': 'bc1q...',
+    'liquid_address': 'lq1qq...',
+    'created_at_unix': 1710000000,
+    'expires_at_unix': 1710604800,
+    'paid_via': null,
+    'paid_at_unix': null,
+    'paid_amount_sat': null,
+  };
 }
 
 Map<String, dynamic> _donationPageJson({

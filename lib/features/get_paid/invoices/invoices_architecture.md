@@ -103,6 +103,14 @@ The backend cancel response and status endpoint do not return the full
 `InvoiceListItem` shape, so mobile must not pretend a full entity exists after
 those calls unless it composes one from existing local state.
 
+`CreateInvoiceResult`
+
+- `invoiceId: InvoiceId`
+- `shareUrl: InvoiceUrl`
+
+The backend create response returns only `invoice_id` and `share_url`, not a
+full invoice row.
+
 Derived behavior belongs on the entity:
 
 - `isPayable` is true for `unpaid` and `inProgress` before expiry.
@@ -130,7 +138,7 @@ datasource boundary.
 
 `InvoicesPayServicePort`
 
-- `Future<Invoice> createInvoice({required NostrKeychainHandle handle, required CreateInvoiceCommand command, required String? bitcoinAddress, required String? liquidAddress})`
+- `Future<CreateInvoiceResult> createInvoice({required NostrKeychainHandle handle, required CreateInvoiceCommand command, required String? bitcoinAddress, required String? liquidAddress})`
 - `Future<CancelInvoiceResult> cancelInvoice({required NostrKeychainHandle handle, required CancelInvoiceCommand command})`
 - `Future<List<Invoice>> listInvoices({required NostrKeychainHandle handle, required ListInvoicesCommand command})`
 - `Future<InvoiceStatusSnapshot> getInvoiceStatus({required InvoiceId id})`
@@ -308,6 +316,7 @@ Phase 3.1:
 - `lib/features/get_paid/invoices/domain/value_objects/invoice_id.dart`
 - `lib/features/get_paid/invoices/domain/value_objects/invoice_url.dart`
 - `lib/features/get_paid/invoices/application/cancel_invoice_result.dart`
+- `lib/features/get_paid/invoices/application/create_invoice_result.dart`
 - `lib/features/get_paid/invoices/application/invoices_application_error.dart`
 - `lib/features/get_paid/invoices/application/ports/invoices_pay_service_port.dart`
 - `lib/features/get_paid/invoices/application/ports/invoices_identity_port.dart`

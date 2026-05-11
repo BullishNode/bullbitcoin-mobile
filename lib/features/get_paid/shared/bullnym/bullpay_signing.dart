@@ -11,6 +11,9 @@ const String bullpayActionRegister = 'register';
 const String bullpayActionDelete = 'delete';
 const String bullpayActionDonationPageSave = 'donation-page-save';
 const String bullpayActionDonationPageArchive = 'donation-page-archive';
+const String bullpayActionInvoiceCreate = 'invoice-create';
+const String bullpayActionInvoiceCancel = 'invoice-cancel';
+const String bullpayActionInvoiceList = 'invoice-list';
 
 Uint8List buildBullpaySchnorrMessage({
   required String action,
