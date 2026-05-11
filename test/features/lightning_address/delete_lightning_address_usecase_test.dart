@@ -1,17 +1,15 @@
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/entities/signer_entity.dart';
+import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
-import 'package:bb_mobile/features/lightning_address/domain/lightning_address_v1_signing.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
-import 'package:bitcoin_base/bitcoin_base.dart';
-import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -49,12 +47,11 @@ Seed _zeroSeed() {
   );
 }
 
-List<int> _hexDecode(String hex) => [
-  for (var i = 0; i < hex.length; i += 2)
-    int.parse(hex.substring(i, i + 2), radix: 16),
-];
-
 void main() {
+  setUpAll(() {
+    registerFallbackValue(NostrKeychainHandle.fromSecretKeyHex('01' * 32));
+  });
+
   late _MockPayService payService;
   late _MockWalletRepository walletRepo;
   late _MockSeedRepository seedRepo;
@@ -79,96 +76,45 @@ void main() {
     when(() => seedRepo.get(any())).thenAnswer((_) async => _zeroSeed());
     when(
       () => payService.deleteRegistration(
-        npubHex: any(named: 'npubHex'),
-        signatureHex: any(named: 'signatureHex'),
-        timestampSecs: any(named: 'timestampSecs'),
+        nym: any(named: 'nym'),
+        handle: any(named: 'handle'),
       ),
     ).thenAnswer((_) async => const NymQuota(used: 1, cap: 3));
   });
 
-  ({String npubHex, String sigHex, int ts}) captureDelete() {
+  ({String nym, NostrKeychainHandle handle}) captureDelete() {
     final captured = verify(
       () => payService.deleteRegistration(
-        npubHex: captureAny(named: 'npubHex'),
-        signatureHex: captureAny(named: 'signatureHex'),
-        timestampSecs: captureAny(named: 'timestampSecs'),
+        nym: captureAny(named: 'nym'),
+        handle: captureAny(named: 'handle'),
       ),
     ).captured;
     return (
-      npubHex: captured[0] as String,
-      sigHex: captured[1] as String,
-      ts: captured[2] as int,
+      nym: captured[0] as String,
+      handle: captured[1] as NostrKeychainHandle,
     );
   }
 
-  test(
-    'signs the v1 wire format with action=delete and no payload fields',
-    () async {
-      final before = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
-      await usecase.execute();
-      final after = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
-      final c = captureDelete();
+  test('passes nym and derived Nostr handle to the pay service', () async {
+    await usecase.execute(nym: 'alice');
+    final c = captureDelete();
 
-      expect(c.ts, inInclusiveRange(before, after));
-
-      final message = buildLaV1Message(
-        action: 'delete',
-        npubHex: c.npubHex,
-        payloadFields: const [],
-        timestampSecs: c.ts,
-      );
-      final digest = sha256.convert(message).bytes;
-      final pub = ECPublic.fromHex('02${c.npubHex}');
-      expect(
-        pub.verifyBip340Signature(
-          digest: digest,
-          signature: _hexDecode(c.sigHex),
-          tweak: false,
-        ),
-        isTrue,
-        reason: 'sig must verify against canonical delete v1 message bytes',
-      );
-    },
-  );
-
-  test(
-    'a delete sig must not verify against a register-shaped message',
-    () async {
-      await usecase.execute();
-      final c = captureDelete();
-
-      final fakeRegisterMessage = buildLaV1Message(
-        action: 'register',
-        npubHex: c.npubHex,
-        payloadFields: const ['alice', 'ct(...)'],
-        timestampSecs: c.ts,
-      );
-      final digest = sha256.convert(fakeRegisterMessage).bytes;
-      final pub = ECPublic.fromHex('02${c.npubHex}');
-      expect(
-        pub.verifyBip340Signature(
-          digest: digest,
-          signature: _hexDecode(c.sigHex),
-          tweak: false,
-        ),
-        isFalse,
-      );
-    },
-  );
+    expect(c.nym, 'alice');
+    expect(c.handle.publicKeyHex, hasLength(64));
+  });
 
   test(
     'PayServiceException maps to LightningAddressRegistrationException',
     () async {
       when(
         () => payService.deleteRegistration(
-          npubHex: any(named: 'npubHex'),
-          signatureHex: any(named: 'signatureHex'),
-          timestampSecs: any(named: 'timestampSecs'),
+          nym: any(named: 'nym'),
+          handle: any(named: 'handle'),
         ),
       ).thenThrow(PayServiceException('NotFound'));
 
       await expectLater(
-        usecase.execute(),
+        usecase.execute(nym: 'alice'),
         throwsA(
           isA<Exception>().having(
             (e) => e.toString().contains('NotFound'),

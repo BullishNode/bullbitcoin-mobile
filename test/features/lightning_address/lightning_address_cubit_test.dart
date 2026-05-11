@@ -89,7 +89,8 @@ void main() {
   }
 
   void stubDeleteOk({NymQuota quota = const NymQuota(used: 1, cap: 3)}) {
-    when(() => delete.execute()).thenAnswer((_) async => quota);
+    when(() => delete.execute(nym: any(named: 'nym')))
+        .thenAnswer((_) async => quota);
   }
 
   test('registerNym is reentrancy-guarded (I-2)', () async {
@@ -109,12 +110,14 @@ void main() {
   });
 
   test('deleteAddress is reentrancy-guarded (I-2)', () async {
+    stubRegisterOk();
     stubDeleteOk();
 
     final cubit = build();
+    await cubit.registerNym('alice', Environment.mainnet, publishOnNostr: false);
     await Future.wait([cubit.deleteAddress(), cubit.deleteAddress()]);
 
-    verify(() => delete.execute()).called(1);
+    verify(() => delete.execute(nym: 'alice')).called(1);
     await cubit.close();
   });
 

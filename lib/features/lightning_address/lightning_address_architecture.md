@@ -30,27 +30,28 @@ a Nostr identity number.
 | `CreateLightningAddressWalletUsecase` | environment | `Wallet` |
 | `GetLightningAddressWalletUsecase` | environment | `Wallet?` (label match) |
 | `RegisterLightningAddressUsecase` | nym, environment | `String` (`nym@domain`) |
-| `DeleteLightningAddressUsecase` | — | void |
+| `DeleteLightningAddressUsecase` | nym | `NymQuota` |
 | `RecoverLightningAddressUsecase` | environment | `String?` |
 | `SweepLightningAddressWalletUsecase` | isTestnet | `String?` (txid) |
 
 Setter use cases take `…Command` objects; getters take named params.
 
-## Wire: register / delete / update
+## Wire: register / delete / lookup
 
-Mobile signs a v1 message, server verifies. Format mirrored on both sides
-(see `lightning_address_v1_signing.dart` and `pay-service/src/auth.rs`):
+Lightning Address does not build Bullpay signature bytes itself. Its use cases
+derive the approved Nostr key handle and pass semantic fields to
+`PayServicePort`. The data adapter delegates to
+`features/get_paid/shared/bullnym/BullnymClient`, which owns the deployed
+`bullpay-la-v2` wire contract:
 
 ```
-bullpay-la-v1\x00<action>\x00<npub_hex>\x00(<field>\x00)*<timestamp>
+bullpay-la-v2\x00<action>\x00<npub_hex>\x00<nym_or_empty>\x00(<field>\x00)*<timestamp>
 ```
 
 | Action | Payload fields |
 |---|---|
-| `register` | nym, ct_descriptor |
-| `update` | ct_descriptor |
+| `register` | nym as `nym_or_empty`, post-nym field `ct_descriptor` |
 | `delete` | (none) |
-| `purge` | (none) |
 
 Schnorr-signed (BIP-340). Server enforces ±300 s freshness.
 
@@ -110,11 +111,10 @@ the LA wallet out of selectable send sources.
 ## Files
 
 - `domain/usecases/` — six use cases above
-- `domain/lightning_address_v1_signing.dart` — v1 message bytes
 - `domain/lightning_address_key_derivation.dart` — xprv + Nostr derivation helpers
 - `domain/ports/pay_service_port.dart` — abstract HTTP interface
 - `domain/lightning_address_errors.dart` — feature errors
-- `data/datasources/pay_service_datasource.dart` — Dio impl
+- `data/datasources/pay_service_datasource.dart` — adapter to shared Bullnym client + Hive address cache
 - `data/datasources/lightning_address_settings_datasource.dart` — Hive: auto-sweep, hide-wallet, stored address
 - `presentation/lightning_address_cubit.dart` — screen state machine
 - `public/lightning_address_facade.dart` — cross-feature surface

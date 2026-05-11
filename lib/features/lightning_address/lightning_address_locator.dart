@@ -6,6 +6,7 @@ import 'package:bb_mobile/core/wallet/data/repositories/liquid_wallet_repository
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_address_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_address_settings_datasource.dart';
+import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_client.dart';
 import 'package:bb_mobile/features/lightning_address/interface_adapters/relay_nostr_publish_adapter.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
@@ -26,8 +27,11 @@ import 'package:get_it/get_it.dart';
 
 class LightningAddressLocator {
   static void setup(GetIt locator) {
+    if (!locator.isRegistered<BullnymClient>()) {
+      locator.registerLazySingleton<BullnymClient>(() => BullnymClient());
+    }
     locator.registerLazySingleton<PayServiceDatasource>(
-      () => PayServiceDatasource(),
+      () => PayServiceDatasource(bullnymClient: locator<BullnymClient>()),
     );
     locator.registerLazySingleton<LightningAddressSettingsDatasource>(
       () => LightningAddressSettingsDatasource(),

@@ -142,17 +142,22 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   Future<void> deleteAddress() async {
     if (state.registering) return;
     final currentAddress = state.lightningAddress;
+    final nym = currentAddress?.split('@').firstOrNull;
+    if (nym == null) {
+      emit(state.copyWith(
+        registering: false,
+        error: 'No Lightning Address is active',
+      ));
+      return;
+    }
     emit(state.copyWith(registering: true, error: null));
     try {
-      final quota = await _delete.execute();
+      final quota = await _delete.execute(nym: nym);
       if (isClosed) return;
-      final nym = currentAddress?.split('@').firstOrNull;
-      final previousNyms = nym == null
-          ? state.previousNyms
-          : [
-              PreviousNym(nym: nym, createdAt: DateTime.now()),
-              ...state.previousNyms.where((p) => p.nym != nym),
-            ];
+      final previousNyms = [
+        PreviousNym(nym: nym, createdAt: DateTime.now()),
+        ...state.previousNyms.where((p) => p.nym != nym),
+      ];
       emit(LightningAddressState(
         loading: false,
         walletExists: state.walletExists,

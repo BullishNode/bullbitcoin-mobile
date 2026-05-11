@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/nostr/nostr_identity.dart';
+import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -19,10 +20,7 @@ Future<String> deriveDefaultWalletXprv({
   final defaultWallet = wallets.first;
 
   final seed = await seedRepository.get(defaultWallet.masterFingerprint);
-  return Bip32Derivation.getXprvFromSeed(
-    seed.bytes,
-    defaultWallet.network,
-  );
+  return Bip32Derivation.getXprvFromSeed(seed.bytes, defaultWallet.network);
 }
 
 /// Derives the Lightning Address Nostr identity from the default Bitcoin wallet.
@@ -44,4 +42,14 @@ Future<NostrIdentity?> deriveNostrIdentityForLightningAddress({
   } on LightningAddressNoDefaultWalletException {
     return null;
   }
+}
+
+NostrKeychainHandle deriveNostrHandleFromXprvForLightningAddress(
+  String xprvBase58,
+) {
+  return NostrKeychainHandle.deriveFromBip85(
+    xprvBase58: xprvBase58,
+    identity: lightningAddressNostrIdentity,
+    account: lightningAddressNostrAccount,
+  );
 }

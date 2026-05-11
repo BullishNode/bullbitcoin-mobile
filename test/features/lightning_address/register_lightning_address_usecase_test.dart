@@ -1,21 +1,18 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/entities/signer_entity.dart';
+import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
-import 'package:bb_mobile/features/lightning_address/domain/lightning_address_v1_signing.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
-import 'package:bitcoin_base/bitcoin_base.dart';
-import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -82,6 +79,7 @@ Seed _zeroSeed() {
 void main() {
   setUpAll(() {
     registerFallbackValue(Environment.mainnet);
+    registerFallbackValue(NostrKeychainHandle.fromSecretKeyHex('01' * 32));
   });
 
   late _MockPayService payService;
@@ -122,9 +120,7 @@ void main() {
       () => payService.register(
         nym: any(named: 'nym'),
         ctDescriptor: any(named: 'ctDescriptor'),
-        npubHex: any(named: 'npubHex'),
-        signatureHex: any(named: 'signatureHex'),
-        timestampSecs: any(named: 'timestampSecs'),
+        handle: any(named: 'handle'),
       ),
     ).thenAnswer(
       (_) async =>
@@ -132,23 +128,19 @@ void main() {
     );
   });
 
-  ({String nym, String ctDescriptor, String npubHex, String sigHex, int ts})
+  ({String nym, String ctDescriptor, NostrKeychainHandle handle})
   captureRegister() {
     final captured = verify(
       () => payService.register(
         nym: captureAny(named: 'nym'),
         ctDescriptor: captureAny(named: 'ctDescriptor'),
-        npubHex: captureAny(named: 'npubHex'),
-        signatureHex: captureAny(named: 'signatureHex'),
-        timestampSecs: captureAny(named: 'timestampSecs'),
+        handle: captureAny(named: 'handle'),
       ),
     ).captured;
     return (
       nym: captured[0] as String,
       ctDescriptor: captured[1] as String,
-      npubHex: captured[2] as String,
-      sigHex: captured[3] as String,
-      ts: captured[4] as int,
+      handle: captured[2] as NostrKeychainHandle,
     );
   }
 
@@ -172,65 +164,21 @@ void main() {
     );
   });
 
-  test('sends nym + ctDescriptor + recent timestamp', () async {
-    final before = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+  test('sends nym + ctDescriptor + derived Nostr handle', () async {
     await usecase.execute(nym: 'alice', environment: Environment.mainnet);
-    final after = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
     final c = captureRegister();
 
     expect(c.nym, 'alice');
     expect(c.ctDescriptor, _kCtDescriptor);
-    expect(c.ts, inInclusiveRange(before, after));
+    expect(c.handle.publicKeyHex, hasLength(64));
   });
 
-  test('signs the v1 wire format with the BIP85-derived Nostr key', () async {
+  test('does not construct Bullnym signatures in the use case', () async {
     await usecase.execute(nym: 'alice', environment: Environment.mainnet);
     final c = captureRegister();
 
-    final message = buildLaV1Message(
-      action: 'register',
-      npubHex: c.npubHex,
-      payloadFields: [c.nym, c.ctDescriptor],
-      timestampSecs: c.ts,
-    );
-    final digest = sha256.convert(message).bytes;
-    final pub = ECPublic.fromHex('02${c.npubHex}');
-    expect(
-      pub.verifyBip340Signature(
-        digest: digest,
-        signature: _hexDecode(c.sigHex),
-        tweak: false,
-      ),
-      isTrue,
-      reason: 'sig must verify against canonical v1 message bytes',
-    );
+    expect(c.handle.publicKeyHex, isNotEmpty);
   });
-
-  test(
-    'cross-action replay: a register sig must not verify as a delete',
-    () async {
-      await usecase.execute(nym: 'alice', environment: Environment.mainnet);
-      final c = captureRegister();
-
-      final fakeDeleteMessage = buildLaV1Message(
-        action: 'delete',
-        npubHex: c.npubHex,
-        payloadFields: const [],
-        timestampSecs: c.ts,
-      );
-      final digest = sha256.convert(fakeDeleteMessage).bytes;
-      final pub = ECPublic.fromHex('02${c.npubHex}');
-      expect(
-        pub.verifyBip340Signature(
-          digest: digest,
-          signature: _hexDecode(c.sigHex),
-          tweak: false,
-        ),
-        isFalse,
-        reason: 'register sig must not verify as delete (action separation)',
-      );
-    },
-  );
 
   test(
     'PayServiceException maps to LightningAddressRegistrationException',
@@ -239,9 +187,7 @@ void main() {
         () => payService.register(
           nym: any(named: 'nym'),
           ctDescriptor: any(named: 'ctDescriptor'),
-          npubHex: any(named: 'npubHex'),
-          signatureHex: any(named: 'signatureHex'),
-          timestampSecs: any(named: 'timestampSecs'),
+          handle: any(named: 'handle'),
         ),
       ).thenThrow(PayServiceException('NymTaken'));
 
@@ -258,14 +204,3 @@ void main() {
     },
   );
 }
-
-List<int> _hexDecode(String hex) {
-  final out = <int>[];
-  for (var i = 0; i < hex.length; i += 2) {
-    out.add(int.parse(hex.substring(i, i + 2), radix: 16));
-  }
-  return out;
-}
-
-// ignore: unused_element
-const _ = utf8;
