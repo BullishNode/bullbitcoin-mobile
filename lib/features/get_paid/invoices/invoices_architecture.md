@@ -114,7 +114,8 @@ full invoice row.
 Derived behavior belongs on the entity:
 
 - `isPayable` is true for `unpaid` and `inProgress` before expiry.
-- `isCancellable` is true for `unpaid` and `inProgress`.
+- `isCancellable` is true only for `unpaid`, matching the backend cancel
+  update predicate.
 - `timeUntilExpiry(DateTime now)` returns zero when expired.
 - `publicUrlFor({required String domain})` returns
   `https://<domain>/<nym>/i/<id>` when linked and

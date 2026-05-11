@@ -55,8 +55,7 @@ class Invoice {
     return status == InvoiceStatus.unpaid || status == InvoiceStatus.inProgress;
   }
 
-  bool get isCancellable =>
-      status == InvoiceStatus.unpaid || status == InvoiceStatus.inProgress;
+  bool get isCancellable => status == InvoiceStatus.unpaid;
 
   Duration timeUntilExpiry(DateTime now) {
     final remaining = expiresAt.difference(now);

@@ -164,14 +164,37 @@ void main() {
       throwsA(isA<InvoicesNotFoundError>()),
     );
   });
+
+  test('maps unexpected wire enum values to typed invoice errors', () async {
+    when(
+      () => bullnymClient.listInvoices(
+        handle: handle,
+        sinceUnix: null,
+        limit: 100,
+        status: null,
+      ),
+    ).thenAnswer(
+      (_) async => BullnymListInvoicesResponseDto(
+        invoices: [_invoiceDto(status: 'settled')],
+      ),
+    );
+
+    await expectLater(
+      datasource.listInvoices(
+        command: ListInvoicesCommand(since: null, status: null),
+        handle: handle,
+      ),
+      throwsA(isA<InvoicesUnexpectedError>()),
+    );
+  });
 }
 
-BullnymInvoiceListItemDto _invoiceDto() {
-  return const BullnymInvoiceListItemDto(
+BullnymInvoiceListItemDto _invoiceDto({String status = 'unpaid'}) {
+  return BullnymInvoiceListItemDto(
     id: '00000000-0000-0000-0000-000000000001',
     nymOwner: 'alice',
     origin: 'wallet',
-    status: 'unpaid',
+    status: status,
     amountSat: 1000,
     fiatAmountMinor: null,
     fiatCurrency: null,

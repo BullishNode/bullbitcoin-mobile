@@ -1,4 +1,5 @@
 import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.dart';
 
 class CreateInvoiceCommand {
   static const Duration minExpiry = Duration(seconds: 60);
@@ -62,6 +63,31 @@ class CreateInvoiceCommand {
     if (!acceptBtc && !acceptLn && !acceptLiquid) {
       throw const InvoicesValidationError(
         'at least one payment rail must be enabled',
+      );
+    }
+    final linkedNym = linkToPageNym;
+    if (linkedNym != null && !invoiceNymRegex.hasMatch(linkedNym)) {
+      throw const InvoicesValidationError('linkToPageNym is invalid');
+    }
+    final description = publicDescription;
+    if (description != null &&
+        invoiceUtf8ByteLength(description) > invoicePublicDescriptionMaxBytes) {
+      throw const InvoicesValidationError(
+        'publicDescription must be 1000 bytes or less',
+      );
+    }
+    final recipient = recipientName;
+    if (recipient != null &&
+        invoiceUtf8ByteLength(recipient) > invoiceRecipientNameMaxBytes) {
+      throw const InvoicesValidationError(
+        'recipientName must be 100 bytes or less',
+      );
+    }
+    final number = invoiceNumber;
+    if (number != null &&
+        invoiceUtf8ByteLength(number) > invoiceNumberMaxBytes) {
+      throw const InvoicesValidationError(
+        'invoiceNumber must be 50 bytes or less',
       );
     }
     final expiry = expiresAt.toUtc().difference(now.toUtc());

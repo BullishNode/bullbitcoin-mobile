@@ -16,9 +16,9 @@ void main() {
     );
   });
 
-  test('isCancellable is true for unpaid and in-progress invoices', () {
+  test('isCancellable is true only for unpaid invoices', () {
     expect(_invoice(status: InvoiceStatus.unpaid).isCancellable, isTrue);
-    expect(_invoice(status: InvoiceStatus.inProgress).isCancellable, isTrue);
+    expect(_invoice(status: InvoiceStatus.inProgress).isCancellable, isFalse);
     expect(_invoice(status: InvoiceStatus.expired).isCancellable, isFalse);
     expect(_invoice(status: InvoiceStatus.cancelled).isCancellable, isFalse);
   });

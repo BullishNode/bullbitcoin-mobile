@@ -49,6 +49,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       return dto.toCreateResult();
     } on BullnymException catch (e) {
       throw _mapBullnymError(e);
+    } on ArgumentError {
+      throw const InvoicesUnexpectedError('Unexpected invoice response');
     }
   }
 
@@ -66,6 +68,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       return dto.toCancelResult();
     } on BullnymException catch (e) {
       throw _mapBullnymError(e);
+    } on ArgumentError {
+      throw const InvoicesUnexpectedError('Unexpected invoice response');
     }
   }
 
@@ -84,6 +88,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       return dto.invoices.map((invoice) => invoice.toEntity()).toList();
     } on BullnymException catch (e) {
       throw _mapBullnymError(e);
+    } on ArgumentError {
+      throw const InvoicesUnexpectedError('Unexpected invoice response');
     }
   }
 
@@ -96,6 +102,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       return dto.toStatusSnapshot(id);
     } on BullnymException catch (e) {
       throw _mapBullnymError(e);
+    } on ArgumentError {
+      throw const InvoicesUnexpectedError('Unexpected invoice response');
     }
   }
 
