@@ -100,3 +100,50 @@ class BullnymLookupResponseDto {
     );
   }
 }
+
+class BullnymDonationPageDto {
+  final String nym;
+  final String header;
+  final String description;
+  final String displayCurrency;
+  final String? website;
+  final String? twitter;
+  final String? instagram;
+  final bool enabled;
+  final bool isArchived;
+  final String? avatarSha256;
+  final String? ogSha256;
+  final String publicUrl;
+
+  const BullnymDonationPageDto({
+    required this.nym,
+    required this.header,
+    required this.description,
+    required this.displayCurrency,
+    required this.website,
+    required this.twitter,
+    required this.instagram,
+    required this.enabled,
+    required this.isArchived,
+    required this.avatarSha256,
+    required this.ogSha256,
+    required this.publicUrl,
+  });
+
+  factory BullnymDonationPageDto.fromJson(Map<String, dynamic> json) {
+    return BullnymDonationPageDto(
+      nym: json['nym'] as String,
+      header: json['header'] as String,
+      description: json['description'] as String,
+      displayCurrency: json['display_currency'] as String,
+      website: json['website'] as String?,
+      twitter: json['twitter'] as String?,
+      instagram: json['instagram'] as String?,
+      enabled: json['enabled'] as bool,
+      isArchived: json['is_archived'] as bool,
+      avatarSha256: json['avatar_sha256'] as String?,
+      ogSha256: json['og_sha256'] as String?,
+      publicUrl: json['public_url'] as String,
+    );
+  }
+}

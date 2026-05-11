@@ -80,6 +80,81 @@ class BullnymClient {
     return BullnymLookupResponseDto.fromJson(response);
   }
 
+  Future<BullnymDonationPageDto> getPaymentPage({required String nym}) async {
+    final response = await _getMap('/donation-page/$nym');
+    return BullnymDonationPageDto.fromJson(response);
+  }
+
+  Future<BullnymDonationPageDto> savePaymentPage({
+    required NostrKeychainHandle handle,
+    required String nym,
+    required String header,
+    required String description,
+    required String displayCurrency,
+    String? website,
+    String? twitter,
+    String? instagram,
+    required bool enabled,
+    int? timestampSecs,
+  }) async {
+    final ts = timestampSecs ?? currentBullpayTimestampSecs();
+    final websiteValue = website ?? '';
+    final twitterValue = twitter ?? '';
+    final instagramValue = instagram ?? '';
+    final enabledValue = enabled ? '1' : '0';
+    final response = await _putMap(
+      '/donation-page',
+      data: {
+        'nym': nym,
+        'header': header,
+        'description': description,
+        'display_currency': displayCurrency,
+        'website': websiteValue,
+        'twitter': twitterValue,
+        'instagram': instagramValue,
+        'enabled': enabled,
+        ..._signedFields(
+          handle: handle,
+          action: bullpayActionDonationPageSave,
+          nymOrEmpty: nym,
+          payloadFields: [
+            header,
+            description,
+            displayCurrency,
+            websiteValue,
+            twitterValue,
+            instagramValue,
+            enabledValue,
+          ],
+          timestampSecs: ts,
+        ),
+      },
+    );
+    return BullnymDonationPageDto.fromJson(response);
+  }
+
+  Future<BullnymDonationPageDto> archivePaymentPage({
+    required NostrKeychainHandle handle,
+    required String nym,
+    int? timestampSecs,
+  }) async {
+    final ts = timestampSecs ?? currentBullpayTimestampSecs();
+    final response = await _deleteMap(
+      '/donation-page',
+      data: {
+        'nym': nym,
+        ..._signedFields(
+          handle: handle,
+          action: bullpayActionDonationPageArchive,
+          nymOrEmpty: nym,
+          payloadFields: const [],
+          timestampSecs: ts,
+        ),
+      },
+    );
+    return BullnymDonationPageDto.fromJson(response);
+  }
+
   Map<String, dynamic> _signedFields({
     required NostrKeychainHandle handle,
     required String action,
@@ -114,6 +189,10 @@ class BullnymClient {
 
   Future<Map<String, dynamic>> _postMap(String path, {Object? data}) async {
     return _requestMap(() => _dio.post<dynamic>(path, data: data));
+  }
+
+  Future<Map<String, dynamic>> _putMap(String path, {Object? data}) async {
+    return _requestMap(() => _dio.put<dynamic>(path, data: data));
   }
 
   Future<Map<String, dynamic>> _deleteMap(String path, {Object? data}) async {

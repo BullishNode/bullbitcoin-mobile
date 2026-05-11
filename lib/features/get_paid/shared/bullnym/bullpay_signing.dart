@@ -7,6 +7,8 @@ const String bullpayWireDomain = 'bullpay-la-v2';
 
 const String bullpayActionRegister = 'register';
 const String bullpayActionDelete = 'delete';
+const String bullpayActionDonationPageSave = 'donation-page-save';
+const String bullpayActionDonationPageArchive = 'donation-page-archive';
 
 Uint8List buildBullpaySchnorrMessage({
   required String action,
