@@ -109,6 +109,26 @@ void main() {
   test('save command validates backend field constraints', () {
     expect(
       () => SavePaymentPageCommand(
+        nym: 'Alice',
+        header: 'Alice',
+        description: 'Tips welcome',
+        displayCurrency: 'CAD',
+        enabled: true,
+      ),
+      throwsA(isA<PaymentPageValidationError>()),
+    );
+    expect(
+      () => SavePaymentPageCommand(
+        nym: 'alice',
+        header: '😀' * 21,
+        description: 'Tips welcome',
+        displayCurrency: 'CAD',
+        enabled: true,
+      ),
+      throwsA(isA<PaymentPageValidationError>()),
+    );
+    expect(
+      () => SavePaymentPageCommand(
         nym: 'alice',
         header: '',
         description: 'Tips welcome',

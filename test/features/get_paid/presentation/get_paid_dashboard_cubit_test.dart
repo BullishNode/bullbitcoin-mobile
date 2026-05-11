@@ -34,6 +34,9 @@ void main() {
       when(
         () => lightningAddressFacade.getCurrentLightningAddress(),
       ).thenAnswer((_) async => null);
+      when(
+        () => lightningAddressFacade.getCurrentNym(),
+      ).thenAnswer((_) async => null);
 
       await cubit.refresh();
 
@@ -50,6 +53,9 @@ void main() {
       when(
         () => lightningAddressFacade.getCurrentLightningAddress(),
       ).thenAnswer((_) async => 'alice@bullpay.ca');
+      when(
+        () => lightningAddressFacade.getCurrentNym(),
+      ).thenAnswer((_) async => 'alice');
       when(
         () => findPaymentPage.execute(nym: 'alice'),
       ).thenAnswer((_) async => _page());
@@ -70,12 +76,16 @@ void main() {
         () => lightningAddressFacade.getCurrentLightningAddress(),
       ).thenAnswer((_) async => 'alice@bullpay.ca');
       when(
+        () => lightningAddressFacade.getCurrentNym(),
+      ).thenAnswer((_) async => 'alice');
+      when(
         () => findPaymentPage.execute(nym: 'alice'),
       ).thenAnswer((_) async => null);
 
       await cubit.refresh();
 
       expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
+      expect(cubit.state.nym, 'alice');
       expect(cubit.state.paymentPage, isNull);
       expect(cubit.state.hasPaymentPage, isFalse);
     },
@@ -88,12 +98,16 @@ void main() {
         () => lightningAddressFacade.getCurrentLightningAddress(),
       ).thenAnswer((_) async => 'alice@bullpay.ca');
       when(
+        () => lightningAddressFacade.getCurrentNym(),
+      ).thenAnswer((_) async => 'alice');
+      when(
         () => findPaymentPage.execute(nym: 'alice'),
       ).thenThrow(const PaymentPageNetworkError('network down'));
 
       await cubit.refresh();
 
       expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
+      expect(cubit.state.nym, 'alice');
       expect(cubit.state.error, 'network down');
       expect(cubit.state.isLoading, isFalse);
     },

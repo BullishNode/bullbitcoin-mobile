@@ -25,35 +25,47 @@ class GetPaidSlotCard extends StatelessWidget {
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: IntrinsicHeight(
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: theme.colorScheme.primary),
-              const SizedBox(width: 12),
+              Container(width: 4, color: theme.colorScheme.primary),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodyMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(icon, color: theme.colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: theme.textTheme.titleMedium,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle,
+                              style: theme.textTheme.bodyMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      TextButton(
+                        onPressed: onPressed,
+                        child: Text(actionLabel),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
-              TextButton(onPressed: onPressed, child: Text(actionLabel)),
             ],
           ),
         ),

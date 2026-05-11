@@ -1,3 +1,4 @@
+import 'package:bb_mobile/features/get_paid/payment_page/ui/payment_page_router.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
 import 'package:bb_mobile/locator.dart';
@@ -20,5 +21,6 @@ class GetPaidRouter {
       create: (_) => locator<GetPaidDashboardCubit>(),
       child: const GetPaidDashboardScreen(),
     ),
+    routes: [PaymentPageRouter.editorRoute],
   );
 }

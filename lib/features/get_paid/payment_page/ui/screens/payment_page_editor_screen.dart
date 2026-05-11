@@ -1,4 +1,4 @@
-import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_command.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_constants.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_state.dart';
 import 'package:flutter/material.dart';
@@ -128,6 +128,7 @@ class _PaymentPageForm extends StatelessWidget {
           controller: headerController,
           decoration: const InputDecoration(labelText: 'Title'),
           enabled: !state.isBusy,
+          maxLength: 80,
           onChanged: context.read<PaymentPageCubit>().setHeader,
         ),
         const SizedBox(height: 12),
@@ -135,6 +136,7 @@ class _PaymentPageForm extends StatelessWidget {
           controller: descriptionController,
           decoration: const InputDecoration(labelText: 'Description'),
           enabled: !state.isBusy,
+          maxLength: 280,
           maxLines: 4,
           onChanged: context.read<PaymentPageCubit>().setDescription,
         ),
@@ -142,7 +144,8 @@ class _PaymentPageForm extends StatelessWidget {
         DropdownButtonFormField<String>(
           initialValue: state.displayCurrency,
           decoration: const InputDecoration(labelText: 'Display currency'),
-          items: SavePaymentPageCommand.supportedDisplayCurrencies
+          key: ValueKey(state.displayCurrency),
+          items: paymentPageSupportedDisplayCurrencies
               .map(
                 (currency) =>
                     DropdownMenuItem(value: currency, child: Text(currency)),

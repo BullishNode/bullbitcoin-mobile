@@ -1,10 +1,8 @@
-import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
-import 'package:bb_mobile/features/get_paid/payment_page/ui/screens/payment_page_editor_screen.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/ui/payment_page_router.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/get_paid/ui/widgets/get_paid_slot_card.dart';
-import 'package:bb_mobile/features/settings/ui/settings_router.dart';
-import 'package:bb_mobile/locator.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -82,6 +80,16 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                         ? null
                         : () => _openPaymentPage(context, state.nym!),
                   ),
+                  const SizedBox(height: 12),
+                  GetPaidSlotCard(
+                    icon: Icons.receipt_long,
+                    title: 'Invoices',
+                    subtitle: state.hasLightningAddress
+                        ? 'Coming soon'
+                        : 'Create a Lightning Address first',
+                    actionLabel: 'Coming soon',
+                    onPressed: null,
+                  ),
                 ],
               ),
             );
@@ -101,19 +109,15 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
   }
 
   Future<void> _openLightningAddress(BuildContext context) async {
-    await context.pushNamed(SettingsRoute.lightningAddress.name);
+    await context.pushNamed(LightningAddressFacade.manageRouteName);
     if (!mounted) return;
     await context.read<GetPaidDashboardCubit>().refresh();
   }
 
   Future<void> _openPaymentPage(BuildContext context, String nym) async {
-    final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => locator<PaymentPageCubit>(),
-          child: PaymentPageEditorScreen(nym: nym),
-        ),
-      ),
+    final changed = await context.pushNamed<bool>(
+      PaymentPageRoute.editor.name,
+      pathParameters: {'nym': nym},
     );
     if (changed != true || !mounted) return;
     await context.read<GetPaidDashboardCubit>().refresh();

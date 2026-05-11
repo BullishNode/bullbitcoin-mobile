@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/entities/signer_entity.dart';
+import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -23,19 +24,19 @@ const _kZeroMnemonic =
 const _kFingerprint = '73c5da0a';
 
 Wallet _bitcoinDefault() => Wallet(
-      origin: 'btc-default',
-      network: Network.bitcoinMainnet,
-      isDefault: true,
-      masterFingerprint: _kFingerprint,
-      xpubFingerprint: _kFingerprint,
-      scriptType: ScriptType.bip84,
-      xpub: 'xpubFAKE',
-      externalPublicDescriptor: 'wpkh(xpubFAKE/0/*)',
-      internalPublicDescriptor: 'wpkh(xpubFAKE/1/*)',
-      signer: SignerEntity.local,
-      signerDevice: null,
-      balanceSat: BigInt.zero,
-    );
+  origin: 'btc-default',
+  network: Network.bitcoinMainnet,
+  isDefault: true,
+  masterFingerprint: _kFingerprint,
+  xpubFingerprint: _kFingerprint,
+  scriptType: ScriptType.bip84,
+  xpub: 'xpubFAKE',
+  externalPublicDescriptor: 'wpkh(xpubFAKE/0/*)',
+  internalPublicDescriptor: 'wpkh(xpubFAKE/1/*)',
+  signer: SignerEntity.local,
+  signerDevice: null,
+  balanceSat: BigInt.zero,
+);
 
 Seed _zeroSeed() {
   final m = bip39.Mnemonic.fromSentence(_kZeroMnemonic, bip39.Language.english);
@@ -62,65 +63,80 @@ void main() {
       nostrPublish: nostrPublish,
     );
 
-    when(() => walletRepo.getWallets(
-          onlyDefaults: any(named: 'onlyDefaults'),
-          onlyBitcoin: any(named: 'onlyBitcoin'),
-        )).thenAnswer((_) async => [_bitcoinDefault()]);
+    when(
+      () => walletRepo.getWallets(
+        onlyDefaults: any(named: 'onlyDefaults'),
+        onlyBitcoin: any(named: 'onlyBitcoin'),
+      ),
+    ).thenAnswer((_) async => [_bitcoinDefault()]);
     when(() => seedRepo.get(any())).thenAnswer((_) async => _zeroSeed());
-    when(() => nostrPublish.publishProfile(
-          privateKeyHex: any(named: 'privateKeyHex'),
-          name: any(named: 'name'),
-          nip05: any(named: 'nip05'),
-          lud16: any(named: 'lud16'),
-        )).thenAnswer((_) async {});
+    when(
+      () => nostrPublish.publishProfile(
+        handle: any(named: 'handle'),
+        name: any(named: 'name'),
+        nip05: any(named: 'nip05'),
+        lud16: any(named: 'lud16'),
+      ),
+    ).thenAnswer((_) async {});
+  });
+
+  setUpAll(() {
+    registerFallbackValue(NostrKeychainHandle.fromSecretKeyHex('01' * 32));
   });
 
   test('calls port with name=nym, nip05=lud16=nym@bullpay.ca', () async {
     await usecase.execute(nym: 'alice');
 
-    final captured = verify(() => nostrPublish.publishProfile(
-          privateKeyHex: captureAny(named: 'privateKeyHex'),
-          name: captureAny(named: 'name'),
-          nip05: captureAny(named: 'nip05'),
-          lud16: captureAny(named: 'lud16'),
-        )).captured;
+    final captured = verify(
+      () => nostrPublish.publishProfile(
+        handle: captureAny(named: 'handle'),
+        name: captureAny(named: 'name'),
+        nip05: captureAny(named: 'nip05'),
+        lud16: captureAny(named: 'lud16'),
+      ),
+    ).captured;
     expect(captured[1], 'alice');
     expect(captured[2], 'alice@bullpay.ca');
     expect(captured[3], 'alice@bullpay.ca');
-    // The privateKeyHex is the BIP85-derived nsec; deterministic from the
-    // zero mnemonic. We don't pin the value (nostr_identity wraps it in a
-    // zeroize scope), but we assert it's a 64-char hex string.
-    final nsec = captured[0] as String;
-    expect(nsec.length, 64);
-    expect(RegExp(r'^[0-9a-f]+$').hasMatch(nsec), isTrue);
+    final handle = captured[0] as NostrKeychainHandle;
+    expect(handle.publicKeyHex.length, 64);
   });
 
-  test('port throws → propagates as LightningAddressNostrPublishFailedException',
-      () async {
-    when(() => nostrPublish.publishProfile(
-          privateKeyHex: any(named: 'privateKeyHex'),
+  test(
+    'port throws → propagates as LightningAddressNostrPublishFailedException',
+    () async {
+      when(
+        () => nostrPublish.publishProfile(
+          handle: any(named: 'handle'),
           name: any(named: 'name'),
           nip05: any(named: 'nip05'),
           lud16: any(named: 'lud16'),
-        )).thenThrow(LightningAddressNostrPublishFailedException(
-        'all relays unreachable'));
+        ),
+      ).thenThrow(
+        LightningAddressNostrPublishFailedException('all relays unreachable'),
+      );
 
-    await expectLater(
-      usecase.execute(nym: 'alice'),
-      throwsA(isA<LightningAddressNostrPublishFailedException>()),
-    );
-  });
+      await expectLater(
+        usecase.execute(nym: 'alice'),
+        throwsA(isA<LightningAddressNostrPublishFailedException>()),
+      );
+    },
+  );
 
-  test('non-publish dependency error wraps into the publish exception',
-      () async {
-    when(() => walletRepo.getWallets(
+  test(
+    'non-publish dependency error wraps into the publish exception',
+    () async {
+      when(
+        () => walletRepo.getWallets(
           onlyDefaults: any(named: 'onlyDefaults'),
           onlyBitcoin: any(named: 'onlyBitcoin'),
-        )).thenThrow(StateError('wallet repo blew up'));
+        ),
+      ).thenThrow(StateError('wallet repo blew up'));
 
-    await expectLater(
-      usecase.execute(nym: 'alice'),
-      throwsA(isA<LightningAddressNostrPublishFailedException>()),
-    );
-  });
+      await expectLater(
+        usecase.execute(nym: 'alice'),
+        throwsA(isA<LightningAddressNostrPublishFailedException>()),
+      );
+    },
+  );
 }

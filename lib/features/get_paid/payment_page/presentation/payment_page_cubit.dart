@@ -5,6 +5,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/fi
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_command.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_state.dart';
+import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class PaymentPageCubit extends Cubit<PaymentPageState> {
@@ -63,7 +64,13 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       emit(state.copyWith(isLoading: false, error: e.message));
     } on Exception catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      log.warning('Payment Page load failed', error: e);
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Something went wrong. Please try again.',
+        ),
+      );
     }
   }
 
@@ -123,7 +130,13 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       emit(state.copyWith(isSaving: false, error: e.message));
     } on Exception catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isSaving: false, error: e.toString()));
+      log.warning('Payment Page save failed', error: e);
+      emit(
+        state.copyWith(
+          isSaving: false,
+          error: 'Something went wrong. Please try again.',
+        ),
+      );
     }
   }
 
@@ -149,7 +162,13 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       emit(state.copyWith(isArchiving: false, error: e.message));
     } on Exception catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isArchiving: false, error: e.toString()));
+      log.warning('Payment Page archive failed', error: e);
+      emit(
+        state.copyWith(
+          isArchiving: false,
+          error: 'Something went wrong. Please try again.',
+        ),
+      );
     }
   }
 

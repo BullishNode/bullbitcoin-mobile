@@ -4,6 +4,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payme
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_service_port.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/archive_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_command.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
@@ -21,6 +22,19 @@ class _MockPaymentPageIdentity extends Mock
 void main() {
   late _MockPaymentPageService paymentPageService;
   late _MockPaymentPageIdentity paymentPageIdentity;
+
+  setUpAll(() {
+    registerFallbackValue(
+      SavePaymentPageCommand(
+        nym: 'fallback',
+        header: 'Fallback',
+        description: 'Fallback description',
+        displayCurrency: 'CAD',
+        enabled: true,
+      ),
+    );
+    registerFallbackValue(NostrKeychainHandle.fromSecretKeyHex('02' * 32));
+  });
 
   setUp(() {
     paymentPageService = _MockPaymentPageService();
@@ -83,6 +97,34 @@ void main() {
 
     expect(find.text('Archive'), findsOneWidget);
   });
+
+  testWidgets('pops true after successful save', (tester) async {
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page());
+    when(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: any(named: 'handle'),
+      ),
+    ).thenAnswer((_) async => _page());
+
+    await tester.pumpWidget(
+      _routeHarness(
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -700));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('changed: true'), findsOneWidget);
+  });
 }
 
 Widget _harness({
@@ -108,6 +150,72 @@ Widget _harness({
       child: PaymentPageEditorScreen(nym: nym),
     ),
   );
+}
+
+Widget _routeHarness({
+  required PaymentPageServicePort paymentPageService,
+  required PaymentPageIdentityPort paymentPageIdentity,
+}) {
+  return MaterialApp(
+    home: _RouteHarness(
+      paymentPageService: paymentPageService,
+      paymentPageIdentity: paymentPageIdentity,
+    ),
+  );
+}
+
+class _RouteHarness extends StatefulWidget {
+  final PaymentPageServicePort paymentPageService;
+  final PaymentPageIdentityPort paymentPageIdentity;
+
+  const _RouteHarness({
+    required this.paymentPageService,
+    required this.paymentPageIdentity,
+  });
+
+  @override
+  State<_RouteHarness> createState() => _RouteHarnessState();
+}
+
+class _RouteHarnessState extends State<_RouteHarness> {
+  bool? changed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          Text('changed: $changed'),
+          TextButton(
+            onPressed: () async {
+              final result = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider(
+                    create: (_) => PaymentPageCubit(
+                      findPaymentPage: FindPaymentPageUsecase(
+                        paymentPageService: widget.paymentPageService,
+                      ),
+                      savePaymentPage: SavePaymentPageUsecase(
+                        paymentPageService: widget.paymentPageService,
+                        paymentPageIdentity: widget.paymentPageIdentity,
+                      ),
+                      archivePaymentPage: ArchivePaymentPageUsecase(
+                        paymentPageService: widget.paymentPageService,
+                        paymentPageIdentity: widget.paymentPageIdentity,
+                      ),
+                    ),
+                    child: const PaymentPageEditorScreen(nym: 'alice'),
+                  ),
+                ),
+              );
+              setState(() => changed = result);
+            },
+            child: const Text('Open'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 PaymentPage _page() {

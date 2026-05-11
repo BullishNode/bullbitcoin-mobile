@@ -1,4 +1,3 @@
-import 'package:bb_mobile/core/nostr/nostr_identity.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
@@ -15,9 +14,9 @@ class PublishLightningAddressNostrProfileUsecase {
     required WalletRepository walletRepository,
     required SeedRepository seedRepository,
     required NostrPublishPort nostrPublish,
-  })  : _walletRepository = walletRepository,
-        _seedRepository = seedRepository,
-        _nostrPublish = nostrPublish;
+  }) : _walletRepository = walletRepository,
+       _seedRepository = seedRepository,
+       _nostrPublish = nostrPublish;
 
   Future<void> execute({required String nym}) async {
     try {
@@ -25,18 +24,12 @@ class PublishLightningAddressNostrProfileUsecase {
         walletRepository: _walletRepository,
         seedRepository: _seedRepository,
       );
-      final nostr = NostrIdentity.derive(
-        xprvBase58: xprv,
-        identity: lightningAddressNostrIdentity,
-        account: lightningAddressNostrAccount,
-      );
-      await nostr.withPrivateKeyHex(
-        (nsec) => _nostrPublish.publishProfile(
-          privateKeyHex: nsec,
-          name: nym,
-          nip05: '$nym@$lightningAddressDomain',
-          lud16: '$nym@$lightningAddressDomain',
-        ),
+      final handle = deriveNostrHandleFromXprvForLightningAddress(xprv);
+      await _nostrPublish.publishProfile(
+        handle: handle,
+        name: nym,
+        nip05: '$nym@$lightningAddressDomain',
+        lud16: '$nym@$lightningAddressDomain',
       );
     } on LightningAddressNostrPublishFailedException {
       rethrow;

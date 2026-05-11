@@ -12,6 +12,9 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/sweep_light
 class LightningAddressFacade {
   static const String walletLabel = lightningAddressWalletLabel;
 
+  // Public navigation contract while LA management currently lives in Settings.
+  static const String manageRouteName = 'lightningAddress';
+
   static bool isLightningAddressWallet(Wallet wallet) =>
       wallet.label == walletLabel;
 
@@ -41,6 +44,12 @@ class LightningAddressFacade {
   Future<String?> recoverIfNeeded({required Environment environment}) =>
       _recover.execute(environment: environment);
 
+  /// Returns the locally cached Lightning Address, if this device knows one.
   Future<String?> getCurrentLightningAddress() =>
       _payService.getStoredAddress();
+
+  Future<String?> getCurrentNym() async {
+    final address = await getCurrentLightningAddress();
+    return address?.split('@').firstOrNull;
+  }
 }

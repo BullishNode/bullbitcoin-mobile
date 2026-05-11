@@ -10,18 +10,19 @@ const Duration bullnymReceiveTimeout = Duration(seconds: 15);
 
 class BullnymClient {
   BullnymClient({Dio? dio, String baseUrl = defaultBullnymBaseUrl})
-    : _dio = _configureDio(dio ?? Dio(), baseUrl);
+    : _dio = dio ?? _newDio(baseUrl);
 
   final Dio _dio;
 
-  static Dio _configureDio(Dio dio, String baseUrl) {
-    if (dio.options.baseUrl.isEmpty) {
-      dio.options.baseUrl = baseUrl;
-    }
-    dio.options.connectTimeout ??= bullnymConnectTimeout;
-    dio.options.receiveTimeout ??= bullnymReceiveTimeout;
-    dio.options.validateStatus = (status) => status != null && status < 600;
-    return dio;
+  static Dio _newDio(String baseUrl) {
+    return Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: bullnymConnectTimeout,
+        receiveTimeout: bullnymReceiveTimeout,
+        validateStatus: (status) => status != null && status < 600,
+      ),
+    );
   }
 
   Future<BullnymRegisterResponseDto> register({

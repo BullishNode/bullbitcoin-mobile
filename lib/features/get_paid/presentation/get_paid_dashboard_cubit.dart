@@ -2,6 +2,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/payment_pag
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
@@ -18,10 +19,11 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
   Future<void> refresh() async {
     emit(state.copyWith(isLoading: true, clearError: true));
     String? lightningAddress;
+    String? nym;
     try {
       lightningAddress = await _lightningAddressFacade
           .getCurrentLightningAddress();
-      final nym = lightningAddress?.split('@').firstOrNull;
+      nym = await _lightningAddressFacade.getCurrentNym();
 
       if (nym == null || nym.isEmpty) {
         if (isClosed) return;
@@ -29,6 +31,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
           state.copyWith(
             isLoading: false,
             clearLightningAddress: true,
+            clearNym: true,
             clearPaymentPage: true,
           ),
         );
@@ -41,6 +44,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         state.copyWith(
           isLoading: false,
           lightningAddress: lightningAddress,
+          nym: nym,
           paymentPage: paymentPage?.isArchived == true ? null : paymentPage,
           clearPaymentPage: paymentPage == null || paymentPage.isArchived,
         ),
@@ -51,16 +55,19 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         state.copyWith(
           isLoading: false,
           lightningAddress: lightningAddress,
+          nym: nym,
           error: e.message,
         ),
       );
     } on Exception catch (e) {
       if (isClosed) return;
+      log.warning('Get Paid dashboard refresh failed', error: e);
       emit(
         state.copyWith(
           isLoading: false,
           lightningAddress: lightningAddress,
-          error: e.toString(),
+          nym: nym,
+          error: 'Something went wrong. Please try again.',
         ),
       );
     }

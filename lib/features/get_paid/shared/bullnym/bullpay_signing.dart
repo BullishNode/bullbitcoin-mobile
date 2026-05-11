@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 
+// Deployed Bullnym wire domain. Renaming this is a breaking protocol change
+// and requires an explicit backend deploy/rollback decision.
 const String bullpayWireDomain = 'bullpay-la-v2';
 
 const String bullpayActionRegister = 'register';

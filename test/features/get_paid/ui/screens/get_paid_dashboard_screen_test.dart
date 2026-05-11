@@ -1,11 +1,13 @@
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/ui/payment_page_router.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockLightningAddressFacade extends Mock
@@ -29,6 +31,9 @@ void main() {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
     ).thenAnswer((_) async => null);
+    when(
+      () => lightningAddressFacade.getCurrentNym(),
+    ).thenAnswer((_) async => null);
 
     await tester.pumpWidget(
       _harness(
@@ -42,7 +47,7 @@ void main() {
     expect(find.text('Lightning Address'), findsOneWidget);
     expect(find.text('Not set up'), findsWidgets);
     expect(find.text('Payment Page'), findsOneWidget);
-    expect(find.text('Create a Lightning Address first'), findsOneWidget);
+    expect(find.text('Create a Lightning Address first'), findsNWidgets(2));
     verifyNever(() => findPaymentPage.execute(nym: any(named: 'nym')));
   });
 
@@ -50,6 +55,9 @@ void main() {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
     ).thenAnswer((_) async => 'alice@bullpay.ca');
+    when(
+      () => lightningAddressFacade.getCurrentNym(),
+    ).thenAnswer((_) async => 'alice');
     when(
       () => findPaymentPage.execute(nym: 'alice'),
     ).thenAnswer((_) async => _page());
@@ -66,6 +74,60 @@ void main() {
     expect(find.text('alice@bullpay.ca'), findsOneWidget);
     expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
     expect(find.text('Edit'), findsOneWidget);
+  });
+
+  testWidgets('refreshes when editor route pops true', (tester) async {
+    when(
+      () => lightningAddressFacade.getCurrentLightningAddress(),
+    ).thenAnswer((_) async => 'alice@bullpay.ca');
+    when(
+      () => lightningAddressFacade.getCurrentNym(),
+    ).thenAnswer((_) async => 'alice');
+    var refreshCount = 0;
+    when(() => findPaymentPage.execute(nym: 'alice')).thenAnswer((_) async {
+      refreshCount += 1;
+      return refreshCount == 1 ? null : _page();
+    });
+
+    final router = GoRouter(
+      initialLocation: '/get-paid',
+      routes: [
+        GoRoute(
+          path: '/get-paid',
+          builder: (context, state) => BlocProvider(
+            create: (_) => GetPaidDashboardCubit(
+              lightningAddressFacade: lightningAddressFacade,
+              findPaymentPage: findPaymentPage,
+            ),
+            child: const GetPaidDashboardScreen(),
+          ),
+          routes: [
+            GoRoute(
+              name: PaymentPageRoute.editor.name,
+              path: PaymentPageRoute.editor.path,
+              builder: (context, state) => Scaffold(
+                body: TextButton(
+                  onPressed: () => context.pop(true),
+                  child: const Text('Finish'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Finish'));
+    await tester.pumpAndSettle();
+
+    verify(() => findPaymentPage.execute(nym: 'alice')).called(2);
+    expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
   });
 }
 

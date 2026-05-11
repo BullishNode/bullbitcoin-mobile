@@ -17,14 +17,14 @@ class RelayNostrPublishAdapter implements NostrPublishPort {
 
   @override
   Future<void> publishProfile({
-    required String privateKeyHex,
+    required NostrKeychainHandle handle,
     required String name,
     required String nip05,
     required String lud16,
   }) async {
     try {
       await _nostr.publishProfile(
-        handle: NostrKeychainHandle.fromSecretKeyHex(privateKeyHex),
+        handle: handle,
         name: name,
         nip05: nip05,
         lud16: lud16,
@@ -35,11 +35,9 @@ class RelayNostrPublishAdapter implements NostrPublishPort {
   }
 
   @override
-  Future<void> clearProfile({required String privateKeyHex}) async {
+  Future<void> clearProfile({required NostrKeychainHandle handle}) async {
     try {
-      await _nostr.clearProfile(
-        handle: NostrKeychainHandle.fromSecretKeyHex(privateKeyHex),
-      );
+      await _nostr.clearProfile(handle: handle);
     } on NostrPublishFailedException catch (e) {
       throw LightningAddressNostrPublishFailedException(e.message);
     }
