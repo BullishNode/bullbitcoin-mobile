@@ -141,6 +141,7 @@ class LightningAddressLocator {
         sweep: locator<SweepLightningAddressWalletUsecase>(),
         recover: locator<RecoverLightningAddressUsecase>(),
         settings: locator<LightningAddressSettingsDatasource>(),
+        payService: locator<PayServicePort>(),
       ),
     );
   }
