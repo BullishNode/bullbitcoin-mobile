@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/timers/countdown.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_status.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail_cubit.dart';
@@ -92,11 +93,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
   }
 
   String _fallbackShareUrl() {
-    final nym = widget.nymOwner;
-    final id = widget.invoiceId.value;
-    return nym == null
-        ? '$bullnymDefaultBaseUrl/invoice/$id'
-        : '$bullnymDefaultBaseUrl/$nym/i/$id';
+    return invoicePublicUrlFor(
+      nym: widget.nymOwner,
+      id: widget.invoiceId,
+      domain: bullnymDefaultDomain,
+    ).value;
   }
 }
 

@@ -289,6 +289,10 @@ returns to the amount step, while back from the success view pops `true` to the
 caller. Splitting into two routes should only happen if a later flow needs
 deep-linkable create substeps.
 
+The expiry selector is a 1-to-7 day picker, not the broader 1-to-30 day range
+that appeared in the early plan text. The backend wallet-origin expiry cap is 7
+days today, so the UI intentionally exposes only values the server accepts.
+
 ## Pagination And Filtering
 
 Backend list is `since_unix` + `limit` + optional `status`, sorted by
@@ -317,7 +321,11 @@ without changing existing buy/sell callers:
 
 - `enum CountdownFormat { mmss, dhm }`
 - default remains `mmss` so existing buy/sell callers are unchanged.
-- `dhm` renders `Xd Yh`, `Xh Ym`, or `Xm SSs` depending on remaining time.
+- `dhm` renders `Xd Yh Zmin`, `Xh Ymin`, or `Xmin` depending on remaining
+  time.
+- tick frequency remains one second in this slice. The originally planned
+  battery-saver minute tick is deferred until it is needed by a broader timer
+  optimization pass.
 
 ## Multi-Rail Address Caveat
 

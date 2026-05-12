@@ -111,11 +111,11 @@ class CountdownState extends State<Countdown> {
   String _formatDaysHoursMinutes() {
     if (remainingTime <= Duration.zero) return 'Expired';
     if (remainingTime.inDays > 0) {
-      return '${remainingTime.inDays}d ${remainingTime.inHours % 24}h';
+      return '${remainingTime.inDays}d ${remainingTime.inHours % 24}h ${remainingTime.inMinutes % 60}min';
     }
     if (remainingTime.inHours > 0) {
-      return '${remainingTime.inHours}h ${remainingTime.inMinutes % 60}m';
+      return '${remainingTime.inHours}h ${remainingTime.inMinutes % 60}min';
     }
-    return '${remainingTime.inMinutes}m ${(remainingTime.inSeconds % 60).toString().padLeft(2, '0')}s';
+    return '${remainingTime.inMinutes}min';
   }
 }

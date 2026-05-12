@@ -63,8 +63,15 @@ class Invoice {
   }
 
   InvoiceUrl publicUrlFor({required String domain}) {
-    final nym = nymOwner;
-    final path = nym == null ? '/invoice/$id' : '/$nym/i/$id';
-    return InvoiceUrl('https://$domain$path');
+    return invoicePublicUrlFor(nym: nymOwner, id: id, domain: domain);
   }
+}
+
+InvoiceUrl invoicePublicUrlFor({
+  required String? nym,
+  required InvoiceId id,
+  required String domain,
+}) {
+  final path = nym == null ? '/invoice/$id' : '/$nym/i/$id';
+  return InvoiceUrl('https://$domain$path');
 }

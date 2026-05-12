@@ -7,6 +7,7 @@ import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/get_invoice_usecase.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_usecase.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice_status_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_status.dart';
@@ -117,7 +118,11 @@ void main() {
   testWidgets('invoice list refreshes when create route pops true', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final listInvoices = _MockListInvoicesUsecase();
+    final createInvoice = _MockCreateInvoiceUsecase();
     var callCount = 0;
     when(() => listInvoices.execute(command: any(named: 'command'))).thenAnswer(
       (_) async {
@@ -134,6 +139,16 @@ void main() {
               ];
       },
     );
+    when(
+      () => createInvoice.execute(command: any(named: 'command')),
+    ).thenAnswer(
+      (_) async => CreateInvoiceResult(
+        invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+        shareUrl: InvoiceUrl(
+          'https://bullpay.ca/invoice/00000000-0000-0000-0000-000000000001',
+        ),
+      ),
+    );
 
     final router = GoRouter(
       initialLocation: '/invoices',
@@ -148,11 +163,14 @@ void main() {
             GoRoute(
               name: InvoicesRoute.create.name,
               path: 'create',
-              builder: (context, state) => Scaffold(
-                body: TextButton(
-                  onPressed: () => context.pop(true),
-                  child: const Text('Finish create'),
+              builder: (context, state) => BlocProvider(
+                create: (_) => InvoiceCreateCubit(
+                  createInvoice: createInvoice,
+                  initialExpiresAt: DateTime.now().toUtc().add(
+                    const Duration(hours: 1),
+                  ),
                 ),
+                child: const InvoiceCreateScreen(),
               ),
             ),
           ],
@@ -167,7 +185,8 @@ void main() {
 
     await tester.tap(find.text('Create invoice'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Finish create'));
+    await _submitSatsInvoice(tester);
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
 
     expect(find.text('Coffee'), findsOneWidget);
@@ -559,6 +578,50 @@ void main() {
     expect(createButton.disabled, isTrue);
   });
 
+  testWidgets('invoice create screen keeps selected expiry across rebuilds', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final createInvoice = _MockCreateInvoiceUsecase();
+
+    await tester.pumpWidget(
+      _app(
+        BlocProvider(
+          create: (_) => InvoiceCreateCubit(
+            createInvoice: createInvoice,
+            initialExpiresAt: DateTime.now().toUtc().add(
+              const Duration(days: 1),
+            ),
+          ),
+          child: const InvoiceCreateScreen(),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.pump();
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is BBButton && widget.label == 'Continue',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('1 day'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('2 days').last);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Public description'),
+      'Coffee',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 days'), findsOneWidget);
+  });
+
   testWidgets('invoice detail cancel confirms before cancelling', (
     tester,
   ) async {
@@ -685,7 +748,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('1d 0h'), findsOneWidget);
+    expect(find.textContaining('1d 0h'), findsOneWidget);
     expect(find.text('1440:00'), findsNothing);
   });
 
@@ -716,7 +779,10 @@ void main() {
   });
 
   test('COP amount formatter rejects decimals', () {
-    final formatter = AmountInputFormatter('COP');
+    final formatter = AmountInputFormatter(
+      'COP',
+      decimalPlaces: invoiceFiatCurrencyPrecision('COP'),
+    );
     final oldValue = const TextEditingValue(
       text: '100',
       selection: TextSelection.collapsed(offset: 3),

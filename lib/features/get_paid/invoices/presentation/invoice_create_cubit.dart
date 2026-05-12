@@ -82,6 +82,11 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
     emit(state.copyWith(expiresAt: value, result: null, error: null));
   }
 
+  void clearError() {
+    if (state.isBusy || state.error == null) return;
+    emit(state.copyWith(error: null));
+  }
+
   void setLinkToPageNym(String value) {
     if (state.isBusy) return;
     emit(state.copyWith(linkToPageNym: value, result: null, error: null));

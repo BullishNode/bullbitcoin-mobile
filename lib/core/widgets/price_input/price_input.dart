@@ -19,6 +19,7 @@ class PriceInput extends StatelessWidget {
     required this.focusNode,
     this.readOnly = false,
     this.isMax = false,
+    this.amountDecimalPlaces,
   });
 
   final String currency;
@@ -31,6 +32,7 @@ class PriceInput extends StatelessWidget {
   final FocusNode? focusNode;
   final bool readOnly;
   final bool isMax;
+  final int? amountDecimalPlaces;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +75,12 @@ class PriceInput extends StatelessWidget {
                                   : const TextInputType.numberWithOptions(
                                       decimal: true,
                                     ),
-                              inputFormatters: [AmountInputFormatter(currency)],
+                              inputFormatters: [
+                                AmountInputFormatter(
+                                  currency,
+                                  decimalPlaces: amountDecimalPlaces,
+                                ),
+                              ],
                               showCursor: !readOnly,
                               readOnly: readOnly,
                               cursorColor: context.appColors.outline,

@@ -1,26 +1,17 @@
 import 'package:flutter/services.dart';
 
 class AmountInputFormatter extends TextInputFormatter {
-  AmountInputFormatter(this.inputCurrencyCode);
+  AmountInputFormatter(this.inputCurrencyCode, {int? decimalPlaces})
+    : decimalPlaces = decimalPlaces ?? _defaultDecimalPlaces(inputCurrencyCode);
 
   final String inputCurrencyCode;
-
-  static const _zeroDecimalCurrencies = {'COP'};
+  final int decimalPlaces;
 
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final decimalPlaces =
-        (inputCurrencyCode == 'sats' || inputCurrencyCode == 'L-sats')
-        ? 0
-        : inputCurrencyCode == 'BTC' || inputCurrencyCode == 'L-BTC'
-        ? 8
-        : _zeroDecimalCurrencies.contains(inputCurrencyCode.toUpperCase())
-        ? 0
-        : 2; // Fiat currencies default to 2 decimals, can be adjusted if needed with a map
-
     var newText = newValue.text;
 
     // Convert commas to dots for decimal input
@@ -72,5 +63,13 @@ class AmountInputFormatter extends TextInputFormatter {
     } else {
       return oldValue;
     }
+  }
+
+  static int _defaultDecimalPlaces(String inputCurrencyCode) {
+    return (inputCurrencyCode == 'sats' || inputCurrencyCode == 'L-sats')
+        ? 0
+        : inputCurrencyCode == 'BTC' || inputCurrencyCode == 'L-BTC'
+        ? 8
+        : 2;
   }
 }

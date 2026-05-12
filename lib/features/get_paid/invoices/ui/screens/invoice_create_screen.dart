@@ -34,6 +34,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
 
   bool _linkToPaymentPage = false;
   bool _showDetails = false;
+  int _expiryDays = 1;
 
   @override
   void initState() {
@@ -137,6 +138,9 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     return [
       PriceInput(
         currency: currency,
+        amountDecimalPlaces: currency == _satsCurrency
+            ? null
+            : invoiceFiatCurrencyPrecision(currency),
         amountEquivalent: currency == _satsCurrency
             ? 'fiat rate set at creation'
             : 'sats amount set at creation',
@@ -182,7 +186,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
             ? null
             : () {
                 _setAmountControllerFromState(state);
-                _clearAmountStepError(context, state);
+                context.read<InvoiceCreateCubit>().clearError();
                 setState(() => _showDetails = false);
               },
       ),
@@ -234,7 +238,16 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         onChanged: context.read<InvoiceCreateCubit>().setInvoiceNumber,
       ),
       const Gap(12),
-      _ExpirySelector(state: state),
+      _ExpirySelector(
+        state: state,
+        selectedDays: _expiryDays,
+        onChanged: (days) {
+          setState(() => _expiryDays = days);
+          context.read<InvoiceCreateCubit>().setExpiresAt(
+            DateTime.now().toUtc().add(Duration(days: days)),
+          );
+        },
+      ),
       const Gap(12),
       SwitchListTile(
         value: state.acceptBtc,
@@ -339,18 +352,6 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     _amountController.addListener(_syncAmount);
   }
 
-  void _clearAmountStepError(BuildContext context, InvoiceCreateState state) {
-    final cubit = context.read<InvoiceCreateCubit>();
-    if (state.amountSat != null) {
-      cubit.setAmountSat(state.amountSat);
-      return;
-    }
-    cubit.setFiatAmount(
-      minor: state.fiatAmountMinor,
-      currency: state.fiatCurrency,
-    );
-  }
-
   String _selectedAmountLabel(InvoiceCreateState state) {
     if (state.amountSat != null) return '${state.amountSat} sats';
     final fiatAmount = state.fiatAmountMinor;
@@ -381,18 +382,19 @@ class _SelectedAmountRow extends StatelessWidget {
 
 class _ExpirySelector extends StatelessWidget {
   final InvoiceCreateState state;
+  final int selectedDays;
+  final ValueChanged<int> onChanged;
 
-  const _ExpirySelector({required this.state});
+  const _ExpirySelector({
+    required this.state,
+    required this.selectedDays,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final days = state.expiresAt
-        .difference(DateTime.now().toUtc())
-        .inDays
-        .clamp(1, 7);
     return DropdownButtonFormField<int>(
-      key: ValueKey(days),
-      initialValue: days,
+      initialValue: selectedDays,
       decoration: const InputDecoration(labelText: 'Expires in'),
       items: [
         for (var day = 1; day <= 7; day++)
@@ -405,9 +407,7 @@ class _ExpirySelector extends StatelessWidget {
           ? null
           : (days) {
               if (days == null) return;
-              context.read<InvoiceCreateCubit>().setExpiresAt(
-                DateTime.now().toUtc().add(Duration(days: days)),
-              );
+              onChanged(days);
             },
     );
   }
