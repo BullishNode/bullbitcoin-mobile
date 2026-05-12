@@ -47,6 +47,8 @@ Backend constraints mobile must mirror:
 - `expires_at_unix` must be at least 60 seconds in the future and at most 7
   days in the future. The old plan text mentioning 30 days is stale unless the
   backend cap changes explicitly.
+- Fiat minor-unit precision must mirror the backend pricer (`COP` is 0-decimal;
+  currently supported invoice fiat currencies otherwise use 2 decimals).
 - `limit` must be at least 1; backend caps it at 100.
 - Status filter is absent/empty or one of: `unpaid`, `in_progress`, `paid`,
   `underpaid`, `overpaid`, `expired`, `cancelled`.

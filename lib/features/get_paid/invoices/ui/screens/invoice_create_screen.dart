@@ -1,0 +1,331 @@
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/widgets/buttons/button.dart';
+import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
+import 'package:bb_mobile/core/widgets/price_input/price_input.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_cubit.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_state.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gap/gap.dart';
+
+class InvoiceCreateScreen extends StatefulWidget {
+  final String? paymentPageNym;
+
+  const InvoiceCreateScreen({super.key, this.paymentPageNym});
+
+  @override
+  State<InvoiceCreateScreen> createState() => _InvoiceCreateScreenState();
+}
+
+class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
+  static const _satsCurrency = 'sats';
+
+  final _amountController = TextEditingController();
+  final _amountFocusNode = FocusNode();
+  final _publicDescriptionController = TextEditingController();
+  final _recipientNameController = TextEditingController();
+  final _invoiceNumberController = TextEditingController();
+  final _privateMemoController = TextEditingController();
+
+  String _currency = _satsCurrency;
+  bool _linkToPaymentPage = false;
+  bool _showDetails = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _linkToPaymentPage = widget.paymentPageNym != null;
+    _amountController.addListener(_syncAmount);
+    if (_linkToPaymentPage) {
+      context.read<InvoiceCreateCubit>().setLinkToPageNym(
+        widget.paymentPageNym!,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _amountFocusNode.dispose();
+    _publicDescriptionController.dispose();
+    _recipientNameController.dispose();
+    _invoiceNumberController.dispose();
+    _privateMemoController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_showDetails ? 'Invoice details' : 'Create invoice'),
+      ),
+      body: SafeArea(
+        child: BlocBuilder<InvoiceCreateCubit, InvoiceCreateState>(
+          builder: (context, state) {
+            if (state.result != null) {
+              return _InvoiceCreatedView(state: state);
+            }
+
+            return GestureDetector(
+              onTap: FocusScope.of(context).unfocus,
+              behavior: HitTestBehavior.translucent,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (!_showDetails)
+                    ..._amountStep(context, state)
+                  else
+                    ..._detailsStep(context, state),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _amountStep(BuildContext context, InvoiceCreateState state) {
+    final hasAmount = state.amountSat != null || state.fiatAmountMinor != null;
+    return [
+      PriceInput(
+        currency: _currency,
+        amountEquivalent: _currency == _satsCurrency
+            ? 'server locks fiat rate'
+            : 'server quotes sats',
+        availableCurrencies: [
+          BitcoinUnit.sats.code,
+          ...invoiceSupportedFiatCurrencies,
+        ],
+        onCurrencyChanged: state.isBusy
+            ? null
+            : (currency) {
+                setState(() => _currency = currency);
+                _amountController.clear();
+                _syncAmount();
+              },
+        onNoteChanged: null,
+        amountController: _amountController,
+        focusNode: _amountFocusNode,
+        error: state.error,
+        readOnly: state.isBusy,
+      ),
+      const Gap(24),
+      BBButton.big(
+        label: 'Continue',
+        disabled: state.isBusy || !hasAmount,
+        onPressed: () => setState(() => _showDetails = true),
+        bgColor: context.appColors.secondary,
+        textColor: context.appColors.onSecondary,
+      ),
+    ];
+  }
+
+  List<Widget> _detailsStep(BuildContext context, InvoiceCreateState state) {
+    return [
+      _SelectedAmountRow(
+        label: _selectedAmountLabel(state),
+        onEdit: state.isBusy
+            ? null
+            : () => setState(() => _showDetails = false),
+      ),
+      const Gap(16),
+      if (state.error != null) ...[
+        Text(state.error!, style: TextStyle(color: context.appColors.error)),
+        const Gap(16),
+      ],
+      TextField(
+        controller: _publicDescriptionController,
+        decoration: const InputDecoration(labelText: 'Public description'),
+        enabled: !state.isBusy,
+        maxLength: 1000,
+        maxLines: 3,
+        onChanged: context.read<InvoiceCreateCubit>().setPublicDescription,
+      ),
+      const Gap(12),
+      TextField(
+        controller: _recipientNameController,
+        decoration: const InputDecoration(labelText: 'Recipient'),
+        enabled: !state.isBusy,
+        maxLength: 100,
+        onChanged: context.read<InvoiceCreateCubit>().setRecipientName,
+      ),
+      const Gap(12),
+      TextField(
+        controller: _invoiceNumberController,
+        decoration: const InputDecoration(labelText: 'Invoice #'),
+        enabled: !state.isBusy,
+        maxLength: 50,
+        onChanged: context.read<InvoiceCreateCubit>().setInvoiceNumber,
+      ),
+      const Gap(12),
+      _ExpirySelector(state: state),
+      const Gap(12),
+      SwitchListTile(
+        value: state.acceptBtc,
+        title: const Text('Bitcoin on-chain'),
+        onChanged: state.isBusy
+            ? null
+            : context.read<InvoiceCreateCubit>().setAcceptBtc,
+      ),
+      SwitchListTile(
+        value: state.acceptLn,
+        title: const Text('Lightning'),
+        onChanged: state.isBusy
+            ? null
+            : context.read<InvoiceCreateCubit>().setAcceptLn,
+      ),
+      SwitchListTile(
+        value: state.acceptLiquid,
+        title: const Text('Liquid'),
+        onChanged: state.isBusy
+            ? null
+            : context.read<InvoiceCreateCubit>().setAcceptLiquid,
+      ),
+      if (widget.paymentPageNym != null)
+        SwitchListTile(
+          value: _linkToPaymentPage,
+          title: Text('Link to ${widget.paymentPageNym}'),
+          onChanged: state.isBusy
+              ? null
+              : (value) {
+                  setState(() => _linkToPaymentPage = value);
+                  context.read<InvoiceCreateCubit>().setLinkToPageNym(
+                    value ? widget.paymentPageNym! : '',
+                  );
+                },
+        ),
+      const Gap(12),
+      TextField(
+        controller: _privateMemoController,
+        decoration: const InputDecoration(labelText: 'Private memo'),
+        enabled: !state.isBusy,
+        maxLines: 2,
+        onChanged: context.read<InvoiceCreateCubit>().setPrivateMemo,
+      ),
+      const Gap(24),
+      BBButton.big(
+        label: state.isSubmitting ? 'Creating...' : 'Create invoice',
+        disabled: state.isBusy,
+        onPressed: context.read<InvoiceCreateCubit>().submit,
+        bgColor: context.appColors.secondary,
+        textColor: context.appColors.onSecondary,
+      ),
+    ];
+  }
+
+  void _syncAmount() {
+    final cubit = context.read<InvoiceCreateCubit>();
+    final text = _amountController.text.trim();
+    if (_currency == _satsCurrency) {
+      cubit.setAmountSat(text.isEmpty ? null : int.tryParse(text));
+      return;
+    }
+    cubit.setFiatAmount(minor: _parseFiatMinor(text), currency: _currency);
+  }
+
+  int? _parseFiatMinor(String value) {
+    if (value.isEmpty) return null;
+    final normalized = value.replaceAll(',', '.');
+    final parts = normalized.split('.');
+    if (parts.length > 2) return null;
+    final major = int.tryParse(parts.first);
+    if (major == null) return null;
+    final centsText = parts.length == 1 ? '' : parts.last;
+    final precision = invoiceFiatCurrencyPrecision(_currency);
+    if (centsText.length > precision) return null;
+    final cents = centsText.isEmpty
+        ? 0
+        : int.tryParse(centsText.padRight(precision, '0'));
+    if (cents == null) return null;
+    return major * invoiceMajorToMinorUnitFactor(_currency) + cents;
+  }
+
+  String _selectedAmountLabel(InvoiceCreateState state) {
+    if (state.amountSat != null) return '${state.amountSat} sats';
+    final fiatAmount = state.fiatAmountMinor;
+    final fiatCurrency = state.fiatCurrency;
+    if (fiatAmount != null && fiatCurrency != null) {
+      return '${invoiceFiatMinorToMajorString(fiatAmount, fiatCurrency)} $fiatCurrency';
+    }
+    return 'No amount';
+  }
+}
+
+class _SelectedAmountRow extends StatelessWidget {
+  final String label;
+  final VoidCallback? onEdit;
+
+  const _SelectedAmountRow({required this.label, required this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: context.font.headlineSmall)),
+        TextButton(onPressed: onEdit, child: const Text('Edit amount')),
+      ],
+    );
+  }
+}
+
+class _ExpirySelector extends StatelessWidget {
+  final InvoiceCreateState state;
+
+  const _ExpirySelector({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<int>(
+      initialValue: state.expiresAt
+          .difference(DateTime.now().toUtc())
+          .inDays
+          .clamp(1, 7),
+      decoration: const InputDecoration(labelText: 'Expires in'),
+      items: [
+        for (var day = 1; day <= 7; day++)
+          DropdownMenuItem(
+            value: day,
+            child: Text('$day day${day == 1 ? '' : 's'}'),
+          ),
+      ],
+      onChanged: state.isBusy
+          ? null
+          : (days) {
+              if (days == null) return;
+              context.read<InvoiceCreateCubit>().setExpiresAt(
+                DateTime.now().toUtc().add(Duration(days: days)),
+              );
+            },
+    );
+  }
+}
+
+class _InvoiceCreatedView extends StatelessWidget {
+  final InvoiceCreateState state;
+
+  const _InvoiceCreatedView({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final result = state.result!;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text('Invoice created', style: context.font.headlineSmall),
+        const Gap(16),
+        CopyInput(text: result.shareUrl.value),
+        const Gap(24),
+        BBButton.big(
+          label: 'Done',
+          onPressed: () => Navigator.of(context).pop(true),
+          bgColor: context.appColors.secondary,
+          textColor: context.appColors.onSecondary,
+        ),
+      ],
+    );
+  }
+}
