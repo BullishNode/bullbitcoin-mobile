@@ -1,5 +1,6 @@
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_constants.dart';
+import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dart';
 
 class SavePaymentPageCommand {
   static final _twitterHandleRegex = RegExp(r'^[A-Za-z0-9_]{1,50}$');
@@ -28,17 +29,17 @@ class SavePaymentPageCommand {
   }
 
   void _validate() {
-    if (!paymentPageNymRegex.hasMatch(nym)) {
+    if (!bullnymNymRegex.hasMatch(nym)) {
       throw const PaymentPageValidationError(
         'nym must be 3-32 lowercase letters, numbers, or hyphens',
       );
     }
-    if (header.isEmpty || utf8ByteLength(header) > 80) {
+    if (header.isEmpty || bullnymUtf8ByteLength(header) > 80) {
       throw const PaymentPageValidationError(
         'must be between 1 and 80 characters',
       );
     }
-    if (description.isEmpty || utf8ByteLength(description) > 280) {
+    if (description.isEmpty || bullnymUtf8ByteLength(description) > 280) {
       throw const PaymentPageValidationError(
         'must be between 1 and 280 characters',
       );
@@ -53,7 +54,7 @@ class SavePaymentPageCommand {
     if (websiteValue != null &&
         websiteValue.isNotEmpty &&
         (!websiteValue.startsWith('https://') ||
-            utf8ByteLength(websiteValue) > 200)) {
+            bullnymUtf8ByteLength(websiteValue) > 200)) {
       throw const PaymentPageValidationError(
         'must start with https:// and be at most 200 characters',
       );

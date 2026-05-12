@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/cancel_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/create_invoice_result.dart';
@@ -49,7 +50,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       return dto.toCreateResult();
     } on BullnymException catch (e) {
       throw _mapBullnymError(e);
-    } on ArgumentError {
+    } on ArgumentError catch (e) {
+      log.warning('Unexpected invoice wire shape', error: e);
       throw const InvoicesUnexpectedError('Unexpected invoice response');
     }
   }
@@ -68,7 +70,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       return dto.toCancelResult();
     } on BullnymException catch (e) {
       throw _mapBullnymError(e);
-    } on ArgumentError {
+    } on ArgumentError catch (e) {
+      log.warning('Unexpected invoice wire shape', error: e);
       throw const InvoicesUnexpectedError('Unexpected invoice response');
     }
   }
@@ -88,7 +91,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       return dto.invoices.map((invoice) => invoice.toEntity()).toList();
     } on BullnymException catch (e) {
       throw _mapBullnymError(e);
-    } on ArgumentError {
+    } on ArgumentError catch (e) {
+      log.warning('Unexpected invoice wire shape', error: e);
       throw const InvoicesUnexpectedError('Unexpected invoice response');
     }
   }
@@ -102,7 +106,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       return dto.toStatusSnapshot(id);
     } on BullnymException catch (e) {
       throw _mapBullnymError(e);
-    } on ArgumentError {
+    } on ArgumentError catch (e) {
+      log.warning('Unexpected invoice wire shape', error: e);
       throw const InvoicesUnexpectedError('Unexpected invoice response');
     }
   }

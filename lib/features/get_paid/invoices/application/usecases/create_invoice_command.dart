@@ -1,5 +1,6 @@
 import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.dart';
+import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dart';
 
 class CreateInvoiceCommand {
   static const Duration minExpiry = Duration(seconds: 60);
@@ -50,6 +51,12 @@ class CreateInvoiceCommand {
     if (fiatAmountMinor != null && fiatAmountMinor! <= 0) {
       throw const InvoicesValidationError('fiatAmountMinor must be positive');
     }
+    if (fiatAmountMinor != null &&
+        fiatAmountMinor! > invoiceMaxFiatAmountMinor) {
+      throw const InvoicesValidationError(
+        'fiatAmountMinor must be 1000000000 or less',
+      );
+    }
     if (fiatAmountMinor != null && fiatCurrency == null) {
       throw const InvoicesValidationError(
         'fiatCurrency is required with fiatAmountMinor',
@@ -66,26 +73,26 @@ class CreateInvoiceCommand {
       );
     }
     final linkedNym = linkToPageNym;
-    if (linkedNym != null && !invoiceNymRegex.hasMatch(linkedNym)) {
+    if (linkedNym != null && !bullnymNymRegex.hasMatch(linkedNym)) {
       throw const InvoicesValidationError('linkToPageNym is invalid');
     }
     final description = publicDescription;
     if (description != null &&
-        invoiceUtf8ByteLength(description) > invoicePublicDescriptionMaxBytes) {
+        bullnymUtf8ByteLength(description) > invoicePublicDescriptionMaxBytes) {
       throw const InvoicesValidationError(
         'publicDescription must be 1000 bytes or less',
       );
     }
     final recipient = recipientName;
     if (recipient != null &&
-        invoiceUtf8ByteLength(recipient) > invoiceRecipientNameMaxBytes) {
+        bullnymUtf8ByteLength(recipient) > invoiceRecipientNameMaxBytes) {
       throw const InvoicesValidationError(
         'recipientName must be 100 bytes or less',
       );
     }
     final number = invoiceNumber;
     if (number != null &&
-        invoiceUtf8ByteLength(number) > invoiceNumberMaxBytes) {
+        bullnymUtf8ByteLength(number) > invoiceNumberMaxBytes) {
       throw const InvoicesValidationError(
         'invoiceNumber must be 50 bytes or less',
       );

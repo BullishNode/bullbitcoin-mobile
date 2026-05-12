@@ -187,6 +187,107 @@ void main() {
       throwsA(isA<InvoicesUnexpectedError>()),
     );
   });
+
+  test(
+    'maps unexpected create response shape to typed invoice errors',
+    () async {
+      when(
+        () => bullnymClient.createInvoice(
+          handle: handle,
+          nym: 'alice',
+          amountSat: 1000,
+          fiatAmountMinor: null,
+          fiatCurrency: null,
+          publicDescription: 'Coffee',
+          recipientName: 'Alice',
+          invoiceNumber: 'INV-1',
+          acceptBtc: true,
+          acceptLn: true,
+          acceptLiquid: true,
+          bitcoinAddress: 'bc1qexample',
+          liquidAddress: 'lq1example',
+          expiresAt: expiresAt,
+        ),
+      ).thenAnswer(
+        (_) async => const BullnymCreateInvoiceResponseDto(
+          invoiceId: '00000000-0000-0000-0000-000000000001',
+          shareUrl:
+              'http://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+        ),
+      );
+
+      await expectLater(
+        datasource.createInvoice(
+          command: CreateInvoiceCommand(
+            amountSat: 1000,
+            fiatAmountMinor: null,
+            fiatCurrency: null,
+            publicDescription: 'Coffee',
+            recipientName: 'Alice',
+            invoiceNumber: 'INV-1',
+            acceptBtc: true,
+            acceptLn: true,
+            acceptLiquid: true,
+            expiresAt: expiresAt,
+            linkToPageNym: 'alice',
+            privateMemo: null,
+            now: DateTime.utc(2026, 5, 11),
+          ),
+          handle: handle,
+          bitcoinAddress: 'bc1qexample',
+          liquidAddress: 'lq1example',
+        ),
+        throwsA(isA<InvoicesUnexpectedError>()),
+      );
+    },
+  );
+
+  test(
+    'maps unexpected cancel response shape to typed invoice errors',
+    () async {
+      when(
+        () => bullnymClient.cancelInvoice(
+          handle: handle,
+          invoiceId: '00000000-0000-0000-0000-000000000001',
+          nym: 'alice',
+        ),
+      ).thenAnswer(
+        (_) async => const BullnymCancelInvoiceResponseDto(
+          invoiceId: '00000000-0000-0000-0000-000000000001',
+          status: 'settled',
+        ),
+      );
+
+      await expectLater(
+        datasource.cancelInvoice(
+          command: CancelInvoiceCommand(
+            invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+            nymOwner: 'alice',
+          ),
+          handle: handle,
+        ),
+        throwsA(isA<InvoicesUnexpectedError>()),
+      );
+    },
+  );
+
+  test(
+    'maps unexpected status response shape to typed invoice errors',
+    () async {
+      when(
+        () => bullnymClient.getInvoiceStatus(
+          invoiceId: '00000000-0000-0000-0000-000000000001',
+        ),
+      ).thenAnswer((_) async => _statusDto(paidVia: 'cash'));
+
+      await expectLater(
+        datasource.getInvoiceStatus(
+          id: InvoiceId('00000000-0000-0000-0000-000000000001'),
+        ),
+        throwsA(isA<InvoicesUnexpectedError>()),
+      );
+    },
+  );
 }
 
 BullnymInvoiceListItemDto _invoiceDto({String status = 'unpaid'}) {
@@ -214,14 +315,14 @@ BullnymInvoiceListItemDto _invoiceDto({String status = 'unpaid'}) {
   );
 }
 
-BullnymInvoiceStatusDto _statusDto() {
-  return const BullnymInvoiceStatusDto(
+BullnymInvoiceStatusDto _statusDto({String? paidVia}) {
+  return BullnymInvoiceStatusDto(
     status: 'in_progress',
     amountSat: 1000,
     rateMinorPerBtc: null,
     rateLocksUntilUnix: 1778501700,
     expiresAtUnix: 1778587200,
-    paidVia: null,
+    paidVia: paidVia,
     paidAtUnix: null,
     paidAmountSat: null,
     lightningPr: 'lnbc...',

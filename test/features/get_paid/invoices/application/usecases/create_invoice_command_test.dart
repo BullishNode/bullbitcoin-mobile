@@ -30,19 +30,34 @@ void main() {
       throwsA(isA<InvoicesValidationError>()),
     );
   });
+
+  test('rejects fiat amounts over backend minor-unit cap', () {
+    expect(
+      () => _command(
+        now: now,
+        amountSat: null,
+        fiatAmountMinor: 1000000001,
+        fiatCurrency: 'USD',
+      ),
+      throwsA(isA<InvoicesValidationError>()),
+    );
+  });
 }
 
 CreateInvoiceCommand _command({
   required DateTime now,
+  int? amountSat = 1000,
+  int? fiatAmountMinor,
+  String? fiatCurrency,
   String? publicDescription = 'Coffee',
   String? recipientName = 'Alice',
   String? invoiceNumber = 'INV-1',
   String? linkToPageNym = 'alice',
 }) {
   return CreateInvoiceCommand(
-    amountSat: 1000,
-    fiatAmountMinor: null,
-    fiatCurrency: null,
+    amountSat: amountSat,
+    fiatAmountMinor: fiatAmountMinor,
+    fiatCurrency: fiatCurrency,
     publicDescription: publicDescription,
     recipientName: recipientName,
     invoiceNumber: invoiceNumber,
