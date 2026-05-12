@@ -36,6 +36,15 @@ void main() {
       () => _command(
         now: now,
         amountSat: null,
+        fiatAmountMinor: 1000000000,
+        fiatCurrency: 'USD',
+      ),
+      returnsNormally,
+    );
+    expect(
+      () => _command(
+        now: now,
+        amountSat: null,
         fiatAmountMinor: 1000000001,
         fiatCurrency: 'USD',
       ),
