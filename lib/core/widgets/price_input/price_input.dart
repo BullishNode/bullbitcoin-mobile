@@ -20,6 +20,7 @@ class PriceInput extends StatelessWidget {
     this.readOnly = false,
     this.isMax = false,
     this.amountDecimalPlaces,
+    this.showAmountEquivalent = true,
   });
 
   final String currency;
@@ -33,6 +34,7 @@ class PriceInput extends StatelessWidget {
   final bool readOnly;
   final bool isMax;
   final int? amountDecimalPlaces;
+  final bool showAmountEquivalent;
 
   @override
   Widget build(BuildContext context) {
@@ -135,14 +137,17 @@ class PriceInput extends StatelessWidget {
               ),
           ],
         ),
-        const Gap(14),
-        Text(
-          '~$amountEquivalent',
-          style: context.font.bodyLarge?.copyWith(
-            color: context.appColors.onSurfaceVariant,
+        if (showAmountEquivalent) ...[
+          const Gap(14),
+          Text(
+            '~$amountEquivalent',
+            style: context.font.bodyLarge?.copyWith(
+              color: context.appColors.onSurfaceVariant,
+            ),
           ),
-        ),
-        const Gap(14),
+          const Gap(14),
+        ] else
+          const Gap(14),
         if (onNoteChanged != null)
           Center(
             child: Container(

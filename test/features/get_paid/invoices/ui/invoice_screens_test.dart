@@ -536,6 +536,45 @@ void main() {
     expect(amountField.controller?.text, '1000');
   });
 
+  testWidgets(
+    'invoice create screen preserves fiat amount when editing details',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final createInvoice = _MockCreateInvoiceUsecase();
+
+      await tester.pumpWidget(
+        _app(
+          BlocProvider(
+            create: (_) => InvoiceCreateCubit(
+              createInvoice: createInvoice,
+              initialExpiresAt: DateTime.now().toUtc().add(
+                const Duration(hours: 1),
+              ),
+            )..setFiatAmount(minor: 12345, currency: 'CAD'),
+            child: const InvoiceCreateScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) => widget is BBButton && widget.label == 'Continue',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Edit amount'));
+      await tester.pumpAndSettle();
+
+      final amountField = tester.widget<TextField>(
+        find.byType(TextField).first,
+      );
+      expect(amountField.controller?.text, '123.45');
+    },
+  );
+
   testWidgets('invoice create screen disables submit when all rails are off', (
     tester,
   ) async {
@@ -645,8 +684,8 @@ void main() {
             ).captured.single
             as CreateInvoiceCommand;
     expect(
-      command.expiresAt.difference(DateTime.now().toUtc()).inHours,
-      inInclusiveRange(47, 48),
+      command.expiresAt.difference(DateTime.now().toUtc()).inSeconds,
+      closeTo(const Duration(days: 2).inSeconds, 10),
     );
   });
 

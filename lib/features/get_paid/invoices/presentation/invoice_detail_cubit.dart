@@ -66,7 +66,7 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
       final result = await _cancelInvoice.execute(
         command: CancelInvoiceCommand(invoiceId: id, nymOwner: state.nymOwner),
       );
-      if (isClosed) return result;
+      if (isClosed) return null;
       emit(
         state.copyWith(isCancelling: false, cancelResult: result, error: null),
       );

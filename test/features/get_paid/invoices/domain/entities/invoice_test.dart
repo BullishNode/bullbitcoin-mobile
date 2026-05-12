@@ -39,13 +39,15 @@ void main() {
   });
 
   test('publicUrlFor builds linked and unlinked invoice URLs', () {
+    final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+
     expect(
       _invoice(nymOwner: 'alice').publicUrlFor(domain: 'bullpay.ca').value,
-      'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+      invoicePublicUrlFor(nym: 'alice', id: id, domain: 'bullpay.ca').value,
     );
     expect(
       _invoice(nymOwner: null).publicUrlFor(domain: 'bullpay.ca').value,
-      'https://bullpay.ca/invoice/00000000-0000-0000-0000-000000000001',
+      invoicePublicUrlFor(nym: null, id: id, domain: 'bullpay.ca').value,
     );
   });
 

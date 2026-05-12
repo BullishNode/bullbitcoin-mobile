@@ -34,16 +34,13 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
 
   bool _linkToPaymentPage = false;
   bool _showDetails = false;
-  late final DateTime _expiryReferenceTime;
 
   @override
   void initState() {
     super.initState();
-    _expiryReferenceTime = DateTime.now().toUtc();
     _linkToPaymentPage = widget.paymentPageNym != null;
     _amountController.addListener(_syncAmount);
     final cubit = context.read<InvoiceCreateCubit>();
-    cubit.setExpiresAt(_expiresAtForDays(_expiryDaysFrom(cubit.state)));
     if (_linkToPaymentPage) {
       cubit.setLinkToPageNym(widget.paymentPageNym!);
     }
@@ -145,6 +142,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         amountEquivalent: currency == _satsCurrency
             ? 'fiat rate set at creation'
             : 'sats amount set at creation',
+        showAmountEquivalent: false,
         availableCurrencies: [
           BitcoinUnit.sats.code,
           ...invoiceSupportedFiatCurrencies,
@@ -363,7 +361,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
   }
 
   int _expiryDaysFrom(InvoiceCreateState state) {
-    final remaining = state.expiresAt.difference(_expiryReferenceTime);
+    final remaining = state.expiresAt.difference(DateTime.now().toUtc());
     if (remaining <= Duration.zero) return 1;
     return (remaining.inSeconds / Duration.secondsPerDay)
         .ceil()
@@ -372,7 +370,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
   }
 
   DateTime _expiresAtForDays(int days) {
-    return _expiryReferenceTime.add(Duration(days: days));
+    return DateTime.now().toUtc().add(Duration(days: days));
   }
 }
 
