@@ -30,6 +30,7 @@ class CreateInvoiceUsecase {
   Future<CreateInvoiceResult> execute({
     required CreateInvoiceCommand command,
   }) async {
+    final handle = await _invoiceIdentity.getSigningHandle();
     String? bitcoinAddress;
     String? liquidAddress;
 
@@ -67,7 +68,6 @@ class CreateInvoiceUsecase {
       liquidAddress = address.address;
     }
 
-    final handle = await _invoiceIdentity.getSigningHandle();
     final result = await _invoiceService.createInvoice(
       command: command,
       handle: handle,

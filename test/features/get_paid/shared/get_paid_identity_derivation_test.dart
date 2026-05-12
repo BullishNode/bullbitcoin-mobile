@@ -1,14 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/entities/signer_entity.dart';
-import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
-import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/get_paid/shared/get_paid_identity_derivation.dart';
-import 'package:bb_mobile/features/get_paid/shared/get_paid_nostr_identity.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -20,6 +17,8 @@ class _MockSeedRepository extends Mock implements SeedRepository {}
 const _kZeroMnemonic =
     'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const _kFingerprint = '73c5da0a';
+const _kExpectedZeroMnemonicPublicKeyHex =
+    'b9c12c506ead6fb1982e4e461f67b0613561c0d76aeec72dc50f71260b78243c';
 
 void main() {
   late _MockWalletRepository walletRepository;
@@ -49,14 +48,8 @@ void main() {
       ).thenAnswer((_) async => seed);
 
       final handle = await derivation.getSigningHandle();
-      final xprv = Bip32Derivation.getXprvFromSeed(seed.bytes, wallet.network);
-      final expected = NostrKeychainHandle.deriveFromBip85(
-        xprvBase58: xprv,
-        identity: getPaidNostrIdentity,
-        account: getPaidNostrAccount,
-      );
 
-      expect(handle?.publicKeyHex, expected.publicKeyHex);
+      expect(handle?.publicKeyHex, _kExpectedZeroMnemonicPublicKeyHex);
       verify(
         () =>
             walletRepository.getWallets(onlyDefaults: true, onlyBitcoin: true),

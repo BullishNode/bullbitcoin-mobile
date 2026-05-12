@@ -149,8 +149,8 @@ void main() {
         final command = _createCommand(
           now: now,
           acceptBtc: true,
-          acceptLn: false,
-          acceptLiquid: false,
+          acceptLn: true,
+          acceptLiquid: true,
           privateMemo: 'Order 100',
         );
         final result = _createResult();
@@ -166,6 +166,19 @@ void main() {
           ),
         ).thenAnswer((_) async => _address('bc1qinvoice'));
         when(
+          () =>
+              walletRepository.getWallets(onlyDefaults: true, onlyLiquid: true),
+        ).thenAnswer(
+          (_) async => [
+            _wallet(id: 'liq-wallet', network: Network.liquidMainnet),
+          ],
+        );
+        when(
+          () => walletAddressRepository.generateNewReceiveAddress(
+            walletId: 'liq-wallet',
+          ),
+        ).thenAnswer((_) async => _address('lq1invoice'));
+        when(
           () => invoiceIdentity.getSigningHandle(),
         ).thenAnswer((_) async => handle);
         when(
@@ -173,7 +186,7 @@ void main() {
             command: command,
             handle: handle,
             bitcoinAddress: 'bc1qinvoice',
-            liquidAddress: null,
+            liquidAddress: 'lq1invoice',
           ),
         ).thenAnswer((_) async => result);
         when(() => labelsFacade.store(any())).thenThrow(Exception('disk full'));
@@ -190,6 +203,118 @@ void main() {
           usecase.execute(command: command),
           completion(result),
         );
+        verify(() => labelsFacade.store(any())).called(2);
+      },
+    );
+
+    test('does not store memo labels when private memo is absent', () async {
+      final command = _createCommand(
+        now: now,
+        acceptBtc: true,
+        acceptLn: false,
+        acceptLiquid: false,
+      );
+      final result = _createResult();
+      when(
+        () => invoiceIdentity.getSigningHandle(),
+      ).thenAnswer((_) async => handle);
+      when(
+        () =>
+            walletRepository.getWallets(onlyDefaults: true, onlyBitcoin: true),
+      ).thenAnswer((_) async => [_wallet(id: 'btc-wallet')]);
+      when(
+        () => walletAddressRepository.generateNewReceiveAddress(
+          walletId: 'btc-wallet',
+        ),
+      ).thenAnswer((_) async => _address('bc1qinvoice'));
+      when(
+        () => invoiceService.createInvoice(
+          command: command,
+          handle: handle,
+          bitcoinAddress: 'bc1qinvoice',
+          liquidAddress: null,
+        ),
+      ).thenAnswer((_) async => result);
+
+      final usecase = _createUsecase(
+        walletRepository: walletRepository,
+        walletAddressRepository: walletAddressRepository,
+        labelsFacade: labelsFacade,
+        invoiceService: invoiceService,
+        invoiceIdentity: invoiceIdentity,
+      );
+
+      await expectLater(usecase.execute(command: command), completion(result));
+      verifyNever(() => labelsFacade.store(any()));
+    });
+
+    test('does not store memo labels when private memo is empty', () async {
+      final command = _createCommand(
+        now: now,
+        acceptBtc: true,
+        acceptLn: false,
+        acceptLiquid: false,
+        privateMemo: '',
+      );
+      final result = _createResult();
+      when(
+        () => invoiceIdentity.getSigningHandle(),
+      ).thenAnswer((_) async => handle);
+      when(
+        () =>
+            walletRepository.getWallets(onlyDefaults: true, onlyBitcoin: true),
+      ).thenAnswer((_) async => [_wallet(id: 'btc-wallet')]);
+      when(
+        () => walletAddressRepository.generateNewReceiveAddress(
+          walletId: 'btc-wallet',
+        ),
+      ).thenAnswer((_) async => _address('bc1qinvoice'));
+      when(
+        () => invoiceService.createInvoice(
+          command: command,
+          handle: handle,
+          bitcoinAddress: 'bc1qinvoice',
+          liquidAddress: null,
+        ),
+      ).thenAnswer((_) async => result);
+
+      final usecase = _createUsecase(
+        walletRepository: walletRepository,
+        walletAddressRepository: walletAddressRepository,
+        labelsFacade: labelsFacade,
+        invoiceService: invoiceService,
+        invoiceIdentity: invoiceIdentity,
+      );
+
+      await expectLater(usecase.execute(command: command), completion(result));
+      verifyNever(() => labelsFacade.store(any()));
+    });
+
+    test(
+      'throws typed error before generating addresses when identity is missing',
+      () async {
+        final command = _createCommand(now: now);
+        when(
+          () => invoiceIdentity.getSigningHandle(),
+        ).thenThrow(const InvoicesIdentityUnavailableError('missing identity'));
+
+        final usecase = _createUsecase(
+          walletRepository: walletRepository,
+          walletAddressRepository: walletAddressRepository,
+          labelsFacade: labelsFacade,
+          invoiceService: invoiceService,
+          invoiceIdentity: invoiceIdentity,
+        );
+
+        await expectLater(
+          usecase.execute(command: command),
+          throwsA(isA<InvoicesIdentityUnavailableError>()),
+        );
+        verifyNever(
+          () => walletAddressRepository.generateNewReceiveAddress(
+            walletId: any(named: 'walletId'),
+          ),
+        );
       },
     );
 
@@ -200,6 +325,9 @@ void main() {
         acceptLn: false,
         acceptLiquid: false,
       );
+      when(
+        () => invoiceIdentity.getSigningHandle(),
+      ).thenAnswer((_) async => handle);
       when(
         () =>
             walletRepository.getWallets(onlyDefaults: true, onlyBitcoin: true),
@@ -217,7 +345,7 @@ void main() {
         usecase.execute(command: command),
         throwsA(isA<InvoicesNoDefaultBitcoinWalletError>()),
       );
-      verifyNever(() => invoiceIdentity.getSigningHandle());
+      verify(() => invoiceIdentity.getSigningHandle()).called(1);
     });
 
     test('throws typed error when default Liquid wallet is missing', () async {
@@ -227,6 +355,9 @@ void main() {
         acceptLn: true,
         acceptLiquid: false,
       );
+      when(
+        () => invoiceIdentity.getSigningHandle(),
+      ).thenAnswer((_) async => handle);
       when(
         () => walletRepository.getWallets(onlyDefaults: true, onlyLiquid: true),
       ).thenAnswer((_) async => []);
@@ -243,7 +374,7 @@ void main() {
         usecase.execute(command: command),
         throwsA(isA<InvoicesNoDefaultLiquidWalletError>()),
       );
-      verifyNever(() => invoiceIdentity.getSigningHandle());
+      verify(() => invoiceIdentity.getSigningHandle()).called(1);
     });
   });
 
