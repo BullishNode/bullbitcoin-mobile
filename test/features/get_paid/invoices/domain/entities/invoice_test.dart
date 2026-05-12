@@ -48,6 +48,19 @@ void main() {
       'https://bullpay.ca/invoice/00000000-0000-0000-0000-000000000001',
     );
   });
+
+  test('invoicePublicUrlFor is the shared invoice URL contract', () {
+    final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+
+    expect(
+      invoicePublicUrlFor(nym: 'alice', id: id, domain: 'bullpay.ca').value,
+      'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+    );
+    expect(
+      invoicePublicUrlFor(nym: null, id: id, domain: 'bullpay.ca').value,
+      'https://bullpay.ca/invoice/00000000-0000-0000-0000-000000000001',
+    );
+  });
 }
 
 Invoice _invoice({

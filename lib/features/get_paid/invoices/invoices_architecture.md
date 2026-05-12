@@ -268,7 +268,7 @@ Screens:
 - Create flow:
   - amount step, reusing the existing amount input pattern available in the app;
   - details step with public description, invoice number, recipient name,
-    expiry constrained to the backend's 1-minute to 7-day window, rail toggles,
+    expiry exposed as a 1-to-7 day picker, rail toggles,
     link-to-payment-page toggle, and private memo.
 - Detail screen mirrors the transaction detail pattern: all relevant blocks are
   visible, cancel uses a confirmation dialog, URL copy is silent, and status
@@ -292,6 +292,11 @@ deep-linkable create substeps.
 The expiry selector is a 1-to-7 day picker, not the broader 1-to-30 day range
 that appeared in the early plan text. The backend wallet-origin expiry cap is 7
 days today, so the UI intentionally exposes only values the server accepts.
+
+The countdown extension shipped with `CountdownFormat.mmss` as the default enum
+case instead of the early-plan `hms` name because existing callers already
+present `MM:SS`; preserving that vocabulary avoided non-invoice churn. The
+`dhm` display intentionally drops seconds and renders minutes as `min`.
 
 ## Pagination And Filtering
 

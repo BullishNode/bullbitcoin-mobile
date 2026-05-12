@@ -20,6 +20,7 @@ import 'package:bb_mobile/features/get_paid/invoices/ui/invoices_router.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_create_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_detail_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_list_screen.dart';
+import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/amount_input_formatter.dart';
 import 'package:bb_mobile/core/widgets/timers/countdown.dart';
@@ -585,6 +586,15 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final createInvoice = _MockCreateInvoiceUsecase();
+    final result = CreateInvoiceResult(
+      invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+      shareUrl: InvoiceUrl(
+        'https://bullpay.ca/invoice/00000000-0000-0000-0000-000000000001',
+      ),
+    );
+    when(
+      () => createInvoice.execute(command: any(named: 'command')),
+    ).thenAnswer((_) async => result);
 
     await tester.pumpWidget(
       _app(
@@ -620,6 +630,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2 days'), findsOneWidget);
+
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is BBButton && widget.label == 'Create invoice',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final command =
+        verify(
+              () =>
+                  createInvoice.execute(command: captureAny(named: 'command')),
+            ).captured.single
+            as CreateInvoiceCommand;
+    expect(
+      command.expiresAt.difference(DateTime.now().toUtc()).inHours,
+      inInclusiveRange(47, 48),
+    );
   });
 
   testWidgets('invoice detail cancel confirms before cancelling', (
@@ -775,7 +803,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('https://bullpay.ca/alice/i/$id'), findsOneWidget);
+    expect(
+      find.text(
+        invoicePublicUrlFor(
+          nym: 'alice',
+          id: id,
+          domain: bullnymDefaultDomain,
+        ).value,
+      ),
+      findsOneWidget,
+    );
   });
 
   test('COP amount formatter rejects decimals', () {

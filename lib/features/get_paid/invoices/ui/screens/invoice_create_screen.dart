@@ -34,17 +34,18 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
 
   bool _linkToPaymentPage = false;
   bool _showDetails = false;
-  int _expiryDays = 1;
+  late final DateTime _expiryReferenceTime;
 
   @override
   void initState() {
     super.initState();
+    _expiryReferenceTime = DateTime.now().toUtc();
     _linkToPaymentPage = widget.paymentPageNym != null;
     _amountController.addListener(_syncAmount);
+    final cubit = context.read<InvoiceCreateCubit>();
+    cubit.setExpiresAt(_expiresAtForDays(_expiryDaysFrom(cubit.state)));
     if (_linkToPaymentPage) {
-      context.read<InvoiceCreateCubit>().setLinkToPageNym(
-        widget.paymentPageNym!,
-      );
+      cubit.setLinkToPageNym(widget.paymentPageNym!);
     }
   }
 
@@ -240,11 +241,10 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
       const Gap(12),
       _ExpirySelector(
         state: state,
-        selectedDays: _expiryDays,
+        selectedDays: _expiryDaysFrom(state),
         onChanged: (days) {
-          setState(() => _expiryDays = days);
           context.read<InvoiceCreateCubit>().setExpiresAt(
-            DateTime.now().toUtc().add(Duration(days: days)),
+            _expiresAtForDays(days),
           );
         },
       ),
@@ -360,6 +360,19 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
       return '${invoiceFiatMinorToMajorString(fiatAmount, fiatCurrency)} $fiatCurrency';
     }
     return 'No amount';
+  }
+
+  int _expiryDaysFrom(InvoiceCreateState state) {
+    final remaining = state.expiresAt.difference(_expiryReferenceTime);
+    if (remaining <= Duration.zero) return 1;
+    return (remaining.inSeconds / Duration.secondsPerDay)
+        .ceil()
+        .clamp(1, 7)
+        .toInt();
+  }
+
+  DateTime _expiresAtForDays(int days) {
+    return _expiryReferenceTime.add(Duration(days: days));
   }
 }
 
