@@ -1,6 +1,7 @@
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/ui/payment_page_router.dart';
+import 'package:bb_mobile/features/get_paid/invoices/ui/invoices_router.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
@@ -128,6 +129,51 @@ void main() {
 
     verify(() => findPaymentPage.execute(nym: 'alice')).called(2);
     expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
+  });
+
+  testWidgets('opens invoices route from dashboard slot', (tester) async {
+    when(
+      () => lightningAddressFacade.getCurrentLightningAddress(),
+    ).thenAnswer((_) async => 'alice@bullpay.ca');
+    when(
+      () => lightningAddressFacade.getCurrentNym(),
+    ).thenAnswer((_) async => 'alice');
+    when(
+      () => findPaymentPage.execute(nym: 'alice'),
+    ).thenAnswer((_) async => null);
+
+    final router = GoRouter(
+      initialLocation: '/get-paid',
+      routes: [
+        GoRoute(
+          path: '/get-paid',
+          builder: (context, state) => BlocProvider(
+            create: (_) => GetPaidDashboardCubit(
+              lightningAddressFacade: lightningAddressFacade,
+              findPaymentPage: findPaymentPage,
+            ),
+            child: const GetPaidDashboardScreen(),
+          ),
+          routes: [
+            GoRoute(
+              name: InvoicesRoute.list.name,
+              path: InvoicesRoute.list.path,
+              builder: (context, state) =>
+                  const Scaffold(body: Text('Invoices list')),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Invoices list'), findsOneWidget);
   });
 }
 

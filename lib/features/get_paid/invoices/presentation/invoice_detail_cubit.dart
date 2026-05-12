@@ -5,6 +5,7 @@ import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/get_invoice_usecase.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail_state.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_error_message.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
@@ -36,7 +37,8 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
       emit(state.copyWith(snapshot: snapshot, isLoading: false, error: null));
     } on InvoicesApplicationError catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isLoading: false, error: e.message));
+      log.warning('Invoice detail application error', error: e);
+      emit(state.copyWith(isLoading: false, error: invoiceErrorMessage(e)));
     } on Exception catch (e) {
       if (isClosed) return;
       log.warning('Invoice detail load failed', error: e);
@@ -69,7 +71,8 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
       );
     } on InvoicesApplicationError catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isCancelling: false, error: e.message));
+      log.warning('Invoice cancel application error', error: e);
+      emit(state.copyWith(isCancelling: false, error: invoiceErrorMessage(e)));
     } on Exception catch (e) {
       if (isClosed) return;
       log.warning('Invoice cancel failed', error: e);

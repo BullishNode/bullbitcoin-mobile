@@ -1,10 +1,11 @@
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
+import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dart';
 import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_errors.dart';
 import 'package:bb_mobile/features/get_paid/shared/bullnym/bullpay_signing.dart';
 import 'package:bb_mobile/features/get_paid/shared/bullnym/models/bullnym_models.dart';
 import 'package:dio/dio.dart';
 
-const String defaultBullnymBaseUrl = 'https://bullpay.ca';
+const String defaultBullnymBaseUrl = bullnymDefaultBaseUrl;
 const Duration bullnymConnectTimeout = Duration(seconds: 10);
 const Duration bullnymReceiveTimeout = Duration(seconds: 15);
 

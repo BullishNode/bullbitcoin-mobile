@@ -114,12 +114,12 @@ class InvoiceListItem extends StatelessWidget {
   Color _statusColor(BuildContext context, InvoiceStatus status) {
     return switch (status) {
       InvoiceStatus.paid => context.appColors.success,
-      InvoiceStatus.unpaid ||
-      InvoiceStatus.inProgress => context.appColors.border,
+      InvoiceStatus.unpaid => context.appColors.border,
+      InvoiceStatus.inProgress => context.appColors.warning,
       InvoiceStatus.expired ||
       InvoiceStatus.cancelled => context.appColors.textMuted,
       InvoiceStatus.underpaid ||
-      InvoiceStatus.overpaid => context.appColors.primary,
+      InvoiceStatus.overpaid => context.appColors.error,
     };
   }
 }

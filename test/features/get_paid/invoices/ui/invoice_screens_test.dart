@@ -20,6 +20,7 @@ import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_create_s
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_detail_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_list_screen.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
+import 'package:bb_mobile/core/widgets/timers/countdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -174,7 +175,7 @@ void main() {
     ).called(2);
   });
 
-  testWidgets('invoice list refreshes after returning from detail', (
+  testWidgets('invoice list does not refresh after plain detail back', (
     tester,
   ) async {
     final listInvoices = _MockListInvoicesUsecase();
@@ -228,6 +229,68 @@ void main() {
     await tester.tap(find.text('Coffee'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Back from detail'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('unpaid'), findsOneWidget);
+    verify(
+      () => listInvoices.execute(command: any(named: 'command')),
+    ).called(1);
+  });
+
+  testWidgets('invoice list refreshes when detail route pops true', (
+    tester,
+  ) async {
+    final listInvoices = _MockListInvoicesUsecase();
+    var callCount = 0;
+    when(() => listInvoices.execute(command: any(named: 'command'))).thenAnswer(
+      (_) async {
+        callCount += 1;
+        return [
+          _invoice(
+            id: '00000000-0000-0000-0000-000000000001',
+            status: callCount == 1
+                ? InvoiceStatus.unpaid
+                : InvoiceStatus.cancelled,
+            description: 'Coffee',
+            now: now,
+          ),
+        ];
+      },
+    );
+
+    final router = GoRouter(
+      initialLocation: '/invoices',
+      routes: [
+        GoRoute(
+          path: '/invoices',
+          builder: (context, state) => BlocProvider(
+            create: (_) => InvoicesListCubit(listInvoices: listInvoices),
+            child: const InvoicesListScreen(),
+          ),
+          routes: [
+            GoRoute(
+              name: InvoicesRoute.detail.name,
+              path: 'detail/:invoiceId',
+              builder: (context, state) => Scaffold(
+                body: TextButton(
+                  onPressed: () => context.pop(true),
+                  child: const Text('Changed detail'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    expect(find.text('unpaid'), findsOneWidget);
+
+    await tester.tap(find.text('Coffee'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Changed detail'));
     await tester.pumpAndSettle();
 
     expect(find.text('cancelled'), findsOneWidget);
@@ -290,6 +353,86 @@ void main() {
     expect(command.fiatAmountMinor, isNull);
   });
 
+  testWidgets('invoice create screen preserves amount when editing details', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final createInvoice = _MockCreateInvoiceUsecase();
+
+    await tester.pumpWidget(
+      _app(
+        BlocProvider(
+          create: (_) => InvoiceCreateCubit(
+            createInvoice: createInvoice,
+            initialExpiresAt: DateTime.now().toUtc().add(
+              const Duration(hours: 1),
+            ),
+          ),
+          child: const InvoiceCreateScreen(),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.pump();
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is BBButton && widget.label == 'Continue',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Edit amount'));
+    await tester.pumpAndSettle();
+
+    final amountField = tester.widget<TextField>(find.byType(TextField).first);
+    expect(amountField.controller?.text, '1000');
+  });
+
+  testWidgets('invoice create screen disables submit when all rails are off', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final createInvoice = _MockCreateInvoiceUsecase();
+
+    await tester.pumpWidget(
+      _app(
+        BlocProvider(
+          create: (_) => InvoiceCreateCubit(
+            createInvoice: createInvoice,
+            initialExpiresAt: DateTime.now().toUtc().add(
+              const Duration(hours: 1),
+            ),
+          ),
+          child: const InvoiceCreateScreen(),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.pump();
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is BBButton && widget.label == 'Continue',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final label in ['Bitcoin on-chain', 'Lightning', 'Liquid']) {
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+
+    final createButton = tester.widget<BBButton>(
+      find.byWidgetPredicate(
+        (widget) => widget is BBButton && widget.label == 'Create invoice',
+      ),
+    );
+    expect(createButton.disabled, isTrue);
+  });
+
   testWidgets('invoice detail cancel confirms before cancelling', (
     tester,
   ) async {
@@ -306,22 +449,43 @@ void main() {
           CancelInvoiceResult(invoiceId: id, status: InvoiceStatus.cancelled),
     );
 
+    bool? poppedResult;
     await tester.pumpWidget(
-      _app(
-        BlocProvider(
-          create: (_) => InvoiceDetailCubit(
-            getInvoice: getInvoice,
-            cancelInvoice: cancelInvoice,
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              poppedResult = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider(
+                    create: (_) => InvoiceDetailCubit(
+                      getInvoice: getInvoice,
+                      cancelInvoice: cancelInvoice,
+                    ),
+                    child: InvoiceDetailScreen(
+                      invoiceId: id,
+                      nymOwner: 'alice',
+                    ),
+                  ),
+                ),
+              );
+            },
+            child: const Text('Open detail'),
           ),
-          child: InvoiceDetailScreen(invoiceId: id, nymOwner: 'alice'),
         ),
       ),
     );
+
+    await tester.tap(find.text('Open detail'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Cancel invoice'));
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is BBButton && widget.label == 'Cancel invoice',
+      ),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cancel invoice').last);
+    await tester.tap(find.text('Yes, cancel'));
     await tester.pumpAndSettle();
 
     final command =
@@ -332,6 +496,7 @@ void main() {
             as CancelInvoiceCommand;
     expect(command.invoiceId, id);
     expect(command.nymOwner, 'alice');
+    expect(poppedResult, isTrue);
   });
 
   testWidgets('invoice detail shows server-provided share URL', (tester) async {
@@ -360,6 +525,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Invoice URL'), findsOneWidget);
+    expect(find.text('https://bullpay.ca/alice/i/$id'), findsOneWidget);
+    expect(find.byType(Countdown), findsOneWidget);
+  });
+
+  testWidgets('invoice detail derives share URL when route omits it', (
+    tester,
+  ) async {
+    final getInvoice = _MockGetInvoiceUsecase();
+    final cancelInvoice = _MockCancelInvoiceUsecase();
+    final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+    when(() => getInvoice.execute(id: id)).thenAnswer(
+      (_) async => _snapshot(id: id, status: InvoiceStatus.unpaid, now: now),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        BlocProvider(
+          create: (_) => InvoiceDetailCubit(
+            getInvoice: getInvoice,
+            cancelInvoice: cancelInvoice,
+          ),
+          child: InvoiceDetailScreen(invoiceId: id, nymOwner: 'alice'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('https://bullpay.ca/alice/i/$id'), findsOneWidget);
   });
 }

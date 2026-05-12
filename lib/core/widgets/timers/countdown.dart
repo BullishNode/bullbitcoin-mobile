@@ -21,7 +21,7 @@ class Countdown extends StatefulWidget {
 
 class CountdownState extends State<Countdown> {
   late Duration remainingTime;
-  late Timer? timer;
+  Timer? timer;
 
   @override
   void initState() {

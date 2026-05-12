@@ -18,11 +18,26 @@ class InvoicesListScreen extends StatefulWidget {
   State<InvoicesListScreen> createState() => _InvoicesListScreenState();
 }
 
-class _InvoicesListScreenState extends State<InvoicesListScreen> {
+class _InvoicesListScreenState extends State<InvoicesListScreen>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     context.read<InvoicesListCubit>().load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<InvoicesListCubit>().refresh();
+    }
   }
 
   @override
@@ -85,7 +100,7 @@ class _InvoicesListScreenState extends State<InvoicesListScreen> {
   }
 
   Future<void> _openDetail(BuildContext context, Invoice invoice) async {
-    await context.pushNamed<void>(
+    final changed = await context.pushNamed<bool>(
       InvoicesRoute.detail.name,
       pathParameters: {'invoiceId': invoice.id.value},
       queryParameters: {
@@ -93,7 +108,7 @@ class _InvoicesListScreenState extends State<InvoicesListScreen> {
         if (invoice.shareUrl != null) 'shareUrl': invoice.shareUrl!.value,
       },
     );
-    if (context.mounted) {
+    if (changed == true && context.mounted) {
       await context.read<InvoicesListCubit>().refresh();
     }
   }

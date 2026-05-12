@@ -3,6 +3,7 @@ import 'package:bb_mobile/features/get_paid/invoices/application/invoices_applic
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_usecase.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_status.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_error_message.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoices_list_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -23,7 +24,8 @@ class InvoicesListCubit extends Cubit<InvoicesListState> {
       emit(state.copyWith(invoices: invoices, isLoading: false, error: null));
     } on InvoicesApplicationError catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isLoading: false, error: e.message));
+      log.warning('Invoices list application error', error: e);
+      emit(state.copyWith(isLoading: false, error: invoiceErrorMessage(e)));
     } on Exception catch (e) {
       if (isClosed) return;
       log.warning('Invoices list load failed', error: e);

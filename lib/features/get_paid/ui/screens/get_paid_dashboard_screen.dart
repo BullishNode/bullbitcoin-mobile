@@ -1,3 +1,4 @@
+import 'package:bb_mobile/features/get_paid/invoices/ui/invoices_router.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/ui/payment_page_router.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
@@ -85,12 +86,12 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                     icon: Icons.receipt_long,
                     title: 'Invoices',
                     subtitle: state.hasLightningAddress
-                        ? 'Coming soon'
+                        ? 'Create and manage invoices'
                         : 'Create a Lightning Address first',
-                    actionLabel: state.hasLightningAddress
-                        ? 'Coming soon'
-                        : 'Locked',
-                    onPressed: null,
+                    actionLabel: state.hasLightningAddress ? 'Open' : 'Locked',
+                    onPressed: state.hasLightningAddress
+                        ? () => context.pushNamed(InvoicesRoute.list.name)
+                        : null,
                   ),
                 ],
               ),

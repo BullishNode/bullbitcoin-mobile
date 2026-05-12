@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
@@ -7,6 +9,7 @@ import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.da
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 
@@ -29,7 +32,6 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
   final _invoiceNumberController = TextEditingController();
   final _privateMemoController = TextEditingController();
 
-  String _currency = _satsCurrency;
   bool _linkToPaymentPage = false;
   bool _showDetails = false;
 
@@ -58,42 +60,84 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_showDetails ? 'Invoice details' : 'Create invoice'),
-      ),
-      body: SafeArea(
-        child: BlocBuilder<InvoiceCreateCubit, InvoiceCreateState>(
-          builder: (context, state) {
+    return BlocBuilder<InvoiceCreateCubit, InvoiceCreateState>(
+      builder: (context, state) {
+        return PopScope(
+          canPop: !_showDetails && state.result == null,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
             if (state.result != null) {
-              return _InvoiceCreatedView(state: state);
+              Navigator.of(context).pop(true);
+              return;
             }
-
-            return GestureDetector(
-              onTap: FocusScope.of(context).unfocus,
-              behavior: HitTestBehavior.translucent,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (!_showDetails)
-                    ..._amountStep(context, state)
-                  else
-                    ..._detailsStep(context, state),
-                ],
-              ),
-            );
+            if (_showDetails) {
+              setState(() => _showDetails = false);
+            }
           },
-        ),
-      ),
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(_showDetails ? 'Invoice details' : 'Create invoice'),
+            ),
+            body: SafeArea(
+              child: state.result != null
+                  ? _InvoiceCreatedView(state: state)
+                  : GestureDetector(
+                      onTap: FocusScope.of(context).unfocus,
+                      behavior: HitTestBehavior.translucent,
+                      child: ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          if (!_showDetails)
+                            ..._amountStep(context, state)
+                          else
+                            ..._detailsStep(context, state),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+        );
+      },
     );
   }
 
+  bool _hasValidAmount(InvoiceCreateState state) {
+    final sats = state.amountSat;
+    if (sats != null) return sats > 0;
+    final fiat = state.fiatAmountMinor;
+    if (fiat == null) return false;
+    return fiat > 0 && fiat <= invoiceMaxFiatAmountMinor;
+  }
+
+  bool _hasRail(InvoiceCreateState state) {
+    return state.acceptBtc || state.acceptLn || state.acceptLiquid;
+  }
+
+  InputCounterWidgetBuilder _byteCounter(
+    TextEditingController controller,
+    int maxBytes,
+  ) {
+    return (context, {required currentLength, required isFocused, maxLength}) {
+      final bytes = utf8.encode(controller.text).length;
+      return Text(
+        '$bytes/$maxBytes bytes',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: bytes > maxBytes ? context.appColors.error : null,
+        ),
+      );
+    };
+  }
+
+  List<TextInputFormatter> _byteLimit(int maxBytes) {
+    return [_Utf8ByteLimitFormatter(maxBytes)];
+  }
+
   List<Widget> _amountStep(BuildContext context, InvoiceCreateState state) {
-    final hasAmount = state.amountSat != null || state.fiatAmountMinor != null;
+    final currency = _selectedCurrency(state);
     return [
       PriceInput(
-        currency: _currency,
-        amountEquivalent: _currency == _satsCurrency
+        currency: currency,
+        amountEquivalent: currency == _satsCurrency
             ? 'server locks fiat rate'
             : 'server quotes sats',
         availableCurrencies: [
@@ -103,9 +147,15 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         onCurrencyChanged: state.isBusy
             ? null
             : (currency) {
-                setState(() => _currency = currency);
                 _amountController.clear();
-                _syncAmount();
+                if (currency == _satsCurrency) {
+                  context.read<InvoiceCreateCubit>().setAmountSat(null);
+                } else {
+                  context.read<InvoiceCreateCubit>().setFiatAmount(
+                    minor: null,
+                    currency: currency,
+                  );
+                }
               },
         onNoteChanged: null,
         amountController: _amountController,
@@ -116,7 +166,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
       const Gap(24),
       BBButton.big(
         label: 'Continue',
-        disabled: state.isBusy || !hasAmount,
+        disabled: state.isBusy || !_hasValidAmount(state),
         onPressed: () => setState(() => _showDetails = true),
         bgColor: context.appColors.secondary,
         textColor: context.appColors.onSecondary,
@@ -130,7 +180,10 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         label: _selectedAmountLabel(state),
         onEdit: state.isBusy
             ? null
-            : () => setState(() => _showDetails = false),
+            : () {
+                _setAmountControllerFromState(state);
+                setState(() => _showDetails = false);
+              },
       ),
       const Gap(16),
       if (state.error != null) ...[
@@ -141,7 +194,13 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         controller: _publicDescriptionController,
         decoration: const InputDecoration(labelText: 'Public description'),
         enabled: !state.isBusy,
-        maxLength: 1000,
+        maxLength: invoicePublicDescriptionMaxBytes,
+        maxLengthEnforcement: MaxLengthEnforcement.none,
+        buildCounter: _byteCounter(
+          _publicDescriptionController,
+          invoicePublicDescriptionMaxBytes,
+        ),
+        inputFormatters: _byteLimit(invoicePublicDescriptionMaxBytes),
         maxLines: 3,
         onChanged: context.read<InvoiceCreateCubit>().setPublicDescription,
       ),
@@ -150,7 +209,13 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         controller: _recipientNameController,
         decoration: const InputDecoration(labelText: 'Recipient'),
         enabled: !state.isBusy,
-        maxLength: 100,
+        maxLength: invoiceRecipientNameMaxBytes,
+        maxLengthEnforcement: MaxLengthEnforcement.none,
+        buildCounter: _byteCounter(
+          _recipientNameController,
+          invoiceRecipientNameMaxBytes,
+        ),
+        inputFormatters: _byteLimit(invoiceRecipientNameMaxBytes),
         onChanged: context.read<InvoiceCreateCubit>().setRecipientName,
       ),
       const Gap(12),
@@ -158,7 +223,13 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         controller: _invoiceNumberController,
         decoration: const InputDecoration(labelText: 'Invoice #'),
         enabled: !state.isBusy,
-        maxLength: 50,
+        maxLength: invoiceNumberMaxBytes,
+        maxLengthEnforcement: MaxLengthEnforcement.none,
+        buildCounter: _byteCounter(
+          _invoiceNumberController,
+          invoiceNumberMaxBytes,
+        ),
+        inputFormatters: _byteLimit(invoiceNumberMaxBytes),
         onChanged: context.read<InvoiceCreateCubit>().setInvoiceNumber,
       ),
       const Gap(12),
@@ -209,7 +280,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
       const Gap(24),
       BBButton.big(
         label: state.isSubmitting ? 'Creating...' : 'Create invoice',
-        disabled: state.isBusy,
+        disabled: state.isBusy || !_hasRail(state) || !_hasValidAmount(state),
         onPressed: context.read<InvoiceCreateCubit>().submit,
         bgColor: context.appColors.secondary,
         textColor: context.appColors.onSecondary,
@@ -220,14 +291,18 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
   void _syncAmount() {
     final cubit = context.read<InvoiceCreateCubit>();
     final text = _amountController.text.trim();
-    if (_currency == _satsCurrency) {
+    final currency = _selectedCurrency(cubit.state);
+    if (currency == _satsCurrency) {
       cubit.setAmountSat(text.isEmpty ? null : int.tryParse(text));
       return;
     }
-    cubit.setFiatAmount(minor: _parseFiatMinor(text), currency: _currency);
+    cubit.setFiatAmount(
+      minor: _parseFiatMinor(text, currency),
+      currency: currency,
+    );
   }
 
-  int? _parseFiatMinor(String value) {
+  int? _parseFiatMinor(String value, String currency) {
     if (value.isEmpty) return null;
     final normalized = value.replaceAll(',', '.');
     final parts = normalized.split('.');
@@ -235,13 +310,32 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     final major = int.tryParse(parts.first);
     if (major == null) return null;
     final centsText = parts.length == 1 ? '' : parts.last;
-    final precision = invoiceFiatCurrencyPrecision(_currency);
+    final precision = invoiceFiatCurrencyPrecision(currency);
     if (centsText.length > precision) return null;
     final cents = centsText.isEmpty
         ? 0
         : int.tryParse(centsText.padRight(precision, '0'));
     if (cents == null) return null;
-    return major * invoiceMajorToMinorUnitFactor(_currency) + cents;
+    return major * invoiceMajorToMinorUnitFactor(currency) + cents;
+  }
+
+  String _selectedCurrency(InvoiceCreateState state) {
+    return state.fiatCurrency ?? _satsCurrency;
+  }
+
+  void _setAmountControllerFromState(InvoiceCreateState state) {
+    final nextText =
+        state.amountSat?.toString() ??
+        (state.fiatAmountMinor != null && state.fiatCurrency != null
+            ? invoiceFiatMinorToMajorString(
+                state.fiatAmountMinor!,
+                state.fiatCurrency!,
+              )
+            : '');
+    if (_amountController.text == nextText) return;
+    _amountController.removeListener(_syncAmount);
+    _amountController.text = nextText;
+    _amountController.addListener(_syncAmount);
   }
 
   String _selectedAmountLabel(InvoiceCreateState state) {
@@ -317,7 +411,7 @@ class _InvoiceCreatedView extends StatelessWidget {
       children: [
         Text('Invoice created', style: context.font.headlineSmall),
         const Gap(16),
-        CopyInput(text: result.shareUrl.value),
+        CopyInput(text: result.shareUrl.value, silent: true),
         const Gap(24),
         BBButton.big(
           label: 'Done',
@@ -327,5 +421,22 @@ class _InvoiceCreatedView extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _Utf8ByteLimitFormatter extends TextInputFormatter {
+  final int maxBytes;
+
+  _Utf8ByteLimitFormatter(this.maxBytes);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (utf8.encode(newValue.text).length <= maxBytes) {
+      return newValue;
+    }
+    return oldValue;
   }
 }

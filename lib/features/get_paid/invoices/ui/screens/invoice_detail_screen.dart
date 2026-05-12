@@ -1,10 +1,12 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
+import 'package:bb_mobile/core/widgets/timers/countdown.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_status.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail_cubit.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail_state.dart';
+import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -25,14 +27,29 @@ class InvoiceDetailScreen extends StatefulWidget {
   State<InvoiceDetailScreen> createState() => _InvoiceDetailScreenState();
 }
 
-class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
+class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     context.read<InvoiceDetailCubit>().load(
       id: widget.invoiceId,
       nymOwner: widget.nymOwner,
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<InvoiceDetailCubit>().refresh();
+    }
   }
 
   @override
@@ -61,7 +78,10 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                   if (state.snapshot == null)
                     const _MissingInvoiceView()
                   else
-                    _InvoiceDetailBody(state: state, shareUrl: widget.shareUrl),
+                    _InvoiceDetailBody(
+                      state: state,
+                      shareUrl: widget.shareUrl ?? _fallbackShareUrl(),
+                    ),
                 ],
               ),
             );
@@ -69,6 +89,14 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
         ),
       ),
     );
+  }
+
+  String _fallbackShareUrl() {
+    final nym = widget.nymOwner;
+    final id = widget.invoiceId.value;
+    return nym == null
+        ? '$bullnymDefaultBaseUrl/invoice/$id'
+        : '$bullnymDefaultBaseUrl/$nym/i/$id';
   }
 }
 
@@ -87,18 +115,26 @@ class _InvoiceDetailBody extends StatelessWidget {
       children: [
         _DetailRow(label: 'Status', value: _statusLabel(status)),
         _DetailRow(label: 'Amount', value: '${snapshot.amountSat} sats'),
-        _DetailRow(label: 'Expires', value: _expiryLabel(snapshot.expiresAt)),
+        _DetailWidgetRow(
+          label: 'Expires',
+          child: Countdown(
+            until: snapshot.expiresAt,
+            onTimeout: () {
+              context.read<InvoiceDetailCubit>().refresh();
+            },
+          ),
+        ),
         if (shareUrl != null) ...[
           const Gap(12),
           const Text('Invoice URL'),
           const Gap(6),
-          CopyInput(text: shareUrl!),
+          CopyInput(text: shareUrl!, silent: true),
         ],
         if (snapshot.bitcoinAddress != null) ...[
           const Gap(12),
           const Text('Bitcoin address'),
           const Gap(6),
-          CopyInput(text: snapshot.bitcoinAddress!),
+          CopyInput(text: snapshot.bitcoinAddress!, silent: true),
         ],
         if (snapshot.lightningPr != null) ...[
           const Gap(12),
@@ -110,13 +146,14 @@ class _InvoiceDetailBody extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             canShowValueModal: true,
             modalTitle: 'Lightning invoice',
+            silent: true,
           ),
         ],
         if (snapshot.liquidAddress != null) ...[
           const Gap(12),
           const Text('Liquid address'),
           const Gap(6),
-          CopyInput(text: snapshot.liquidAddress!),
+          CopyInput(text: snapshot.liquidAddress!, silent: true),
         ],
         if (snapshot.paidVia != null)
           _DetailRow(label: 'Paid via', value: snapshot.paidVia!.value),
@@ -153,13 +190,18 @@ class _InvoiceDetailBody extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Cancel invoice'),
+            child: const Text('Yes, cancel'),
           ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
     await context.read<InvoiceDetailCubit>().cancel();
+    if (!context.mounted) return;
+    final cancelResult = context.read<InvoiceDetailCubit>().state.cancelResult;
+    if (cancelResult != null) {
+      Navigator.of(context).pop(true);
+    }
   }
 
   String _statusLabel(InvoiceStatus status) {
@@ -167,18 +209,6 @@ class _InvoiceDetailBody extends StatelessWidget {
       InvoiceStatus.inProgress => 'in progress',
       _ => status.value,
     };
-  }
-
-  String _expiryLabel(DateTime expiresAt) {
-    final remaining = expiresAt.difference(DateTime.now().toUtc());
-    if (remaining.isNegative) return 'Expired';
-    if (remaining.inDays > 0) {
-      return '${remaining.inDays}d ${remaining.inHours % 24}h';
-    }
-    if (remaining.inHours > 0) {
-      return '${remaining.inHours}h ${remaining.inMinutes % 60}min';
-    }
-    return '${remaining.inMinutes}min';
   }
 }
 
@@ -211,6 +241,38 @@ class _DetailRow extends StatelessWidget {
               textAlign: TextAlign.end,
               style: context.font.bodyMedium,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailWidgetRow extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _DetailWidgetRow({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: context.font.bodyMedium?.copyWith(
+                color: context.appColors.textMuted,
+              ),
+            ),
+          ),
+          const Gap(12),
+          Expanded(
+            flex: 2,
+            child: Align(alignment: Alignment.centerRight, child: child),
           ),
         ],
       ),

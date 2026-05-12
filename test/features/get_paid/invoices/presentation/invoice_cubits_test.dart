@@ -109,7 +109,8 @@ void main() {
       await cubit.load();
 
       expect(cubit.state.isLoading, isFalse);
-      expect(cubit.state.error, 'bad signature');
+      expect(cubit.state.error, 'Invoice authorization failed.');
+      expect(cubit.state.error, isNot(contains('bad signature')));
     });
   });
 
@@ -273,10 +274,8 @@ void main() {
       await cubit.submit(now: now);
 
       expect(cubit.state.isSubmitting, isFalse);
-      expect(
-        cubit.state.error,
-        'invoice amount must be sats or fiat, but not both',
-      );
+      expect(cubit.state.error, 'Check the invoice details and try again.');
+      expect(cubit.state.error, isNot(contains('invoice amount')));
       verifyNever(() => createInvoice.execute(command: any(named: 'command')));
     });
   });
@@ -320,7 +319,8 @@ void main() {
       await cubit.load(id: id, nymOwner: 'alice');
 
       expect(cubit.state.isLoading, isFalse);
-      expect(cubit.state.error, 'invoice not found');
+      expect(cubit.state.error, 'Invoice not found.');
+      expect(cubit.state.error, isNot(contains('invoice not found')));
     });
 
     test('clears stale snapshot when loading a different invoice', () async {
@@ -400,7 +400,8 @@ void main() {
 
       expect(cubit.state.isCancelling, isFalse);
       expect(cubit.state.cancelResult, isNull);
-      expect(cubit.state.error, 'bad signature');
+      expect(cubit.state.error, 'Invoice authorization failed.');
+      expect(cubit.state.error, isNot(contains('bad signature')));
     });
 
     test('cancel before load is a no-op', () async {

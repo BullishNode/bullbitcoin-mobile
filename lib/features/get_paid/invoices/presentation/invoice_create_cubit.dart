@@ -3,6 +3,7 @@ import 'package:bb_mobile/features/get_paid/invoices/application/invoices_applic
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create_invoice_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create_invoice_usecase.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_state.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_error_message.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
@@ -115,7 +116,8 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
       emit(state.copyWith(isSubmitting: false, result: result, error: null));
     } on InvoicesApplicationError catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isSubmitting: false, error: e.message));
+      log.warning('Invoice create application error', error: e);
+      emit(state.copyWith(isSubmitting: false, error: invoiceErrorMessage(e)));
     } on Exception catch (e) {
       if (isClosed) return;
       log.warning('Invoice create failed', error: e);
