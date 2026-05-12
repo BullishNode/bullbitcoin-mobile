@@ -17,6 +17,7 @@ class _MockSeedRepository extends Mock implements SeedRepository {}
 const _kZeroMnemonic =
     'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const _kFingerprint = '73c5da0a';
+// BIP-85 application 86, identity 1, account 1 from the zero mnemonic seed.
 const _kExpectedZeroMnemonicPublicKeyHex =
     'b9c12c506ead6fb1982e4e461f67b0613561c0d76aeec72dc50f71260b78243c';
 
