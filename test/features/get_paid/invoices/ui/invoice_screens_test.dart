@@ -348,7 +348,7 @@ void main() {
         ),
       ),
     );
-    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.enterText(_amountField(), '1000');
     await tester.pump();
     await tester.tap(
       find.byWidgetPredicate(
@@ -520,7 +520,7 @@ void main() {
         ),
       ),
     );
-    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.enterText(_amountField(), '1000');
     await tester.pump();
     await tester.tap(
       find.byWidgetPredicate(
@@ -532,12 +532,13 @@ void main() {
     await tester.tap(find.text('Edit amount'));
     await tester.pumpAndSettle();
 
-    final amountField = tester.widget<TextField>(find.byType(TextField).first);
+    final amountField = tester.widget<TextField>(_amountField());
     expect(amountField.controller?.text, '1000');
   });
 
   for (final fiatCase in [
     (currency: 'USD', minor: 12345, display: '123.45'),
+    (currency: 'CAD', minor: 12345, display: '123.45'),
     (currency: 'COP', minor: 12345, display: '12345'),
   ]) {
     testWidgets(
@@ -566,10 +567,11 @@ void main() {
           ),
         );
         await tester.pump();
-        var amountField = tester.widget<TextField>(
-          find.byType(TextField).first,
-        );
+        var amountField = tester.widget<TextField>(_amountField());
         expect(amountField.controller?.text, fiatCase.display);
+        if (fiatCase.currency == 'COP') {
+          expect(amountField.keyboardType, TextInputType.number);
+        }
 
         await tester.tap(
           find.byWidgetPredicate(
@@ -581,7 +583,7 @@ void main() {
         await tester.tap(find.text('Edit amount'));
         await tester.pumpAndSettle();
 
-        amountField = tester.widget<TextField>(find.byType(TextField).first);
+        amountField = tester.widget<TextField>(_amountField());
         expect(amountField.controller?.text, fiatCase.display);
       },
     );
@@ -608,7 +610,7 @@ void main() {
         ),
       ),
     );
-    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.enterText(_amountField(), '1000');
     await tester.pump();
     await tester.tap(
       find.byWidgetPredicate(
@@ -660,7 +662,7 @@ void main() {
         ),
       ),
     );
-    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.enterText(_amountField(), '1000');
     await tester.pump();
     await tester.tap(
       find.byWidgetPredicate(
@@ -895,8 +897,10 @@ Widget _app(Widget child) {
   return MaterialApp(home: child);
 }
 
+Finder _amountField() => find.byKey(const ValueKey('invoice-amount-field'));
+
 Future<void> _submitSatsInvoice(WidgetTester tester) async {
-  await tester.enterText(find.byType(TextField).first, '1000');
+  await tester.enterText(_amountField(), '1000');
   await tester.pump();
   await tester.tap(
     find.byWidgetPredicate(

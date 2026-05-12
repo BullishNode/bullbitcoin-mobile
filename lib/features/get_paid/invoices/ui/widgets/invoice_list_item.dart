@@ -125,7 +125,7 @@ class InvoiceListItem extends StatelessWidget {
 
   Color _statusTextColor(BuildContext context, InvoiceStatus status) {
     return switch (status) {
-      InvoiceStatus.paid => context.appColors.onSurface,
+      InvoiceStatus.paid => context.appColors.onSurfaceFixed,
       InvoiceStatus.expired ||
       InvoiceStatus.cancelled => context.appColors.surface,
       _ => context.appColors.onSurface,

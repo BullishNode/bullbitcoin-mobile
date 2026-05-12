@@ -11,6 +11,7 @@ class PriceInput extends StatelessWidget {
     super.key,
     required this.currency,
     this.amountEquivalent,
+    this.amountFieldKey,
     required this.availableCurrencies,
     required this.onCurrencyChanged,
     required this.onNoteChanged,
@@ -24,6 +25,7 @@ class PriceInput extends StatelessWidget {
 
   final String currency;
   final String? amountEquivalent;
+  final Key? amountFieldKey;
   final List<String> availableCurrencies;
   final Function(String)? onCurrencyChanged;
   final Function(String)? onNoteChanged;
@@ -68,6 +70,7 @@ class PriceInput extends StatelessWidget {
                               ),
                             )
                           : TextField(
+                              key: amountFieldKey,
                               controller: amountController,
                               focusNode: focusNode,
                               keyboardType:

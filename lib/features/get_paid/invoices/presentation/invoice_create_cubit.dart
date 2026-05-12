@@ -4,6 +4,7 @@ import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create_invoice_usecase.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_state.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_error_message.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_expiry_days.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
@@ -142,13 +143,9 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
   }
 
   DateTime _expiresAtForSubmit(DateTime now) {
-    final remaining = state.expiresAt.difference(now);
-    final days = remaining <= Duration.zero
-        ? 1
-        : (remaining.inSeconds / Duration.secondsPerDay)
-              .ceil()
-              .clamp(1, 7)
-              .toInt();
-    return now.add(Duration(days: days));
+    return invoiceExpiresAtForDays(
+      days: invoiceExpiryDaysFrom(expiresAt: state.expiresAt, now: now),
+      now: now,
+    );
   }
 }

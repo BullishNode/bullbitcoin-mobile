@@ -8,6 +8,7 @@ import 'package:bb_mobile/core/widgets/price_input/price_input.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_state.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_expiry_days.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -137,6 +138,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     final currency = _selectedCurrency(state);
     return [
       PriceInput(
+        amountFieldKey: const ValueKey('invoice-amount-field'),
         currency: currency,
         amountDecimalPlaces: currency == _satsCurrency
             ? null
@@ -237,10 +239,13 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
       const Gap(12),
       _ExpirySelector(
         state: state,
-        selectedDays: _expiryDaysFrom(state),
+        selectedDays: invoiceExpiryDaysFrom(
+          expiresAt: state.expiresAt,
+          now: DateTime.now().toUtc(),
+        ),
         onChanged: (days) {
           context.read<InvoiceCreateCubit>().setExpiresAt(
-            _expiresAtForDays(days),
+            invoiceExpiresAtForDays(days: days, now: DateTime.now().toUtc()),
           );
         },
       ),
@@ -356,19 +361,6 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
       return '${invoiceFiatMinorToMajorString(fiatAmount, fiatCurrency)} $fiatCurrency';
     }
     return 'No amount';
-  }
-
-  int _expiryDaysFrom(InvoiceCreateState state) {
-    final remaining = state.expiresAt.difference(DateTime.now().toUtc());
-    if (remaining <= Duration.zero) return 1;
-    return (remaining.inSeconds / Duration.secondsPerDay)
-        .ceil()
-        .clamp(1, 7)
-        .toInt();
-  }
-
-  DateTime _expiresAtForDays(int days) {
-    return DateTime.now().toUtc().add(Duration(days: days));
   }
 }
 
