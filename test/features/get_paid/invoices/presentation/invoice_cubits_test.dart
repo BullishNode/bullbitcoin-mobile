@@ -163,6 +163,107 @@ void main() {
       expect(command.privateMemo, 'local memo');
     });
 
+    test('builds fiat command after fiat amount submit', () async {
+      final result = CreateInvoiceResult(
+        invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+        shareUrl: InvoiceUrl(
+          'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+        ),
+      );
+      when(
+        () => createInvoice.execute(command: any(named: 'command')),
+      ).thenAnswer((_) async => result);
+
+      final cubit = InvoiceCreateCubit(
+        createInvoice: createInvoice,
+        initialExpiresAt: now.add(const Duration(hours: 1)),
+      )..setFiatAmount(minor: 5000, currency: ' USD ');
+
+      await cubit.submit(now: now);
+
+      final command =
+          verify(
+                () => createInvoice.execute(
+                  command: captureAny(named: 'command'),
+                ),
+              ).captured.single
+              as CreateInvoiceCommand;
+      expect(command.amountSat, isNull);
+      expect(command.fiatAmountMinor, 5000);
+      expect(command.fiatCurrency, 'USD');
+    });
+
+    test('amount mode setters clear the other amount mode', () {
+      final cubit = InvoiceCreateCubit(
+        createInvoice: createInvoice,
+        initialExpiresAt: now.add(const Duration(hours: 1)),
+      );
+
+      cubit.setFiatAmount(minor: 5000, currency: 'USD');
+      cubit.setAmountSat(1000);
+
+      expect(cubit.state.amountSat, 1000);
+      expect(cubit.state.fiatAmountMinor, isNull);
+      expect(cubit.state.fiatCurrency, isNull);
+
+      cubit.setFiatAmount(minor: 2500, currency: 'CAD');
+
+      expect(cubit.state.amountSat, isNull);
+      expect(cubit.state.fiatAmountMinor, 2500);
+      expect(cubit.state.fiatCurrency, 'CAD');
+    });
+
+    test('field edits after successful submit clear result', () async {
+      final result = CreateInvoiceResult(
+        invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+        shareUrl: InvoiceUrl(
+          'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+        ),
+      );
+      when(
+        () => createInvoice.execute(command: any(named: 'command')),
+      ).thenAnswer((_) async => result);
+
+      final cubit = InvoiceCreateCubit(
+        createInvoice: createInvoice,
+        initialExpiresAt: now.add(const Duration(hours: 1)),
+      )..setAmountSat(1000);
+      await cubit.submit(now: now);
+      expect(cubit.state.result, result);
+
+      cubit.setPublicDescription('new description');
+
+      expect(cubit.state.result, isNull);
+    });
+
+    test('field edits are ignored while submitting', () async {
+      final result = CreateInvoiceResult(
+        invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+        shareUrl: InvoiceUrl(
+          'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+        ),
+      );
+      when(
+        () => createInvoice.execute(command: any(named: 'command')),
+      ).thenAnswer(
+        (_) => Future<CreateInvoiceResult>.delayed(
+          const Duration(milliseconds: 1),
+          () => result,
+        ),
+      );
+
+      final cubit = InvoiceCreateCubit(
+        createInvoice: createInvoice,
+        initialExpiresAt: now.add(const Duration(hours: 1)),
+      )..setAmountSat(1000);
+
+      final submit = cubit.submit(now: now);
+      cubit.setPublicDescription('ignored');
+
+      expect(cubit.state.publicDescription, '');
+      await submit;
+    });
+
     test('maps command validation errors without calling usecase', () async {
       final cubit = InvoiceCreateCubit(
         createInvoice: createInvoice,
@@ -204,6 +305,22 @@ void main() {
       expect(cubit.state.nymOwner, 'alice');
       expect(cubit.state.snapshot, snapshot);
       expect(cubit.state.isLoading, isFalse);
+    });
+
+    test('maps typed load errors to state error', () async {
+      final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+      when(
+        () => getInvoice.execute(id: id),
+      ).thenThrow(const InvoicesNotFoundError('invoice not found'));
+
+      final cubit = InvoiceDetailCubit(
+        getInvoice: getInvoice,
+        cancelInvoice: cancelInvoice,
+      );
+      await cubit.load(id: id, nymOwner: 'alice');
+
+      expect(cubit.state.isLoading, isFalse);
+      expect(cubit.state.error, 'invoice not found');
     });
 
     test('clears stale snapshot when loading a different invoice', () async {
@@ -264,6 +381,26 @@ void main() {
               as CancelInvoiceCommand;
       expect(command.invoiceId, id);
       expect(command.nymOwner, 'alice');
+    });
+
+    test('maps typed cancel errors to state error', () async {
+      final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+      final snapshot = _snapshot(id: id, now: now);
+      when(() => getInvoice.execute(id: id)).thenAnswer((_) async => snapshot);
+      when(
+        () => cancelInvoice.execute(command: any(named: 'command')),
+      ).thenThrow(const InvoicesAuthorizationError('bad signature'));
+
+      final cubit = InvoiceDetailCubit(
+        getInvoice: getInvoice,
+        cancelInvoice: cancelInvoice,
+      );
+      await cubit.load(id: id, nymOwner: 'alice');
+      await cubit.cancel();
+
+      expect(cubit.state.isCancelling, isFalse);
+      expect(cubit.state.cancelResult, isNull);
+      expect(cubit.state.error, 'bad signature');
     });
 
     test('cancel before load is a no-op', () async {

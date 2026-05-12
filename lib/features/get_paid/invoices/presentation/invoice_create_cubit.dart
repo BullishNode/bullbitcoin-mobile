@@ -21,6 +21,7 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
        );
 
   void setAmountSat(int? value) {
+    if (state.isBusy) return;
     emit(
       state.copyWith(
         amountSat: value,
@@ -33,6 +34,7 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
   }
 
   void setFiatAmount({required int? minor, required String? currency}) {
+    if (state.isBusy) return;
     emit(
       state.copyWith(
         amountSat: null,
@@ -45,38 +47,47 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
   }
 
   void setPublicDescription(String value) {
+    if (state.isBusy) return;
     emit(state.copyWith(publicDescription: value, result: null, error: null));
   }
 
   void setRecipientName(String value) {
+    if (state.isBusy) return;
     emit(state.copyWith(recipientName: value, result: null, error: null));
   }
 
   void setInvoiceNumber(String value) {
+    if (state.isBusy) return;
     emit(state.copyWith(invoiceNumber: value, result: null, error: null));
   }
 
   void setAcceptBtc(bool value) {
+    if (state.isBusy) return;
     emit(state.copyWith(acceptBtc: value, result: null, error: null));
   }
 
   void setAcceptLn(bool value) {
+    if (state.isBusy) return;
     emit(state.copyWith(acceptLn: value, result: null, error: null));
   }
 
   void setAcceptLiquid(bool value) {
+    if (state.isBusy) return;
     emit(state.copyWith(acceptLiquid: value, result: null, error: null));
   }
 
   void setExpiresAt(DateTime value) {
+    if (state.isBusy) return;
     emit(state.copyWith(expiresAt: value, result: null, error: null));
   }
 
   void setLinkToPageNym(String value) {
+    if (state.isBusy) return;
     emit(state.copyWith(linkToPageNym: value, result: null, error: null));
   }
 
   void setPrivateMemo(String value) {
+    if (state.isBusy) return;
     emit(state.copyWith(privateMemo: value, result: null, error: null));
   }
 
