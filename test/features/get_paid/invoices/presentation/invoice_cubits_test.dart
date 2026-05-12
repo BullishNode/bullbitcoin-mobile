@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bb_mobile/features/get_paid/invoices/application/cancel_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/create_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
@@ -192,6 +194,7 @@ void main() {
       expect(command.invoiceNumber, 'INV-1');
       expect(command.linkToPageNym, 'alice');
       expect(command.privateMemo, 'local memo');
+      expect(command.expiresAt, now.add(const Duration(days: 1)));
     });
 
     test('builds fiat command after fiat amount submit', () async {
@@ -222,6 +225,34 @@ void main() {
       expect(command.amountSat, isNull);
       expect(command.fiatAmountMinor, 5000);
       expect(command.fiatCurrency, 'USD');
+    });
+
+    test('recomputes untouched expiry from submit time', () async {
+      final result = CreateInvoiceResult(
+        invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+        shareUrl: InvoiceUrl(
+          'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+        ),
+      );
+      when(
+        () => createInvoice.execute(command: any(named: 'command')),
+      ).thenAnswer((_) async => result);
+
+      final cubit = InvoiceCreateCubit(
+        createInvoice: createInvoice,
+        initialExpiresAt: now.add(const Duration(hours: 1)),
+      )..setAmountSat(1000);
+
+      await cubit.submit(now: now.add(const Duration(minutes: 30)));
+
+      final command =
+          verify(
+                () => createInvoice.execute(
+                  command: captureAny(named: 'command'),
+                ),
+              ).captured.single
+              as CreateInvoiceCommand;
+      expect(command.expiresAt, now.add(const Duration(days: 1, minutes: 30)));
     });
 
     test('amount mode setters clear the other amount mode', () {
@@ -411,6 +442,32 @@ void main() {
               as CancelInvoiceCommand;
       expect(command.invoiceId, id);
       expect(command.nymOwner, 'alice');
+    });
+
+    test('returns null when cubit closes before cancel emits', () async {
+      final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+      final snapshot = _snapshot(id: id, now: now);
+      final result = CancelInvoiceResult(
+        invoiceId: id,
+        status: InvoiceStatus.cancelled,
+      );
+      final cancelCompleter = Completer<CancelInvoiceResult>();
+      when(() => getInvoice.execute(id: id)).thenAnswer((_) async => snapshot);
+      when(
+        () => cancelInvoice.execute(command: any(named: 'command')),
+      ).thenAnswer((_) => cancelCompleter.future);
+
+      final cubit = InvoiceDetailCubit(
+        getInvoice: getInvoice,
+        cancelInvoice: cancelInvoice,
+      );
+      await cubit.load(id: id, nymOwner: 'alice');
+
+      final cancel = cubit.cancel();
+      await cubit.close();
+      cancelCompleter.complete(result);
+
+      expect(await cancel, isNull);
     });
 
     test('maps typed cancel errors to state error', () async {

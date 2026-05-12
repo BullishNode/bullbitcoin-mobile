@@ -101,6 +101,7 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
     if (state.isBusy) return;
     emit(state.copyWith(isSubmitting: true, result: null, error: null));
     try {
+      final submitTime = now ?? DateTime.now().toUtc();
       final command = CreateInvoiceCommand(
         amountSat: state.amountSat,
         fiatAmountMinor: state.fiatAmountMinor,
@@ -111,10 +112,10 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
         acceptBtc: state.acceptBtc,
         acceptLn: state.acceptLn,
         acceptLiquid: state.acceptLiquid,
-        expiresAt: state.expiresAt,
+        expiresAt: _expiresAtForSubmit(submitTime),
         linkToPageNym: _blankToNull(state.linkToPageNym),
         privateMemo: _blankToNull(state.privateMemo),
-        now: now,
+        now: submitTime,
       );
       final result = await _createInvoice.execute(command: command);
       if (isClosed) return;
@@ -138,5 +139,16 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
   String? _blankToNull(String? value) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  DateTime _expiresAtForSubmit(DateTime now) {
+    final remaining = state.expiresAt.difference(now);
+    final days = remaining <= Duration.zero
+        ? 1
+        : (remaining.inSeconds / Duration.secondsPerDay)
+              .ceil()
+              .clamp(1, 7)
+              .toInt();
+    return now.add(Duration(days: days));
   }
 }

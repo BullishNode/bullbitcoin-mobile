@@ -10,7 +10,7 @@ class PriceInput extends StatelessWidget {
   const PriceInput({
     super.key,
     required this.currency,
-    required this.amountEquivalent,
+    this.amountEquivalent,
     required this.availableCurrencies,
     required this.onCurrencyChanged,
     required this.onNoteChanged,
@@ -20,11 +20,10 @@ class PriceInput extends StatelessWidget {
     this.readOnly = false,
     this.isMax = false,
     this.amountDecimalPlaces,
-    this.showAmountEquivalent = true,
   });
 
   final String currency;
-  final String amountEquivalent;
+  final String? amountEquivalent;
   final List<String> availableCurrencies;
   final Function(String)? onCurrencyChanged;
   final Function(String)? onNoteChanged;
@@ -34,7 +33,6 @@ class PriceInput extends StatelessWidget {
   final bool readOnly;
   final bool isMax;
   final int? amountDecimalPlaces;
-  final bool showAmountEquivalent;
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +70,9 @@ class PriceInput extends StatelessWidget {
                           : TextField(
                               controller: amountController,
                               focusNode: focusNode,
-                              keyboardType: currency == BitcoinUnit.sats.code
+                              keyboardType:
+                                  currency == BitcoinUnit.sats.code ||
+                                      amountDecimalPlaces == 0
                                   ? TextInputType.number
                                   : const TextInputType.numberWithOptions(
                                       decimal: true,
@@ -137,7 +137,7 @@ class PriceInput extends StatelessWidget {
               ),
           ],
         ),
-        if (showAmountEquivalent) ...[
+        if (amountEquivalent != null) ...[
           const Gap(14),
           Text(
             '~$amountEquivalent',

@@ -39,8 +39,10 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
   void initState() {
     super.initState();
     _linkToPaymentPage = widget.paymentPageNym != null;
+    // Controller-local listener is paired with dispose and does not depend on inherited state.
     _amountController.addListener(_syncAmount);
     final cubit = context.read<InvoiceCreateCubit>();
+    _setAmountControllerFromState(cubit.state);
     if (_linkToPaymentPage) {
       cubit.setLinkToPageNym(widget.paymentPageNym!);
     }
@@ -139,10 +141,6 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         amountDecimalPlaces: currency == _satsCurrency
             ? null
             : invoiceFiatCurrencyPrecision(currency),
-        amountEquivalent: currency == _satsCurrency
-            ? 'fiat rate set at creation'
-            : 'sats amount set at creation',
-        showAmountEquivalent: false,
         availableCurrencies: [
           BitcoinUnit.sats.code,
           ...invoiceSupportedFiatCurrencies,
