@@ -244,6 +244,17 @@ Presentation is Phase 3.3 and stays thin:
 Cubits catch typed invoice errors explicitly and map unknown errors to a generic
 friendly UI message after logging.
 
+Implemented Phase 3.3 surface:
+
+- `InvoicesListCubit.load/refresh` calls `ListInvoicesUsecase` with no status
+  filter and applies `statusFilter` locally in `InvoicesListState`.
+- `InvoiceCreateCubit.submit` builds `CreateInvoiceCommand` from form state;
+  wallet lookup, address generation, signing, and label storage remain in
+  `CreateInvoiceUsecase`.
+- `InvoiceDetailCubit.load/refresh` uses the public status endpoint through
+  `GetInvoiceUsecase`; `cancel` delegates to `CancelInvoiceUsecase` and stores
+  the returned final status separately from the public status snapshot.
+
 ## UI
 
 Routes live under `features/get_paid/invoices/ui/` and are registered as child

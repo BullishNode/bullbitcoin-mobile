@@ -18,6 +18,9 @@ import 'package:bb_mobile/features/get_paid/invoices/application/usecases/get_in
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_usecase.dart';
 import 'package:bb_mobile/features/get_paid/invoices/data/datasources/invoices_identity_datasource.dart';
 import 'package:bb_mobile/features/get_paid/invoices/data/datasources/invoices_pay_service_datasource.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_cubit.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail_cubit.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoices_list_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_client.dart';
 import 'package:bb_mobile/features/get_paid/shared/get_paid_identity_derivation.dart';
@@ -113,6 +116,18 @@ class GetPaidLocator {
     locator.registerFactory<GetInvoiceUsecase>(
       () =>
           GetInvoiceUsecase(invoiceService: locator<InvoicesPayServicePort>()),
+    );
+    locator.registerFactory<InvoicesListCubit>(
+      () => InvoicesListCubit(listInvoices: locator<ListInvoicesUsecase>()),
+    );
+    locator.registerFactory<InvoiceCreateCubit>(
+      () => InvoiceCreateCubit(createInvoice: locator<CreateInvoiceUsecase>()),
+    );
+    locator.registerFactory<InvoiceDetailCubit>(
+      () => InvoiceDetailCubit(
+        getInvoice: locator<GetInvoiceUsecase>(),
+        cancelInvoice: locator<CancelInvoiceUsecase>(),
+      ),
     );
     locator.registerFactory<PaymentPageCubit>(
       () => PaymentPageCubit(
