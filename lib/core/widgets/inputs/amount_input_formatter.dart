@@ -5,6 +5,8 @@ class AmountInputFormatter extends TextInputFormatter {
 
   final String inputCurrencyCode;
 
+  static const _zeroDecimalCurrencies = {'COP'};
+
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
@@ -15,6 +17,8 @@ class AmountInputFormatter extends TextInputFormatter {
         ? 0
         : inputCurrencyCode == 'BTC' || inputCurrencyCode == 'L-BTC'
         ? 8
+        : _zeroDecimalCurrencies.contains(inputCurrencyCode.toUpperCase())
+        ? 0
         : 2; // Fiat currencies default to 2 decimals, can be adjusted if needed with a map
 
     var newText = newValue.text;

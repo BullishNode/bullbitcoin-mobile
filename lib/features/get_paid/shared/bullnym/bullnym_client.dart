@@ -5,12 +5,11 @@ import 'package:bb_mobile/features/get_paid/shared/bullnym/bullpay_signing.dart'
 import 'package:bb_mobile/features/get_paid/shared/bullnym/models/bullnym_models.dart';
 import 'package:dio/dio.dart';
 
-const String defaultBullnymBaseUrl = bullnymDefaultBaseUrl;
 const Duration bullnymConnectTimeout = Duration(seconds: 10);
 const Duration bullnymReceiveTimeout = Duration(seconds: 15);
 
 class BullnymClient {
-  BullnymClient({Dio? dio, String baseUrl = defaultBullnymBaseUrl})
+  BullnymClient({Dio? dio, String baseUrl = bullnymDefaultBaseUrl})
     : _dio = dio ?? _newDio(baseUrl);
 
   final Dio _dio;

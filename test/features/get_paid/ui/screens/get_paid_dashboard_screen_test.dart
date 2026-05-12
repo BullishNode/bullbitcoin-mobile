@@ -175,6 +175,60 @@ void main() {
 
     expect(find.text('Invoices list'), findsOneWidget);
   });
+
+  testWidgets('refreshes when invoices route pops true', (tester) async {
+    when(
+      () => lightningAddressFacade.getCurrentLightningAddress(),
+    ).thenAnswer((_) async => 'alice@bullpay.ca');
+    when(
+      () => lightningAddressFacade.getCurrentNym(),
+    ).thenAnswer((_) async => 'alice');
+    var refreshCount = 0;
+    when(() => findPaymentPage.execute(nym: 'alice')).thenAnswer((_) async {
+      refreshCount += 1;
+      return refreshCount == 1 ? null : _page();
+    });
+
+    final router = GoRouter(
+      initialLocation: '/get-paid',
+      routes: [
+        GoRoute(
+          path: '/get-paid',
+          builder: (context, state) => BlocProvider(
+            create: (_) => GetPaidDashboardCubit(
+              lightningAddressFacade: lightningAddressFacade,
+              findPaymentPage: findPaymentPage,
+            ),
+            child: const GetPaidDashboardScreen(),
+          ),
+          routes: [
+            GoRoute(
+              name: InvoicesRoute.list.name,
+              path: InvoicesRoute.list.path,
+              builder: (context, state) => Scaffold(
+                body: TextButton(
+                  onPressed: () => context.pop(true),
+                  child: const Text('Close invoices changed'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Close invoices changed'));
+    await tester.pumpAndSettle();
+
+    verify(() => findPaymentPage.execute(nym: 'alice')).called(2);
+    expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
+  });
 }
 
 Widget _harness({

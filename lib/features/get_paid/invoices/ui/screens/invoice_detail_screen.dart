@@ -119,6 +119,7 @@ class _InvoiceDetailBody extends StatelessWidget {
           label: 'Expires',
           child: Countdown(
             until: snapshot.expiresAt,
+            format: CountdownFormat.dhm,
             onTimeout: () {
               context.read<InvoiceDetailCubit>().refresh();
             },
@@ -196,9 +197,8 @@ class _InvoiceDetailBody extends StatelessWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    await context.read<InvoiceDetailCubit>().cancel();
+    final cancelResult = await context.read<InvoiceDetailCubit>().cancel();
     if (!context.mounted) return;
-    final cancelResult = context.read<InvoiceDetailCubit>().state.cancelResult;
     if (cancelResult != null) {
       Navigator.of(context).pop(true);
     }

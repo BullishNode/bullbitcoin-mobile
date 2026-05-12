@@ -12,7 +12,7 @@ String invoiceErrorMessage(InvoicesApplicationError error) {
     InvoicesNoDefaultLiquidWalletError() =>
       'Set up a default Liquid wallet first.',
     InvoicesIdentityUnavailableError() =>
-      'Set up a default Bitcoin wallet first.',
+      'Get Paid identity is unavailable. Check your default wallet.',
     InvoicesUnexpectedError() => 'Something went wrong. Please try again.',
   };
 }

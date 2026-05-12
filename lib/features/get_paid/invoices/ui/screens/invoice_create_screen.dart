@@ -63,10 +63,10 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     return BlocBuilder<InvoiceCreateCubit, InvoiceCreateState>(
       builder: (context, state) {
         return PopScope(
-          canPop: !_showDetails && state.result == null,
+          canPop: !_showDetails && !state.created,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
-            if (state.result != null) {
+            if (state.created) {
               Navigator.of(context).pop(true);
               return;
             }
@@ -79,7 +79,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
               title: Text(_showDetails ? 'Invoice details' : 'Create invoice'),
             ),
             body: SafeArea(
-              child: state.result != null
+              child: state.created
                   ? _InvoiceCreatedView(state: state)
                   : GestureDetector(
                       onTap: FocusScope.of(context).unfocus,
@@ -138,8 +138,8 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
       PriceInput(
         currency: currency,
         amountEquivalent: currency == _satsCurrency
-            ? 'server locks fiat rate'
-            : 'server quotes sats',
+            ? 'fiat rate set at creation'
+            : 'sats amount set at creation',
         availableCurrencies: [
           BitcoinUnit.sats.code,
           ...invoiceSupportedFiatCurrencies,
@@ -182,6 +182,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
             ? null
             : () {
                 _setAmountControllerFromState(state);
+                _clearAmountStepError(context, state);
                 setState(() => _showDetails = false);
               },
       ),
@@ -338,6 +339,18 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     _amountController.addListener(_syncAmount);
   }
 
+  void _clearAmountStepError(BuildContext context, InvoiceCreateState state) {
+    final cubit = context.read<InvoiceCreateCubit>();
+    if (state.amountSat != null) {
+      cubit.setAmountSat(state.amountSat);
+      return;
+    }
+    cubit.setFiatAmount(
+      minor: state.fiatAmountMinor,
+      currency: state.fiatCurrency,
+    );
+  }
+
   String _selectedAmountLabel(InvoiceCreateState state) {
     if (state.amountSat != null) return '${state.amountSat} sats';
     final fiatAmount = state.fiatAmountMinor;
@@ -373,11 +386,13 @@ class _ExpirySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final days = state.expiresAt
+        .difference(DateTime.now().toUtc())
+        .inDays
+        .clamp(1, 7);
     return DropdownButtonFormField<int>(
-      initialValue: state.expiresAt
-          .difference(DateTime.now().toUtc())
-          .inDays
-          .clamp(1, 7),
+      key: ValueKey(days),
+      initialValue: days,
       decoration: const InputDecoration(labelText: 'Expires in'),
       items: [
         for (var day = 1; day <= 7; day++)

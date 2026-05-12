@@ -16,6 +16,7 @@ import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoic
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_url.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail_cubit.dart';
+import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_error_message.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoices_list_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -111,6 +112,35 @@ void main() {
       expect(cubit.state.isLoading, isFalse);
       expect(cubit.state.error, 'Invoice authorization failed.');
       expect(cubit.state.error, isNot(contains('bad signature')));
+    });
+  });
+
+  group('invoiceErrorMessage', () {
+    test('maps typed invoice errors to curated copy', () {
+      final cases = <InvoicesApplicationError, String>{
+        const InvoicesValidationError('raw validation'):
+            'Check the invoice details and try again.',
+        const InvoicesNotFoundError('raw missing'): 'Invoice not found.',
+        const InvoicesAuthorizationError('bad signature'):
+            'Invoice authorization failed.',
+        const InvoicesRateLimitedError('raw limited'):
+            'Too many attempts. Try again later.',
+        const InvoicesNetworkError('raw network'):
+            'Network error. Check your connection.',
+        const InvoicesNoDefaultBitcoinWalletError('raw btc'):
+            'Set up a default Bitcoin wallet first.',
+        const InvoicesNoDefaultLiquidWalletError('raw liquid'):
+            'Set up a default Liquid wallet first.',
+        const InvoicesIdentityUnavailableError('raw identity'):
+            'Get Paid identity is unavailable. Check your default wallet.',
+        const InvoicesUnexpectedError('raw unexpected'):
+            'Something went wrong. Please try again.',
+      };
+
+      for (final entry in cases.entries) {
+        expect(invoiceErrorMessage(entry.key), entry.value);
+        expect(invoiceErrorMessage(entry.key), isNot(contains('raw')));
+      }
     });
   });
 

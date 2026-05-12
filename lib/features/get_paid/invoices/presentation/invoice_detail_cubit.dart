@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/utils/logger.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/cancel_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_usecase.dart';
@@ -57,24 +58,25 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
     await load(id: id, nymOwner: state.nymOwner);
   }
 
-  Future<void> cancel() async {
+  Future<CancelInvoiceResult?> cancel() async {
     final id = state.invoiceId;
-    if (id == null || state.isBusy) return;
+    if (id == null || state.isBusy) return null;
     emit(state.copyWith(isCancelling: true, error: null, cancelResult: null));
     try {
       final result = await _cancelInvoice.execute(
         command: CancelInvoiceCommand(invoiceId: id, nymOwner: state.nymOwner),
       );
-      if (isClosed) return;
+      if (isClosed) return result;
       emit(
         state.copyWith(isCancelling: false, cancelResult: result, error: null),
       );
+      return result;
     } on InvoicesApplicationError catch (e) {
-      if (isClosed) return;
+      if (isClosed) return null;
       log.warning('Invoice cancel application error', error: e);
       emit(state.copyWith(isCancelling: false, error: invoiceErrorMessage(e)));
     } on Exception catch (e) {
-      if (isClosed) return;
+      if (isClosed) return null;
       log.warning('Invoice cancel failed', error: e);
       emit(
         state.copyWith(
@@ -83,5 +85,6 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
         ),
       );
     }
+    return null;
   }
 }

@@ -3,16 +3,20 @@ import 'dart:async';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:flutter/material.dart';
 
+enum CountdownFormat { mmss, dhm }
+
 class Countdown extends StatefulWidget {
   final DateTime until;
   final VoidCallback onTimeout;
   final TextStyle? textStyle;
+  final CountdownFormat format;
 
   const Countdown({
     super.key,
     required this.until,
     required this.onTimeout,
     this.textStyle,
+    this.format = CountdownFormat.mmss,
   });
 
   @override
@@ -86,7 +90,7 @@ class CountdownState extends State<Countdown> {
   @override
   Widget build(BuildContext context) {
     return Text(
-      '${remainingTime.inMinutes}:${(remainingTime.inSeconds % 60).toString().padLeft(2, '0')}',
+      _formatRemainingTime(),
       style:
           widget.textStyle ??
           context.font.bodyMedium?.copyWith(
@@ -94,5 +98,24 @@ class CountdownState extends State<Countdown> {
             color: context.appColors.primary,
           ),
     );
+  }
+
+  String _formatRemainingTime() {
+    return switch (widget.format) {
+      CountdownFormat.mmss =>
+        '${remainingTime.inMinutes}:${(remainingTime.inSeconds % 60).toString().padLeft(2, '0')}',
+      CountdownFormat.dhm => _formatDaysHoursMinutes(),
+    };
+  }
+
+  String _formatDaysHoursMinutes() {
+    if (remainingTime <= Duration.zero) return 'Expired';
+    if (remainingTime.inDays > 0) {
+      return '${remainingTime.inDays}d ${remainingTime.inHours % 24}h';
+    }
+    if (remainingTime.inHours > 0) {
+      return '${remainingTime.inHours}h ${remainingTime.inMinutes % 60}m';
+    }
+    return '${remainingTime.inMinutes}m ${(remainingTime.inSeconds % 60).toString().padLeft(2, '0')}s';
   }
 }

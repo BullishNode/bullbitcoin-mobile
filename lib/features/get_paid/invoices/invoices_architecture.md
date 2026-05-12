@@ -274,9 +274,20 @@ Screens:
   visible, cancel uses a confirmation dialog, URL copy is silent, and status
   refresh is explicit or lifecycle-driven.
 
-The dashboard's Invoices slot remains disabled until the list route exists,
-then navigates internally to the invoices list route. Invoices are not exposed
-through a Get Paid public facade in v1.
+The dashboard's Invoices slot navigates internally to the invoices list route
+once the user has a Lightning Address. The slot awaits `pushNamed<bool>` and
+refreshes the Get Paid dashboard only when the invoices flow pops `true`,
+matching the mutation-result contract used by the Payment Page slot. Invoices
+are not exposed through a Get Paid public facade in v1.
+
+### Plan Deviations
+
+The create flow is implemented as a single route with amount/details steps
+inside the same widget, instead of two separate routes. This preserves the form
+state and keeps the browser/system back behavior local: back from details
+returns to the amount step, while back from the success view pops `true` to the
+caller. Splitting into two routes should only happen if a later flow needs
+deep-linkable create substeps.
 
 ## Pagination And Filtering
 
@@ -301,13 +312,12 @@ user explicitly refreshes with a backend status filter.
 
 ## Countdown
 
-Phase 3.5 extends `lib/core/widgets/timers/countdown.dart`:
+`lib/core/widgets/timers/countdown.dart` supports the invoice detail screen
+without changing existing buy/sell callers:
 
-- `enum CountdownFormat { hms, dhm }`
-- default remains `hms` so existing buy/sell callers are unchanged.
-- `dhm` renders `Xd Yh Zmin` for multi-day invoice expiry.
-- tick frequency is 1 minute when remaining time is greater than 1 hour, and 1
-  second otherwise.
+- `enum CountdownFormat { mmss, dhm }`
+- default remains `mmss` so existing buy/sell callers are unchanged.
+- `dhm` renders `Xd Yh`, `Xh Ym`, or `Xm SSs` depending on remaining time.
 
 ## Multi-Rail Address Caveat
 

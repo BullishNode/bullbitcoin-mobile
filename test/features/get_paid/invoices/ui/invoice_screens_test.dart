@@ -20,6 +20,7 @@ import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_create_s
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_detail_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_list_screen.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
+import 'package:bb_mobile/core/widgets/inputs/amount_input_formatter.dart';
 import 'package:bb_mobile/core/widgets/timers/countdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -353,6 +354,131 @@ void main() {
     expect(command.fiatAmountMinor, isNull);
   });
 
+  testWidgets('invoice create screen pops true after Done', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final createInvoice = _MockCreateInvoiceUsecase();
+    final result = CreateInvoiceResult(
+      invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+      shareUrl: InvoiceUrl(
+        'https://bullpay.ca/invoice/00000000-0000-0000-0000-000000000001',
+      ),
+    );
+    when(
+      () => createInvoice.execute(command: any(named: 'command')),
+    ).thenAnswer((_) async => result);
+
+    bool? popResult;
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                popResult = await context.pushNamed<bool>(
+                  InvoicesRoute.create.name,
+                );
+              },
+              child: const Text('Open create'),
+            ),
+          ),
+          routes: [
+            GoRoute(
+              name: InvoicesRoute.create.name,
+              path: 'create',
+              builder: (context, state) => BlocProvider(
+                create: (_) => InvoiceCreateCubit(
+                  createInvoice: createInvoice,
+                  initialExpiresAt: DateTime.now().toUtc().add(
+                    const Duration(hours: 1),
+                  ),
+                ),
+                child: const InvoiceCreateScreen(),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open create'));
+    await tester.pumpAndSettle();
+    await _submitSatsInvoice(tester);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+
+    expect(popResult, isTrue);
+  });
+
+  testWidgets('invoice create screen pops true on system back from success', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final createInvoice = _MockCreateInvoiceUsecase();
+    final result = CreateInvoiceResult(
+      invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+      shareUrl: InvoiceUrl(
+        'https://bullpay.ca/invoice/00000000-0000-0000-0000-000000000001',
+      ),
+    );
+    when(
+      () => createInvoice.execute(command: any(named: 'command')),
+    ).thenAnswer((_) async => result);
+
+    bool? popResult;
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                popResult = await context.pushNamed<bool>(
+                  InvoicesRoute.create.name,
+                );
+              },
+              child: const Text('Open create'),
+            ),
+          ),
+          routes: [
+            GoRoute(
+              name: InvoicesRoute.create.name,
+              path: 'create',
+              builder: (context, state) => BlocProvider(
+                create: (_) => InvoiceCreateCubit(
+                  createInvoice: createInvoice,
+                  initialExpiresAt: DateTime.now().toUtc().add(
+                    const Duration(hours: 1),
+                  ),
+                ),
+                child: const InvoiceCreateScreen(),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open create'));
+    await tester.pumpAndSettle();
+    await _submitSatsInvoice(tester);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(popResult, isTrue);
+  });
+
   testWidgets('invoice create screen preserves amount when editing details', (
     tester,
   ) async {
@@ -529,6 +655,40 @@ void main() {
     expect(find.byType(Countdown), findsOneWidget);
   });
 
+  testWidgets('invoice detail formats multi-day countdown clearly', (
+    tester,
+  ) async {
+    final getInvoice = _MockGetInvoiceUsecase();
+    final cancelInvoice = _MockCancelInvoiceUsecase();
+    final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+    when(() => getInvoice.execute(id: id)).thenAnswer(
+      (_) async => _snapshot(
+        id: id,
+        status: InvoiceStatus.unpaid,
+        now: DateTime.now().toUtc(),
+        expiresAt: DateTime.now().toUtc().add(
+          const Duration(days: 1, minutes: 5),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        BlocProvider(
+          create: (_) => InvoiceDetailCubit(
+            getInvoice: getInvoice,
+            cancelInvoice: cancelInvoice,
+          ),
+          child: InvoiceDetailScreen(invoiceId: id, nymOwner: 'alice'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1d 0h'), findsOneWidget);
+    expect(find.text('1440:00'), findsNothing);
+  });
+
   testWidgets('invoice detail derives share URL when route omits it', (
     tester,
   ) async {
@@ -554,10 +714,49 @@ void main() {
 
     expect(find.text('https://bullpay.ca/alice/i/$id'), findsOneWidget);
   });
+
+  test('COP amount formatter rejects decimals', () {
+    final formatter = AmountInputFormatter('COP');
+    final oldValue = const TextEditingValue(
+      text: '100',
+      selection: TextSelection.collapsed(offset: 3),
+    );
+
+    expect(
+      formatter
+          .formatEditUpdate(
+            oldValue,
+            const TextEditingValue(
+              text: '100.50',
+              selection: TextSelection.collapsed(offset: 6),
+            ),
+          )
+          .text,
+      '100',
+    );
+  });
 }
 
 Widget _app(Widget child) {
   return MaterialApp(home: child);
+}
+
+Future<void> _submitSatsInvoice(WidgetTester tester) async {
+  await tester.enterText(find.byType(TextField).first, '1000');
+  await tester.pump();
+  await tester.tap(
+    find.byWidgetPredicate(
+      (widget) => widget is BBButton && widget.label == 'Continue',
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(
+    find.byWidgetPredicate(
+      (widget) => widget is BBButton && widget.label == 'Create invoice',
+    ),
+  );
+  await tester.pumpAndSettle();
+  expect(find.text('Invoice created'), findsOneWidget);
 }
 
 Invoice _invoice({
@@ -595,6 +794,7 @@ InvoiceStatusSnapshot _snapshot({
   required InvoiceId id,
   required InvoiceStatus status,
   required DateTime now,
+  DateTime? expiresAt,
 }) {
   return InvoiceStatusSnapshot(
     invoiceId: id,
@@ -602,7 +802,7 @@ InvoiceStatusSnapshot _snapshot({
     amountSat: 1000,
     rateMinorPerBtc: null,
     rateLocksUntil: now.add(const Duration(minutes: 5)),
-    expiresAt: now.add(const Duration(hours: 1)),
+    expiresAt: expiresAt ?? now.add(const Duration(hours: 1)),
     paidVia: null,
     paidAt: null,
     paidAmountSat: null,

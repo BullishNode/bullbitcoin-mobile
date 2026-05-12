@@ -90,7 +90,7 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                         : 'Create a Lightning Address first',
                     actionLabel: state.hasLightningAddress ? 'Open' : 'Locked',
                     onPressed: state.hasLightningAddress
-                        ? () => context.pushNamed(InvoicesRoute.list.name)
+                        ? () => _openInvoices(context)
                         : null,
                   ),
                 ],
@@ -122,6 +122,12 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
       PaymentPageRoute.editor.name,
       pathParameters: {'nym': nym},
     );
+    if (changed != true || !mounted) return;
+    await context.read<GetPaidDashboardCubit>().refresh();
+  }
+
+  Future<void> _openInvoices(BuildContext context) async {
+    final changed = await context.pushNamed<bool>(InvoicesRoute.list.name);
     if (changed != true || !mounted) return;
     await context.read<GetPaidDashboardCubit>().refresh();
   }

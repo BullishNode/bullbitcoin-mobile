@@ -76,7 +76,7 @@ class InvoiceListItem extends StatelessWidget {
                   child: BBText(
                     _statusLabel(invoice.status),
                     style: context.font.labelSmall?.copyWith(
-                      color: context.appColors.onSurface,
+                      color: _statusTextColor(context, invoice.status),
                     ),
                   ),
                 ),
@@ -115,11 +115,20 @@ class InvoiceListItem extends StatelessWidget {
     return switch (status) {
       InvoiceStatus.paid => context.appColors.success,
       InvoiceStatus.unpaid => context.appColors.border,
-      InvoiceStatus.inProgress => context.appColors.warning,
+      InvoiceStatus.inProgress => context.appColors.warningContainer,
       InvoiceStatus.expired ||
       InvoiceStatus.cancelled => context.appColors.textMuted,
       InvoiceStatus.underpaid ||
-      InvoiceStatus.overpaid => context.appColors.error,
+      InvoiceStatus.overpaid => context.appColors.errorContainer,
+    };
+  }
+
+  Color _statusTextColor(BuildContext context, InvoiceStatus status) {
+    return switch (status) {
+      InvoiceStatus.paid => context.appColors.onSurface,
+      InvoiceStatus.expired ||
+      InvoiceStatus.cancelled => context.appColors.surface,
+      _ => context.appColors.onSurface,
     };
   }
 }
