@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
-import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
-import 'package:bb_mobile/features/get_paid/payment_page/data/datasources/payment_page_identity_datasource.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
+import 'package:bb_mobile/features/get_paid/invoices/data/datasources/invoices_identity_datasource.dart';
 import 'package:bb_mobile/features/get_paid/shared/get_paid_identity_derivation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -10,11 +10,11 @@ class _MockGetPaidIdentityDerivation extends Mock
 
 void main() {
   late _MockGetPaidIdentityDerivation identityDerivation;
-  late PaymentPageIdentityDatasource datasource;
+  late InvoicesIdentityDatasource datasource;
 
   setUp(() {
     identityDerivation = _MockGetPaidIdentityDerivation();
-    datasource = PaymentPageIdentityDatasource(
+    datasource = InvoicesIdentityDatasource(
       identityDerivation: identityDerivation,
     );
   });
@@ -38,7 +38,7 @@ void main() {
 
       await expectLater(
         datasource.getSigningHandle(),
-        throwsA(isA<PaymentPageIdentityUnavailableError>()),
+        throwsA(isA<InvoicesIdentityUnavailableError>()),
       );
     },
   );

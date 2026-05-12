@@ -1,0 +1,399 @@
+import 'package:bb_mobile/core/entities/signer_entity.dart';
+import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
+import 'package:bb_mobile/core/wallet/data/repositories/wallet_address_repository.dart';
+import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet_address.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/cancel_invoice_result.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/create_invoice_result.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/ports/invoices_identity_port.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/ports/invoices_pay_service_port.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_command.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_usecase.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create_invoice_command.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create_invoice_usecase.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/usecases/get_invoice_usecase.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_command.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_usecase.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice_status_snapshot.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_status.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_url.dart';
+import 'package:bb_mobile/features/labels/labels_facade.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockWalletRepository extends Mock implements WalletRepository {}
+
+class _MockWalletAddressRepository extends Mock
+    implements WalletAddressRepository {}
+
+class _MockLabelsFacade extends Mock implements LabelsFacade {}
+
+class _MockInvoicesPayServicePort extends Mock
+    implements InvoicesPayServicePort {}
+
+class _MockInvoicesIdentityPort extends Mock implements InvoicesIdentityPort {}
+
+void main() {
+  late _MockWalletRepository walletRepository;
+  late _MockWalletAddressRepository walletAddressRepository;
+  late _MockLabelsFacade labelsFacade;
+  late _MockInvoicesPayServicePort invoiceService;
+  late _MockInvoicesIdentityPort invoiceIdentity;
+  late NostrKeychainHandle handle;
+  late DateTime now;
+
+  setUpAll(() {
+    registerFallbackValue(
+      NewLabel.addr(address: 'bc1qfallback', label: 'memo'),
+    );
+  });
+
+  setUp(() {
+    walletRepository = _MockWalletRepository();
+    walletAddressRepository = _MockWalletAddressRepository();
+    labelsFacade = _MockLabelsFacade();
+    invoiceService = _MockInvoicesPayServicePort();
+    invoiceIdentity = _MockInvoicesIdentityPort();
+    handle = NostrKeychainHandle.fromSecretKeyHex('01' * 32);
+    now = DateTime.utc(2026, 5, 11, 12);
+  });
+
+  group('CreateInvoiceUsecase', () {
+    test(
+      'generates rail addresses and creates invoice with memo labels',
+      () async {
+        final command = _createCommand(now: now, privateMemo: 'Order 100');
+        final result = _createResult();
+        when(
+          () => walletRepository.getWallets(
+            onlyDefaults: true,
+            onlyBitcoin: true,
+          ),
+        ).thenAnswer((_) async => [_wallet(id: 'btc-wallet')]);
+        when(
+          () =>
+              walletRepository.getWallets(onlyDefaults: true, onlyLiquid: true),
+        ).thenAnswer(
+          (_) async => [
+            _wallet(id: 'liq-wallet', network: Network.liquidMainnet),
+          ],
+        );
+        when(
+          () => walletAddressRepository.generateNewReceiveAddress(
+            walletId: 'btc-wallet',
+          ),
+        ).thenAnswer((_) async => _address('bc1qinvoice'));
+        when(
+          () => walletAddressRepository.generateNewReceiveAddress(
+            walletId: 'liq-wallet',
+          ),
+        ).thenAnswer((_) async => _address('lq1invoice'));
+        when(
+          () => invoiceIdentity.getSigningHandle(),
+        ).thenAnswer((_) async => handle);
+        when(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: 'bc1qinvoice',
+            liquidAddress: 'lq1invoice',
+          ),
+        ).thenAnswer((_) async => result);
+        when(() => labelsFacade.store(any())).thenAnswer(
+          (_) async => Label.addr(id: 1, address: 'unused', label: 'Order 100'),
+        );
+
+        final usecase = _createUsecase(
+          walletRepository: walletRepository,
+          walletAddressRepository: walletAddressRepository,
+          labelsFacade: labelsFacade,
+          invoiceService: invoiceService,
+          invoiceIdentity: invoiceIdentity,
+        );
+
+        await expectLater(
+          usecase.execute(command: command),
+          completion(result),
+        );
+        verify(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: 'bc1qinvoice',
+            liquidAddress: 'lq1invoice',
+          ),
+        ).called(1);
+        final labels = verify(
+          () => labelsFacade.store(captureAny()),
+        ).captured.cast<NewLabel>();
+        expect(labels.map((label) => label.reference), [
+          'bc1qinvoice',
+          'lq1invoice',
+        ]);
+        expect(labels.every((label) => label.label == 'Order 100'), isTrue);
+        expect(
+          labels.every(
+            (label) => label.origin == 'invoice:${result.invoiceId.value}',
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'does not fail created invoice when memo label storage fails',
+      () async {
+        final command = _createCommand(
+          now: now,
+          acceptBtc: true,
+          acceptLn: false,
+          acceptLiquid: false,
+          privateMemo: 'Order 100',
+        );
+        final result = _createResult();
+        when(
+          () => walletRepository.getWallets(
+            onlyDefaults: true,
+            onlyBitcoin: true,
+          ),
+        ).thenAnswer((_) async => [_wallet(id: 'btc-wallet')]);
+        when(
+          () => walletAddressRepository.generateNewReceiveAddress(
+            walletId: 'btc-wallet',
+          ),
+        ).thenAnswer((_) async => _address('bc1qinvoice'));
+        when(
+          () => invoiceIdentity.getSigningHandle(),
+        ).thenAnswer((_) async => handle);
+        when(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: 'bc1qinvoice',
+            liquidAddress: null,
+          ),
+        ).thenAnswer((_) async => result);
+        when(() => labelsFacade.store(any())).thenThrow(Exception('disk full'));
+
+        final usecase = _createUsecase(
+          walletRepository: walletRepository,
+          walletAddressRepository: walletAddressRepository,
+          labelsFacade: labelsFacade,
+          invoiceService: invoiceService,
+          invoiceIdentity: invoiceIdentity,
+        );
+
+        await expectLater(
+          usecase.execute(command: command),
+          completion(result),
+        );
+      },
+    );
+
+    test('throws typed error when default Bitcoin wallet is missing', () async {
+      final command = _createCommand(
+        now: now,
+        acceptBtc: true,
+        acceptLn: false,
+        acceptLiquid: false,
+      );
+      when(
+        () =>
+            walletRepository.getWallets(onlyDefaults: true, onlyBitcoin: true),
+      ).thenAnswer((_) async => []);
+
+      final usecase = _createUsecase(
+        walletRepository: walletRepository,
+        walletAddressRepository: walletAddressRepository,
+        labelsFacade: labelsFacade,
+        invoiceService: invoiceService,
+        invoiceIdentity: invoiceIdentity,
+      );
+
+      await expectLater(
+        usecase.execute(command: command),
+        throwsA(isA<InvoicesNoDefaultBitcoinWalletError>()),
+      );
+      verifyNever(() => invoiceIdentity.getSigningHandle());
+    });
+
+    test('throws typed error when default Liquid wallet is missing', () async {
+      final command = _createCommand(
+        now: now,
+        acceptBtc: false,
+        acceptLn: true,
+        acceptLiquid: false,
+      );
+      when(
+        () => walletRepository.getWallets(onlyDefaults: true, onlyLiquid: true),
+      ).thenAnswer((_) async => []);
+
+      final usecase = _createUsecase(
+        walletRepository: walletRepository,
+        walletAddressRepository: walletAddressRepository,
+        labelsFacade: labelsFacade,
+        invoiceService: invoiceService,
+        invoiceIdentity: invoiceIdentity,
+      );
+
+      await expectLater(
+        usecase.execute(command: command),
+        throwsA(isA<InvoicesNoDefaultLiquidWalletError>()),
+      );
+      verifyNever(() => invoiceIdentity.getSigningHandle());
+    });
+  });
+
+  test('CancelInvoiceUsecase gets signing handle and delegates', () async {
+    final command = CancelInvoiceCommand(
+      invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+      nymOwner: 'alice',
+    );
+    final result = CancelInvoiceResult(
+      invoiceId: command.invoiceId,
+      status: InvoiceStatus.cancelled,
+    );
+    when(
+      () => invoiceIdentity.getSigningHandle(),
+    ).thenAnswer((_) async => handle);
+    when(
+      () => invoiceService.cancelInvoice(command: command, handle: handle),
+    ).thenAnswer((_) async => result);
+
+    final usecase = CancelInvoiceUsecase(
+      invoiceService: invoiceService,
+      invoiceIdentity: invoiceIdentity,
+    );
+
+    await expectLater(usecase.execute(command: command), completion(result));
+  });
+
+  test('ListInvoicesUsecase gets signing handle and delegates', () async {
+    final command = ListInvoicesCommand(since: null, status: null);
+    when(
+      () => invoiceIdentity.getSigningHandle(),
+    ).thenAnswer((_) async => handle);
+    when(
+      () => invoiceService.listInvoices(command: command, handle: handle),
+    ).thenAnswer((_) async => []);
+
+    final usecase = ListInvoicesUsecase(
+      invoiceService: invoiceService,
+      invoiceIdentity: invoiceIdentity,
+    );
+
+    await expectLater(usecase.execute(command: command), completion(isEmpty));
+  });
+
+  test(
+    'GetInvoiceUsecase delegates to public status lookup without identity',
+    () async {
+      final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+      final snapshot = InvoiceStatusSnapshot(
+        invoiceId: id,
+        status: InvoiceStatus.unpaid,
+        amountSat: 1000,
+        rateMinorPerBtc: null,
+        rateLocksUntil: now,
+        expiresAt: now.add(const Duration(hours: 1)),
+        paidVia: null,
+        paidAt: null,
+        paidAmountSat: null,
+        lightningPr: null,
+        liquidAddress: 'lq1invoice',
+        bitcoinAddress: 'bc1qinvoice',
+        acceptBtc: true,
+        acceptLn: true,
+        acceptLiquid: true,
+        rateStale: false,
+      );
+      when(
+        () => invoiceService.getInvoiceStatus(id: id),
+      ).thenAnswer((_) async => snapshot);
+
+      final usecase = GetInvoiceUsecase(invoiceService: invoiceService);
+
+      await expectLater(usecase.execute(id: id), completion(snapshot));
+      verifyNever(() => invoiceIdentity.getSigningHandle());
+    },
+  );
+}
+
+CreateInvoiceUsecase _createUsecase({
+  required WalletRepository walletRepository,
+  required WalletAddressRepository walletAddressRepository,
+  required LabelsFacade labelsFacade,
+  required InvoicesPayServicePort invoiceService,
+  required InvoicesIdentityPort invoiceIdentity,
+}) {
+  return CreateInvoiceUsecase(
+    walletRepository: walletRepository,
+    walletAddressRepository: walletAddressRepository,
+    labelsFacade: labelsFacade,
+    invoiceService: invoiceService,
+    invoiceIdentity: invoiceIdentity,
+  );
+}
+
+CreateInvoiceCommand _createCommand({
+  required DateTime now,
+  bool acceptBtc = true,
+  bool acceptLn = true,
+  bool acceptLiquid = true,
+  String? privateMemo,
+}) {
+  return CreateInvoiceCommand(
+    amountSat: 1000,
+    fiatAmountMinor: null,
+    fiatCurrency: null,
+    publicDescription: 'Coffee',
+    recipientName: 'Alice',
+    invoiceNumber: 'INV-1',
+    acceptBtc: acceptBtc,
+    acceptLn: acceptLn,
+    acceptLiquid: acceptLiquid,
+    expiresAt: now.add(const Duration(hours: 1)),
+    linkToPageNym: 'alice',
+    privateMemo: privateMemo,
+    now: now,
+  );
+}
+
+CreateInvoiceResult _createResult() {
+  return CreateInvoiceResult(
+    invoiceId: InvoiceId('00000000-0000-0000-0000-000000000001'),
+    shareUrl: InvoiceUrl(
+      'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+    ),
+  );
+}
+
+Wallet _wallet({required String id, Network network = Network.bitcoinMainnet}) {
+  return Wallet(
+    origin: id,
+    network: network,
+    isDefault: true,
+    masterFingerprint: '73c5da0a',
+    xpubFingerprint: '73c5da0a',
+    scriptType: ScriptType.bip84,
+    xpub: 'xpubFAKE',
+    externalPublicDescriptor: 'wpkh(xpubFAKE/0/*)',
+    internalPublicDescriptor: 'wpkh(xpubFAKE/1/*)',
+    signer: SignerEntity.local,
+    signerDevice: null,
+    balanceSat: BigInt.zero,
+  );
+}
+
+WalletAddress _address(String address) {
+  return WalletAddress(
+    walletId: 'wallet',
+    index: 0,
+    address: address,
+    createdAt: DateTime.utc(2026, 5, 11),
+    updatedAt: DateTime.utc(2026, 5, 11),
+  );
+}

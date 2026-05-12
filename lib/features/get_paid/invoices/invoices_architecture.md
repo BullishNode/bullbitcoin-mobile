@@ -160,6 +160,19 @@ presentation.
 - `CancelInvoiceCommand`: `invoiceId`, `nymOwner`.
 - `ListInvoicesCommand`: `since`, `limit`, `status`.
 
+### Identity
+
+Invoices reuse the single Bullnym/Get Paid Nostr identity also used by
+Lightning Address and Payment Page. The derivation policy is owned by
+`features/get_paid/shared/get_paid_identity_derivation.dart`, not `core/nostr`
+and not an invoice-local copy.
+
+`InvoicesIdentityDatasource` adapts that shared helper to
+`InvoicesIdentityPort`. If the helper returns null because no default Bitcoin
+wallet exists, the datasource throws `InvoicesIdentityUnavailableError`.
+Lightning Address migration to the shared helper is intentionally deferred to a
+focused cleanup; Phase 3.2 must not touch LA identity code.
+
 ### Use Cases
 
 - `CreateInvoiceUsecase`
@@ -175,7 +188,9 @@ presentation.
     presentation never derives or carries secrets.
   - Calls `InvoicesPayServicePort.createInvoice`.
   - Stores `privateMemo` as local address labels through `LabelsFacade.store`
-    using `NewLabel.addr(...)` and origin `invoice:<invoiceId>`.
+    using `NewLabel.addr(...)` and origin `invoice:<invoiceId>`. Label storage
+    is best-effort after server success and cannot turn a created invoice into
+    a failed create result.
 
 - `CancelInvoiceUsecase`
   - Gets the signing handle and delegates cancel to the port.
