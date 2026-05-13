@@ -25,14 +25,16 @@ not a Nostr identity number.
 
 - `NostrKeychainHandle` wraps the dart-nostr key object and keeps the secret key
   private behind callback-scoped access.
-- `NostrFacade` derives keys, returns x-only public keys, signs messages, and
-  delegates relay publishing.
-- `NostrRelayClient` publishes generic kind 0 profile metadata to relays.
+- `NostrFacade` derives keys, returns x-only public keys, and signs messages.
+- `NostrRelayClient` publishes already-built Nostr events to relays.
 
 ## Boundaries
 
 - DTOs and persistence models must not contain `NostrKeychainHandle`.
 - Feature layers pass public keys, signatures, or callback-scoped secrets across
   their own ports.
+- Feature layers own their protocol-specific event contents. For example,
+  Lightning Address owns the NIP-05/LUD16 kind:0 profile metadata shape and only
+  uses core Nostr to broadcast the completed event.
 - `toString()` implementations must never include secret-key material.
 - Bullnym/Bullpay signing belongs under Get Paid shared protocol, not here.

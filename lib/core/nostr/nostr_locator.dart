@@ -7,8 +7,6 @@ class NostrLocator {
     locator.registerLazySingleton<NostrRelayClient>(
       () => const NostrRelayClient(),
     );
-    locator.registerLazySingleton<NostrFacade>(
-      () => NostrFacade(relayClient: locator<NostrRelayClient>()),
-    );
+    locator.registerLazySingleton<NostrFacade>(() => const NostrFacade());
   }
 }

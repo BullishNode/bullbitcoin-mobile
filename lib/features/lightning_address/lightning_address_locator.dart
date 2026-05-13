@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/bip85/data/bip85_repository.dart';
 import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_liquid_transaction_usecase.dart';
-import 'package:bb_mobile/core/nostr/nostr_facade.dart';
+import 'package:bb_mobile/core/nostr/nostr_relay_client.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/liquid_wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_address_repository.dart';
@@ -42,7 +42,7 @@ class LightningAddressLocator {
     );
 
     locator.registerLazySingleton<NostrPublishPort>(
-      () => RelayNostrPublishAdapter(nostr: locator<NostrFacade>()),
+      () => RelayNostrPublishAdapter(relayClient: locator<NostrRelayClient>()),
     );
 
     locator.registerFactory<GetLightningAddressWalletUsecase>(
