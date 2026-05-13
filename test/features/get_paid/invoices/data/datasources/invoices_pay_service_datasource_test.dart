@@ -102,16 +102,44 @@ void main() {
       ),
     );
 
-    final invoices = await datasource.listInvoices(
-      command: ListInvoicesCommand(since: null, status: null),
+    final result = await datasource.listInvoices(
+      command: ListInvoicesCommand(status: null),
       handle: handle,
     );
 
-    final invoice = invoices.single;
+    expect(result.page, 1);
+    expect(result.pageSize, 100);
+    expect(result.hasMore, isFalse);
+    final invoice = result.invoices.single;
     expect(invoice.id.value, '00000000-0000-0000-0000-000000000001');
     expect(invoice.status, InvoiceStatus.unpaid);
     expect(invoice.createdAt, DateTime.utc(2026, 5, 11, 12));
     expect(invoice.expiresAt, DateTime.utc(2026, 5, 12, 12));
+  });
+
+  test('maps partially paid invoice status from Bullnym', () async {
+    when(
+      () => bullnymClient.listInvoices(
+        handle: handle,
+        page: 1,
+        pageSize: 100,
+        status: null,
+      ),
+    ).thenAnswer(
+      (_) async => BullnymListInvoicesResponseDto(
+        invoices: [_invoiceDto(status: 'partially_paid')],
+        page: 1,
+        pageSize: 100,
+        hasMore: false,
+      ),
+    );
+
+    final result = await datasource.listInvoices(
+      command: ListInvoicesCommand(status: null),
+      handle: handle,
+    );
+
+    expect(result.invoices.single.status, InvoiceStatus.partiallyPaid);
   });
 
   test('maps cancel response to cancel result', () async {
@@ -193,7 +221,7 @@ void main() {
 
     await expectLater(
       datasource.listInvoices(
-        command: ListInvoicesCommand(since: null, status: null),
+        command: ListInvoicesCommand(status: null),
         handle: handle,
       ),
       throwsA(isA<InvoicesUnexpectedError>()),

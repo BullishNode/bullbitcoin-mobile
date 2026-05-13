@@ -1,5 +1,6 @@
 import 'package:bb_mobile/features/get_paid/invoices/application/cancel_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/create_invoice_result.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/list_invoices_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_usecase.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create_invoice_command.dart';
@@ -44,7 +45,7 @@ void main() {
   setUpAll(() {
     final fallbackNow = DateTime.utc(2026, 5, 11, 12);
     final fallbackId = InvoiceId('00000000-0000-0000-0000-000000000001');
-    registerFallbackValue(ListInvoicesCommand(since: null, status: null));
+    registerFallbackValue(ListInvoicesCommand(status: null));
     registerFallbackValue(
       CreateInvoiceCommand(
         amountSat: 1000,
@@ -74,7 +75,7 @@ void main() {
   testWidgets('invoice list loads and filters locally', (tester) async {
     final listInvoices = _MockListInvoicesUsecase();
     when(() => listInvoices.execute(command: any(named: 'command'))).thenAnswer(
-      (_) async => [
+      (_) async => _listResult([
         _invoice(
           id: '00000000-0000-0000-0000-000000000001',
           status: InvoiceStatus.unpaid,
@@ -87,7 +88,7 @@ void main() {
           description: 'Tea',
           now: now,
         ),
-      ],
+      ]),
     );
 
     await tester.pumpWidget(
@@ -128,16 +129,18 @@ void main() {
     when(() => listInvoices.execute(command: any(named: 'command'))).thenAnswer(
       (_) async {
         callCount += 1;
-        return callCount == 1
-            ? []
-            : [
-                _invoice(
-                  id: '00000000-0000-0000-0000-000000000001',
-                  status: InvoiceStatus.unpaid,
-                  description: 'Coffee',
-                  now: now,
-                ),
-              ];
+        return _listResult(
+          callCount == 1
+              ? []
+              : [
+                  _invoice(
+                    id: '00000000-0000-0000-0000-000000000001',
+                    status: InvoiceStatus.unpaid,
+                    description: 'Coffee',
+                    now: now,
+                  ),
+                ],
+        );
       },
     );
     when(
@@ -204,7 +207,7 @@ void main() {
     when(() => listInvoices.execute(command: any(named: 'command'))).thenAnswer(
       (_) async {
         callCount += 1;
-        return [
+        return _listResult([
           _invoice(
             id: '00000000-0000-0000-0000-000000000001',
             status: callCount == 1
@@ -213,7 +216,7 @@ void main() {
             description: 'Coffee',
             now: now,
           ),
-        ];
+        ]);
       },
     );
 
@@ -266,7 +269,7 @@ void main() {
     when(() => listInvoices.execute(command: any(named: 'command'))).thenAnswer(
       (_) async {
         callCount += 1;
-        return [
+        return _listResult([
           _invoice(
             id: '00000000-0000-0000-0000-000000000001',
             status: callCount == 1
@@ -275,7 +278,7 @@ void main() {
             description: 'Coffee',
             now: now,
           ),
-        ];
+        ]);
       },
     );
 
@@ -945,6 +948,15 @@ Invoice _invoice({
     paidAt: null,
     paidAmountSat: null,
     shareUrl: InvoiceUrl('https://bullpay.ca/alice/i/$id'),
+  );
+}
+
+ListInvoicesResult _listResult(List<Invoice> invoices) {
+  return ListInvoicesResult(
+    invoices: invoices,
+    page: 1,
+    pageSize: 100,
+    hasMore: false,
   );
 }
 

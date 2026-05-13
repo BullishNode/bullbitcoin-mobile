@@ -21,7 +21,7 @@ Current bullnym endpoints verified in `/home/francis/bull-bitcoin-workspace/bull
 - `POST /api/v1/invoices` creates an unlinked invoice.
 - `DELETE /api/v1/:nym/invoices/:id` cancels a linked invoice.
 - `DELETE /api/v1/invoices/:id` cancels an unlinked invoice.
-- `GET /api/v1/invoices?npub=...&timestamp=...&signature=...&since_unix=...&limit=...&status=...`
+- `GET /api/v1/invoices?npub=...&timestamp=...&signature=...&page=...&pageSize=...&status=...`
   lists invoices for the signing npub.
 - `GET /api/v1/invoices/:id/status` returns public invoice status/detail data.
 
@@ -31,9 +31,10 @@ Signed actions use the deployed `bullpay-la-v2` wire domain through
 - `invoice-create` signs fields in this exact order:
   `amount_sat`, `fiat_amount_minor`, `fiat_currency`, `public_description`,
   `recipient_name`, `invoice_number`, `accept_btc`, `accept_ln`,
-  `accept_liquid`, `bitcoin_address`, `liquid_address`, `expires_at_unix`.
+  `accept_liquid`, `bitcoin_address`, `liquid_address`,
+  `liquid_blinding_key_hex`, `expires_at_unix`.
 - `invoice-cancel` signs `invoice_id`.
-- `invoice-list` signs `since_unix_or_zero`, `limit`, `status_or_empty`.
+- `invoice-list` signs `page`, `pageSize`, `status_or_empty`.
 
 For linked create/cancel, `nymOrEmpty` is the path nym. For unlinked
 create/cancel and all list requests, `nymOrEmpty` is the empty string.
@@ -48,9 +49,10 @@ Backend constraints mobile must mirror:
   days in the future.
 - Fiat minor-unit precision must mirror the backend pricer (`COP` is 0-decimal;
   currently supported invoice fiat currencies otherwise use 2 decimals).
-- `limit` must be at least 1; backend caps it at 100.
-- Status filter is absent/empty or one of: `unpaid`, `in_progress`, `paid`,
-  `underpaid`, `overpaid`, `expired`, `cancelled`.
+- `page` is 1-based and must be between 1 and 1000.
+- `pageSize` must be between 1 and 100.
+- Status filter is absent/empty or one of: `unpaid`, `in_progress`,
+  `partially_paid`, `paid`, `underpaid`, `overpaid`, `expired`, `cancelled`.
 
 ## Domain
 
@@ -114,7 +116,8 @@ full invoice row.
 
 Derived behavior belongs on the entity:
 
-- `isPayable` is true for `unpaid` and `inProgress` before expiry.
+- `isPayable` is true for `unpaid` and `partiallyPaid` before expiry,
+  matching the backend payment rail predicates.
 - `isCancellable` is true only for `unpaid`, matching the backend cancel
   update predicate.
 - `timeUntilExpiry(DateTime now)` returns zero when expired.
@@ -127,8 +130,8 @@ Derived behavior belongs on the entity:
 - `InvoiceId`: validated non-empty UUID string.
 - `InvoiceUrl`: validated HTTPS URL string returned by backend or derived from
   `Invoice.publicUrlFor`.
-- `InvoiceStatus`: `unpaid`, `inProgress`, `paid`, `underpaid`, `overpaid`,
-  `expired`, `cancelled`.
+- `InvoiceStatus`: `unpaid`, `inProgress`, `partiallyPaid`, `paid`,
+  `underpaid`, `overpaid`, `expired`, `cancelled`.
 - `PaymentMethod`: `btc`, `lightning`, `liquid`.
 
 Domain stores `DateTime`; Unix seconds are converted only at the Bullnym
@@ -142,7 +145,7 @@ datasource boundary.
 
 - `Future<CreateInvoiceResult> createInvoice({required NostrKeychainHandle handle, required CreateInvoiceCommand command, required String? bitcoinAddress, required String? liquidAddress, required String? liquidBlindingKeyHex})`
 - `Future<CancelInvoiceResult> cancelInvoice({required NostrKeychainHandle handle, required CancelInvoiceCommand command})`
-- `Future<List<Invoice>> listInvoices({required NostrKeychainHandle handle, required ListInvoicesCommand command})`
+- `Future<ListInvoicesResult> listInvoices({required NostrKeychainHandle handle, required ListInvoicesCommand command})`
 - `Future<InvoiceStatusSnapshot> getInvoiceStatus({required InvoiceId id})`
 
 The port returns domain entities and maps Bullnym/client errors into
@@ -159,7 +162,7 @@ presentation.
   - `linkToPageNym: String?`.
   - `privateMemo: String?` is mobile-only and never sent to Bullnym.
 - `CancelInvoiceCommand`: `invoiceId`, `nymOwner`.
-- `ListInvoicesCommand`: `since`, `limit`, `status`.
+- `ListInvoicesCommand`: `page`, `pageSize`, `status`.
 
 ### Identity
 
@@ -200,7 +203,7 @@ Lightning Address still has a local compatibility path while its remaining
 
 - `ListInvoicesUsecase`
   - Gets the signing handle and delegates list to the port.
-  - Uses the backend `since_unix`, `limit`, `status` contract.
+  - Uses the backend `page`, `pageSize`, `status` contract.
 
 - `GetInvoiceUsecase`
   - Reads public status/detail data by invoice id and returns
@@ -294,20 +297,15 @@ and renders minutes as `min`.
 
 ## Pagination And Filtering
 
-Backend list is `since_unix` + `limit` + optional `status`, sorted by
+Backend list is `page` + `pageSize` + optional `status`, sorted by
 `created_at DESC`.
 
 Mobile v1 uses:
 
-- `limit <= 100`;
-- first page with no `since`;
-- no infinite scroll until backend exposes a cursor/keyset contract or changes
-  `since_unix` semantics.
-
-Current backend `since_unix` means "created at or after" while results are
-sorted newest-first. That is useful for refresh/newer-sync, not older-page
-continuation. Mobile v1 fetches a single bounded window; infinite scroll needs
-a backend cursor/keyset contract.
+- `page = 1`;
+- `pageSize = 100`;
+- `hasMore` is preserved in state, but the v1 UI does not expose infinite
+  scroll.
 
 Status chips are client-side filters over the currently loaded set unless the
 user explicitly refreshes with a backend status filter.
@@ -360,6 +358,7 @@ Raw `Exception.toString()` must not be emitted to UI state.
 - `lib/features/get_paid/invoices/domain/value_objects/invoice_url.dart`
 - `lib/features/get_paid/invoices/application/cancel_invoice_result.dart`
 - `lib/features/get_paid/invoices/application/create_invoice_result.dart`
+- `lib/features/get_paid/invoices/application/list_invoices_result.dart`
 - `lib/features/get_paid/invoices/application/invoices_application_error.dart`
 - `lib/features/get_paid/invoices/application/ports/invoices_pay_service_port.dart`
 - `lib/features/get_paid/invoices/application/ports/invoices_identity_port.dart`

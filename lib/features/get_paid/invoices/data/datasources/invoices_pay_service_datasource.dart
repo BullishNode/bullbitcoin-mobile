@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/cancel_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/create_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/list_invoices_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/ports/invoices_pay_service_port.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create_invoice_command.dart';
@@ -79,18 +80,23 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
   }
 
   @override
-  Future<List<Invoice>> listInvoices({
+  Future<ListInvoicesResult> listInvoices({
     required ListInvoicesCommand command,
     required NostrKeychainHandle handle,
   }) async {
     try {
       final dto = await _bullnymClient.listInvoices(
         handle: handle,
-        page: 1,
-        pageSize: command.limit,
+        page: command.page,
+        pageSize: command.pageSize,
         status: command.status?.value,
       );
-      return dto.invoices.map((invoice) => invoice.toEntity()).toList();
+      return ListInvoicesResult(
+        invoices: dto.invoices.map((invoice) => invoice.toEntity()).toList(),
+        page: dto.page,
+        pageSize: dto.pageSize,
+        hasMore: dto.hasMore,
+      );
     } on BullnymException catch (e) {
       throw _mapBullnymError(e);
     } on ArgumentError catch (e) {

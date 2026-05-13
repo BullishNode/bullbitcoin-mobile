@@ -8,6 +8,9 @@ part 'invoices_list_state.freezed.dart';
 sealed class InvoicesListState with _$InvoicesListState {
   const factory InvoicesListState({
     @Default([]) List<Invoice> invoices,
+    @Default(1) int page,
+    @Default(100) int pageSize,
+    @Default(false) bool hasMore,
     InvoiceStatus? statusFilter,
     @Default(false) bool isLoading,
     String? error,

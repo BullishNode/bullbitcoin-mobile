@@ -1,7 +1,7 @@
+import 'package:bb_mobile/features/get_paid/invoices/application/list_invoices_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/ports/invoices_identity_port.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/ports/invoices_pay_service_port.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_command.dart';
-import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice.dart';
 
 class ListInvoicesUsecase {
   final InvoicesPayServicePort _invoiceService;
@@ -13,7 +13,9 @@ class ListInvoicesUsecase {
   }) : _invoiceService = invoiceService,
        _invoiceIdentity = invoiceIdentity;
 
-  Future<List<Invoice>> execute({required ListInvoicesCommand command}) async {
+  Future<ListInvoicesResult> execute({
+    required ListInvoicesCommand command,
+  }) async {
     final handle = await _invoiceIdentity.getSigningHandle();
     return _invoiceService.listInvoices(command: command, handle: handle);
   }

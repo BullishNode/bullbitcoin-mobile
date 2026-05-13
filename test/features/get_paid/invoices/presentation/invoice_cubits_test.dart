@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bb_mobile/features/get_paid/invoices/application/cancel_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/create_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/list_invoices_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_usecase.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create_invoice_command.dart';
@@ -37,7 +38,7 @@ void main() {
   setUpAll(() {
     final fallbackId = InvoiceId('00000000-0000-0000-0000-000000000001');
     final fallbackNow = DateTime.utc(2026, 5, 11, 12);
-    registerFallbackValue(ListInvoicesCommand(since: null, status: null));
+    registerFallbackValue(ListInvoicesCommand(status: null));
     registerFallbackValue(
       CreateInvoiceCommand(
         amountSat: 1000,
@@ -84,13 +85,23 @@ void main() {
       );
       when(
         () => listInvoices.execute(command: any(named: 'command')),
-      ).thenAnswer((_) async => [unpaid, paid]);
+      ).thenAnswer(
+        (_) async => ListInvoicesResult(
+          invoices: [unpaid, paid],
+          page: 1,
+          pageSize: 100,
+          hasMore: true,
+        ),
+      );
 
       final cubit = InvoicesListCubit(listInvoices: listInvoices);
       await cubit.load();
       cubit.setStatusFilter(InvoiceStatus.paid);
 
       expect(cubit.state.invoices, [unpaid, paid]);
+      expect(cubit.state.page, 1);
+      expect(cubit.state.pageSize, 100);
+      expect(cubit.state.hasMore, isTrue);
       expect(cubit.state.filteredInvoices, [paid]);
       final command =
           verify(
@@ -99,8 +110,8 @@ void main() {
               ).captured.single
               as ListInvoicesCommand;
       expect(command.status, isNull);
-      expect(command.since, isNull);
-      expect(command.limit, 100);
+      expect(command.page, 1);
+      expect(command.pageSize, 100);
     });
 
     test('maps typed list errors to state error', () async {

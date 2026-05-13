@@ -18,10 +18,19 @@ class InvoicesListCubit extends Cubit<InvoicesListState> {
     emit(state.copyWith(isLoading: true, error: null));
     try {
       final invoices = await _listInvoices.execute(
-        command: ListInvoicesCommand(since: null, status: null),
+        command: ListInvoicesCommand(status: null),
       );
       if (isClosed) return;
-      emit(state.copyWith(invoices: invoices, isLoading: false, error: null));
+      emit(
+        state.copyWith(
+          invoices: invoices.invoices,
+          page: invoices.page,
+          pageSize: invoices.pageSize,
+          hasMore: invoices.hasMore,
+          isLoading: false,
+          error: null,
+        ),
+      );
     } on InvoicesApplicationError catch (e) {
       if (isClosed) return;
       log.warning('Invoices list application error', error: e);

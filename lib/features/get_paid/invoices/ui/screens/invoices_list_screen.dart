@@ -145,6 +145,7 @@ class _StatusFilters extends StatelessWidget {
   String _statusLabel(InvoiceStatus status) {
     return switch (status) {
       InvoiceStatus.inProgress => 'In progress',
+      InvoiceStatus.partiallyPaid => 'Partially paid',
       _ => status.value[0].toUpperCase() + status.value.substring(1),
     };
   }

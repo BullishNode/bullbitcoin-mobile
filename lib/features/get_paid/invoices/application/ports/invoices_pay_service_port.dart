@@ -4,7 +4,7 @@ import 'package:bb_mobile/features/get_paid/invoices/application/create_invoice_
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create_invoice_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_command.dart';
-import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/list_invoices_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice_status_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
 
@@ -22,7 +22,7 @@ abstract class InvoicesPayServicePort {
     required NostrKeychainHandle handle,
   });
 
-  Future<List<Invoice>> listInvoices({
+  Future<ListInvoicesResult> listInvoices({
     required ListInvoicesCommand command,
     required NostrKeychainHandle handle,
   });

@@ -107,6 +107,7 @@ class InvoiceListItem extends StatelessWidget {
   String _statusLabel(InvoiceStatus status) {
     return switch (status) {
       InvoiceStatus.inProgress => 'in progress',
+      InvoiceStatus.partiallyPaid => 'partially paid',
       _ => status.value,
     };
   }
@@ -115,7 +116,8 @@ class InvoiceListItem extends StatelessWidget {
     return switch (status) {
       InvoiceStatus.paid => context.appColors.success,
       InvoiceStatus.unpaid => context.appColors.border,
-      InvoiceStatus.inProgress => context.appColors.warningContainer,
+      InvoiceStatus.inProgress ||
+      InvoiceStatus.partiallyPaid => context.appColors.warningContainer,
       InvoiceStatus.expired ||
       InvoiceStatus.cancelled => context.appColors.textMuted,
       InvoiceStatus.underpaid ||

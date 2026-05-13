@@ -52,7 +52,8 @@ class Invoice {
 
   bool isPayable(DateTime now) {
     if (!expiresAt.isAfter(now)) return false;
-    return status == InvoiceStatus.unpaid || status == InvoiceStatus.inProgress;
+    return status == InvoiceStatus.unpaid ||
+        status == InvoiceStatus.partiallyPaid;
   }
 
   bool get isCancellable => status == InvoiceStatus.unpaid;

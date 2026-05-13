@@ -7,6 +7,7 @@ import 'package:bb_mobile/core/wallet/domain/entities/wallet_address.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/cancel_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/create_invoice_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
+import 'package:bb_mobile/features/get_paid/invoices/application/list_invoices_result.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/ports/invoices_identity_port.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/ports/invoices_pay_service_port.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/cancel_invoice_command.dart';
@@ -484,20 +485,45 @@ void main() {
   });
 
   test('ListInvoicesUsecase gets signing handle and delegates', () async {
-    final command = ListInvoicesCommand(since: null, status: null);
+    final command = ListInvoicesCommand(status: null);
+    const result = ListInvoicesResult(
+      invoices: [],
+      page: 1,
+      pageSize: 100,
+      hasMore: false,
+    );
     when(
       () => invoiceIdentity.getSigningHandle(),
     ).thenAnswer((_) async => handle);
     when(
       () => invoiceService.listInvoices(command: command, handle: handle),
-    ).thenAnswer((_) async => []);
+    ).thenAnswer((_) async => result);
 
     final usecase = ListInvoicesUsecase(
       invoiceService: invoiceService,
       invoiceIdentity: invoiceIdentity,
     );
 
-    await expectLater(usecase.execute(command: command), completion(isEmpty));
+    await expectLater(usecase.execute(command: command), completion(result));
+  });
+
+  test('ListInvoicesCommand rejects values outside backend page bounds', () {
+    expect(
+      () => ListInvoicesCommand(page: 0, status: null),
+      throwsA(isA<InvoicesValidationError>()),
+    );
+    expect(
+      () => ListInvoicesCommand(page: 1001, status: null),
+      throwsA(isA<InvoicesValidationError>()),
+    );
+    expect(
+      () => ListInvoicesCommand(pageSize: 0, status: null),
+      throwsA(isA<InvoicesValidationError>()),
+    );
+    expect(
+      () => ListInvoicesCommand(pageSize: 101, status: null),
+      throwsA(isA<InvoicesValidationError>()),
+    );
   });
 
   test(

@@ -1,6 +1,7 @@
 enum InvoiceStatus {
   unpaid('unpaid'),
   inProgress('in_progress'),
+  partiallyPaid('partially_paid'),
   paid('paid'),
   underpaid('underpaid'),
   overpaid('overpaid'),

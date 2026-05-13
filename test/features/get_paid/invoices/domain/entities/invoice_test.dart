@@ -8,7 +8,11 @@ void main() {
 
   test('isPayable is true only for active payable states before expiry', () {
     expect(_invoice(status: InvoiceStatus.unpaid).isPayable(now), isTrue);
-    expect(_invoice(status: InvoiceStatus.inProgress).isPayable(now), isTrue);
+    expect(_invoice(status: InvoiceStatus.inProgress).isPayable(now), isFalse);
+    expect(
+      _invoice(status: InvoiceStatus.partiallyPaid).isPayable(now),
+      isTrue,
+    );
     expect(_invoice(status: InvoiceStatus.paid).isPayable(now), isFalse);
     expect(
       _invoice(status: InvoiceStatus.unpaid, expiresAt: now).isPayable(now),
@@ -19,6 +23,10 @@ void main() {
   test('isCancellable is true only for unpaid invoices', () {
     expect(_invoice(status: InvoiceStatus.unpaid).isCancellable, isTrue);
     expect(_invoice(status: InvoiceStatus.inProgress).isCancellable, isFalse);
+    expect(
+      _invoice(status: InvoiceStatus.partiallyPaid).isCancellable,
+      isFalse,
+    );
     expect(_invoice(status: InvoiceStatus.expired).isCancellable, isFalse);
     expect(_invoice(status: InvoiceStatus.cancelled).isCancellable, isFalse);
   });
