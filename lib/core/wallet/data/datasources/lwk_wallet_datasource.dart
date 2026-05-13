@@ -203,6 +203,35 @@ class LwkWalletDatasource {
     }
   }
 
+  Future<
+    ({String standard, String confidential, int index, String blindingKey})
+  >
+  getAddressWithBlindingKeyByIndex(
+    int index, {
+    required WalletModel wallet,
+  }) async {
+    try {
+      final lwkWallet = await LwkFacade.createPublicWallet(wallet);
+      final addressInfo = await lwkWallet.address(index: index);
+      final blindingKey = addressInfo.blindingKey;
+      if (blindingKey == null || blindingKey.isEmpty) {
+        throw Exception('LWK address did not include a blinding key');
+      }
+      return (
+        index: addressInfo.index!,
+        standard: addressInfo.standard,
+        confidential: addressInfo.confidential,
+        blindingKey: blindingKey,
+      );
+    } catch (e) {
+      if (e is lwk.LwkError) {
+        throw e.msg;
+      } else {
+        rethrow;
+      }
+    }
+  }
+
   Future<bool> isAddressUsed(
     String address, {
     required WalletModel wallet,

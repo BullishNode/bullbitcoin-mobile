@@ -36,6 +36,8 @@ class _MockInvoicesPayServicePort extends Mock
 
 class _MockInvoicesIdentityPort extends Mock implements InvoicesIdentityPort {}
 
+final _key = '11' * 32;
+
 void main() {
   late _MockWalletRepository walletRepository;
   late _MockWalletAddressRepository walletAddressRepository;
@@ -87,10 +89,11 @@ void main() {
           ),
         ).thenAnswer((_) async => _address('bc1qinvoice'));
         when(
-          () => walletAddressRepository.generateNewReceiveAddress(
-            walletId: 'liq-wallet',
-          ),
-        ).thenAnswer((_) async => _address('lq1invoice'));
+          () => walletAddressRepository
+              .generateNewLiquidReceiveAddressWithBlindingKey(
+                walletId: 'liq-wallet',
+              ),
+        ).thenAnswer((_) async => (address: 'lq1invoice', blindingKey: _key));
         when(
           () => invoiceIdentity.getSigningHandle(),
         ).thenAnswer((_) async => handle);
@@ -100,6 +103,7 @@ void main() {
             handle: handle,
             bitcoinAddress: 'bc1qinvoice',
             liquidAddress: 'lq1invoice',
+            liquidBlindingKeyHex: _key,
           ),
         ).thenAnswer((_) async => result);
         when(() => labelsFacade.store(any())).thenAnswer(
@@ -124,8 +128,20 @@ void main() {
             handle: handle,
             bitcoinAddress: 'bc1qinvoice',
             liquidAddress: 'lq1invoice',
+            liquidBlindingKeyHex: _key,
           ),
         ).called(1);
+        verify(
+          () => walletAddressRepository
+              .generateNewLiquidReceiveAddressWithBlindingKey(
+                walletId: 'liq-wallet',
+              ),
+        ).called(1);
+        verifyNever(
+          () => walletAddressRepository.generateNewReceiveAddress(
+            walletId: 'liq-wallet',
+          ),
+        );
         final labels = verify(
           () => labelsFacade.store(captureAny()),
         ).captured.cast<NewLabel>();
@@ -174,10 +190,11 @@ void main() {
           ],
         );
         when(
-          () => walletAddressRepository.generateNewReceiveAddress(
-            walletId: 'liq-wallet',
-          ),
-        ).thenAnswer((_) async => _address('lq1invoice'));
+          () => walletAddressRepository
+              .generateNewLiquidReceiveAddressWithBlindingKey(
+                walletId: 'liq-wallet',
+              ),
+        ).thenAnswer((_) async => (address: 'lq1invoice', blindingKey: _key));
         when(
           () => invoiceIdentity.getSigningHandle(),
         ).thenAnswer((_) async => handle);
@@ -187,6 +204,7 @@ void main() {
             handle: handle,
             bitcoinAddress: 'bc1qinvoice',
             liquidAddress: 'lq1invoice',
+            liquidBlindingKeyHex: _key,
           ),
         ).thenAnswer((_) async => result);
         when(() => labelsFacade.store(any())).thenThrow(Exception('disk full'));
@@ -206,6 +224,61 @@ void main() {
         verify(() => labelsFacade.store(any())).called(2);
       },
     );
+
+    test('does not request blinding key for Lightning-only invoices', () async {
+      final command = _createCommand(
+        now: now,
+        acceptBtc: false,
+        acceptLn: true,
+        acceptLiquid: false,
+      );
+      final result = _createResult();
+      when(
+        () => invoiceIdentity.getSigningHandle(),
+      ).thenAnswer((_) async => handle);
+      when(
+        () => walletRepository.getWallets(onlyDefaults: true, onlyLiquid: true),
+      ).thenAnswer(
+        (_) async => [
+          _wallet(id: 'liq-wallet', network: Network.liquidMainnet),
+        ],
+      );
+      when(
+        () => walletAddressRepository.generateNewReceiveAddress(
+          walletId: 'liq-wallet',
+        ),
+      ).thenAnswer((_) async => _address('lq1invoice'));
+      when(
+        () => invoiceService.createInvoice(
+          command: command,
+          handle: handle,
+          bitcoinAddress: null,
+          liquidAddress: 'lq1invoice',
+          liquidBlindingKeyHex: null,
+        ),
+      ).thenAnswer((_) async => result);
+
+      final usecase = _createUsecase(
+        walletRepository: walletRepository,
+        walletAddressRepository: walletAddressRepository,
+        labelsFacade: labelsFacade,
+        invoiceService: invoiceService,
+        invoiceIdentity: invoiceIdentity,
+      );
+
+      await expectLater(usecase.execute(command: command), completion(result));
+      verify(
+        () => walletAddressRepository.generateNewReceiveAddress(
+          walletId: 'liq-wallet',
+        ),
+      ).called(1);
+      verifyNever(
+        () => walletAddressRepository
+            .generateNewLiquidReceiveAddressWithBlindingKey(
+              walletId: any(named: 'walletId'),
+            ),
+      );
+    });
 
     test('does not store memo labels when private memo is absent', () async {
       final command = _createCommand(
@@ -233,6 +306,7 @@ void main() {
           handle: handle,
           bitcoinAddress: 'bc1qinvoice',
           liquidAddress: null,
+          liquidBlindingKeyHex: null,
         ),
       ).thenAnswer((_) async => result);
 
@@ -275,6 +349,7 @@ void main() {
           handle: handle,
           bitcoinAddress: 'bc1qinvoice',
           liquidAddress: null,
+          liquidBlindingKeyHex: null,
         ),
       ).thenAnswer((_) async => result);
 
@@ -314,6 +389,12 @@ void main() {
           () => walletAddressRepository.generateNewReceiveAddress(
             walletId: any(named: 'walletId'),
           ),
+        );
+        verifyNever(
+          () => walletAddressRepository
+              .generateNewLiquidReceiveAddressWithBlindingKey(
+                walletId: any(named: 'walletId'),
+              ),
         );
       },
     );

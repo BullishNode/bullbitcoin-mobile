@@ -421,6 +421,79 @@ void main() {
   );
 
   test(
+    'signs Lightning-only invoice creation with empty blinding key field',
+    () async {
+      final expiresAt = DateTime.fromMillisecondsSinceEpoch(
+        1710604800 * 1000,
+        isUtc: true,
+      );
+      final stub = _stubDio([
+        {
+          'invoice_id': '00000000-0000-0000-0000-000000000001',
+          'share_url':
+              'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
+        },
+      ]);
+      final client = BullnymClient(dio: stub.dio);
+
+      await client.createInvoice(
+        handle: handle,
+        nym: 'alice',
+        amountSat: 5000,
+        fiatAmountMinor: null,
+        fiatCurrency: null,
+        publicDescription: 'coffee',
+        recipientName: 'Alice',
+        invoiceNumber: 'INV-1',
+        acceptBtc: false,
+        acceptLn: true,
+        acceptLiquid: false,
+        bitcoinAddress: null,
+        liquidAddress: 'lq1qq...',
+        liquidBlindingKeyHex: null,
+        expiresAt: expiresAt,
+        timestampSecs: timestamp,
+      );
+
+      final request = stub.captured.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/api/v1/alice/invoices');
+      expect(request.data, isNot(contains('liquid_blinding_key_hex')));
+      final payloadFields = [
+        '5000',
+        '',
+        '',
+        'coffee',
+        'Alice',
+        'INV-1',
+        'false',
+        'true',
+        'false',
+        '',
+        'lq1qq...',
+        '',
+        '1710604800',
+      ];
+      _expectMessageBytes(
+        action: bullpayActionInvoiceCreate,
+        npubHex: handle.publicKeyHex,
+        nymOrEmpty: 'alice',
+        payloadFields: payloadFields,
+        timestampSecs: timestamp,
+      );
+      _expectSignatureValid(
+        handle: handle,
+        signatureHex:
+            (request.data as Map<String, dynamic>)['signature'] as String,
+        action: bullpayActionInvoiceCreate,
+        nymOrEmpty: 'alice',
+        payloadFields: payloadFields,
+        timestampSecs: timestamp,
+      );
+    },
+  );
+
+  test(
     'deletes signed unlinked invoices with invoice id payload only',
     () async {
       final stub = _stubDio([

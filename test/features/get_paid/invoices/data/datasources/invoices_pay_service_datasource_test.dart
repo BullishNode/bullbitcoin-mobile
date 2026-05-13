@@ -14,6 +14,8 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockBullnymClient extends Mock implements BullnymClient {}
 
+final _key = '11' * 32;
+
 void main() {
   late _MockBullnymClient bullnymClient;
   late InvoicesPayServiceDatasource datasource;
@@ -43,6 +45,7 @@ void main() {
         acceptLiquid: true,
         bitcoinAddress: 'bc1qexample',
         liquidAddress: 'lq1example',
+        liquidBlindingKeyHex: _key,
         expiresAt: expiresAt,
       ),
     ).thenAnswer(
@@ -72,6 +75,7 @@ void main() {
       handle: handle,
       bitcoinAddress: 'bc1qexample',
       liquidAddress: 'lq1example',
+      liquidBlindingKeyHex: _key,
     );
 
     expect(result.invoiceId.value, '00000000-0000-0000-0000-000000000001');
@@ -214,6 +218,7 @@ void main() {
           acceptLiquid: true,
           bitcoinAddress: 'bc1qexample',
           liquidAddress: 'lq1example',
+          liquidBlindingKeyHex: _key,
           expiresAt: expiresAt,
         ),
       ).thenAnswer(
@@ -244,6 +249,7 @@ void main() {
           handle: handle,
           bitcoinAddress: 'bc1qexample',
           liquidAddress: 'lq1example',
+          liquidBlindingKeyHex: _key,
         ),
         throwsA(isA<InvoicesUnexpectedError>()),
       );

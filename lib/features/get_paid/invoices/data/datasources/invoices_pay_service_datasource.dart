@@ -29,6 +29,7 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
     required NostrKeychainHandle handle,
     required String? bitcoinAddress,
     required String? liquidAddress,
+    required String? liquidBlindingKeyHex,
   }) async {
     try {
       final dto = await _bullnymClient.createInvoice(
@@ -45,6 +46,7 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
         acceptLiquid: command.acceptLiquid,
         bitcoinAddress: bitcoinAddress,
         liquidAddress: liquidAddress,
+        liquidBlindingKeyHex: liquidBlindingKeyHex,
         expiresAt: command.expiresAt,
       );
       return dto.toCreateResult();

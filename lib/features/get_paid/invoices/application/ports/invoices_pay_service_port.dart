@@ -14,6 +14,7 @@ abstract class InvoicesPayServicePort {
     required NostrKeychainHandle handle,
     required String? bitcoinAddress,
     required String? liquidAddress,
+    required String? liquidBlindingKeyHex,
   });
 
   Future<CancelInvoiceResult> cancelInvoice({

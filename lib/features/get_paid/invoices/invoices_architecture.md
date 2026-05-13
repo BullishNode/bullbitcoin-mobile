@@ -140,7 +140,7 @@ datasource boundary.
 
 `InvoicesPayServicePort`
 
-- `Future<CreateInvoiceResult> createInvoice({required NostrKeychainHandle handle, required CreateInvoiceCommand command, required String? bitcoinAddress, required String? liquidAddress})`
+- `Future<CreateInvoiceResult> createInvoice({required NostrKeychainHandle handle, required CreateInvoiceCommand command, required String? bitcoinAddress, required String? liquidAddress, required String? liquidBlindingKeyHex})`
 - `Future<CancelInvoiceResult> cancelInvoice({required NostrKeychainHandle handle, required CancelInvoiceCommand command})`
 - `Future<List<Invoice>> listInvoices({required NostrKeychainHandle handle, required ListInvoicesCommand command})`
 - `Future<InvoiceStatusSnapshot> getInvoiceStatus({required InvoiceId id})`

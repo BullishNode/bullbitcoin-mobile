@@ -33,6 +33,7 @@ class CreateInvoiceUsecase {
     final handle = await _invoiceIdentity.getSigningHandle();
     String? bitcoinAddress;
     String? liquidAddress;
+    String? liquidBlindingKeyHex;
 
     if (command.acceptBtc) {
       final wallets = await _walletRepository.getWallets(
@@ -62,10 +63,18 @@ class CreateInvoiceUsecase {
           'No default Liquid wallet found',
         );
       }
-      final address = await _walletAddressRepository.generateNewReceiveAddress(
-        walletId: wallet.id,
-      );
-      liquidAddress = address.address;
+      if (command.acceptLiquid) {
+        final address = await _walletAddressRepository
+            .generateNewLiquidReceiveAddressWithBlindingKey(
+              walletId: wallet.id,
+            );
+        liquidAddress = address.address;
+        liquidBlindingKeyHex = address.blindingKey;
+      } else {
+        final address = await _walletAddressRepository
+            .generateNewReceiveAddress(walletId: wallet.id);
+        liquidAddress = address.address;
+      }
     }
 
     final result = await _invoiceService.createInvoice(
@@ -73,6 +82,7 @@ class CreateInvoiceUsecase {
       handle: handle,
       bitcoinAddress: bitcoinAddress,
       liquidAddress: liquidAddress,
+      liquidBlindingKeyHex: liquidBlindingKeyHex,
     );
 
     final privateMemo = command.privateMemo;
