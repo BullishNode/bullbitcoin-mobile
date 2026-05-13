@@ -7,20 +7,20 @@ import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/get_bullnym_receive_wallet_usecase.dart';
 
-class SweepLightningAddressWalletUsecase {
+class SweepBullnymReceiveWalletUsecase {
   static const int _dustThresholdSat = 100;
 
-  final GetLightningAddressWalletUsecase _getWallet;
+  final GetBullnymReceiveWalletUsecase _getWallet;
   final WalletRepository _walletRepository;
   final WalletAddressRepository _walletAddressRepository;
   final LiquidWalletRepository _liquidWalletRepository;
   final BroadcastLiquidTransactionUsecase _broadcast;
   final LabelsFacade _labelsFacade;
 
-  SweepLightningAddressWalletUsecase({
-    required GetLightningAddressWalletUsecase getWallet,
+  SweepBullnymReceiveWalletUsecase({
+    required GetBullnymReceiveWalletUsecase getWallet,
     required WalletRepository walletRepository,
     required WalletAddressRepository walletAddressRepository,
     required LiquidWalletRepository liquidWalletRepository,
@@ -33,18 +33,19 @@ class SweepLightningAddressWalletUsecase {
        _broadcast = broadcast,
        _labelsFacade = labelsFacade;
 
-  /// Sweeps all funds from the lightning address wallet to the default
-  /// Liquid wallet. Returns the txid if a sweep was broadcast, null if
-  /// no sweep was needed (no wallet or dust-level balance).
+  /// Sweeps all funds from the Bullnym receive wallet to the default Liquid
+  /// wallet. Returns the txid if a sweep was broadcast, or null if no sweep was
+  /// needed.
   Future<String?> execute({required bool isTestnet}) async {
-    final environment =
-        isTestnet ? Environment.testnet : Environment.mainnet;
+    final environment = isTestnet ? Environment.testnet : Environment.mainnet;
 
-    final laWallet = await _getWallet.execute(environment: environment);
-    if (laWallet == null) return null;
+    final receiveWallet = await _getWallet.execute(environment: environment);
+    if (receiveWallet == null) return null;
 
     // Wallet balance has already been synced by the normal wallet flow.
-    if (laWallet.balanceSat <= BigInt.from(_dustThresholdSat)) return null;
+    if (receiveWallet.balanceSat <= BigInt.from(_dustThresholdSat)) {
+      return null;
+    }
 
     final defaultWallets = await _walletRepository.getWallets(
       environment: environment,
@@ -53,18 +54,14 @@ class SweepLightningAddressWalletUsecase {
     );
     final defaultLiquid = defaultWallets.firstOrNull;
     if (defaultLiquid == null) {
-      throw LightningAddressSweepException(
-        'No default Liquid wallet found',
-      );
+      throw LightningAddressSweepException('No default Liquid wallet found');
     }
 
-    final destinationAddress =
-        await _walletAddressRepository.generateNewReceiveAddress(
-      walletId: defaultLiquid.id,
-    );
+    final destinationAddress = await _walletAddressRepository
+        .generateNewReceiveAddress(walletId: defaultLiquid.id);
 
     final pset = await _liquidWalletRepository.buildPset(
-      walletId: laWallet.id,
+      walletId: receiveWallet.id,
       address: destinationAddress.address,
       networkFee: const NetworkFee.relative(0.1),
       drain: true,
@@ -72,17 +69,18 @@ class SweepLightningAddressWalletUsecase {
 
     final signedPset = await _liquidWalletRepository.signPset(
       pset: pset,
-      walletId: laWallet.id,
+      walletId: receiveWallet.id,
     );
 
-    final txid =
-        await _broadcast.execute(signedPset, isTestnet: isTestnet);
+    final txid = await _broadcast.execute(signedPset, isTestnet: isTestnet);
 
-    await _labelsFacade.store(NewLabel.tx(
-      transactionId: txid,
-      label: lightningAddressWalletLabel,
-      origin: laWallet.id,
-    ));
+    await _labelsFacade.store(
+      NewLabel.tx(
+        transactionId: txid,
+        label: bullnymReceiveWalletLabel,
+        origin: receiveWallet.id,
+      ),
+    );
 
     return txid;
   }

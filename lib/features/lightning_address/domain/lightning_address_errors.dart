@@ -1,8 +1,8 @@
 import 'package:bb_mobile/core/errors/bull_exception.dart';
 
-class LightningAddressWalletAlreadyExistsException extends BullException {
-  LightningAddressWalletAlreadyExistsException()
-    : super('Lightning address wallet already exists');
+class BullnymReceiveWalletAlreadyExistsException extends BullException {
+  BullnymReceiveWalletAlreadyExistsException()
+    : super('Bullnym receive wallet already exists');
 }
 
 class LightningAddressSweepException extends BullException {

@@ -5,27 +5,27 @@ import 'package:bb_mobile/features/lightning_address/domain/entities/lookup_resu
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_key_derivation.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/create_bullnym_receive_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/get_bullnym_receive_wallet_usecase.dart';
 
 class RecoverLightningAddressUsecase {
-  final GetLightningAddressWalletUsecase _getWallet;
-  final CreateLightningAddressWalletUsecase _createWallet;
+  final GetBullnymReceiveWalletUsecase _getWallet;
+  final CreateBullnymReceiveWalletUsecase _createWallet;
   final PayServicePort _payService;
   final WalletRepository _walletRepository;
   final SeedRepository _seedRepository;
 
   RecoverLightningAddressUsecase({
-    required GetLightningAddressWalletUsecase getWallet,
-    required CreateLightningAddressWalletUsecase createWallet,
+    required GetBullnymReceiveWalletUsecase getWallet,
+    required CreateBullnymReceiveWalletUsecase createWallet,
     required PayServicePort payService,
     required WalletRepository walletRepository,
     required SeedRepository seedRepository,
-  })  : _getWallet = getWallet,
-        _createWallet = createWallet,
-        _payService = payService,
-        _walletRepository = walletRepository,
-        _seedRepository = seedRepository;
+  }) : _getWallet = getWallet,
+       _createWallet = createWallet,
+       _payService = payService,
+       _walletRepository = walletRepository,
+       _seedRepository = seedRepository;
 
   Future<String?> execute({required Environment environment}) async {
     final stored = await _payService.getStoredAddress();
@@ -43,9 +43,7 @@ class RecoverLightningAddressUsecase {
     // re-activate. The settings flow surfaces the previous-addresses banner.
     if (lookup is! ActiveLookupResult) return null;
 
-    final existing = await _getWallet.execute(
-      environment: environment,
-    );
+    final existing = await _getWallet.execute(environment: environment);
     if (existing == null) {
       await _createWallet.execute(environment: environment);
     }

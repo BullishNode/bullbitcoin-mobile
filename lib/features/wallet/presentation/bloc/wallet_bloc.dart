@@ -321,22 +321,24 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
         );
         add(const ExecuteAutoSwap());
 
-        // Sweep Lightning Address wallet — only on default Liquid wallet sync
+        // Sweep the Bullnym receive wallet only after the default Liquid wallet
+        // has synced, so the destination balance is fresh before sweeping.
         if (event.wallet.isDefault &&
-            !LightningAddressFacade.isLightningAddressWallet(event.wallet)) {
+            !LightningAddressFacade.isBullnymReceiveWallet(event.wallet)) {
           try {
-            final shouldSweep =
-                await _lightningAddressFacade.shouldAutoSweep();
+            final shouldSweep = await _lightningAddressFacade
+                .shouldAutoSweepBullnymReceiveWallet();
             if (shouldSweep) {
-              final txid = await _lightningAddressFacade.sweep(
-                isTestnet: event.wallet.network.isTestnet,
-              );
+              final txid = await _lightningAddressFacade
+                  .sweepBullnymReceiveWallet(
+                    isTestnet: event.wallet.network.isTestnet,
+                  );
               if (txid != null) {
-                debugPrint('Lightning Address sweep: $txid');
+                debugPrint('Bullnym receive wallet sweep: $txid');
               }
             }
           } catch (e) {
-            debugPrint('Lightning Address sweep failed: $e');
+            debugPrint('Bullnym receive wallet sweep failed: $e');
           }
         }
       }
@@ -668,11 +670,11 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   }
 
   Future<bool> _resolveHideLightningAddress(List<Wallet> wallets) async {
-    if (!wallets.any(LightningAddressFacade.isLightningAddressWallet)) {
+    if (!wallets.any(LightningAddressFacade.isBullnymReceiveWallet)) {
       return false;
     }
     try {
-      return await _lightningAddressFacade.isWalletHidden();
+      return await _lightningAddressFacade.isBullnymReceiveWalletHidden();
     } catch (_) {
       return false;
     }

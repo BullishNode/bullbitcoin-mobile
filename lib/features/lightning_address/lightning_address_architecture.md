@@ -2,8 +2,8 @@
 
 A user nym (`alice@bullpay.ca`) registered with the bullnym pay service.
 Incoming Lightning payments are settled on Liquid via Boltz reverse submarine
-swaps into a BIP85-derived Liquid wallet on the device. Funds are auto-swept
-to the default Liquid wallet on every sync.
+swaps into a BIP85-derived Bullnym receive wallet on the device. Funds are
+auto-swept to the default Liquid wallet on every sync.
 
 When sending TO a Lightning Address, if the recipient's pay service advertises
 LUD-22 with `payment_method=L-BTC`, the app pays directly on Liquid and skips
@@ -13,13 +13,15 @@ the Boltz swap.
 
 | What | Path | Source |
 |---|---|---|
-| LA wallet mnemonic | BIP85 index 75 → 12-word mnemonic | `lightning_address_constants.dart` |
+| Bullnym receive wallet mnemonic | BIP85 index 75 → 12-word mnemonic | `lightning_address_constants.dart` |
 | Nostr identity | BIP85 `86'/1'/1'` → 32-byte secret | `nostr_identity.dart` (Nostr application 86) |
 
-The LA wallet is created from the child mnemonic and labeled
-`"Lightning Address"`. `GetLightningAddressWalletUsecase` finds it by label.
-The Nostr path is independent from the LA wallet index; `75` is not reused as
-a Nostr identity number.
+The receive wallet is created from the child mnemonic and labeled
+`"Lightning Address"` for user continuity. `GetBullnymReceiveWalletUsecase`
+finds it by label. Lightning Address provisions this wallet today, and Payment
+Page uses the same Bullnym descriptor relationship. The Nostr path is
+independent from the receive-wallet index; `75` is not reused as a Nostr
+identity number.
 
 ## Use cases
 
@@ -27,12 +29,12 @@ a Nostr identity number.
 
 | Use case | Inputs | Outputs |
 |---|---|---|
-| `CreateLightningAddressWalletUsecase` | environment | `Wallet` |
-| `GetLightningAddressWalletUsecase` | environment | `Wallet?` (label match) |
+| `CreateBullnymReceiveWalletUsecase` | environment | `Wallet` |
+| `GetBullnymReceiveWalletUsecase` | environment | `Wallet?` (label match) |
 | `RegisterLightningAddressUsecase` | nym, environment | `String` (`nym@domain`) |
 | `DeleteLightningAddressUsecase` | nym | `NymQuota` |
 | `RecoverLightningAddressUsecase` | environment | `String?` |
-| `SweepLightningAddressWalletUsecase` | isTestnet | `String?` (txid) |
+| `SweepBullnymReceiveWalletUsecase` | isTestnet | `String?` (txid) |
 
 Setter use cases take `…Command` objects; getters take named params.
 
@@ -72,10 +74,11 @@ on the confirm screen.
 ## Auto-sweep
 
 `WalletBloc._onWalletSyncFinished` (for the default Liquid wallet only) calls
-`LightningAddressFacade.sweep()` if `shouldAutoSweep()` is true and the
-auto-swap executor is idle. Sweep:
+`LightningAddressFacade.sweepBullnymReceiveWallet()` if
+`shouldAutoSweepBullnymReceiveWallet()` is true and the auto-swap executor is
+idle. Sweep:
 
-1. `getWallet(LA)`. Bail if balance ≤ 100 sats (dust).
+1. Find the Bullnym receive wallet. Bail if balance ≤ 100 sats (dust).
 2. `generateNewReceiveAddress(default Liquid)` — fresh index per sweep.
 3. Build drain PSET → sign → broadcast.
 4. Label the resulting txid `"Lightning Address"`.
@@ -96,9 +99,9 @@ install or normal startup.
 ## Hide wallet
 
 `WalletBloc._onStarted / _onRefreshed` calls
-`LightningAddressFacade.isWalletHidden()`; if true, the LA wallet is filtered
-out of the wallet list. `SendCubit.loadWalletWithRatesAndFees` always filters
-the LA wallet out of selectable send sources.
+`LightningAddressFacade.isBullnymReceiveWalletHidden()`; if true, the receive
+wallet is filtered out of the wallet list. `SendCubit.loadWalletWithRatesAndFees`
+always filters the receive wallet out of selectable send sources.
 
 ## Privacy boundaries
 

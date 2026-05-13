@@ -46,7 +46,7 @@ class WalletCards extends StatelessWidget {
       Iterable<Wallet> ws = bloc.state.wallets;
       if (localSignersOnly) ws = ws.where((w) => w.signsLocally);
       if (bloc.state.hideLightningAddressFromHome) {
-        ws = ws.where((w) => !LightningAddressFacade.isLightningAddressWallet(w));
+        ws = ws.where((w) => !LightningAddressFacade.isBullnymReceiveWallet(w));
       }
       return ws.toList();
     });

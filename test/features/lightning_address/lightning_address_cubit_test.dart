@@ -7,7 +7,7 @@ import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_po
 import 'package:bb_mobile/features/lightning_address/domain/primitives/nostr_publish_status.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/clear_lightning_address_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/get_bullnym_receive_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/publish_lightning_address_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
@@ -18,7 +18,7 @@ import 'package:bb_mobile/features/lightning_address/presentation/lightning_addr
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockGetWallet extends Mock implements GetLightningAddressWalletUsecase {}
+class _MockGetWallet extends Mock implements GetBullnymReceiveWalletUsecase {}
 
 class _MockRegister extends Mock implements RegisterLightningAddressUsecase {}
 

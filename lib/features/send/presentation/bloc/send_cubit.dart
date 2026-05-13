@@ -213,7 +213,7 @@ class SendCubit extends Cubit<SendState> {
               .where(
                 (w) =>
                     !w.isWatchOnly &&
-                    !LightningAddressFacade.isLightningAddressWallet(w),
+                    !LightningAddressFacade.isBullnymReceiveWallet(w),
               )
               .toList(),
         ),

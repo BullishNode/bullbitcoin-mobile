@@ -4,27 +4,27 @@ import 'package:bb_mobile/features/lightning_address/data/datasources/lightning_
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/recover_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/sweep_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/sweep_bullnym_receive_wallet_usecase.dart';
 
 /// Public API for the lightning_address feature.
 ///
 /// All cross-feature access MUST go through this facade.
 class LightningAddressFacade {
-  static const String walletLabel = lightningAddressWalletLabel;
+  static const String walletLabel = bullnymReceiveWalletLabel;
 
   // Public navigation contract while LA management currently lives in Settings.
   static const String manageRouteName = 'lightningAddress';
 
-  static bool isLightningAddressWallet(Wallet wallet) =>
+  static bool isBullnymReceiveWallet(Wallet wallet) =>
       wallet.label == walletLabel;
 
-  final SweepLightningAddressWalletUsecase _sweep;
+  final SweepBullnymReceiveWalletUsecase _sweep;
   final RecoverLightningAddressUsecase _recover;
   final LightningAddressSettingsDatasource _settings;
   final PayServicePort _payService;
 
   LightningAddressFacade({
-    required SweepLightningAddressWalletUsecase sweep,
+    required SweepBullnymReceiveWalletUsecase sweep,
     required RecoverLightningAddressUsecase recover,
     required LightningAddressSettingsDatasource settings,
     required PayServicePort payService,
@@ -33,13 +33,19 @@ class LightningAddressFacade {
        _settings = settings,
        _payService = payService;
 
-  Future<String?> sweep({required bool isTestnet}) =>
+  Future<String?> sweepBullnymReceiveWallet({required bool isTestnet}) =>
       _sweep.execute(isTestnet: isTestnet);
 
-  Future<bool> shouldAutoSweep() => _settings.getAutoSweep();
-  Future<bool> isWalletHidden() => _settings.getHideWallet();
-  Future<void> setAutoSweep(bool value) => _settings.setAutoSweep(value);
-  Future<void> setWalletHidden(bool value) => _settings.setHideWallet(value);
+  Future<bool> shouldAutoSweepBullnymReceiveWallet() =>
+      _settings.getAutoSweep();
+
+  Future<bool> isBullnymReceiveWalletHidden() => _settings.getHideWallet();
+
+  Future<void> setBullnymReceiveWalletAutoSweep(bool value) =>
+      _settings.setAutoSweep(value);
+
+  Future<void> setBullnymReceiveWalletHidden(bool value) =>
+      _settings.setHideWallet(value);
 
   Future<String?> recoverIfNeeded({required Environment environment}) =>
       _recover.execute(environment: environment);

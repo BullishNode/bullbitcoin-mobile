@@ -13,14 +13,14 @@ import 'package:bb_mobile/features/lightning_address/data/datasources/pay_servic
 import 'package:bb_mobile/features/lightning_address/domain/ports/nostr_publish_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/clear_lightning_address_nostr_profile_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/create_bullnym_receive_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/get_bullnym_receive_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/publish_lightning_address_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/recover_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/sweep_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/sweep_bullnym_receive_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:get_it/get_it.dart';
@@ -45,24 +45,24 @@ class LightningAddressLocator {
       () => RelayNostrPublishAdapter(relayClient: locator<NostrRelayClient>()),
     );
 
-    locator.registerFactory<GetLightningAddressWalletUsecase>(
-      () => GetLightningAddressWalletUsecase(
+    locator.registerFactory<GetBullnymReceiveWalletUsecase>(
+      () => GetBullnymReceiveWalletUsecase(
         walletRepository: locator<WalletRepository>(),
       ),
     );
 
-    locator.registerFactory<CreateLightningAddressWalletUsecase>(
-      () => CreateLightningAddressWalletUsecase(
+    locator.registerFactory<CreateBullnymReceiveWalletUsecase>(
+      () => CreateBullnymReceiveWalletUsecase(
         bip85Repository: locator<Bip85Repository>(),
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
-        getWallet: locator<GetLightningAddressWalletUsecase>(),
+        getWallet: locator<GetBullnymReceiveWalletUsecase>(),
       ),
     );
 
-    locator.registerFactory<SweepLightningAddressWalletUsecase>(
-      () => SweepLightningAddressWalletUsecase(
-        getWallet: locator<GetLightningAddressWalletUsecase>(),
+    locator.registerFactory<SweepBullnymReceiveWalletUsecase>(
+      () => SweepBullnymReceiveWalletUsecase(
+        getWallet: locator<GetBullnymReceiveWalletUsecase>(),
         walletRepository: locator<WalletRepository>(),
         walletAddressRepository: locator<WalletAddressRepository>(),
         liquidWalletRepository: locator<LiquidWalletRepository>(),
@@ -73,8 +73,8 @@ class LightningAddressLocator {
 
     locator.registerFactory<RegisterLightningAddressUsecase>(
       () => RegisterLightningAddressUsecase(
-        createWallet: locator<CreateLightningAddressWalletUsecase>(),
-        getWallet: locator<GetLightningAddressWalletUsecase>(),
+        createWallet: locator<CreateBullnymReceiveWalletUsecase>(),
+        getWallet: locator<GetBullnymReceiveWalletUsecase>(),
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
         payService: locator<PayServicePort>(),
@@ -115,8 +115,8 @@ class LightningAddressLocator {
 
     locator.registerFactory<RecoverLightningAddressUsecase>(
       () => RecoverLightningAddressUsecase(
-        getWallet: locator<GetLightningAddressWalletUsecase>(),
-        createWallet: locator<CreateLightningAddressWalletUsecase>(),
+        getWallet: locator<GetBullnymReceiveWalletUsecase>(),
+        createWallet: locator<CreateBullnymReceiveWalletUsecase>(),
         payService: locator<PayServicePort>(),
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
@@ -125,7 +125,7 @@ class LightningAddressLocator {
 
     locator.registerFactory<LightningAddressCubit>(
       () => LightningAddressCubit(
-        getWallet: locator<GetLightningAddressWalletUsecase>(),
+        getWallet: locator<GetBullnymReceiveWalletUsecase>(),
         register: locator<RegisterLightningAddressUsecase>(),
         delete: locator<DeleteLightningAddressUsecase>(),
         lookupStatus: locator<LookupLightningAddressStatusUsecase>(),
@@ -138,7 +138,7 @@ class LightningAddressLocator {
 
     locator.registerFactory<LightningAddressFacade>(
       () => LightningAddressFacade(
-        sweep: locator<SweepLightningAddressWalletUsecase>(),
+        sweep: locator<SweepBullnymReceiveWalletUsecase>(),
         recover: locator<RecoverLightningAddressUsecase>(),
         settings: locator<LightningAddressSettingsDatasource>(),
         payService: locator<PayServicePort>(),

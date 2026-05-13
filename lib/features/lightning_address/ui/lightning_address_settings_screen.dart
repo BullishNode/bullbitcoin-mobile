@@ -72,8 +72,8 @@ class _LightningAddressSettingsScreenState
             }
             // Heavy "Creating your Nostr identity" loader is only relevant
             // the first time — it covers the slow path that runs the BIP85
-            // derivation and persists the LA wallet. On re-register the
-            // wallet already exists; the inline button spinner in
+            // derivation and persists the Bullnym receive wallet. On
+            // re-register the wallet already exists; the inline button spinner in
             // _RegistrationView is the right indicator.
             if (state.registering &&
                 state.lightningAddress == null &&

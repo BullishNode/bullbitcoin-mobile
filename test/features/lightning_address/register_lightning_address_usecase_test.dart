@@ -9,8 +9,8 @@ import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/value_objects/nym_quota.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/create_lightning_address_wallet_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/create_bullnym_receive_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/get_bullnym_receive_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:flutter_test/flutter_test.dart';
@@ -22,10 +22,10 @@ class _MockWalletRepository extends Mock implements WalletRepository {}
 
 class _MockSeedRepository extends Mock implements SeedRepository {}
 
-class _MockGetWallet extends Mock implements GetLightningAddressWalletUsecase {}
+class _MockGetWallet extends Mock implements GetBullnymReceiveWalletUsecase {}
 
 class _MockCreateWallet extends Mock
-    implements CreateLightningAddressWalletUsecase {}
+    implements CreateBullnymReceiveWalletUsecase {}
 
 const _kZeroMnemonic =
     'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';

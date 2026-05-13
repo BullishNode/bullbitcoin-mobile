@@ -33,7 +33,7 @@ class WalletDetailsScreen extends StatelessWidget {
         actions: [
           if (wallet != null &&
               wallet.isDefault == false &&
-              !LightningAddressFacade.isLightningAddressWallet(wallet))
+              !LightningAddressFacade.isBullnymReceiveWallet(wallet))
             IconButton(
               onPressed:
                   isDeletingWallet

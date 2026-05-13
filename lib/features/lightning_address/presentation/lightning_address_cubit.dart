@@ -10,7 +10,7 @@ import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_po
 import 'package:bb_mobile/features/lightning_address/domain/primitives/nostr_publish_status.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/clear_lightning_address_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/get_bullnym_receive_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/publish_lightning_address_nostr_profile_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
@@ -20,7 +20,7 @@ import 'package:bb_mobile/features/lightning_address/presentation/lightning_addr
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class LightningAddressCubit extends Cubit<LightningAddressState> {
-  final GetLightningAddressWalletUsecase _getWallet;
+  final GetBullnymReceiveWalletUsecase _getWallet;
   final RegisterLightningAddressUsecase _register;
   final DeleteLightningAddressUsecase _delete;
   final LookupLightningAddressStatusUsecase _lookupStatus;
@@ -30,7 +30,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   final LightningAddressSettingsDatasource _settings;
 
   LightningAddressCubit({
-    required GetLightningAddressWalletUsecase getWallet,
+    required GetBullnymReceiveWalletUsecase getWallet,
     required RegisterLightningAddressUsecase register,
     required DeleteLightningAddressUsecase delete,
     required LookupLightningAddressStatusUsecase lookupStatus,
@@ -253,7 +253,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         _ => 'Could not update Lightning Address. Please try again.',
       };
     }
-    if (e is LightningAddressWalletAlreadyExistsException) {
+    if (e is BullnymReceiveWalletAlreadyExistsException) {
       return 'Wallet already exists';
     }
     if (e is LightningAddressNoDefaultWalletException) {

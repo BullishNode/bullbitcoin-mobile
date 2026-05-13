@@ -5,21 +5,21 @@ import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_errors.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/get_bullnym_receive_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_constants.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 
-class CreateLightningAddressWalletUsecase {
+class CreateBullnymReceiveWalletUsecase {
   final Bip85Repository _bip85Repository;
   final WalletRepository _walletRepository;
   final SeedRepository _seedRepository;
-  final GetLightningAddressWalletUsecase _getWallet;
+  final GetBullnymReceiveWalletUsecase _getWallet;
 
-  CreateLightningAddressWalletUsecase({
+  CreateBullnymReceiveWalletUsecase({
     required Bip85Repository bip85Repository,
     required WalletRepository walletRepository,
     required SeedRepository seedRepository,
-    required GetLightningAddressWalletUsecase getWallet,
+    required GetBullnymReceiveWalletUsecase getWallet,
   }) : _bip85Repository = bip85Repository,
        _walletRepository = walletRepository,
        _seedRepository = seedRepository,
@@ -28,7 +28,7 @@ class CreateLightningAddressWalletUsecase {
   Future<Wallet> execute({required Environment environment}) async {
     final existing = await _getWallet.execute(environment: environment);
     if (existing != null) {
-      throw LightningAddressWalletAlreadyExistsException();
+      throw BullnymReceiveWalletAlreadyExistsException();
     }
 
     final wallets = await _walletRepository.getWallets(
@@ -47,8 +47,8 @@ class CreateLightningAddressWalletUsecase {
     final bip85 = await _bip85Repository.deriveMnemonic(
       xprvBase58: xprv,
       length: bip39.MnemonicLength.words12,
-      index: lightningAddressWalletBip85Index,
-      alias: lightningAddressWalletLabel,
+      index: bullnymReceiveWalletBip85Index,
+      alias: bullnymReceiveWalletLabel,
     );
 
     final childSeed = await _seedRepository.createFromMnemonic(
@@ -63,7 +63,7 @@ class CreateLightningAddressWalletUsecase {
       seed: childSeed,
       network: network,
       scriptType: ScriptType.bip84,
-      label: lightningAddressWalletLabel,
+      label: bullnymReceiveWalletLabel,
     );
   }
 }
