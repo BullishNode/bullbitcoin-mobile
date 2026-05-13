@@ -66,6 +66,7 @@ class CheckAllServiceStatusUsecase {
         _checkTorConnection(),
         _checkRecoverbullConnection(),
         _checkArkConnection(),
+        _checkLightningAddressService(),
       ]);
 
       return AllServicesStatus(
@@ -79,6 +80,7 @@ class CheckAllServiceStatusUsecase {
         tor: results[7],
         recoverbull: results[8],
         ark: results[9],
+        lightningAddress: results[10],
         lastChecked: now,
       );
     } catch (e) {
@@ -298,6 +300,31 @@ class CheckAllServiceStatusUsecase {
     return status;
   }
 
+  Future<ServiceStatusInfo> _checkLightningAddressService() async {
+    try {
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+      final request = await client.getUrl(
+        Uri.parse('https://bullpay.ca/health'),
+      );
+      final response = await request.close();
+      client.close();
+
+      return ServiceStatusInfo(
+        status: response.statusCode == 200
+            ? ServiceStatus.online
+            : ServiceStatus.offline,
+        name: 'Lightning Address',
+        lastChecked: DateTime.now(),
+      );
+    } catch (e) {
+      return ServiceStatusInfo(
+        status: ServiceStatus.offline,
+        name: 'Lightning Address',
+        lastChecked: DateTime.now(),
+      );
+    }
+  }
+
   AllServicesStatus _createUnknownStatus(DateTime now) {
     return AllServicesStatus(
       internetConnection: ServiceStatusInfo(
@@ -333,6 +360,11 @@ class CheckAllServiceStatusUsecase {
       mempool: ServiceStatusInfo(
         status: ServiceStatus.unknown,
         name: 'Mempool',
+        lastChecked: now,
+      ),
+      lightningAddress: ServiceStatusInfo(
+        status: ServiceStatus.unknown,
+        name: 'Lightning Address',
         lastChecked: now,
       ),
       lastChecked: now,

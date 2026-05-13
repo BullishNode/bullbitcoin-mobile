@@ -25,6 +25,8 @@ import 'package:bb_mobile/core/wallet/domain/usecases/watch_finished_wallet_sync
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_started_wallet_syncs_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/wallet_error.dart';
 import 'package:bb_mobile/features/electrum_settings/frameworks/ui/routing/electrum_settings_router.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/locator.dart';
 import 'package:bb_mobile/features/wallet/domain/entity/warning.dart';
 import 'package:bb_mobile/features/wallet/domain/usecase/get_unconfirmed_incoming_balance_usecase.dart';
 import 'package:flutter/material.dart';
@@ -113,6 +115,8 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   final GetArkWalletUsecase _getArkWalletUsecase;
   final CheckArkWalletSetupUsecase _checkArkWalletSetupUsecase;
   final SeedStoreTypeDatasource _seedStoreTypeDatasource;
+  LightningAddressFacade get _lightningAddressFacade =>
+      locator<LightningAddressFacade>();
 
   StreamSubscription? _startedSyncsSubscription;
   StreamSubscription? _finishedSyncsSubscription;
@@ -140,6 +144,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
       // and the sync is done after that
       final wallets = await _getWalletsUsecase.execute();
       final isSyncing = _checkWalletSyncingUsecase.execute();
+      final hideLa = await _resolveHideLightningAddress(wallets);
 
       // Initialize sync status map with all wallets
       final syncStatus = {
@@ -158,6 +163,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
           wallets: wallets,
           syncStatus: syncStatus,
           isOnLegacyStorage: isOnLegacyStorage,
+          hideLightningAddressFromHome: hideLa,
         ),
       );
 
@@ -192,12 +198,14 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     }
   }
 
+
   Future<void> _onRefreshed(
     WalletRefreshed event,
     Emitter<WalletState> emit,
   ) async {
     try {
       final wallets = await _getWalletsUsecase.execute(sync: true);
+      final hideLa = await _resolveHideLightningAddress(wallets);
 
       // Initialize all wallets as not syncing
       final syncStatus = {for (final wallet in wallets) wallet.id: false};
@@ -225,6 +233,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
           error: null,
           syncStatus: syncStatus,
           autoSwapSettings: autoSwapSettings,
+          hideLightningAddressFromHome: hideLa,
         ),
       );
       // After the wallets are synced we also restart the swap watcher.
@@ -291,6 +300,8 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   ) async {
     try {
       final wallets = await _getWalletsUsecase.execute();
+      final hideLa = await _resolveHideLightningAddress(wallets);
+
       if (wallets.isNotEmpty) {
         final walletIds = wallets.map((w) => w.id).toList();
         final unconfirmedIncomingBalance =
@@ -300,6 +311,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
         emit(
           state.copyWith(
             unconfirmedIncomingBalance: unconfirmedIncomingBalance,
+            hideLightningAddressFromHome: hideLa,
           ),
         );
       }
@@ -308,6 +320,25 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
           'onWalletSyncFinished(Liquid): Starting Auto Swap Execution',
         );
         add(const ExecuteAutoSwap());
+
+        // Sweep Lightning Address wallet — only on default Liquid wallet sync
+        if (event.wallet.isDefault &&
+            !LightningAddressFacade.isLightningAddressWallet(event.wallet)) {
+          try {
+            final shouldSweep =
+                await _lightningAddressFacade.shouldAutoSweep();
+            if (shouldSweep) {
+              final txid = await _lightningAddressFacade.sweep(
+                isTestnet: event.wallet.network.isTestnet,
+              );
+              if (txid != null) {
+                debugPrint('Lightning Address sweep: $txid');
+              }
+            }
+          } catch (e) {
+            debugPrint('Lightning Address sweep failed: $e');
+          }
+        }
       }
 
       // Set sync status to false for the wallet that finished syncing
@@ -634,5 +665,16 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) {
     emit(state.copyWith(legacyStorageWarningDismissed: true));
+  }
+
+  Future<bool> _resolveHideLightningAddress(List<Wallet> wallets) async {
+    if (!wallets.any(LightningAddressFacade.isLightningAddressWallet)) {
+      return false;
+    }
+    try {
+      return await _lightningAddressFacade.isWalletHidden();
+    } catch (_) {
+      return false;
+    }
   }
 }

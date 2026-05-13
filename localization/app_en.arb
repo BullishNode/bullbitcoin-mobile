@@ -7217,6 +7217,10 @@
   "@sendErrorConfirmationFailed": {
     "description": "Error title when transaction confirmation fails"
   },
+  "sendBullpayLud22PrivacyDisclosure": "Direct Liquid payment links one of your wallet's UTXOs to this Lightning Address. The amount stays private.",
+  "@sendBullpayLud22PrivacyDisclosure": {
+    "description": "Privacy notice on the LUD-22 confirm screen explaining the proof-of-funds disclosure."
+  },
   "sendErrorInsufficientBalanceForSwap": "Not enough balance to pay this swap via Liquid and not within swap limits to pay via Bitcoin.",
   "@sendErrorInsufficientBalanceForSwap": {
     "description": "Error when balance insufficient for swap through either network"
@@ -12909,5 +12913,61 @@
   "appInitErrorDetailsToggle": "Show error details",
   "@appInitErrorDetailsToggle": {
     "description": "Label on the collapsed section that reveals the raw exception text"
+  },
+  "lightningAddressTitle": "Lightning Address",
+  "lightningAddressActive": "Your Lightning Address is active",
+  "lightningAddressChooseNym": "Choose your nym",
+  "lightningAddressNymHint": "satoshi",
+  "lightningAddressRegister": "Register",
+  "lightningAddressCopied": "Copied to clipboard",
+  "lightningAddressHowItWorksLink": "How it works: fees and security",
+  "lightningAddressHowItWorksTitle": "How it works",
+  "lightningAddressHowItWorksBody": "Any Lightning Address compatible wallet can send funds to this Lightning Address. Payments you receive will be automatically swapped to Liquid Network (L-BTC). If you have the auto-sweep to Instant Payments wallet feature turned on (it is by default), the funds will land in your regular Instant Payments wallet.",
+  "lightningAddressSecurityTitle": "Security",
+  "lightningAddressSecurityBody1": "To make this work, Bull Bitcoin uses a special server which creates an atomic swap between the sender's Lightning Network payment, and your Liquid Network address.",
+  "lightningAddressSecurityBold": "This system is not trustless.",
+  "lightningAddressSecurityBody2": "The server could technically redirect the funds to another address and effectively steal the incoming payments. You need to trust that the Bull Bitcoin nym server operators are acting honestly.",
+  "lightningAddressFeesTitle": "Fees",
+  "lightningAddressFeesBody": "A swap fee of 0.25% is charged by the Boltz swap service, and the network fees are deducted from the amount you receive (typically 40 sats). If you have auto-sweep enabled, you will pay another ~20 sats.",
+  "lightningAddressPrivacyTitle": "Privacy",
+  "lightningAddressPrivacyBody": "By using this service, you are uploading your Liquid Network descriptor (like an xpub) to the Bull Bitcoin nym server operator. However, the Bull Bitcoin wallet automatically creates a special wallet for this that is different from your default Instant Payments wallet. So while the server has some level of insight, it cannot deanonymize your main Instant Payments wallet. The server does not collect any information about you: no IP address, no KYC information. The service is fully anonymous.",
+  "lightningAddressDelete": "Deactivate Lightning Address",
+  "lightningAddressActivated": "Lightning Address activated: {address}",
+  "@lightningAddressActivated": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+  "lightningAddressDeactivated": "Lightning Address deactivated",
+  "lightningAddressLoading": "Creating your Nostr identity",
+  "lightningAddressCreating": "Your nym is being created",
+  "lightningAddressCreatingDesc": "Registering your Lightning Address...",
+  "lightningAddressAutoSweep": "Auto-sweep to Instant Payments",
+  "lightningAddressAutoSweepSub": "Automatically move received funds for privacy",
+  "lightningAddressAutoSweepInfo": "All funds received via your Lightning Address are automatically sent to your Instant Payments wallet.\n\nWhy? The Lightning Address server knows the public key (xpub) of your Lightning Address wallet, which means it can see all transactions in that wallet. Sweeping to your Instant Payments wallet protects your privacy.\n\nDownside: You pay a small Liquid Network fee (~20 sats) each time funds are swept.",
+  "lightningAddressHideWallet": "Hide wallet on home",
+  "lightningAddressHideWalletSub": "Keep home screen clean",
+  "lightningAddressHideWalletInfo": "The Lightning Address wallet is a dedicated wallet used only for receiving Lightning Address payments. Hiding it keeps your home screen clean — funds are auto-swept to your Instant Payments wallet anyway.\n\nYou can always find this wallet in Settings > Wallets.",
+  "lightningAddressDeactivateTitle": "Deactivate Lightning Address?",
+  "lightningAddressDeactivateBody": "People will no longer be able to send funds to {address} until you reactivate it. No one else can claim this address — it stays reserved for you.",
+  "@lightningAddressDeactivateBody": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+  "lightningAddressDeactivateCancel": "Cancel",
+  "lightningAddressDeactivateConfirm": "Deactivate",
+  "lightningAddressNostrPublishing": "Publishing on Nostr…",
+  "lightningAddressNostrPublished": "Address published on Nostr",
+  "lightningAddressNostrRepublish": "Republish on Nostr",
+  "lightningAddressDeactivateLastSlotWarning": "After deactivating this Lightning Address, you only have 1 more Lightning Address you can register before you reach the maximum number of Lightning Addresses available for your Nostr identity.",
+  "lightningAddressDeactivateExhaustedWarning": "After deactivating this Lightning Address, you cannot register a new Lightning Address. You can only reactivate one of your previous addresses.",
+  "lightningAddressPublishNostrTitle": "Publish on Nostr",
+  "lightningAddressPublishNostrSubtitle": "Broadcasts a Nostr profile under your npub linking it to this Lightning Address. Uncheck to keep your npub off Nostr relays — your address still works for receiving payments.",
+  "lightningAddressTapToCopy": "Tap to copy",
+  "lightningAddressPreviousFound": "Previous address found",
+  "lightningAddressPreviousBody": "{nym}@{domain} was deactivated. Tap Register to reactivate it.",
+  "lightningAddressPreviousDetectedTitle": "Previous Lightning Addresses detected",
+  "lightningAddressPreviousDetectedBody": "Click to view and reactivate.",
+  "sendNetworkLabel": "Network",
+  "sendNetworkLiquid": "Liquid",
+  "@lightningAddressPreviousBody": {
+    "placeholders": { "nym": { "type": "String" }, "domain": { "type": "String" } }
   }
 }

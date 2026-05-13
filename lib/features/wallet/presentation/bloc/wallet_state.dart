@@ -26,6 +26,7 @@ sealed class WalletState with _$WalletState {
     @Default(false) bool backupWarningDismissed,
     @Default(false) bool isOnLegacyStorage,
     @Default(false) bool legacyStorageWarningDismissed,
+    @Default(false) bool hideLightningAddressFromHome,
   }) = _WalletState;
   const WalletState._();
 

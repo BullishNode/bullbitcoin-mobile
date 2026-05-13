@@ -6,6 +6,9 @@ import 'package:bb_mobile/features/autoswap/ui/screens/autoswap_settings_screen.
 import 'package:bb_mobile/features/backup_settings/ui/backup_settings_router.dart';
 import 'package:bb_mobile/features/backup_settings/ui/screens/backup_settings_screen.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_cubit.dart';
+import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/lightning_address/ui/lightning_address_settings_screen.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_state.dart';
 import 'package:bb_mobile/features/exchange/ui/exchange_router.dart';
 import 'package:bb_mobile/features/exchange_settings/presentation/default_wallets_cubit.dart';
@@ -75,7 +78,8 @@ enum SettingsRoute {
   bitcoinSettings('bitcoin-settings'),
   appSettings('app-settings'),
   theme('theme'),
-  autoswapSettings('autoswap-settings');
+  autoswapSettings('autoswap-settings'),
+  lightningAddress('lightning-address');
 
   final String path;
 
@@ -204,6 +208,14 @@ class SettingsRouter {
         name: SettingsRoute.autoswapSettings.name,
         path: SettingsRoute.autoswapSettings.path,
         builder: (context, state) => const AutoSwapSettingsScreen(),
+      ),
+      GoRoute(
+        name: LightningAddressFacade.manageRouteName,
+        path: SettingsRoute.lightningAddress.path,
+        builder: (context, state) => BlocProvider(
+          create: (_) => locator<LightningAddressCubit>(),
+          child: const LightningAddressSettingsScreen(),
+        ),
       ),
       GoRoute(
         path: SettingsRoute.walletDetailsWalletList.path,

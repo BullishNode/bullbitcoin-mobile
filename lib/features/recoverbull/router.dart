@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/recoverbull/domain/entity/encrypted_vault.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/core/recoverbull/domain/usecases/check_server_connection_usecase.dart';
 import 'package:bb_mobile/core/recoverbull/domain/usecases/create_encrypted_vault_usecase.dart';
 import 'package:bb_mobile/core/recoverbull/domain/usecases/decrypt_vault_usecase.dart';
@@ -71,6 +72,7 @@ class RecoverBullRouter {
                   locator<UpdateLatestEncryptedVaultTestUsecase>(),
               torStatusUsecase: locator<TorStatusUsecase>(),
               torConfigPort: locator<TorConfigPort>(),
+              lightningAddressFacade: locator<LightningAddressFacade>(),
             ),
         child: const RecoverBullFlowNavigator(),
       );

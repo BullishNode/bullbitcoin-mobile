@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/utils/logger.dart' show log;
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/widgets/text/text.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/settings/ui/widgets/wallet_deletion_confirmation_alert_dialog.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:flutter/cupertino.dart';
@@ -30,7 +31,9 @@ class WalletDetailsScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(context.loc.walletOptionsWalletDetailsTitle),
         actions: [
-          if (wallet != null && wallet.isDefault == false)
+          if (wallet != null &&
+              wallet.isDefault == false &&
+              !LightningAddressFacade.isLightningAddressWallet(wallet))
             IconButton(
               onPressed:
                   isDeletingWallet

@@ -1,3 +1,5 @@
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/core/recoverbull/domain/entity/decrypted_vault.dart';
 import 'package:bb_mobile/core/recoverbull/domain/entity/encrypted_vault.dart';
 import 'package:bb_mobile/core/recoverbull/domain/entity/vault_provider.dart';
@@ -52,6 +54,7 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
   _updateLatestEncryptedVaultTestUsecase;
   final TorStatusUsecase _torStatusUsecase;
   final TorConfigPort _torConfigPort;
+  final LightningAddressFacade _lightningAddressFacade;
 
   RecoverBullBloc({
     required RecoverBullFlow flow,
@@ -74,6 +77,7 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
     updateLatestEncryptedVaultTestUsecase,
     required TorStatusUsecase torStatusUsecase,
     required TorConfigPort torConfigPort,
+    required LightningAddressFacade lightningAddressFacade,
   }) : _createEncryptedVaultUsecase = createEncryptedVaultUsecase,
        _storeVaultKeyIntoServerUsecase = storeVaultKeyIntoServerUsecase,
        _checkKeyServerConnectionUsecase = checkKeyServerConnectionUsecase,
@@ -91,6 +95,7 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
            updateLatestEncryptedVaultTestUsecase,
        _torStatusUsecase = torStatusUsecase,
        _torConfigPort = torConfigPort,
+       _lightningAddressFacade = lightningAddressFacade,
        super(RecoverBullState(flow: flow, vault: preSelectedVault)) {
     on<OnVaultProviderSelection>(_onVaultProviderSelection);
     on<OnVaultSelection>(_onVaultSelection);
@@ -465,6 +470,17 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
       await _restoreVaultUsecase.execute(decryptedVault: state.decryptedVault!);
       _walletBloc.add(const WalletStarted());
       log.fine('Vault recovered');
+
+      // After recovery, check for Lightning Address (non-blocking)
+      final isTestnet = _walletBloc.state.wallets
+          .where((w) => w.isDefault)
+          .any((w) => w.network.isTestnet);
+      final env = isTestnet ? Environment.testnet : Environment.mainnet;
+      _lightningAddressFacade
+          .recoverIfNeeded(environment: env)
+          .then((addr) {
+        if (addr != null) log.fine('Lightning Address recovered: $addr');
+      }).catchError((_) {});
       emit(state.copyWith(isFlowFinished: true));
     } catch (e) {
       log.severe(error: e, trace: StackTrace.current);
