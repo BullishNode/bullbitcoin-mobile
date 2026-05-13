@@ -54,7 +54,7 @@ class SweepBullnymReceiveWalletUsecase {
     );
     final defaultLiquid = defaultWallets.firstOrNull;
     if (defaultLiquid == null) {
-      throw LightningAddressSweepException('No default Liquid wallet found');
+      throw BullnymReceiveWalletSweepException('No default Liquid wallet found');
     }
 
     final destinationAddress = await _walletAddressRepository

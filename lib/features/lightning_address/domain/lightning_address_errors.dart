@@ -5,8 +5,8 @@ class BullnymReceiveWalletAlreadyExistsException extends BullException {
     : super('Bullnym receive wallet already exists');
 }
 
-class LightningAddressSweepException extends BullException {
-  LightningAddressSweepException(super.message);
+class BullnymReceiveWalletSweepException extends BullException {
+  BullnymReceiveWalletSweepException(super.message);
 }
 
 class LightningAddressNoDefaultWalletException extends BullException {

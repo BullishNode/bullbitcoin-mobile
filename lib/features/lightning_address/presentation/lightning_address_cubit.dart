@@ -259,7 +259,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     if (e is LightningAddressNoDefaultWalletException) {
       return 'No wallet available';
     }
-    if (e is LightningAddressSweepException) return e.message;
+    if (e is BullnymReceiveWalletSweepException) return e.message;
     return 'Something went wrong. Please try again.';
   }
 }
