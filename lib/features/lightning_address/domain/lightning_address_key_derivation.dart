@@ -8,6 +8,11 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_er
 
 /// Derives the xprv from the default Bitcoin wallet.
 /// Shared by all Lightning Address use cases that need BIP85 derivation.
+///
+/// This duplicates the Get Paid identity policy in
+/// `features/get_paid/shared/get_paid_identity_derivation.dart`. A focused LA
+/// cleanup should migrate the remaining `NostrIdentity` call sites to the
+/// shared helper without mixing that churn into feature work.
 Future<String> deriveDefaultWalletXprv({
   required WalletRepository walletRepository,
   required SeedRepository seedRepository,
