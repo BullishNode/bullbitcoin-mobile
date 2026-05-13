@@ -25,6 +25,8 @@ import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_utxos_usecase.d
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_finished_wallet_syncs_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_wallet_transaction_by_tx_id_usecase.dart';
+import 'package:bb_mobile/features/send/data/datasources/liquid_direct_pay_datasource.dart';
+import 'package:bb_mobile/features/send/domain/ports/liquid_direct_pay_port.dart';
 import 'package:bb_mobile/features/send/domain/usecases/build_bullpay_proof_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/calculate_bitcoin_absolute_fees_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/calculate_liquid_absolute_fees_usecase.dart';
@@ -47,6 +49,9 @@ class SendLocator {
   }
 
   static void registerUsecases(GetIt locator) {
+    locator.registerFactory<LiquidDirectPayPort>(
+      () => DioLiquidDirectPayDatasource(),
+    );
     locator.registerFactory<DetectBitcoinStringUsecase>(
       () => DetectBitcoinStringUsecase(),
     );
@@ -135,6 +140,7 @@ class SendLocator {
     locator.registerFactory<TryLiquidDirectPayUsecase>(
       () => TryLiquidDirectPayUsecase(
         buildProof: locator<BuildBullpayProofUsecase>(),
+        liquidDirectPay: locator<LiquidDirectPayPort>(),
       ),
     );
   }

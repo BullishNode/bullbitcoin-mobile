@@ -1,8 +1,7 @@
 import 'package:bb_mobile/core/utils/constants.dart';
-import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/send/domain/errors/bullpay_proof_error.dart';
+import 'package:bb_mobile/features/send/domain/ports/liquid_direct_pay_port.dart';
 import 'package:bb_mobile/features/send/domain/usecases/build_bullpay_proof_usecase.dart';
-import 'package:dio/dio.dart';
 
 class LiquidDirectPayment {
   final String address;
@@ -29,14 +28,13 @@ final _domainRegex = RegExp(
 
 class TryLiquidDirectPayUsecase {
   final BuildBullpayProofUsecase _buildProof;
-  final Dio _dio;
+  final LiquidDirectPayPort _liquidDirectPay;
 
   TryLiquidDirectPayUsecase({
     required BuildBullpayProofUsecase buildProof,
-    Dio? dio,
-  })  : _buildProof = buildProof,
-        _dio = dio ??
-            Dio(BaseOptions(connectTimeout: const Duration(seconds: 10)));
+    required LiquidDirectPayPort liquidDirectPay,
+  }) : _buildProof = buildProof,
+       _liquidDirectPay = liquidDirectPay;
 
   Future<LiquidDirectPayment> execute({
     required String lnAddress,
@@ -58,47 +56,21 @@ class TryLiquidDirectPayUsecase {
 
     final metadataUrl = Uri.https(domain, '/.well-known/lnurlp/$username');
 
-    final Map<String, dynamic> metadata;
-    try {
-      final metadataResp = await _dio.getUri<Map<String, dynamic>>(
-        metadataUrl,
-        options: Options(followRedirects: false),
-      );
-      final data = metadataResp.data;
-      if (data == null || data['tag'] != 'payRequest') {
-        throw const LiquidDirectPayUnavailable();
-      }
-      metadata = data;
-    } on DioException {
-      throw const LiquidDirectPayUnavailable();
-    }
+    final metadata = await _liquidDirectPay.fetchMetadata(metadataUrl);
 
-    final paymentMethods = metadata['payment_methods'] as List<dynamic>?;
-    final hasLiquid = paymentMethods?.contains('L-BTC') ?? false;
+    final hasLiquid = metadata.paymentMethods.contains('L-BTC');
     if (!hasLiquid) {
       throw const LiquidDirectPayUnavailable();
     }
 
-    final callbackStr = metadata['callback'] as String?;
-    if (callbackStr == null) {
-      throw const LiquidDirectPayUnavailable();
-    }
-    final Uri callback;
-    try {
-      callback = Uri.parse(callbackStr);
-    } on FormatException {
-      throw const LiquidDirectPayUnavailable();
-    }
+    final callback = metadata.callback;
     // Pin to https + the same domain we just validated. Defeats a malicious
     // LNURLP responder redirecting the proof-of-funds POST to attacker hosts.
     if (callback.scheme != 'https' || callback.host != domain) {
       throw const LiquidDirectPayUnavailable();
     }
 
-    final proof = await _buildProof.execute(
-      walletId: walletId,
-      nym: username,
-    );
+    final proof = await _buildProof.execute(walletId: walletId, nym: username);
 
     final msats = amountSat * 1000;
     final signedCallback = callback.replace(
@@ -112,49 +84,27 @@ class TryLiquidDirectPayUsecase {
       },
     );
 
-    final Map<String, dynamic> data;
-    try {
-      final callbackResp = await _dio.getUri<Map<String, dynamic>>(
-        signedCallback,
-        options: Options(followRedirects: false),
-      );
-      final body = callbackResp.data;
-      if (body == null) {
-        throw const BullpayProofInternal('EmptyResponse');
-      }
-      data = body;
-    } on DioException {
-      throw const BullpayProofInternal('NetworkError');
-    }
+    final data = await _liquidDirectPay.requestLiquidPayment(signedCallback);
 
-    if (data['status'] == 'ERROR') {
-      final code = data['code'] as String?;
-      final reason = data['reason'] as String?;
+    if (data.status == 'ERROR') {
+      final code = data.code;
       if (code != null) {
-        throw BullpayProofError.fromServerCode(code: code, reason: reason);
+        throw BullpayProofError.fromServerCode(code: code, reason: data.reason);
       }
       throw const BullpayProofInternal('UnknownServerError');
     }
 
-    try {
-      final lbtc = data['L-BTC'] as Map<String, dynamic>?;
-      if (lbtc == null) {
-        throw const BullpayProofInternal('MalformedResponse');
-      }
-      final address = lbtc['address'] as String;
-      final btcDecimal = (amountSat / 100000000).toStringAsFixed(8);
-      final bip21 =
-          'liquidnetwork:$address?amount=$btcDecimal&assetid=${AssetConstants.lbtcMainnet}';
-      return LiquidDirectPayment(
-        address: address,
-        amountSat: amountSat,
-        bip21: bip21,
-      );
-    } on BullpayProofError {
-      rethrow;
-    } catch (e, st) {
-      log.severe(error: e, trace: st);
+    final address = data.liquidAddress;
+    if (address == null) {
       throw const BullpayProofInternal('MalformedResponse');
     }
+    final btcDecimal = (amountSat / 100000000).toStringAsFixed(8);
+    final bip21 =
+        'liquidnetwork:$address?amount=$btcDecimal&assetid=${AssetConstants.lbtcMainnet}';
+    return LiquidDirectPayment(
+      address: address,
+      amountSat: amountSat,
+      bip21: bip21,
+    );
   }
 }
