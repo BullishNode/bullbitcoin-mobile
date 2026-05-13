@@ -92,11 +92,11 @@ void main() {
     expect(find.widgetWithText(TextField, 'Description'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Website'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Twitter'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Instagram'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.drag(find.byType(ListView), const Offset(0, -700));
     await tester.pump();
 
+    expect(find.widgetWithText(TextField, 'Instagram'), findsOneWidget);
     expect(find.text('Archive'), findsOneWidget);
   });
 
@@ -139,6 +139,19 @@ void main() {
     expect(website.maxLength, paymentPageWebsiteMaxBytes);
     expect(website.buildCounter, isNotNull);
     expect(website.inputFormatters, contains(isA<Utf8ByteLimitFormatter>()));
+
+    await tester.drag(find.byType(ListView), const Offset(0, -700));
+    await tester.pump();
+
+    final twitter = tester.widget<TextField>(
+      find.widgetWithText(TextField, 'Twitter'),
+    );
+    expect(twitter.maxLength, paymentPageSocialHandleMaxChars);
+
+    final instagram = tester.widget<TextField>(
+      find.widgetWithText(TextField, 'Instagram'),
+    );
+    expect(instagram.maxLength, paymentPageSocialHandleMaxChars);
   });
 
   test('UTF-8 byte formatter rejects over-limit multibyte edits', () {

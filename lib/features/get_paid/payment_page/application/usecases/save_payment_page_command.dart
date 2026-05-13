@@ -66,8 +66,8 @@ class SavePaymentPageCommand {
     if (twitterValue != null &&
         twitterValue.isNotEmpty &&
         !_twitterHandleRegex.hasMatch(twitterValue)) {
-      throw const PaymentPageValidationError(
-        'must be 1-50 alphanumeric or underscore characters',
+      throw PaymentPageValidationError(
+        'must be 1-$paymentPageSocialHandleMaxChars alphanumeric or underscore characters',
       );
     }
 
@@ -75,8 +75,8 @@ class SavePaymentPageCommand {
     if (instagramValue != null &&
         instagramValue.isNotEmpty &&
         !_instagramHandleRegex.hasMatch(instagramValue)) {
-      throw const PaymentPageValidationError(
-        'must be 1-50 alphanumeric, dot, or underscore characters',
+      throw PaymentPageValidationError(
+        'must be 1-$paymentPageSocialHandleMaxChars alphanumeric, dot, or underscore characters',
       );
     }
   }
