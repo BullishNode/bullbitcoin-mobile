@@ -38,15 +38,15 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     required ClearLightningAddressNostrProfileUsecase clearProfile,
     required PayServicePort payService,
     required LightningAddressSettingsDatasource settings,
-  })  : _getWallet = getWallet,
-        _register = register,
-        _delete = delete,
-        _lookupStatus = lookupStatus,
-        _publishProfile = publishProfile,
-        _clearProfile = clearProfile,
-        _payService = payService,
-        _settings = settings,
-        super(const LightningAddressState());
+  }) : _getWallet = getWallet,
+       _register = register,
+       _delete = delete,
+       _lookupStatus = lookupStatus,
+       _publishProfile = publishProfile,
+       _clearProfile = clearProfile,
+       _payService = payService,
+       _settings = settings,
+       super(const LightningAddressState());
 
   Future<void> checkStatus(Environment environment) async {
     try {
@@ -82,22 +82,22 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
             previousNyms: previousNyms,
           );
         case InactiveLookupResult(:final quota, :final previousNyms):
-          emit(state.copyWith(
-            loading: false,
-            walletExists: wallet != null,
-            previousNyms: previousNyms,
-            quota: quota,
-            quotaStale: false,
-            nostrPublishStatus: NostrPublishStatus.none,
-          ));
+          emit(
+            state.copyWith(
+              loading: false,
+              walletExists: wallet != null,
+              previousNyms: previousNyms,
+              quota: quota,
+              quotaStale: false,
+              nostrPublishStatus: NostrPublishStatus.none,
+            ),
+          );
         case null:
-          emit(state.copyWith(
-            loading: false,
-            walletExists: wallet != null,
-          ));
+          emit(state.copyWith(loading: false, walletExists: wallet != null));
       }
     } on Exception catch (e) {
       if (isClosed) return;
+      log.warning('LA status check failed', error: e);
       emit(state.copyWith(loading: false, error: _mapError(e)));
     }
   }
@@ -116,17 +116,18 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         environment: environment,
       );
       if (isClosed) return;
-      emit(state.copyWith(
-        registering: false,
-        lightningAddress: result.address,
-        previousNyms:
-            state.previousNyms.where((p) => p.nym != nym).toList(),
-        quota: result.quota,
-        quotaStale: false,
-        nostrPublishStatus: publishOnNostr
-            ? NostrPublishStatus.pending
-            : NostrPublishStatus.none,
-      ));
+      emit(
+        state.copyWith(
+          registering: false,
+          lightningAddress: result.address,
+          previousNyms: state.previousNyms.where((p) => p.nym != nym).toList(),
+          quota: result.quota,
+          quotaStale: false,
+          nostrPublishStatus: publishOnNostr
+              ? NostrPublishStatus.pending
+              : NostrPublishStatus.none,
+        ),
+      );
       if (publishOnNostr) {
         unawaited(_publishNostrInBackground(nym));
       } else {
@@ -144,10 +145,12 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     final currentAddress = state.lightningAddress;
     final nym = currentAddress?.split('@').firstOrNull;
     if (nym == null) {
-      emit(state.copyWith(
-        registering: false,
-        error: 'No Lightning Address is active',
-      ));
+      emit(
+        state.copyWith(
+          registering: false,
+          error: 'No Lightning Address is active',
+        ),
+      );
       return;
     }
     emit(state.copyWith(registering: true, error: null));
@@ -158,16 +161,19 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         PreviousNym(nym: nym, createdAt: DateTime.now()),
         ...state.previousNyms.where((p) => p.nym != nym),
       ];
-      emit(LightningAddressState(
-        loading: false,
-        walletExists: state.walletExists,
-        previousNyms: previousNyms,
-        quota: quota,
-        quotaStale: false,
-      ));
+      emit(
+        LightningAddressState(
+          loading: false,
+          walletExists: state.walletExists,
+          previousNyms: previousNyms,
+          quota: quota,
+          quotaStale: false,
+        ),
+      );
       unawaited(_settings.clearNostrPublishOutcome());
       unawaited(_clearNostrInBackground());
-    } on Exception catch (e) {
+    } on Exception catch (e, stack) {
+      log.warning('delete LA failed', error: e, trace: stack);
       if (isClosed) return;
       emit(state.copyWith(registering: false, error: _mapError(e)));
     }
@@ -193,15 +199,17 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     final persisted = await _settings.getNostrPublishOutcome();
     if (isClosed) return;
     final status = persisted ?? NostrPublishStatus.pending;
-    emit(state.copyWith(
-      loading: false,
-      walletExists: walletExists,
-      lightningAddress: address,
-      previousNyms: previousNyms ?? state.previousNyms,
-      quota: quota ?? state.quota,
-      quotaStale: false,
-      nostrPublishStatus: status,
-    ));
+    emit(
+      state.copyWith(
+        loading: false,
+        walletExists: walletExists,
+        lightningAddress: address,
+        previousNyms: previousNyms ?? state.previousNyms,
+        quota: quota ?? state.quota,
+        quotaStale: false,
+        nostrPublishStatus: status,
+      ),
+    );
     if (persisted == null) {
       final nym = address.split('@').first;
       unawaited(_publishNostrInBackground(nym));
@@ -239,7 +247,12 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   }
 
   String _mapError(Exception e) {
-    if (e is LightningAddressRegistrationException) return e.message;
+    if (e is LightningAddressRegistrationException) {
+      return switch (e.message) {
+        'This nym is not available' => e.message,
+        _ => 'Could not update Lightning Address. Please try again.',
+      };
+    }
     if (e is LightningAddressWalletAlreadyExistsException) {
       return 'Wallet already exists';
     }
@@ -247,6 +260,6 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       return 'No wallet available';
     }
     if (e is LightningAddressSweepException) return e.message;
-    return e.toString();
+    return 'Something went wrong. Please try again.';
   }
 }

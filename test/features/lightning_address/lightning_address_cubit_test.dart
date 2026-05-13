@@ -132,7 +132,7 @@ void main() {
     await cubit.close();
   });
 
-  test('register failure is captured into state.error', () async {
+  test('register generic failure uses friendly state.error copy', () async {
     when(() => register.execute(
           nym: any(named: 'nym'),
           environment: any(named: 'environment'),
@@ -142,8 +142,44 @@ void main() {
     await cubit.registerNym('alice', Environment.mainnet);
 
     expect(cubit.state.registering, isFalse);
-    expect(cubit.state.error, contains('NymTaken'));
+    expect(cubit.state.error, 'Something went wrong. Please try again.');
     expect(cubit.state.lightningAddress, isNull);
+    await cubit.close();
+  });
+
+  test('register unavailable nym uses curated validation copy', () async {
+    when(() => register.execute(
+          nym: any(named: 'nym'),
+          environment: any(named: 'environment'),
+        )).thenThrow(
+      LightningAddressRegistrationException('This nym is not available'),
+    );
+
+    final cubit = build();
+    await cubit.registerNym('alice', Environment.mainnet);
+
+    expect(cubit.state.registering, isFalse);
+    expect(cubit.state.error, 'This nym is not available');
+    await cubit.close();
+  });
+
+  test('register server reason does not leak to state.error', () async {
+    when(() => register.execute(
+          nym: any(named: 'nym'),
+          environment: any(named: 'environment'),
+        )).thenThrow(
+      LightningAddressRegistrationException('AuthError: bad signature'),
+    );
+
+    final cubit = build();
+    await cubit.registerNym('alice', Environment.mainnet);
+
+    expect(cubit.state.registering, isFalse);
+    expect(cubit.state.error, isNot(contains('bad signature')));
+    expect(
+      cubit.state.error,
+      'Could not update Lightning Address. Please try again.',
+    );
     await cubit.close();
   });
 
