@@ -9,6 +9,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/sa
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_error_message.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -110,6 +111,37 @@ void main() {
     expect(cubit.state.isLoading, isFalse);
   });
 
+  test('payment page error mapper hides raw reasons', () {
+    expect(
+      paymentPageErrorMessage(const PaymentPageValidationError('raw invalid')),
+      'Check the payment page details and try again.',
+    );
+    expect(
+      paymentPageErrorMessage(const PaymentPageNotFoundError('raw missing')),
+      'Payment page not found.',
+    );
+    expect(
+      paymentPageErrorMessage(
+        const PaymentPageAuthorizationError('bad signature'),
+      ),
+      'Payment page authorization failed.',
+    );
+    expect(
+      paymentPageErrorMessage(const PaymentPageNetworkError('raw network')),
+      'Network error. Check your connection.',
+    );
+    expect(
+      paymentPageErrorMessage(
+        const PaymentPageIdentityUnavailableError('raw identity'),
+      ),
+      'Set up a Bitcoin wallet before editing your payment page.',
+    );
+    expect(
+      paymentPageErrorMessage(const PaymentPageUnexpectedError('raw surprise')),
+      'Something went wrong. Please try again.',
+    );
+  });
+
   test(
     'save trims optional fields and delegates through identity port',
     () async {
@@ -166,6 +198,25 @@ void main() {
         handle: any(named: 'handle'),
       ),
     );
+  });
+
+  test('save does not leak raw application error message', () async {
+    when(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: handle,
+      ),
+    ).thenThrow(const PaymentPageAuthorizationError('bad signature'));
+
+    await cubit.load(nym: 'alice');
+    cubit
+      ..setHeader("Alice's Coffee")
+      ..setDescription('Tips welcome');
+
+    await cubit.save();
+
+    expect(cubit.state.error, isNot(contains('bad signature')));
+    expect(cubit.state.error, 'Payment page authorization failed.');
   });
 
   test('archive archives only the payment page', () async {

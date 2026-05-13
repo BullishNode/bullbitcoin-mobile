@@ -1,5 +1,6 @@
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_error_message.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
@@ -56,7 +57,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
           isLoading: false,
           lightningAddress: lightningAddress,
           nym: nym,
-          error: e.message,
+          error: paymentPageErrorMessage(e),
         ),
       );
     } on Exception catch (e) {

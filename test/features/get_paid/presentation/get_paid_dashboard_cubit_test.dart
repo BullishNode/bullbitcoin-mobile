@@ -92,7 +92,7 @@ void main() {
   );
 
   test(
-    'refresh exposes payment page errors without clearing Lightning Address',
+    'refresh maps payment page errors without clearing Lightning Address',
     () async {
       when(
         () => lightningAddressFacade.getCurrentLightningAddress(),
@@ -108,7 +108,8 @@ void main() {
 
       expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
       expect(cubit.state.nym, 'alice');
-      expect(cubit.state.error, 'network down');
+      expect(cubit.state.error, isNot(contains('network down')));
+      expect(cubit.state.error, 'Network error. Check your connection.');
       expect(cubit.state.isLoading, isFalse);
     },
   );

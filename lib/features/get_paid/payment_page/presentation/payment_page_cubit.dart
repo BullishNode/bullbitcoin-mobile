@@ -4,6 +4,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/ar
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_command.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_error_message.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_state.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -61,7 +62,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       emit(PaymentPageState.fromPage(page));
     } on PaymentPageApplicationError catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isLoading: false, error: e.message));
+      emit(state.copyWith(isLoading: false, error: paymentPageErrorMessage(e)));
     } on Exception catch (e) {
       if (isClosed) return;
       log.warning('Payment Page load failed', error: e);
@@ -127,7 +128,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       );
     } on PaymentPageApplicationError catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isSaving: false, error: e.message));
+      emit(state.copyWith(isSaving: false, error: paymentPageErrorMessage(e)));
     } on Exception catch (e) {
       if (isClosed) return;
       log.warning('Payment Page save failed', error: e);
@@ -159,7 +160,9 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       );
     } on PaymentPageApplicationError catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isArchiving: false, error: e.message));
+      emit(
+        state.copyWith(isArchiving: false, error: paymentPageErrorMessage(e)),
+      );
     } on Exception catch (e) {
       if (isClosed) return;
       log.warning('Payment Page archive failed', error: e);
