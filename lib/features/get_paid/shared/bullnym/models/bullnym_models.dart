@@ -101,6 +101,36 @@ class BullnymLookupResponseDto {
   }
 }
 
+class BullnymCurrencyDto {
+  final String code;
+  final int precision;
+
+  const BullnymCurrencyDto({required this.code, required this.precision});
+
+  factory BullnymCurrencyDto.fromJson(Map<String, dynamic> json) {
+    return BullnymCurrencyDto(
+      code: json['code'] as String,
+      precision: (json['precision'] as num).toInt(),
+    );
+  }
+}
+
+class BullnymSupportedCurrenciesDto {
+  final List<BullnymCurrencyDto> currencies;
+
+  const BullnymSupportedCurrenciesDto({required this.currencies});
+
+  factory BullnymSupportedCurrenciesDto.fromJson(Map<String, dynamic> json) {
+    final rawCurrencies = json['currencies'] as List;
+    return BullnymSupportedCurrenciesDto(
+      currencies: [
+        for (final item in rawCurrencies)
+          BullnymCurrencyDto.fromJson(item as Map<String, dynamic>),
+      ],
+    );
+  }
+}
+
 class BullnymDonationPageDto {
   final String nym;
   final String header;

@@ -81,6 +81,11 @@ class BullnymClient {
     return BullnymLookupResponseDto.fromJson(response);
   }
 
+  Future<BullnymSupportedCurrenciesDto> getSupportedCurrencies() async {
+    final response = await _getMap('/api/v1/supported-currencies');
+    return BullnymSupportedCurrenciesDto.fromJson(response);
+  }
+
   Future<BullnymDonationPageDto> getPaymentPage({required String nym}) async {
     final response = await _getMap('/donation-page/$nym');
     return BullnymDonationPageDto.fromJson(response);
@@ -278,7 +283,11 @@ class BullnymClient {
       throw ArgumentError.value(page, 'page', 'must be between 1 and 1000');
     }
     if (pageSize < 1 || pageSize > 100) {
-      throw ArgumentError.value(pageSize, 'pageSize', 'must be between 1 and 100');
+      throw ArgumentError.value(
+        pageSize,
+        'pageSize',
+        'must be between 1 and 100',
+      );
     }
     final ts = timestampSecs ?? currentBullpayTimestampSecs();
     final pageValue = page.toString();

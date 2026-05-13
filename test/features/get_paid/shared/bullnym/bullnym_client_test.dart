@@ -206,6 +206,39 @@ void main() {
     expect(request.path, '/donation-page/alice');
   });
 
+  test('parses server-supported currencies with precision', () async {
+    final stub = _stubDio([
+      {
+        'currencies': [
+          {'code': 'CAD', 'precision': 2},
+          {'code': 'COP', 'precision': 0},
+        ],
+      },
+    ]);
+    final client = BullnymClient(dio: stub.dio);
+
+    final response = await client.getSupportedCurrencies();
+
+    expect(response.currencies.map((currency) => currency.code), [
+      'CAD',
+      'COP',
+    ]);
+    expect(response.currencies.last.precision, 0);
+    final request = stub.captured.requests.single;
+    expect(request.method, 'GET');
+    expect(request.path, '/api/v1/supported-currencies');
+  });
+
+  test('rejects supported currencies response without currencies', () async {
+    final stub = _stubDio([{}]);
+    final client = BullnymClient(dio: stub.dio);
+
+    await expectLater(
+      client.getSupportedCurrencies(),
+      throwsA(isA<TypeError>()),
+    );
+  });
+
   test(
     'puts signed donation page save requests in backend field order',
     () async {
