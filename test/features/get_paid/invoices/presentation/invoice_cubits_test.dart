@@ -132,6 +132,23 @@ void main() {
   });
 
   group('invoiceErrorMessage', () {
+    test('maps address reuse server codes to typed errors', () {
+      expect(
+        InvoicesApplicationError.fromCode(
+          code: 'BitcoinAddressAlreadyUsed',
+          reason: 'server btc detail',
+        ),
+        isA<InvoicesBitcoinAddressAlreadyUsedError>(),
+      );
+      expect(
+        InvoicesApplicationError.fromCode(
+          code: 'LiquidAddressAlreadyUsed',
+          reason: 'server liquid detail',
+        ),
+        isA<InvoicesLiquidAddressAlreadyUsedError>(),
+      );
+    });
+
     test('maps typed invoice errors to curated copy', () {
       final cases = <InvoicesApplicationError, String>{
         const InvoicesValidationError('raw validation'):
@@ -147,6 +164,10 @@ void main() {
             'Set up a default Bitcoin wallet first.',
         const InvoicesNoDefaultLiquidWalletError('raw liquid'):
             'Set up a default Liquid wallet first.',
+        const InvoicesBitcoinAddressAlreadyUsedError('raw used btc'):
+            'A fresh Bitcoin receive address is required. Try again.',
+        const InvoicesLiquidAddressAlreadyUsedError('raw used liquid'):
+            'A fresh Liquid receive address is required. Try again.',
         const InvoicesIdentityUnavailableError('raw identity'):
             'Get Paid identity is unavailable. Check your default wallet.',
         const InvoicesUnexpectedError('raw unexpected'):

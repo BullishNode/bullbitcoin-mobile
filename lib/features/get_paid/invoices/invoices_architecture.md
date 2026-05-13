@@ -349,6 +349,7 @@ v1.
 - no default Bitcoin wallet;
 - no default Liquid wallet;
 - validation error;
+- reused Bitcoin or Liquid receive address;
 - invoice not found;
 - auth/ownership error;
 - rate limited;

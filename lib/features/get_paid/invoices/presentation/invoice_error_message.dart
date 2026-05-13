@@ -11,6 +11,10 @@ String invoiceErrorMessage(InvoicesApplicationError error) {
       'Set up a default Bitcoin wallet first.',
     InvoicesNoDefaultLiquidWalletError() =>
       'Set up a default Liquid wallet first.',
+    InvoicesBitcoinAddressAlreadyUsedError() =>
+      'A fresh Bitcoin receive address is required. Try again.',
+    InvoicesLiquidAddressAlreadyUsedError() =>
+      'A fresh Liquid receive address is required. Try again.',
     InvoicesIdentityUnavailableError() =>
       'Get Paid identity is unavailable. Check your default wallet.',
     InvoicesUnexpectedError() => 'Something went wrong. Please try again.',

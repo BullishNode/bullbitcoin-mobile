@@ -12,6 +12,12 @@ sealed class InvoicesApplicationError implements Exception {
       'AuthError' => InvoicesAuthorizationError(reason),
       'InvalidAmount' => InvoicesValidationError(reason),
       'ValidationError' => InvoicesValidationError(reason),
+      'BitcoinAddressAlreadyUsed' => InvoicesBitcoinAddressAlreadyUsedError(
+        reason,
+      ),
+      'LiquidAddressAlreadyUsed' => InvoicesLiquidAddressAlreadyUsedError(
+        reason,
+      ),
       'RateLimited' => InvoicesRateLimitedError(reason),
       'NetworkError' => InvoicesNetworkError(reason),
       _ => InvoicesUnexpectedError(reason),
@@ -48,6 +54,14 @@ class InvoicesNoDefaultBitcoinWalletError extends InvoicesApplicationError {
 
 class InvoicesNoDefaultLiquidWalletError extends InvoicesApplicationError {
   const InvoicesNoDefaultLiquidWalletError(super.message);
+}
+
+class InvoicesBitcoinAddressAlreadyUsedError extends InvoicesApplicationError {
+  const InvoicesBitcoinAddressAlreadyUsedError(super.message);
+}
+
+class InvoicesLiquidAddressAlreadyUsedError extends InvoicesApplicationError {
+  const InvoicesLiquidAddressAlreadyUsedError(super.message);
 }
 
 class InvoicesIdentityUnavailableError extends InvoicesApplicationError {

@@ -281,6 +281,187 @@ void main() {
       );
     });
 
+    test(
+      'retries once with a fresh Bitcoin address when server rejects reuse',
+      () async {
+        final command = _createCommand(
+          now: now,
+          acceptBtc: true,
+          acceptLn: false,
+          acceptLiquid: false,
+        );
+        final result = _createResult();
+        var generated = 0;
+        when(
+          () => invoiceIdentity.getSigningHandle(),
+        ).thenAnswer((_) async => handle);
+        when(
+          () => walletRepository.getWallets(
+            onlyDefaults: true,
+            onlyBitcoin: true,
+          ),
+        ).thenAnswer((_) async => [_wallet(id: 'btc-wallet')]);
+        when(
+          () => walletAddressRepository.generateNewReceiveAddress(
+            walletId: 'btc-wallet',
+          ),
+        ).thenAnswer((_) async {
+          generated += 1;
+          return _address(generated == 1 ? 'bc1qused' : 'bc1qfresh');
+        });
+        when(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: 'bc1qused',
+            liquidAddress: null,
+            liquidBlindingKeyHex: null,
+          ),
+        ).thenThrow(
+          const InvoicesBitcoinAddressAlreadyUsedError('address already used'),
+        );
+        when(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: 'bc1qfresh',
+            liquidAddress: null,
+            liquidBlindingKeyHex: null,
+          ),
+        ).thenAnswer((_) async => result);
+
+        final usecase = _createUsecase(
+          walletRepository: walletRepository,
+          walletAddressRepository: walletAddressRepository,
+          labelsFacade: labelsFacade,
+          invoiceService: invoiceService,
+          invoiceIdentity: invoiceIdentity,
+        );
+
+        await expectLater(
+          usecase.execute(command: command),
+          completion(result),
+        );
+        verify(
+          () => walletAddressRepository.generateNewReceiveAddress(
+            walletId: 'btc-wallet',
+          ),
+        ).called(2);
+        verify(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: 'bc1qused',
+            liquidAddress: null,
+            liquidBlindingKeyHex: null,
+          ),
+        ).called(1);
+        verify(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: 'bc1qfresh',
+            liquidAddress: null,
+            liquidBlindingKeyHex: null,
+          ),
+        ).called(1);
+      },
+    );
+
+    test(
+      'retries once with a fresh Liquid address when server rejects reuse',
+      () async {
+        final command = _createCommand(
+          now: now,
+          acceptBtc: false,
+          acceptLn: false,
+          acceptLiquid: true,
+        );
+        final result = _createResult();
+        var generated = 0;
+        when(
+          () => invoiceIdentity.getSigningHandle(),
+        ).thenAnswer((_) async => handle);
+        when(
+          () =>
+              walletRepository.getWallets(onlyDefaults: true, onlyLiquid: true),
+        ).thenAnswer(
+          (_) async => [
+            _wallet(id: 'liq-wallet', network: Network.liquidMainnet),
+          ],
+        );
+        when(
+          () => walletAddressRepository
+              .generateNewLiquidReceiveAddressWithBlindingKey(
+                walletId: 'liq-wallet',
+              ),
+        ).thenAnswer((_) async {
+          generated += 1;
+          return (
+            address: generated == 1 ? 'lq1used' : 'lq1fresh',
+            blindingKey: generated == 1 ? '22' * 32 : '33' * 32,
+          );
+        });
+        when(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: null,
+            liquidAddress: 'lq1used',
+            liquidBlindingKeyHex: '22' * 32,
+          ),
+        ).thenThrow(
+          const InvoicesLiquidAddressAlreadyUsedError('address already used'),
+        );
+        when(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: null,
+            liquidAddress: 'lq1fresh',
+            liquidBlindingKeyHex: '33' * 32,
+          ),
+        ).thenAnswer((_) async => result);
+
+        final usecase = _createUsecase(
+          walletRepository: walletRepository,
+          walletAddressRepository: walletAddressRepository,
+          labelsFacade: labelsFacade,
+          invoiceService: invoiceService,
+          invoiceIdentity: invoiceIdentity,
+        );
+
+        await expectLater(
+          usecase.execute(command: command),
+          completion(result),
+        );
+        verify(
+          () => walletAddressRepository
+              .generateNewLiquidReceiveAddressWithBlindingKey(
+                walletId: 'liq-wallet',
+              ),
+        ).called(2);
+        verify(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: null,
+            liquidAddress: 'lq1used',
+            liquidBlindingKeyHex: '22' * 32,
+          ),
+        ).called(1);
+        verify(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: null,
+            liquidAddress: 'lq1fresh',
+            liquidBlindingKeyHex: '33' * 32,
+          ),
+        ).called(1);
+      },
+    );
+
     test('does not store memo labels when private memo is absent', () async {
       final command = _createCommand(
         now: now,

@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/utils/logger.dart';
+import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_address_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/create_invoice_result.dart';
@@ -36,48 +37,18 @@ class CreateInvoiceUsecase {
     String? liquidBlindingKeyHex;
 
     if (command.acceptBtc) {
-      final wallets = await _walletRepository.getWallets(
-        onlyDefaults: true,
-        onlyBitcoin: true,
-      );
-      final wallet = wallets.firstOrNull;
-      if (wallet == null) {
-        throw const InvoicesNoDefaultBitcoinWalletError(
-          'No default Bitcoin wallet found',
-        );
-      }
-      final address = await _walletAddressRepository.generateNewReceiveAddress(
-        walletId: wallet.id,
-      );
-      bitcoinAddress = address.address;
+      bitcoinAddress = await _generateBitcoinAddress();
     }
 
     if (command.acceptLn || command.acceptLiquid) {
-      final wallets = await _walletRepository.getWallets(
-        onlyDefaults: true,
-        onlyLiquid: true,
+      final address = await _generateLiquidAddress(
+        includeBlindingKey: command.acceptLiquid,
       );
-      final wallet = wallets.firstOrNull;
-      if (wallet == null) {
-        throw const InvoicesNoDefaultLiquidWalletError(
-          'No default Liquid wallet found',
-        );
-      }
-      if (command.acceptLiquid) {
-        final address = await _walletAddressRepository
-            .generateNewLiquidReceiveAddressWithBlindingKey(
-              walletId: wallet.id,
-            );
-        liquidAddress = address.address;
-        liquidBlindingKeyHex = address.blindingKey;
-      } else {
-        final address = await _walletAddressRepository
-            .generateNewReceiveAddress(walletId: wallet.id);
-        liquidAddress = address.address;
-      }
+      liquidAddress = address.address;
+      liquidBlindingKeyHex = address.blindingKeyHex;
     }
 
-    final result = await _invoiceService.createInvoice(
+    final result = await _createInvoiceRetryingUsedAddress(
       command: command,
       handle: handle,
       bitcoinAddress: bitcoinAddress,
@@ -96,6 +67,86 @@ class CreateInvoiceUsecase {
     }
 
     return result;
+  }
+
+  Future<CreateInvoiceResult> _createInvoiceRetryingUsedAddress({
+    required CreateInvoiceCommand command,
+    required NostrKeychainHandle handle,
+    required String? bitcoinAddress,
+    required String? liquidAddress,
+    required String? liquidBlindingKeyHex,
+  }) async {
+    try {
+      return await _invoiceService.createInvoice(
+        command: command,
+        handle: handle,
+        bitcoinAddress: bitcoinAddress,
+        liquidAddress: liquidAddress,
+        liquidBlindingKeyHex: liquidBlindingKeyHex,
+      );
+    } on InvoicesBitcoinAddressAlreadyUsedError {
+      if (!command.acceptBtc) rethrow;
+      return _invoiceService.createInvoice(
+        command: command,
+        handle: handle,
+        bitcoinAddress: await _generateBitcoinAddress(),
+        liquidAddress: liquidAddress,
+        liquidBlindingKeyHex: liquidBlindingKeyHex,
+      );
+    } on InvoicesLiquidAddressAlreadyUsedError {
+      if (!command.acceptLn && !command.acceptLiquid) rethrow;
+      final address = await _generateLiquidAddress(
+        includeBlindingKey: command.acceptLiquid,
+      );
+      return _invoiceService.createInvoice(
+        command: command,
+        handle: handle,
+        bitcoinAddress: bitcoinAddress,
+        liquidAddress: address.address,
+        liquidBlindingKeyHex: address.blindingKeyHex,
+      );
+    }
+  }
+
+  Future<String> _generateBitcoinAddress() async {
+    final wallets = await _walletRepository.getWallets(
+      onlyDefaults: true,
+      onlyBitcoin: true,
+    );
+    final wallet = wallets.firstOrNull;
+    if (wallet == null) {
+      throw const InvoicesNoDefaultBitcoinWalletError(
+        'No default Bitcoin wallet found',
+      );
+    }
+    final address = await _walletAddressRepository.generateNewReceiveAddress(
+      walletId: wallet.id,
+    );
+    return address.address;
+  }
+
+  Future<({String address, String? blindingKeyHex})> _generateLiquidAddress({
+    required bool includeBlindingKey,
+  }) async {
+    final wallets = await _walletRepository.getWallets(
+      onlyDefaults: true,
+      onlyLiquid: true,
+    );
+    final wallet = wallets.firstOrNull;
+    if (wallet == null) {
+      throw const InvoicesNoDefaultLiquidWalletError(
+        'No default Liquid wallet found',
+      );
+    }
+    if (includeBlindingKey) {
+      final address = await _walletAddressRepository
+          .generateNewLiquidReceiveAddressWithBlindingKey(walletId: wallet.id);
+      return (address: address.address, blindingKeyHex: address.blindingKey);
+    }
+    final address = await _walletAddressRepository.generateNewReceiveAddress(
+      walletId: wallet.id,
+    );
+    return (address: address.address, blindingKeyHex: null);
   }
 
   Future<void> _storeMemoLabelsBestEffort({
