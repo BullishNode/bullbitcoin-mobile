@@ -193,6 +193,7 @@ class _PaymentPageForm extends StatelessWidget {
           controller: twitterController,
           decoration: const InputDecoration(labelText: 'Twitter'),
           enabled: !state.isBusy,
+          // Server regex is ASCII-only, so character length equals byte length.
           maxLength: paymentPageSocialHandleMaxChars,
           onChanged: context.read<PaymentPageCubit>().setTwitter,
         ),
@@ -201,6 +202,7 @@ class _PaymentPageForm extends StatelessWidget {
           controller: instagramController,
           decoration: const InputDecoration(labelText: 'Instagram'),
           enabled: !state.isBusy,
+          // Server regex is ASCII-only, so character length equals byte length.
           maxLength: paymentPageSocialHandleMaxChars,
           onChanged: context.read<PaymentPageCubit>().setInstagram,
         ),

@@ -67,6 +67,8 @@ void main() {
     final dio = Dio(
       BaseOptions(
         baseUrl: 'https://bullpay.test',
+        connectTimeout: const Duration(milliseconds: 123),
+        receiveTimeout: const Duration(milliseconds: 456),
         validateStatus: customValidateStatus,
       ),
     );
@@ -74,6 +76,9 @@ void main() {
     final client = BullnymClient(dio: dio);
 
     expect(client, isA<BullnymClient>());
+    expect(dio.options.baseUrl, 'https://bullpay.test');
+    expect(dio.options.connectTimeout, const Duration(milliseconds: 123));
+    expect(dio.options.receiveTimeout, const Duration(milliseconds: 456));
     expect(identical(dio.options.validateStatus, customValidateStatus), isTrue);
     expect(dio.options.validateStatus(418), isTrue);
     expect(dio.options.validateStatus(200), isFalse);
