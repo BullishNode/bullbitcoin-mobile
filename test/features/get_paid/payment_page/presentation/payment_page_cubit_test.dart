@@ -111,6 +111,18 @@ void main() {
     expect(cubit.state.isLoading, isFalse);
   });
 
+  test('load maps generic exceptions to friendly copy', () async {
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenThrow(Exception('socket details'));
+
+    await cubit.load(nym: 'alice');
+
+    expect(cubit.state.error, 'Something went wrong. Please try again.');
+    expect(cubit.state.error, isNot(contains('socket details')));
+    expect(cubit.state.isLoading, isFalse);
+  });
+
   test('payment page error mapper hides raw reasons', () {
     expect(
       paymentPageErrorMessage(const PaymentPageValidationError('raw invalid')),
@@ -219,6 +231,26 @@ void main() {
     expect(cubit.state.error, 'Payment page authorization failed.');
   });
 
+  test('save maps generic exceptions to friendly copy', () async {
+    when(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: handle,
+      ),
+    ).thenThrow(Exception('connection refused'));
+
+    await cubit.load(nym: 'alice');
+    cubit
+      ..setHeader("Alice's Coffee")
+      ..setDescription('Tips welcome');
+
+    await cubit.save();
+
+    expect(cubit.state.error, 'Something went wrong. Please try again.');
+    expect(cubit.state.error, isNot(contains('connection refused')));
+    expect(cubit.state.isSaving, isFalse);
+  });
+
   test('archive archives only the payment page', () async {
     when(
       () => paymentPageService.archivePaymentPage(
@@ -242,6 +274,22 @@ void main() {
     expect(cubit.state.archived, isTrue);
     expect(cubit.state.page, isNull);
     verify(() => paymentPageIdentity.getSigningHandle()).called(1);
+  });
+
+  test('archive maps generic exceptions to friendly copy', () async {
+    when(
+      () => paymentPageService.archivePaymentPage(
+        command: any(named: 'command'),
+        handle: handle,
+      ),
+    ).thenThrow(Exception('disk full'));
+
+    await cubit.load(nym: 'alice');
+    await cubit.archive();
+
+    expect(cubit.state.error, 'Something went wrong. Please try again.');
+    expect(cubit.state.error, isNot(contains('disk full')));
+    expect(cubit.state.isArchiving, isFalse);
   });
 }
 

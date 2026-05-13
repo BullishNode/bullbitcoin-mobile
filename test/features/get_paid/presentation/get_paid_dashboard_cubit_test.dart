@@ -113,6 +113,18 @@ void main() {
       expect(cubit.state.isLoading, isFalse);
     },
   );
+
+  test('refresh maps generic exceptions to friendly copy', () async {
+    when(
+      () => lightningAddressFacade.getCurrentLightningAddress(),
+    ).thenThrow(Exception('socket details'));
+
+    await cubit.refresh();
+
+    expect(cubit.state.error, 'Something went wrong. Please try again.');
+    expect(cubit.state.error, isNot(contains('socket details')));
+    expect(cubit.state.isLoading, isFalse);
+  });
 }
 
 PaymentPage _page() {
