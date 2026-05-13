@@ -22,6 +22,8 @@ sealed class WalletUtxoModel with _$WalletUtxoModel {
     required String scriptPubkey,
     required String standardAddress,
     required String confidentialAddress,
+    required String assetIdHex,
+    int? addressIndex,
   }) = LiquidWalletUtxoModel;
 
   const WalletUtxoModel._();

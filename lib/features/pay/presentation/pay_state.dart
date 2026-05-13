@@ -150,30 +150,14 @@ sealed class PayState with _$PayState {
   }
 
   PayPaymentState? get cleanPaymentState {
-    return whenOrNull(
-      payment:
-          (
-            selectedRecipient,
-            userSummary,
-            amount,
-            selectedWallet,
-            payOrder,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-          ) => PayPaymentState(
-            selectedRecipient: selectedRecipient,
-            userSummary: userSummary,
-            amount: amount,
-            selectedWallet: selectedWallet,
-            payOrder: payOrder,
-          ),
-    );
+    return switch (this) {
+      final PayPaymentState s => s.copyWith(
+        isConfirmingPayment: false,
+        isPolling: false,
+        error: null,
+      ),
+      _ => null,
+    };
   }
 }
 

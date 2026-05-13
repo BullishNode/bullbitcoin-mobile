@@ -38,6 +38,8 @@ class WalletUtxoMapper {
           scriptPubkey: model.scriptPubkey,
           standardAddress: model.standardAddress,
           confidentialAddress: model.confidentialAddress,
+          assetIdHex: model.assetIdHex,
+          addressIndex: model.addressIndex,
           labels: labels,
           txLabels: txLabels,
           addressLabels: addressLabels,
@@ -66,6 +68,8 @@ class WalletUtxoMapper {
           scriptPubkey: entity.scriptPubkey,
           standardAddress: entity.standardAddress,
           confidentialAddress: entity.confidentialAddress,
+          assetIdHex: entity.assetIdHex,
+          addressIndex: entity.addressIndex,
         );
     }
   }
