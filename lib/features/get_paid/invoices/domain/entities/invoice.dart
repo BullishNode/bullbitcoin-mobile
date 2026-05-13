@@ -9,6 +9,7 @@ class Invoice {
   final String origin;
   final InvoiceStatus status;
   final int amountSat;
+  final int remainingAmountSat;
   final int? fiatAmountMinor;
   final String? fiatCurrency;
   final String? publicDescription;
@@ -32,6 +33,7 @@ class Invoice {
     required this.origin,
     required this.status,
     required this.amountSat,
+    required this.remainingAmountSat,
     required this.fiatAmountMinor,
     required this.fiatCurrency,
     required this.publicDescription,

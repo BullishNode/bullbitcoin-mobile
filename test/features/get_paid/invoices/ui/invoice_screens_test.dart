@@ -31,6 +31,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
+const _invoiceAmountSat = 1000;
+const _partiallyPaidRemainingSat = 400;
+
 class _MockListInvoicesUsecase extends Mock implements ListInvoicesUsecase {}
 
 class _MockCreateInvoiceUsecase extends Mock implements CreateInvoiceUsecase {}
@@ -88,6 +91,12 @@ void main() {
           description: 'Tea',
           now: now,
         ),
+        _invoice(
+          id: '00000000-0000-0000-0000-000000000003',
+          status: InvoiceStatus.partiallyPaid,
+          description: 'Cake',
+          now: now,
+        ),
       ]),
     );
 
@@ -103,12 +112,18 @@ void main() {
 
     expect(find.text('Coffee'), findsOneWidget);
     expect(find.text('Tea'), findsOneWidget);
+    expect(find.text('Cake'), findsOneWidget);
+    expect(
+      find.text('$_partiallyPaidRemainingSat sats remaining'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Paid'));
     await tester.pumpAndSettle();
 
     expect(find.text('Coffee'), findsNothing);
     expect(find.text('Tea'), findsOneWidget);
+    expect(find.text('Cake'), findsNothing);
     final command =
         verify(
               () => listInvoices.execute(command: captureAny(named: 'command')),
@@ -799,7 +814,75 @@ void main() {
 
     expect(find.text('Invoice URL'), findsOneWidget);
     expect(find.text('https://bullpay.ca/alice/i/$id'), findsOneWidget);
+    expect(find.text('Bitcoin payment'), findsOneWidget);
+    expect(find.text('bitcoin:bc1qchain?amount=0.00001000'), findsOneWidget);
     expect(find.byType(Countdown), findsOneWidget);
+  });
+
+  testWidgets('invoice detail falls back to base bitcoin address', (
+    tester,
+  ) async {
+    final getInvoice = _MockGetInvoiceUsecase();
+    final cancelInvoice = _MockCancelInvoiceUsecase();
+    final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+    when(() => getInvoice.execute(id: id)).thenAnswer(
+      (_) async => _snapshot(
+        id: id,
+        status: InvoiceStatus.unpaid,
+        now: now,
+        bitcoinChainAddress: null,
+        bitcoinChainBip21: null,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        BlocProvider(
+          create: (_) => InvoiceDetailCubit(
+            getInvoice: getInvoice,
+            cancelInvoice: cancelInvoice,
+          ),
+          child: InvoiceDetailScreen(invoiceId: id, nymOwner: 'alice'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bitcoin payment'), findsOneWidget);
+    expect(find.text('bc1qinvoice'), findsOneWidget);
+  });
+
+  testWidgets('invoice detail shows remaining amount when partially paid', (
+    tester,
+  ) async {
+    final getInvoice = _MockGetInvoiceUsecase();
+    final cancelInvoice = _MockCancelInvoiceUsecase();
+    final id = InvoiceId('00000000-0000-0000-0000-000000000001');
+    when(() => getInvoice.execute(id: id)).thenAnswer(
+      (_) async => _snapshot(
+        id: id,
+        status: InvoiceStatus.partiallyPaid,
+        now: now,
+        remainingAmountSat: _partiallyPaidRemainingSat,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        BlocProvider(
+          create: (_) => InvoiceDetailCubit(
+            getInvoice: getInvoice,
+            cancelInvoice: cancelInvoice,
+          ),
+          child: InvoiceDetailScreen(invoiceId: id, nymOwner: 'alice'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Remaining'), findsOneWidget);
+    expect(find.text('$_partiallyPaidRemainingSat sats'), findsOneWidget);
+    expect(find.text('$_invoiceAmountSat sats'), findsNothing);
   });
 
   testWidgets('invoice detail formats multi-day countdown clearly', (
@@ -931,7 +1014,10 @@ Invoice _invoice({
     nymOwner: 'alice',
     origin: 'manual',
     status: status,
-    amountSat: 1000,
+    amountSat: _invoiceAmountSat,
+    remainingAmountSat: status == InvoiceStatus.partiallyPaid
+        ? _partiallyPaidRemainingSat
+        : _invoiceAmountSat,
     fiatAmountMinor: null,
     fiatCurrency: null,
     publicDescription: description,
@@ -965,11 +1051,20 @@ InvoiceStatusSnapshot _snapshot({
   required InvoiceStatus status,
   required DateTime now,
   DateTime? expiresAt,
+  int remainingAmountSat = _invoiceAmountSat,
+  String? bitcoinChainAddress = 'bc1qchain',
+  String? bitcoinChainBip21 = 'bitcoin:bc1qchain?amount=0.00001000',
 }) {
   return InvoiceStatusSnapshot(
     invoiceId: id,
     status: status,
-    amountSat: 1000,
+    pricingMode: 'fixed_sats',
+    settlementStatus: 'none',
+    amountSat: _invoiceAmountSat,
+    fiatAmountMinor: null,
+    fiatCurrency: null,
+    remainingAmountSat: remainingAmountSat,
+    paymentToleranceSat: 1,
     rateMinorPerBtc: null,
     rateLocksUntil: now.add(const Duration(minutes: 5)),
     expiresAt: expiresAt ?? now.add(const Duration(hours: 1)),
@@ -979,9 +1074,10 @@ InvoiceStatusSnapshot _snapshot({
     lightningPr: 'lnbc...',
     liquidAddress: 'lq1invoice',
     bitcoinAddress: 'bc1qinvoice',
+    bitcoinChainAddress: bitcoinChainAddress,
+    bitcoinChainBip21: bitcoinChainBip21,
     acceptBtc: true,
     acceptLn: true,
     acceptLiquid: true,
-    rateStale: false,
   );
 }

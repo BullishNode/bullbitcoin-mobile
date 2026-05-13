@@ -65,6 +65,7 @@ Backend constraints mobile must mirror:
 - `origin: String`
 - `status: InvoiceStatus`
 - `amountSat: int`
+- `remainingAmountSat: int`
 - `fiatAmountMinor: int?`
 - `fiatCurrency: String?`
 - `publicDescription: String?`
@@ -86,7 +87,13 @@ Backend constraints mobile must mirror:
 
 - `invoiceId: InvoiceId`
 - `status: InvoiceStatus`
+- `pricingMode: String`
+- `settlementStatus: String`
 - `amountSat: int`
+- `fiatAmountMinor: int?`
+- `fiatCurrency: String?`
+- `remainingAmountSat: int`
+- `paymentToleranceSat: int`
 - `rateMinorPerBtc: int?`
 - `rateLocksUntil: DateTime`
 - `expiresAt: DateTime`
@@ -96,10 +103,11 @@ Backend constraints mobile must mirror:
 - `lightningPr: String?`
 - `liquidAddress: String?`
 - `bitcoinAddress: String?`
+- `bitcoinChainAddress: String?`
+- `bitcoinChainBip21: String?`
 - `acceptBtc: bool`
 - `acceptLn: bool`
 - `acceptLiquid: bool`
-- `rateStale: bool`
 
 The list/create entity and public status snapshot are deliberately separate.
 The backend cancel response and status endpoint do not return the full
@@ -227,7 +235,8 @@ backend wire contract exactly:
 - `BullnymCreateInvoiceResponseDto`: `invoice_id`, `share_url`.
 - `BullnymCancelInvoiceResponseDto`: `invoice_id`, `status`.
 - `BullnymInvoiceListItemDto`: list item fields from `InvoiceListItem`.
-- `BullnymListInvoicesResponseDto`: `invoices`.
+- `BullnymListInvoicesResponseDto`: `invoices`, `page`, `pageSize`,
+  `has_more`.
 - `BullnymInvoiceStatusDto`: status endpoint fields.
 
 DTOs do not contain `NostrKeychainHandle`. The handle is passed as a separate

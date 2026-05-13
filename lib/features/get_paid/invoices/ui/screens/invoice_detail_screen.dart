@@ -111,11 +111,21 @@ class _InvoiceDetailBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final snapshot = state.snapshot!;
     final status = state.cancelResult?.status ?? snapshot.status;
+    final bitcoinPayment =
+        snapshot.bitcoinChainBip21 ??
+        snapshot.bitcoinChainAddress ??
+        snapshot.bitcoinAddress;
+    final amountSat = status == InvoiceStatus.partiallyPaid
+        ? snapshot.remainingAmountSat
+        : snapshot.amountSat;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _DetailRow(label: 'Status', value: _statusLabel(status)),
-        _DetailRow(label: 'Amount', value: '${snapshot.amountSat} sats'),
+        _DetailRow(
+          label: status == InvoiceStatus.partiallyPaid ? 'Remaining' : 'Amount',
+          value: '$amountSat sats',
+        ),
         _DetailWidgetRow(
           label: 'Expires',
           child: Countdown(
@@ -132,11 +142,18 @@ class _InvoiceDetailBody extends StatelessWidget {
           const Gap(6),
           CopyInput(text: shareUrl!, silent: true),
         ],
-        if (snapshot.bitcoinAddress != null) ...[
+        if (bitcoinPayment != null) ...[
           const Gap(12),
-          const Text('Bitcoin address'),
+          const Text('Bitcoin payment'),
           const Gap(6),
-          CopyInput(text: snapshot.bitcoinAddress!, silent: true),
+          CopyInput(
+            text: bitcoinPayment,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            canShowValueModal: true,
+            modalTitle: 'Bitcoin payment',
+            silent: true,
+          ),
         ],
         if (snapshot.lightningPr != null) ...[
           const Gap(12),

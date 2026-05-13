@@ -160,6 +160,7 @@ extension on BullnymInvoiceListItemDto {
       origin: origin,
       status: InvoiceStatus.fromValue(status),
       amountSat: amountSat,
+      remainingAmountSat: remainingAmountSat,
       fiatAmountMinor: fiatAmountMinor,
       fiatCurrency: fiatCurrency,
       publicDescription: publicDescription,
@@ -185,7 +186,13 @@ extension on BullnymInvoiceStatusDto {
     return InvoiceStatusSnapshot(
       invoiceId: invoiceId,
       status: InvoiceStatus.fromValue(status),
+      pricingMode: pricingMode,
+      settlementStatus: settlementStatus,
       amountSat: amountSat,
+      fiatAmountMinor: fiatAmountMinor,
+      fiatCurrency: fiatCurrency,
+      remainingAmountSat: remainingAmountSat,
+      paymentToleranceSat: paymentToleranceSat,
       rateMinorPerBtc: rateMinorPerBtc,
       rateLocksUntil: _fromUnixSeconds(rateLocksUntilUnix),
       expiresAt: _fromUnixSeconds(expiresAtUnix),
@@ -195,10 +202,11 @@ extension on BullnymInvoiceStatusDto {
       lightningPr: lightningPr,
       liquidAddress: liquidAddress,
       bitcoinAddress: bitcoinAddress,
+      bitcoinChainAddress: bitcoinChainAddress,
+      bitcoinChainBip21: bitcoinChainBip21,
       acceptBtc: acceptBtc,
       acceptLn: acceptLn,
       acceptLiquid: acceptLiquid,
-      rateStale: rateStale,
     );
   }
 }

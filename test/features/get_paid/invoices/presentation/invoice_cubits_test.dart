@@ -24,6 +24,9 @@ import 'package:bb_mobile/features/get_paid/invoices/presentation/invoices_list_
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+const _invoiceAmountSat = 1000;
+const _partiallyPaidRemainingSat = 400;
+
 class _MockListInvoicesUsecase extends Mock implements ListInvoicesUsecase {}
 
 class _MockCreateInvoiceUsecase extends Mock implements CreateInvoiceUsecase {}
@@ -525,7 +528,10 @@ Invoice _invoice({
     nymOwner: 'alice',
     origin: 'manual',
     status: status,
-    amountSat: 1000,
+    amountSat: _invoiceAmountSat,
+    remainingAmountSat: status == InvoiceStatus.partiallyPaid
+        ? _partiallyPaidRemainingSat
+        : _invoiceAmountSat,
     fiatAmountMinor: null,
     fiatCurrency: null,
     publicDescription: 'Coffee',
@@ -540,7 +546,7 @@ Invoice _invoice({
     expiresAt: now.add(const Duration(hours: 1)),
     paidVia: status == InvoiceStatus.paid ? PaymentMethod.lightning : null,
     paidAt: status == InvoiceStatus.paid ? now : null,
-    paidAmountSat: status == InvoiceStatus.paid ? 1000 : null,
+    paidAmountSat: status == InvoiceStatus.paid ? _invoiceAmountSat : null,
     shareUrl: InvoiceUrl('https://bullpay.ca/alice/i/$id'),
   );
 }
@@ -552,7 +558,13 @@ InvoiceStatusSnapshot _snapshot({
   return InvoiceStatusSnapshot(
     invoiceId: id,
     status: InvoiceStatus.unpaid,
-    amountSat: 1000,
+    pricingMode: 'fixed_sats',
+    settlementStatus: 'none',
+    amountSat: _invoiceAmountSat,
+    fiatAmountMinor: null,
+    fiatCurrency: null,
+    remainingAmountSat: _invoiceAmountSat,
+    paymentToleranceSat: 1,
     rateMinorPerBtc: null,
     rateLocksUntil: now.add(const Duration(minutes: 5)),
     expiresAt: now.add(const Duration(hours: 1)),
@@ -562,9 +574,10 @@ InvoiceStatusSnapshot _snapshot({
     lightningPr: 'lnbc...',
     liquidAddress: 'lq1invoice',
     bitcoinAddress: 'bc1qinvoice',
+    bitcoinChainAddress: null,
+    bitcoinChainBip21: null,
     acceptBtc: true,
     acceptLn: true,
     acceptLiquid: true,
-    rateStale: false,
   );
 }

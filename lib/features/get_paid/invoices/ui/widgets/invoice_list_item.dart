@@ -96,6 +96,9 @@ class InvoiceListItem extends StatelessWidget {
   }
 
   String _amountLabel(Invoice invoice) {
+    if (invoice.status == InvoiceStatus.partiallyPaid) {
+      return '${invoice.remainingAmountSat} sats remaining';
+    }
     final fiatAmount = invoice.fiatAmountMinor;
     final fiatCurrency = invoice.fiatCurrency;
     if (fiatAmount != null && fiatCurrency != null) {

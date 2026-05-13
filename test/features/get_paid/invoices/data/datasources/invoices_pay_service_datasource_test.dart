@@ -12,6 +12,9 @@ import 'package:bb_mobile/features/get_paid/shared/bullnym/models/bullnym_models
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+const _invoiceAmountSat = 1000;
+const _partiallyPaidRemainingSat = 400;
+
 class _MockBullnymClient extends Mock implements BullnymClient {}
 
 final _key = '11' * 32;
@@ -140,6 +143,10 @@ void main() {
     );
 
     expect(result.invoices.single.status, InvoiceStatus.partiallyPaid);
+    expect(
+      result.invoices.single.remainingAmountSat,
+      _partiallyPaidRemainingSat,
+    );
   });
 
   test('maps cancel response to cancel result', () async {
@@ -180,7 +187,11 @@ void main() {
 
     expect(snapshot.status, InvoiceStatus.inProgress);
     expect(snapshot.amountSat, 1000);
+    expect(snapshot.remainingAmountSat, 1000);
+    expect(snapshot.paymentToleranceSat, 1);
     expect(snapshot.lightningPr, 'lnbc...');
+    expect(snapshot.bitcoinChainAddress, 'bc1qchain');
+    expect(snapshot.bitcoinChainBip21, 'bitcoin:bc1qchain?amount=0.00001000');
   });
 
   test('maps Bullnym errors to invoice application errors', () async {
@@ -338,7 +349,10 @@ BullnymInvoiceListItemDto _invoiceDto({String status = 'unpaid'}) {
     nymOwner: 'alice',
     origin: 'wallet',
     status: status,
-    amountSat: 1000,
+    amountSat: _invoiceAmountSat,
+    remainingAmountSat: status == 'partially_paid'
+        ? _partiallyPaidRemainingSat
+        : _invoiceAmountSat,
     fiatAmountMinor: null,
     fiatCurrency: null,
     publicDescription: 'Coffee',
@@ -360,7 +374,13 @@ BullnymInvoiceListItemDto _invoiceDto({String status = 'unpaid'}) {
 BullnymInvoiceStatusDto _statusDto({String? paidVia}) {
   return BullnymInvoiceStatusDto(
     status: 'in_progress',
-    amountSat: 1000,
+    pricingMode: 'fixed_sats',
+    settlementStatus: 'none',
+    amountSat: _invoiceAmountSat,
+    fiatAmountMinor: null,
+    fiatCurrency: null,
+    remainingAmountSat: _invoiceAmountSat,
+    paymentToleranceSat: 1,
     rateMinorPerBtc: null,
     rateLocksUntilUnix: 1778501700,
     expiresAtUnix: 1778587200,
@@ -370,9 +390,10 @@ BullnymInvoiceStatusDto _statusDto({String? paidVia}) {
     lightningPr: 'lnbc...',
     liquidAddress: 'lq1example',
     bitcoinAddress: 'bc1qexample',
+    bitcoinChainAddress: 'bc1qchain',
+    bitcoinChainBip21: 'bitcoin:bc1qchain?amount=0.00001000',
     acceptBtc: true,
     acceptLn: true,
     acceptLiquid: true,
-    rateStale: false,
   );
 }

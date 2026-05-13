@@ -188,6 +188,7 @@ class BullnymInvoiceListItemDto {
   final String origin;
   final String status;
   final int amountSat;
+  final int remainingAmountSat;
   final int? fiatAmountMinor;
   final String? fiatCurrency;
   final String? publicDescription;
@@ -210,6 +211,7 @@ class BullnymInvoiceListItemDto {
     required this.origin,
     required this.status,
     required this.amountSat,
+    required this.remainingAmountSat,
     required this.fiatAmountMinor,
     required this.fiatCurrency,
     required this.publicDescription,
@@ -234,6 +236,7 @@ class BullnymInvoiceListItemDto {
       origin: json['origin'] as String,
       status: json['status'] as String,
       amountSat: (json['amount_sat'] as num).toInt(),
+      remainingAmountSat: (json['remaining_amount_sat'] as num).toInt(),
       fiatAmountMinor: (json['fiat_amount_minor'] as num?)?.toInt(),
       fiatCurrency: json['fiat_currency'] as String?,
       publicDescription: json['public_description'] as String?,
@@ -282,7 +285,13 @@ class BullnymListInvoicesResponseDto {
 
 class BullnymInvoiceStatusDto {
   final String status;
+  final String pricingMode;
+  final String settlementStatus;
   final int amountSat;
+  final int? fiatAmountMinor;
+  final String? fiatCurrency;
+  final int remainingAmountSat;
+  final int paymentToleranceSat;
   final int? rateMinorPerBtc;
   final int rateLocksUntilUnix;
   final int expiresAtUnix;
@@ -292,14 +301,21 @@ class BullnymInvoiceStatusDto {
   final String? lightningPr;
   final String? liquidAddress;
   final String? bitcoinAddress;
+  final String? bitcoinChainAddress;
+  final String? bitcoinChainBip21;
   final bool acceptBtc;
   final bool acceptLn;
   final bool acceptLiquid;
-  final bool rateStale;
 
   const BullnymInvoiceStatusDto({
     required this.status,
+    required this.pricingMode,
+    required this.settlementStatus,
     required this.amountSat,
+    required this.fiatAmountMinor,
+    required this.fiatCurrency,
+    required this.remainingAmountSat,
+    required this.paymentToleranceSat,
     required this.rateMinorPerBtc,
     required this.rateLocksUntilUnix,
     required this.expiresAtUnix,
@@ -309,16 +325,23 @@ class BullnymInvoiceStatusDto {
     required this.lightningPr,
     required this.liquidAddress,
     required this.bitcoinAddress,
+    required this.bitcoinChainAddress,
+    required this.bitcoinChainBip21,
     required this.acceptBtc,
     required this.acceptLn,
     required this.acceptLiquid,
-    required this.rateStale,
   });
 
   factory BullnymInvoiceStatusDto.fromJson(Map<String, dynamic> json) {
     return BullnymInvoiceStatusDto(
       status: json['status'] as String,
+      pricingMode: json['pricing_mode'] as String,
+      settlementStatus: json['settlement_status'] as String,
       amountSat: (json['amount_sat'] as num).toInt(),
+      fiatAmountMinor: (json['fiat_amount_minor'] as num?)?.toInt(),
+      fiatCurrency: json['fiat_currency'] as String?,
+      remainingAmountSat: (json['remaining_amount_sat'] as num).toInt(),
+      paymentToleranceSat: (json['payment_tolerance_sat'] as num).toInt(),
       rateMinorPerBtc: (json['rate_minor_per_btc'] as num?)?.toInt(),
       rateLocksUntilUnix: (json['rate_locks_until_unix'] as num).toInt(),
       expiresAtUnix: (json['expires_at_unix'] as num).toInt(),
@@ -328,10 +351,11 @@ class BullnymInvoiceStatusDto {
       lightningPr: json['lightning_pr'] as String?,
       liquidAddress: json['liquid_address'] as String?,
       bitcoinAddress: json['bitcoin_address'] as String?,
+      bitcoinChainAddress: json['bitcoin_chain_address'] as String?,
+      bitcoinChainBip21: json['bitcoin_chain_bip21'] as String?,
       acceptBtc: json['accept_btc'] as bool,
       acceptLn: json['accept_ln'] as bool,
       acceptLiquid: json['accept_liquid'] as bool,
-      rateStale: json['rate_stale'] as bool,
     );
   }
 }

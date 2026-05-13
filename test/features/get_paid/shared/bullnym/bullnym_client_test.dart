@@ -595,7 +595,13 @@ void main() {
     final stub = _stubDio([
       {
         'status': 'in_progress',
+        'pricing_mode': 'fixed_sats',
+        'settlement_status': 'none',
         'amount_sat': 1000,
+        'fiat_amount_minor': null,
+        'fiat_currency': null,
+        'remaining_amount_sat': 1000,
+        'payment_tolerance_sat': 1,
         'rate_minor_per_btc': null,
         'rate_locks_until_unix': 1710000900,
         'expires_at_unix': 1710604800,
@@ -605,10 +611,11 @@ void main() {
         'lightning_pr': 'lnbc...',
         'liquid_address': 'lq1qq...',
         'bitcoin_address': 'bc1q...',
+        'bitcoin_chain_address': 'bc1qchain...',
+        'bitcoin_chain_bip21': 'bitcoin:bc1qchain...?amount=0.00001000',
         'accept_btc': true,
         'accept_ln': true,
         'accept_liquid': true,
-        'rate_stale': false,
       },
     ]);
     final client = BullnymClient(dio: stub.dio);
@@ -619,6 +626,11 @@ void main() {
 
     expect(response.status, 'in_progress');
     expect(response.lightningPr, 'lnbc...');
+    expect(response.bitcoinChainAddress, 'bc1qchain...');
+    expect(
+      response.bitcoinChainBip21,
+      'bitcoin:bc1qchain...?amount=0.00001000',
+    );
     final request = stub.captured.requests.single;
     expect(request.method, 'GET');
     expect(
@@ -671,6 +683,7 @@ Map<String, dynamic> _invoiceListJson() {
     'origin': 'wallet',
     'status': 'unpaid',
     'amount_sat': 1000,
+    'remaining_amount_sat': 1000,
     'fiat_amount_minor': null,
     'fiat_currency': null,
     'public_description': 'Coffee',

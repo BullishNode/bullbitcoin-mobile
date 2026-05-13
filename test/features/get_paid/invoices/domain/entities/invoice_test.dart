@@ -3,6 +3,9 @@ import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_s
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const _invoiceAmountSat = 1000;
+const _partiallyPaidRemainingSat = 400;
+
 void main() {
   final now = DateTime.utc(2026, 5, 11, 12);
 
@@ -83,7 +86,10 @@ Invoice _invoice({
     nymOwner: nymOwner,
     origin: 'wallet',
     status: status,
-    amountSat: 1000,
+    amountSat: _invoiceAmountSat,
+    remainingAmountSat: status == InvoiceStatus.partiallyPaid
+        ? _partiallyPaidRemainingSat
+        : _invoiceAmountSat,
     fiatAmountMinor: null,
     fiatCurrency: null,
     publicDescription: 'Coffee',

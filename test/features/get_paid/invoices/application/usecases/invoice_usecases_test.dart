@@ -533,7 +533,13 @@ void main() {
       final snapshot = InvoiceStatusSnapshot(
         invoiceId: id,
         status: InvoiceStatus.unpaid,
+        pricingMode: 'fixed_sats',
+        settlementStatus: 'none',
         amountSat: 1000,
+        fiatAmountMinor: null,
+        fiatCurrency: null,
+        remainingAmountSat: 1000,
+        paymentToleranceSat: 1,
         rateMinorPerBtc: null,
         rateLocksUntil: now,
         expiresAt: now.add(const Duration(hours: 1)),
@@ -543,10 +549,11 @@ void main() {
         lightningPr: null,
         liquidAddress: 'lq1invoice',
         bitcoinAddress: 'bc1qinvoice',
+        bitcoinChainAddress: null,
+        bitcoinChainBip21: null,
         acceptBtc: true,
         acceptLn: true,
         acceptLiquid: true,
-        rateStale: false,
       );
       when(
         () => invoiceService.getInvoiceStatus(id: id),
