@@ -10,7 +10,8 @@ class PriceInput extends StatelessWidget {
   const PriceInput({
     super.key,
     required this.currency,
-    required this.amountEquivalent,
+    this.amountEquivalent,
+    this.amountFieldKey,
     required this.availableCurrencies,
     required this.onCurrencyChanged,
     required this.onNoteChanged,
@@ -19,10 +20,12 @@ class PriceInput extends StatelessWidget {
     required this.focusNode,
     this.readOnly = false,
     this.isMax = false,
+    this.amountDecimalPlaces,
   });
 
   final String currency;
-  final String amountEquivalent;
+  final String? amountEquivalent;
+  final Key? amountFieldKey;
   final List<String> availableCurrencies;
   final Function(String)? onCurrencyChanged;
   final Function(String)? onNoteChanged;
@@ -31,6 +34,7 @@ class PriceInput extends StatelessWidget {
   final FocusNode? focusNode;
   final bool readOnly;
   final bool isMax;
+  final int? amountDecimalPlaces;
 
   @override
   Widget build(BuildContext context) {
@@ -66,14 +70,22 @@ class PriceInput extends StatelessWidget {
                               ),
                             )
                           : TextField(
+                              key: amountFieldKey,
                               controller: amountController,
                               focusNode: focusNode,
-                              keyboardType: currency == BitcoinUnit.sats.code
+                              keyboardType:
+                                  currency == BitcoinUnit.sats.code ||
+                                      amountDecimalPlaces == 0
                                   ? TextInputType.number
                                   : const TextInputType.numberWithOptions(
                                       decimal: true,
                                     ),
-                              inputFormatters: [AmountInputFormatter(currency)],
+                              inputFormatters: [
+                                AmountInputFormatter(
+                                  currency,
+                                  decimalPlaces: amountDecimalPlaces,
+                                ),
+                              ],
                               showCursor: !readOnly,
                               readOnly: readOnly,
                               cursorColor: context.appColors.outline,
@@ -128,14 +140,17 @@ class PriceInput extends StatelessWidget {
               ),
           ],
         ),
-        const Gap(14),
-        Text(
-          '~$amountEquivalent',
-          style: context.font.bodyLarge?.copyWith(
-            color: context.appColors.onSurfaceVariant,
+        if (amountEquivalent != null) ...[
+          const Gap(14),
+          Text(
+            '~$amountEquivalent',
+            style: context.font.bodyLarge?.copyWith(
+              color: context.appColors.onSurfaceVariant,
+            ),
           ),
-        ),
-        const Gap(14),
+          const Gap(14),
+        ] else
+          const Gap(14),
         if (onNoteChanged != null)
           Center(
             child: Container(

@@ -3,16 +3,31 @@ import 'dart:async';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:flutter/material.dart';
 
+enum CountdownFormat { mmss, dhm }
+
+@visibleForTesting
+Duration countdownTickInterval({
+  required CountdownFormat format,
+  required Duration remaining,
+}) {
+  if (format == CountdownFormat.dhm && remaining > const Duration(hours: 1)) {
+    return const Duration(minutes: 1);
+  }
+  return const Duration(seconds: 1);
+}
+
 class Countdown extends StatefulWidget {
   final DateTime until;
   final VoidCallback onTimeout;
   final TextStyle? textStyle;
+  final CountdownFormat format;
 
   const Countdown({
     super.key,
     required this.until,
     required this.onTimeout,
     this.textStyle,
+    this.format = CountdownFormat.mmss,
   });
 
   @override
@@ -21,7 +36,7 @@ class Countdown extends StatefulWidget {
 
 class CountdownState extends State<Countdown> {
   late Duration remainingTime;
-  late Timer? timer;
+  Timer? timer;
 
   @override
   void initState() {
@@ -34,13 +49,13 @@ class CountdownState extends State<Countdown> {
       widget.onTimeout();
       return;
     }
-    timer = Timer.periodic(const Duration(seconds: 1), _updateTimer);
+    _scheduleTimer();
   }
 
   @override
   void didUpdateWidget(Countdown oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.until != widget.until) {
+    if (oldWidget.until != widget.until || oldWidget.format != widget.format) {
       // Cancel the old timer
       timer?.cancel();
 
@@ -53,8 +68,7 @@ class CountdownState extends State<Countdown> {
         return;
       }
 
-      // Start a new timer
-      timer = Timer.periodic(const Duration(seconds: 1), _updateTimer);
+      _scheduleTimer();
     }
   }
 
@@ -65,16 +79,26 @@ class CountdownState extends State<Countdown> {
     return widget.until.difference(DateTime.now().toUtc());
   }
 
-  void _updateTimer(Timer timer) {
-    if (remainingTime.inSeconds <= 0) {
+  void _scheduleTimer() {
+    timer?.cancel();
+    timer = Timer(
+      countdownTickInterval(format: widget.format, remaining: remainingTime),
+      _updateTimer,
+    );
+  }
+
+  void _updateTimer() {
+    final nextRemainingTime = _calculateRemainingTime();
+    if (nextRemainingTime.inSeconds <= 0) {
       widget.onTimeout();
-      timer.cancel();
+      timer?.cancel();
       return;
     }
 
     setState(() {
-      remainingTime = _calculateRemainingTime();
+      remainingTime = nextRemainingTime;
     });
+    _scheduleTimer();
   }
 
   @override
@@ -86,7 +110,7 @@ class CountdownState extends State<Countdown> {
   @override
   Widget build(BuildContext context) {
     return Text(
-      '${remainingTime.inMinutes}:${(remainingTime.inSeconds % 60).toString().padLeft(2, '0')}',
+      _formatRemainingTime(),
       style:
           widget.textStyle ??
           context.font.bodyMedium?.copyWith(
@@ -94,5 +118,24 @@ class CountdownState extends State<Countdown> {
             color: context.appColors.primary,
           ),
     );
+  }
+
+  String _formatRemainingTime() {
+    return switch (widget.format) {
+      CountdownFormat.mmss =>
+        '${remainingTime.inMinutes}:${(remainingTime.inSeconds % 60).toString().padLeft(2, '0')}',
+      CountdownFormat.dhm => _formatDaysHoursMinutes(),
+    };
+  }
+
+  String _formatDaysHoursMinutes() {
+    if (remainingTime <= Duration.zero) return 'Expired';
+    if (remainingTime.inDays > 0) {
+      return '${remainingTime.inDays}d ${remainingTime.inHours % 24}h ${remainingTime.inMinutes % 60}min';
+    }
+    if (remainingTime.inHours > 0) {
+      return '${remainingTime.inHours}h ${remainingTime.inMinutes % 60}min';
+    }
+    return '${remainingTime.inMinutes}min';
   }
 }

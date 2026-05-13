@@ -15,6 +15,7 @@ class CopyInput extends StatelessWidget {
     this.canShowValueModal = false,
     this.modalTitle,
     this.modalContent,
+    this.silent = false,
   });
 
   final String text;
@@ -26,6 +27,7 @@ class CopyInput extends StatelessWidget {
   final String? modalTitle;
   // In case it should be different from the shown text
   final String? modalContent;
+  final bool silent;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +92,9 @@ class CopyInput extends StatelessWidget {
               ),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: clipboardText ?? text));
-                SnackBarUtils.showCopiedSnackBar(context);
+                if (!silent) {
+                  SnackBarUtils.showCopiedSnackBar(context);
+                }
               },
             ),
           const Gap(8),
