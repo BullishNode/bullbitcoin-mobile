@@ -1,14 +1,14 @@
-import 'dart:convert';
-
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
+import 'package:bb_mobile/core/widgets/inputs/utf8_byte_limit_formatter.dart';
 import 'package:bb_mobile/core/widgets/price_input/price_input.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_state.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_expiry_days.dart';
+import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -120,7 +120,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     int maxBytes,
   ) {
     return (context, {required currentLength, required isFocused, maxLength}) {
-      final bytes = utf8.encode(controller.text).length;
+      final bytes = bullnymUtf8ByteLength(controller.text);
       return Text(
         '$bytes/$maxBytes bytes',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -131,7 +131,7 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
   }
 
   List<TextInputFormatter> _byteLimit(int maxBytes) {
-    return [_Utf8ByteLimitFormatter(maxBytes)];
+    return [Utf8ByteLimitFormatter(maxBytes)];
   }
 
   List<Widget> _amountStep(BuildContext context, InvoiceCreateState state) {
@@ -437,22 +437,5 @@ class _InvoiceCreatedView extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _Utf8ByteLimitFormatter extends TextInputFormatter {
-  final int maxBytes;
-
-  _Utf8ByteLimitFormatter(this.maxBytes);
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (utf8.encode(newValue.text).length <= maxBytes) {
-      return newValue;
-    }
-    return oldValue;
   }
 }

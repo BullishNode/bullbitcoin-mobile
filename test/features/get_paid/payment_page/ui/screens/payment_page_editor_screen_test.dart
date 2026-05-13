@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/widgets/inputs/utf8_byte_limit_formatter.dart';
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_identity_port.dart';
@@ -6,6 +7,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/ar
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_command.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_constants.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/ui/screens/payment_page_editor_screen.dart';
@@ -96,6 +98,63 @@ void main() {
     await tester.pump();
 
     expect(find.text('Archive'), findsOneWidget);
+  });
+
+  testWidgets('uses UTF-8 byte limits for server-limited fields', (
+    tester,
+  ) async {
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page());
+
+    await tester.pumpWidget(
+      _harness(
+        nym: 'alice',
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+      ),
+    );
+    await tester.pump();
+
+    final title = tester.widget<TextField>(
+      find.widgetWithText(TextField, 'Title'),
+    );
+    expect(title.maxLength, paymentPageHeaderMaxBytes);
+    expect(title.buildCounter, isNotNull);
+    expect(title.inputFormatters, contains(isA<Utf8ByteLimitFormatter>()));
+
+    final description = tester.widget<TextField>(
+      find.widgetWithText(TextField, 'Description'),
+    );
+    expect(description.maxLength, paymentPageDescriptionMaxBytes);
+    expect(description.buildCounter, isNotNull);
+    expect(
+      description.inputFormatters,
+      contains(isA<Utf8ByteLimitFormatter>()),
+    );
+
+    final website = tester.widget<TextField>(
+      find.widgetWithText(TextField, 'Website'),
+    );
+    expect(website.maxLength, paymentPageWebsiteMaxBytes);
+    expect(website.buildCounter, isNotNull);
+    expect(website.inputFormatters, contains(isA<Utf8ByteLimitFormatter>()));
+  });
+
+  test('UTF-8 byte formatter rejects over-limit multibyte edits', () {
+    final formatter = Utf8ByteLimitFormatter(paymentPageHeaderMaxBytes);
+    const oldValue = TextEditingValue(text: 'Alice');
+
+    expect(
+      formatter
+          .formatEditUpdate(oldValue, TextEditingValue(text: '😀' * 20))
+          .text,
+      '😀' * 20,
+    );
+    expect(
+      formatter.formatEditUpdate(oldValue, TextEditingValue(text: '😀' * 21)),
+      oldValue,
+    );
   });
 
   testWidgets('pops true after successful save', (tester) async {

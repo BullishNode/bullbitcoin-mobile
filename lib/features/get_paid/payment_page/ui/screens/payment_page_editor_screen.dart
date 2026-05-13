@@ -1,8 +1,11 @@
+import 'package:bb_mobile/core/widgets/inputs/utf8_byte_limit_formatter.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_constants.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_state.dart';
+import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 
 class PaymentPageEditorScreen extends StatefulWidget {
   final String nym;
@@ -128,7 +131,13 @@ class _PaymentPageForm extends StatelessWidget {
           controller: headerController,
           decoration: const InputDecoration(labelText: 'Title'),
           enabled: !state.isBusy,
-          maxLength: 80,
+          maxLength: paymentPageHeaderMaxBytes,
+          maxLengthEnforcement: MaxLengthEnforcement.none,
+          buildCounter: _byteCounter(
+            headerController,
+            paymentPageHeaderMaxBytes,
+          ),
+          inputFormatters: _byteLimit(paymentPageHeaderMaxBytes),
           onChanged: context.read<PaymentPageCubit>().setHeader,
         ),
         const SizedBox(height: 12),
@@ -136,7 +145,13 @@ class _PaymentPageForm extends StatelessWidget {
           controller: descriptionController,
           decoration: const InputDecoration(labelText: 'Description'),
           enabled: !state.isBusy,
-          maxLength: 280,
+          maxLength: paymentPageDescriptionMaxBytes,
+          maxLengthEnforcement: MaxLengthEnforcement.none,
+          buildCounter: _byteCounter(
+            descriptionController,
+            paymentPageDescriptionMaxBytes,
+          ),
+          inputFormatters: _byteLimit(paymentPageDescriptionMaxBytes),
           maxLines: 4,
           onChanged: context.read<PaymentPageCubit>().setDescription,
         ),
@@ -164,6 +179,13 @@ class _PaymentPageForm extends StatelessWidget {
           decoration: const InputDecoration(labelText: 'Website'),
           enabled: !state.isBusy,
           keyboardType: TextInputType.url,
+          maxLength: paymentPageWebsiteMaxBytes,
+          maxLengthEnforcement: MaxLengthEnforcement.none,
+          buildCounter: _byteCounter(
+            websiteController,
+            paymentPageWebsiteMaxBytes,
+          ),
+          inputFormatters: _byteLimit(paymentPageWebsiteMaxBytes),
           onChanged: context.read<PaymentPageCubit>().setWebsite,
         ),
         const SizedBox(height: 12),
@@ -210,6 +232,25 @@ class _PaymentPageForm extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  InputCounterWidgetBuilder _byteCounter(
+    TextEditingController controller,
+    int maxBytes,
+  ) {
+    return (context, {required currentLength, required isFocused, maxLength}) {
+      final bytes = bullnymUtf8ByteLength(controller.text);
+      return Text(
+        '$bytes/$maxBytes bytes',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: bytes > maxBytes ? Theme.of(context).colorScheme.error : null,
+        ),
+      );
+    };
+  }
+
+  List<TextInputFormatter> _byteLimit(int maxBytes) {
+    return [Utf8ByteLimitFormatter(maxBytes)];
   }
 }
 

@@ -34,14 +34,16 @@ class SavePaymentPageCommand {
         'nym must be 3-32 lowercase letters, numbers, or hyphens',
       );
     }
-    if (header.isEmpty || bullnymUtf8ByteLength(header) > 80) {
-      throw const PaymentPageValidationError(
-        'must be between 1 and 80 characters',
+    if (header.isEmpty ||
+        bullnymUtf8ByteLength(header) > paymentPageHeaderMaxBytes) {
+      throw PaymentPageValidationError(
+        'must be between 1 and $paymentPageHeaderMaxBytes bytes',
       );
     }
-    if (description.isEmpty || bullnymUtf8ByteLength(description) > 280) {
-      throw const PaymentPageValidationError(
-        'must be between 1 and 280 characters',
+    if (description.isEmpty ||
+        bullnymUtf8ByteLength(description) > paymentPageDescriptionMaxBytes) {
+      throw PaymentPageValidationError(
+        'must be between 1 and $paymentPageDescriptionMaxBytes bytes',
       );
     }
     if (!paymentPageSupportedDisplayCurrencies.contains(displayCurrency)) {
@@ -54,9 +56,9 @@ class SavePaymentPageCommand {
     if (websiteValue != null &&
         websiteValue.isNotEmpty &&
         (!websiteValue.startsWith('https://') ||
-            bullnymUtf8ByteLength(websiteValue) > 200)) {
-      throw const PaymentPageValidationError(
-        'must start with https:// and be at most 200 characters',
+            bullnymUtf8ByteLength(websiteValue) > paymentPageWebsiteMaxBytes)) {
+      throw PaymentPageValidationError(
+        'must start with https:// and be at most $paymentPageWebsiteMaxBytes bytes',
       );
     }
 
