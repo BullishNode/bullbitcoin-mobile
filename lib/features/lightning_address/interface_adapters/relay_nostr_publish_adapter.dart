@@ -6,13 +6,8 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_er
 import 'package:bb_mobile/features/lightning_address/domain/ports/nostr_publish_port.dart';
 import 'package:nostr/nostr.dart';
 
-/// Adapter that fulfils [NostrPublishPort] by publishing LA-owned kind:0
-/// profile events through the generic core relay client.
-/// This is also the single boundary where the framework
-/// exception ([NostrPublishFailedException], which lives in `core/nostr/`)
-/// is translated into the feature-level
-/// [LightningAddressNostrPublishFailedException] — domain usecases must
-/// never need to import the framework just to name an exception type.
+/// Builds Lightning Address kind:0 profile events and publishes them through
+/// the generic relay client.
 class RelayNostrPublishAdapter implements NostrPublishPort {
   const RelayNostrPublishAdapter({required NostrRelayClient relayClient})
     : _relayClient = relayClient;

@@ -5,9 +5,7 @@
 Payment Page is the mobile editor for Bullpay donation pages. The backend owns
 rendering and payment collection; mobile owns authenticated create, edit,
 archive, and status reads for a single page tied to a registered nym.
-
-This slice is application/data only. It intentionally does not add UI, routing,
-image upload, QR/save behavior, or bottom navigation.
+The editor is an internal Get Paid route, not a bottom navigation destination.
 
 ## Backend Contract
 
@@ -55,11 +53,19 @@ stored inside commands, DTOs, generated state, equality, `copyWith`, or JSON.
 - It wraps `BullnymClient` and maps `BullnymDonationPageDto` to `PaymentPage`.
 - It catches `BullnymException` and throws `PaymentPageApplicationError`.
 
+### Presentation And UI
+
+- `PaymentPageCubit` loads an existing page, saves edits, and archives the
+  page through application use cases.
+- The editor route is owned by `payment_page/ui/payment_page_router.dart`.
+- Save/archive success pops `true` so the Get Paid dashboard can refresh.
+- User-facing errors come from `payment_page_error_message.dart`; raw backend
+  reasons and generic exception strings are not emitted to UI state.
+- Header, description, website, and social handle limits mirror the backend
+  validators. Byte-counted fields use `Utf8ByteLimitFormatter`.
+
 ## Deferred
 
-- UI/cubit/forms are Phase 2C.
-- Dashboard route and slot cards are Phase 2D.
-- Image upload, QR/save-to-gallery, and bottom-nav tab are optional Phase 2E
-  slices after explicit approval.
-- Payment Page creation without an existing Lightning Address remains a product
-  decision for Phase 2C. Default is to route the user to create LA first.
+- Image upload, QR/save-to-gallery, and a bottom-nav entry are separate product
+  work.
+- Payment Page creation still requires an existing Lightning Address nym.

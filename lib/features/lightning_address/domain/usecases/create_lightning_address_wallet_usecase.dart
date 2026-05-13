@@ -10,7 +10,6 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_co
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 
 class CreateLightningAddressWalletUsecase {
-
   final Bip85Repository _bip85Repository;
   final WalletRepository _walletRepository;
   final SeedRepository _seedRepository;
@@ -32,7 +31,6 @@ class CreateLightningAddressWalletUsecase {
       throw LightningAddressWalletAlreadyExistsException();
     }
 
-    // 1. Get default Bitcoin wallet to derive BIP85 child
     final wallets = await _walletRepository.getWallets(
       onlyDefaults: true,
       onlyBitcoin: true,
@@ -40,7 +38,6 @@ class CreateLightningAddressWalletUsecase {
     if (wallets.isEmpty) throw LightningAddressNoDefaultWalletException();
     final defaultWallet = wallets.first;
 
-    // 2. Get seed and derive xprv
     final seed = await _seedRepository.get(defaultWallet.masterFingerprint);
     final xprv = Bip32Derivation.getXprvFromSeed(
       seed.bytes,
@@ -54,12 +51,10 @@ class CreateLightningAddressWalletUsecase {
       alias: lightningAddressWalletLabel,
     );
 
-    // 4. Create seed from child mnemonic
     final childSeed = await _seedRepository.createFromMnemonic(
       mnemonicWords: bip85.mnemonic.words,
     );
 
-    // 5. Create Liquid wallet from child seed
     final network = environment == Environment.mainnet
         ? Network.liquidMainnet
         : Network.liquidTestnet;

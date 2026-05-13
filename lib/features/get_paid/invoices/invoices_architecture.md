@@ -45,8 +45,7 @@ Backend constraints mobile must mirror:
 - `accept_ln=true` or `accept_liquid=true` requires a wallet-supplied Liquid
   address.
 - `expires_at_unix` must be at least 60 seconds in the future and at most 7
-  days in the future. The old plan text mentioning 30 days is stale unless the
-  backend cap changes explicitly.
+  days in the future.
 - Fiat minor-unit precision must mirror the backend pricer (`COP` is 0-decimal;
   currently supported invoice fiat currencies otherwise use 2 decimals).
 - `limit` must be at least 1; backend caps it at 100.
@@ -102,8 +101,8 @@ Backend constraints mobile must mirror:
 
 The list/create entity and public status snapshot are deliberately separate.
 The backend cancel response and status endpoint do not return the full
-`InvoiceListItem` shape, so mobile must not pretend a full entity exists after
-those calls unless it composes one from existing local state.
+`InvoiceListItem` shape, so callers keep status updates separate from list
+items unless they explicitly merge them with local state.
 
 `CreateInvoiceResult`
 
@@ -172,8 +171,8 @@ and not an invoice-local copy.
 `InvoicesIdentityDatasource` adapts that shared helper to
 `InvoicesIdentityPort`. If the helper returns null because no default Bitcoin
 wallet exists, the datasource throws `InvoicesIdentityUnavailableError`.
-Lightning Address migration to the shared helper is intentionally deferred to a
-focused cleanup; Phase 3.2 must not touch LA identity code.
+Lightning Address still has a local compatibility path while its remaining
+`NostrIdentity` call sites are retired.
 
 ### Use Cases
 
@@ -201,8 +200,7 @@ focused cleanup; Phase 3.2 must not touch LA identity code.
 
 - `ListInvoicesUsecase`
   - Gets the signing handle and delegates list to the port.
-  - Uses the backend `since_unix`, `limit`, `status` contract. Do not invent
-    offset `page/pageSize`.
+  - Uses the backend `since_unix`, `limit`, `status` contract.
 
 - `GetInvoiceUsecase`
   - Reads public status/detail data by invoice id and returns
@@ -234,7 +232,7 @@ method argument to the client for signed actions.
 
 ## Presentation
 
-Presentation is Phase 3.3 and stays thin:
+Presentation stays thin:
 
 - `InvoicesListCubit`: load list, client-side status chips over loaded
   invoices, refresh, and pagination only after the backend contract can support
@@ -245,8 +243,6 @@ Presentation is Phase 3.3 and stays thin:
 
 Cubits catch typed invoice errors explicitly and map unknown errors to a generic
 friendly UI message after logging.
-
-Implemented Phase 3.3 surface:
 
 - `InvoicesListCubit.load/refresh` calls `ListInvoicesUsecase` with no status
   filter and applies `statusFilter` locally in `InvoicesListState`.
@@ -280,23 +276,21 @@ refreshes the Get Paid dashboard only when the invoices flow pops `true`,
 matching the mutation-result contract used by the Payment Page slot. Invoices
 are not exposed through a Get Paid public facade in v1.
 
-### Plan Deviations
+### Implementation Notes
 
 The create flow is implemented as a single route with amount/details steps
 inside the same widget, instead of two separate routes. This preserves the form
 state and keeps the browser/system back behavior local: back from details
 returns to the amount step, while back from the success view pops `true` to the
-caller. Splitting into two routes should only happen if a later flow needs
-deep-linkable create substeps.
+caller. If create substeps need deep links later, the route split can be done
+then.
 
-The expiry selector is a 1-to-7 day picker, not the broader 1-to-30 day range
-that appeared in the early plan text. The backend wallet-origin expiry cap is 7
-days today, so the UI intentionally exposes only values the server accepts.
+The expiry selector is a 1-to-7 day picker because the backend wallet-origin
+expiry cap is 7 days.
 
-The countdown extension shipped with `CountdownFormat.mmss` as the default enum
-case instead of the early-plan `hms` name because existing callers already
-present `MM:SS`; preserving that vocabulary avoided non-invoice churn. The
-`dhm` display intentionally drops seconds and renders minutes as `min`.
+`CountdownFormat.mmss` remains the default because existing callers already
+present `MM:SS`. Invoice detail uses `CountdownFormat.dhm`, which drops seconds
+and renders minutes as `min`.
 
 ## Pagination And Filtering
 
@@ -312,9 +306,8 @@ Mobile v1 uses:
 
 Current backend `since_unix` means "created at or after" while results are
 sorted newest-first. That is useful for refresh/newer-sync, not older-page
-continuation. Mobile v1 should fetch a single bounded window or require a
-backend cursor/keyset contract before implementing infinite scroll. Do not
-silently switch to offset pagination.
+continuation. Mobile v1 fetches a single bounded window; infinite scroll needs
+a backend cursor/keyset contract.
 
 Status chips are client-side filters over the currently loaded set unless the
 user explicitly refreshes with a backend status filter.
@@ -338,9 +331,9 @@ When both Lightning and Liquid are enabled, mobile supplies one Liquid receive
 address. The backend uses it both as the Liquid payment destination and as the
 claim destination for Lightning swaps. This is intentional for v1.
 
-There is still a race to document in code review: a user could reuse/observe the
-same Liquid address while a Lightning swap for the same invoice is pending. This
-is not user-surfaced in v1 per the plan; it is a known limitation.
+If a user reuses or observes the shared Liquid address while a Lightning swap
+for the same invoice is pending, the UI does not surface that distinction in
+v1.
 
 ## Error Handling
 
@@ -359,8 +352,6 @@ Raw `Exception.toString()` must not be emitted to UI state.
 
 ## Files
 
-Phase 3.1:
-
 - `lib/features/get_paid/invoices/domain/entities/invoice.dart`
 - `lib/features/get_paid/invoices/domain/entities/invoice_status_snapshot.dart`
 - `lib/features/get_paid/invoices/domain/primitives/invoice_status.dart`
@@ -376,18 +367,18 @@ Phase 3.1:
 - `lib/features/get_paid/invoices/data/datasources/invoices_pay_service_datasource.dart`
 - `lib/features/get_paid/invoices/data/datasources/invoices_identity_datasource.dart`
 
-Phase 3.3-3.5 add presentation, UI routes, locator wiring, and countdown
-extension in their own commits.
+Presentation, UI routes, locator wiring, and countdown support live in the
+same feature tree.
 
 ## Verification
 
-Required before each phase commit:
+Run for relevant invoice changes:
 
 - `flutter analyze`
 - targeted unit/widget tests for the files changed
 - `git diff --check`
 
-Phase-specific gates:
+Coverage targets:
 
 - entity getter tests for `isPayable`, `isCancellable`, `timeUntilExpiry`, and
   `publicUrlFor`;
@@ -402,6 +393,6 @@ Phase-specific gates:
 - Backend wallet-origin expiry cap is 7 days today.
 - List continuation semantics are not sufficient for older-page infinite scroll
   unless backend pagination changes or confirms cursor/keyset behavior.
-- Image upload and QR/save/share polish remain Phase 2E-style optional slices.
+- Image upload and QR/save/share polish are separate product work.
 - Invoice labels are local wallet metadata only; Bullnym never receives
   `privateMemo`.

@@ -1,10 +1,6 @@
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 
-/// PORT: publishing the user's Nostr kind:0 profile event under their npub.
-///
-/// Pulled out of the application layer so the LA usecases never reach
-/// directly into core relay publishing. The adapter owns the LA kind:0
-/// payload shape and uses the generic core relay client to broadcast.
+/// Publishes the Lightning Address kind:0 profile event.
 ///
 /// **Error contract**: both methods throw
 /// `LightningAddressNostrPublishFailedException` when the broadcast reached

@@ -16,9 +16,8 @@ class GetPaidIdentityDerivation {
 
   /// Derives the single Get Paid/Bullnym Nostr signing identity.
   ///
-  /// This class intentionally exposes only this operation. If another identity
-  /// operation is needed, revisit whether a real Get Paid identity facade is
-  /// warranted instead of growing this helper by stealth.
+  /// Keep this helper narrow. If Get Paid needs more identity operations,
+  /// introduce an explicit facade instead of expanding this class ad hoc.
   Future<NostrKeychainHandle?> getSigningHandle() async {
     final wallets = await _walletRepository.getWallets(
       onlyDefaults: true,

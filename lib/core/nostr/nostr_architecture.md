@@ -13,9 +13,9 @@ Nostr keys are derived with BIP85 application `86`:
 
 `m/83696968'/86'/{identity}'/{account}'`
 
-Callers must pass both `identity` and `account` explicitly. Do not default to
-`0'`: the BIP85 Nostr proposal reserves identity `0'` and account `0'` for
-future key-management operations.
+Callers must pass both `identity` and `account` explicitly. This keeps key-path
+choices visible at the feature boundary and avoids introducing a hidden default
+identity.
 
 Lightning Address currently uses identity `1'`, account `1'`. Its separate
 Liquid receive wallet still uses BIP85 mnemonic index `75`; that wallet index is

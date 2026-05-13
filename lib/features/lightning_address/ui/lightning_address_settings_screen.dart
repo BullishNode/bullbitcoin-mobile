@@ -132,8 +132,6 @@ class _LightningAddressSettingsScreenState
   }
 }
 
-// --- Activated view with settings ---
-
 class _ActivatedView extends StatefulWidget {
   final String address;
   final bool deleting;
@@ -524,8 +522,6 @@ void _showBottomSheet(BuildContext context, String title, String content) {
   );
 }
 
-// --- Simple registration view ---
-
 class _RegistrationView extends StatefulWidget {
   final TextEditingController controller;
   final bool registering;
@@ -714,8 +710,6 @@ class _RegistrationViewState extends State<_RegistrationView> {
     );
   }
 }
-
-// --- Shared option tile ---
 
 class _OptionTile extends StatelessWidget {
   final String title;

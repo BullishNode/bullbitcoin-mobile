@@ -40,14 +40,12 @@ class SweepLightningAddressWalletUsecase {
     final environment =
         isTestnet ? Environment.testnet : Environment.mainnet;
 
-    // 1. Find the lightning address wallet
     final laWallet = await _getWallet.execute(environment: environment);
     if (laWallet == null) return null;
 
-    // 2. Check balance (wallet is already synced by the normal sync flow)
+    // Wallet balance has already been synced by the normal wallet flow.
     if (laWallet.balanceSat <= BigInt.from(_dustThresholdSat)) return null;
 
-    // 3. Get default Liquid wallet address as sweep destination
     final defaultWallets = await _walletRepository.getWallets(
       environment: environment,
       onlyDefaults: true,
@@ -65,7 +63,6 @@ class SweepLightningAddressWalletUsecase {
       walletId: defaultLiquid.id,
     );
 
-    // 4. Build drain PSET, sign, broadcast
     final pset = await _liquidWalletRepository.buildPset(
       walletId: laWallet.id,
       address: destinationAddress.address,

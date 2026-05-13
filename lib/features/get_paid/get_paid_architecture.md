@@ -5,10 +5,10 @@ keeping their implementation boundaries intact.
 
 ## Scope
 
-Phase 2D adds an internal dashboard route. It reads Lightning Address state
-through `LightningAddressFacade` and Payment Page state through the Payment Page
-application use cases. It does not move Lightning Address, change the app shell,
-add a bottom navigation tab, add image upload, or implement invoices.
+The dashboard reads Lightning Address state through `LightningAddressFacade`,
+Payment Page state through Payment Page use cases, and links to invoice routes
+owned by the Invoices sub-feature. It does not move Lightning Address, change
+the app shell, add a bottom navigation tab, or add image upload.
 
 ## Dependencies
 
@@ -16,6 +16,7 @@ add a bottom navigation tab, add image upload, or implement invoices.
   Lightning Address dependency.
 - `features/get_paid/payment_page/application/` is consumed through use cases.
 - `features/get_paid/payment_page/ui/` owns Payment Page editing.
+- `features/get_paid/invoices/ui/` owns invoice list/create/detail routes.
 - `features/get_paid/shared/bullnym/` remains the protocol boundary.
 
 ## Dashboard Flow
@@ -37,5 +38,5 @@ screens, but it does not compose their write operations.
 
 ## Deferred
 
-Bottom navigation, image upload, QR/save, dashboard polish, and invoices remain
-outside this phase.
+Bottom navigation, image upload, QR/save, and broader dashboard polish remain
+outside this slice.
