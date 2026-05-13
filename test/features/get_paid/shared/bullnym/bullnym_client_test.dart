@@ -362,6 +362,7 @@ void main() {
         acceptLiquid: true,
         bitcoinAddress: null,
         liquidAddress: 'lq1qq...',
+        liquidBlindingKeyHex: '11' * 32,
         expiresAt: expiresAt,
         timestampSecs: timestamp,
       );
@@ -380,6 +381,7 @@ void main() {
         'accept_ln': true,
         'accept_liquid': true,
         'liquid_address': 'lq1qq...',
+        'liquid_blinding_key_hex': '11' * 32,
         'expires_at_unix': 1710604800,
         'signature': isA<String>().having((s) => s.length, 'length', 128),
         'timestamp': timestamp,
@@ -396,6 +398,7 @@ void main() {
         'true',
         '',
         'lq1qq...',
+        '11' * 32,
         '1710604800',
       ];
       _expectMessageBytes(
@@ -458,33 +461,60 @@ void main() {
     final stub = _stubDio([
       {
         'invoices': [_invoiceListJson()],
+        'page': 2,
+        'pageSize': 25,
+        'has_more': true,
       },
     ]);
     final client = BullnymClient(dio: stub.dio);
 
     final response = await client.listInvoices(
       handle: handle,
-      sinceUnix: 1710000000,
-      limit: 25,
+      page: 2,
+      pageSize: 25,
       status: 'unpaid',
       timestampSecs: timestamp,
     );
 
     expect(response.invoices.single.status, 'unpaid');
+    expect(response.page, 2);
+    expect(response.pageSize, 25);
+    expect(response.hasMore, isTrue);
     final request = stub.captured.requests.single;
     expect(request.method, 'GET');
     expect(request.path, '/api/v1/invoices');
     expect(request.queryParameters['npub'], handle.publicKeyHex);
-    expect(request.queryParameters['since_unix'], 1710000000);
-    expect(request.queryParameters['limit'], 25);
+    expect(request.queryParameters['page'], 2);
+    expect(request.queryParameters['pageSize'], 25);
     expect(request.queryParameters['status'], 'unpaid');
     _expectSignatureValid(
       handle: handle,
       signatureHex: request.queryParameters['signature'] as String,
       action: bullpayActionInvoiceList,
       nymOrEmpty: '',
-      payloadFields: ['1710000000', '25', 'unpaid'],
+      payloadFields: ['2', '25', 'unpaid'],
       timestampSecs: timestamp,
+    );
+  });
+
+  test('rejects invoice list page values outside backend bounds', () async {
+    final client = BullnymClient(dio: _stubDio([]).dio);
+
+    await expectLater(
+      client.listInvoices(handle: handle, page: 0, pageSize: 25),
+      throwsA(isA<ArgumentError>()),
+    );
+    await expectLater(
+      client.listInvoices(handle: handle, page: 1001, pageSize: 25),
+      throwsA(isA<ArgumentError>()),
+    );
+    await expectLater(
+      client.listInvoices(handle: handle, page: 1, pageSize: 0),
+      throwsA(isA<ArgumentError>()),
+    );
+    await expectLater(
+      client.listInvoices(handle: handle, page: 1, pageSize: 101),
+      throwsA(isA<ArgumentError>()),
     );
   });
 

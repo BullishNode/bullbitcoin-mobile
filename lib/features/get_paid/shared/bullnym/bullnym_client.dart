@@ -170,6 +170,7 @@ class BullnymClient {
     required bool acceptLiquid,
     required String? bitcoinAddress,
     required String? liquidAddress,
+    String? liquidBlindingKeyHex,
     required DateTime expiresAt,
     int? timestampSecs,
   }) async {
@@ -186,6 +187,7 @@ class BullnymClient {
     final acceptLiquidValue = acceptLiquid.toString();
     final bitcoinAddressValue = bitcoinAddress ?? '';
     final liquidAddressValue = liquidAddress ?? '';
+    final liquidBlindingKeyHexValue = liquidBlindingKeyHex ?? '';
     final expiresAtUnix = expiresAt.toUtc().millisecondsSinceEpoch ~/ 1000;
     final expiresAtValue = expiresAtUnix.toString();
     final data = <String, dynamic>{
@@ -210,6 +212,7 @@ class BullnymClient {
           acceptLiquidValue,
           bitcoinAddressValue,
           liquidAddressValue,
+          liquidBlindingKeyHexValue,
           expiresAtValue,
         ],
         timestampSecs: ts,
@@ -228,6 +231,7 @@ class BullnymClient {
     addIfPresent('invoice_number', invoiceNumber);
     addIfPresent('bitcoin_address', bitcoinAddress);
     addIfPresent('liquid_address', liquidAddress);
+    addIfPresent('liquid_blinding_key_hex', liquidBlindingKeyHex);
 
     final response = await _postMap(
       nym == null ? '/api/v1/invoices' : '/api/v1/$nym/invoices',
@@ -265,14 +269,20 @@ class BullnymClient {
 
   Future<BullnymListInvoicesResponseDto> listInvoices({
     required NostrKeychainHandle handle,
-    int? sinceUnix,
-    required int limit,
+    required int page,
+    required int pageSize,
     String? status,
     int? timestampSecs,
   }) async {
+    if (page < 1 || page > 1000) {
+      throw ArgumentError.value(page, 'page', 'must be between 1 and 1000');
+    }
+    if (pageSize < 1 || pageSize > 100) {
+      throw ArgumentError.value(pageSize, 'pageSize', 'must be between 1 and 100');
+    }
     final ts = timestampSecs ?? currentBullpayTimestampSecs();
-    final sinceValue = (sinceUnix ?? 0).toString();
-    final limitValue = limit.toString();
+    final pageValue = page.toString();
+    final pageSizeValue = pageSize.toString();
     final statusValue = status ?? '';
     final queryParameters = <String, dynamic>{
       'npub': handle.publicKeyHex,
@@ -281,12 +291,12 @@ class BullnymClient {
         handle: handle,
         action: bullpayActionInvoiceList,
         nymOrEmpty: '',
-        payloadFields: [sinceValue, limitValue, statusValue],
+        payloadFields: [pageValue, pageSizeValue, statusValue],
         timestampSecs: ts,
       ),
-      'limit': limit,
+      'page': page,
+      'pageSize': pageSize,
     };
-    if (sinceUnix != null) queryParameters['since_unix'] = sinceUnix;
     if (status != null) queryParameters['status'] = status;
 
     final response = await _getMap(

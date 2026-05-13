@@ -84,8 +84,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
     try {
       final dto = await _bullnymClient.listInvoices(
         handle: handle,
-        sinceUnix: _toUnixSecondsOrNull(command.since),
-        limit: command.limit,
+        page: 1,
+        pageSize: command.limit,
         status: command.status?.value,
       );
       return dto.invoices.map((invoice) => invoice.toEntity()).toList();
@@ -119,11 +119,6 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
 
 DateTime _fromUnixSeconds(int seconds) {
   return DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
-}
-
-int? _toUnixSecondsOrNull(DateTime? dateTime) {
-  if (dateTime == null) return null;
-  return dateTime.toUtc().millisecondsSinceEpoch ~/ 1000;
 }
 
 PaymentMethod? _paymentMethodOrNull(String? value) {

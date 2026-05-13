@@ -255,8 +255,16 @@ class BullnymInvoiceListItemDto {
 
 class BullnymListInvoicesResponseDto {
   final List<BullnymInvoiceListItemDto> invoices;
+  final int page;
+  final int pageSize;
+  final bool hasMore;
 
-  const BullnymListInvoicesResponseDto({required this.invoices});
+  const BullnymListInvoicesResponseDto({
+    required this.invoices,
+    required this.page,
+    required this.pageSize,
+    required this.hasMore,
+  });
 
   factory BullnymListInvoicesResponseDto.fromJson(Map<String, dynamic> json) {
     final rawInvoices = json['invoices'] as List? ?? const [];
@@ -265,6 +273,9 @@ class BullnymListInvoicesResponseDto {
         for (final item in rawInvoices)
           BullnymInvoiceListItemDto.fromJson(item as Map<String, dynamic>),
       ],
+      page: (json['page'] as num?)?.toInt() ?? 1,
+      pageSize: (json['pageSize'] as num?)?.toInt() ?? rawInvoices.length,
+      hasMore: json['has_more'] as bool? ?? false,
     );
   }
 }

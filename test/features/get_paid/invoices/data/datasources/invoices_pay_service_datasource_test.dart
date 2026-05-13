@@ -85,12 +85,17 @@ void main() {
     when(
       () => bullnymClient.listInvoices(
         handle: handle,
-        sinceUnix: null,
-        limit: 100,
+        page: 1,
+        pageSize: 100,
         status: null,
       ),
     ).thenAnswer(
-      (_) async => BullnymListInvoicesResponseDto(invoices: [_invoiceDto()]),
+      (_) async => BullnymListInvoicesResponseDto(
+        invoices: [_invoiceDto()],
+        page: 1,
+        pageSize: 100,
+        hasMore: false,
+      ),
     );
 
     final invoices = await datasource.listInvoices(
@@ -169,13 +174,16 @@ void main() {
     when(
       () => bullnymClient.listInvoices(
         handle: handle,
-        sinceUnix: null,
-        limit: 100,
+        page: 1,
+        pageSize: 100,
         status: null,
       ),
     ).thenAnswer(
       (_) async => BullnymListInvoicesResponseDto(
         invoices: [_invoiceDto(status: 'settled')],
+        page: 1,
+        pageSize: 100,
+        hasMore: false,
       ),
     );
 
