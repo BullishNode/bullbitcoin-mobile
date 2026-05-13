@@ -62,6 +62,23 @@ void main() {
     handle = NostrKeychainHandle.fromSecretKeyHex('01' * 32);
   });
 
+  test('does not mutate caller-supplied Dio options', () {
+    bool customValidateStatus(int? status) => status == 418;
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: 'https://bullpay.test',
+        validateStatus: customValidateStatus,
+      ),
+    );
+
+    final client = BullnymClient(dio: dio);
+
+    expect(client, isA<BullnymClient>());
+    expect(identical(dio.options.validateStatus, customValidateStatus), isTrue);
+    expect(dio.options.validateStatus(418), isTrue);
+    expect(dio.options.validateStatus(200), isFalse);
+  });
+
   test(
     'posts signed register requests using ct_descriptor as payload',
     () async {
