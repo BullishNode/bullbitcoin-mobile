@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/widgets/inputs/utf8_byte_limit_formatter.dart';
+import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_constants.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_state.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PaymentPageEditorScreen extends StatefulWidget {
   final String nym;
@@ -105,7 +107,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
   }
 }
 
-class _PaymentPageForm extends StatelessWidget {
+class _PaymentPageForm extends StatefulWidget {
   final PaymentPageState state;
   final TextEditingController headerController;
   final TextEditingController descriptionController;
@@ -125,7 +127,15 @@ class _PaymentPageForm extends StatelessWidget {
   });
 
   @override
+  State<_PaymentPageForm> createState() => _PaymentPageFormState();
+}
+
+class _PaymentPageFormState extends State<_PaymentPageForm> {
+  List<int>? _pendingImageBytes;
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -135,7 +145,7 @@ class _PaymentPageForm extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (state.hasExistingPage) ...[
-          _ImageSection(state: state, pickImageBytes: pickImageBytes),
+          _StoreUrlSection(url: state.page!.publicUrl),
           const SizedBox(height: 16),
         ],
         if (state.error != null) ...[
@@ -146,13 +156,13 @@ class _PaymentPageForm extends StatelessWidget {
           const SizedBox(height: 16),
         ],
         TextField(
-          controller: headerController,
-          decoration: const InputDecoration(labelText: 'Title'),
+          controller: widget.headerController,
+          decoration: const InputDecoration(labelText: 'Page title'),
           enabled: !state.isBusy,
           maxLength: paymentPageHeaderMaxBytes,
           maxLengthEnforcement: MaxLengthEnforcement.none,
           buildCounter: _byteCounter(
-            headerController,
+            widget.headerController,
             paymentPageHeaderMaxBytes,
           ),
           inputFormatters: _byteLimit(paymentPageHeaderMaxBytes),
@@ -160,13 +170,13 @@ class _PaymentPageForm extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         TextField(
-          controller: descriptionController,
+          controller: widget.descriptionController,
           decoration: const InputDecoration(labelText: 'Description'),
           enabled: !state.isBusy,
           maxLength: paymentPageDescriptionMaxBytes,
           maxLengthEnforcement: MaxLengthEnforcement.none,
           buildCounter: _byteCounter(
-            descriptionController,
+            widget.descriptionController,
             paymentPageDescriptionMaxBytes,
           ),
           inputFormatters: _byteLimit(paymentPageDescriptionMaxBytes),
@@ -174,33 +184,30 @@ class _PaymentPageForm extends StatelessWidget {
           onChanged: context.read<PaymentPageCubit>().setDescription,
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          initialValue: state.displayCurrency,
-          decoration: const InputDecoration(labelText: 'Display currency'),
-          key: ValueKey(state.displayCurrency),
-          items: paymentPageSupportedDisplayCurrencies
-              .map(
-                (currency) =>
-                    DropdownMenuItem(value: currency, child: Text(currency)),
-              )
-              .toList(growable: false),
-          onChanged: state.isBusy || state.isSaving
-              ? null
-              : (value) {
-                  if (value == null) return;
-                  context.read<PaymentPageCubit>().setDisplayCurrency(value);
-                },
+        _ImageSection(
+          state: state,
+          pendingImageBytes: _pendingImageBytes,
+          pickImageBytes: widget.pickImageBytes,
+          onImagePicked: (bytes) async {
+            final cubit = context.read<PaymentPageCubit>();
+            if (!cubit.validateImageBytes(bytes)) return;
+            if (state.hasExistingPage) {
+              await cubit.uploadImage(bytes);
+              return;
+            }
+            setState(() => _pendingImageBytes = bytes);
+          },
         ),
         const SizedBox(height: 12),
         TextField(
-          controller: websiteController,
+          controller: widget.websiteController,
           decoration: const InputDecoration(labelText: 'Website'),
           enabled: !state.isBusy,
           keyboardType: TextInputType.url,
           maxLength: paymentPageWebsiteMaxBytes,
           maxLengthEnforcement: MaxLengthEnforcement.none,
           buildCounter: _byteCounter(
-            websiteController,
+            widget.websiteController,
             paymentPageWebsiteMaxBytes,
           ),
           inputFormatters: _byteLimit(paymentPageWebsiteMaxBytes),
@@ -208,7 +215,7 @@ class _PaymentPageForm extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         TextField(
-          controller: twitterController,
+          controller: widget.twitterController,
           decoration: const InputDecoration(labelText: 'Twitter'),
           enabled: !state.isBusy,
           // Server regex is ASCII-only, so character length equals byte length.
@@ -217,40 +224,64 @@ class _PaymentPageForm extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         TextField(
-          controller: instagramController,
+          controller: widget.instagramController,
           decoration: const InputDecoration(labelText: 'Instagram'),
           enabled: !state.isBusy,
           // Server regex is ASCII-only, so character length equals byte length.
           maxLength: paymentPageSocialHandleMaxChars,
           onChanged: context.read<PaymentPageCubit>().setInstagram,
         ),
-        const SizedBox(height: 12),
-        SwitchListTile(
-          value: state.enabled,
-          title: const Text('Enabled'),
-          onChanged: state.isBusy
-              ? null
-              : context.read<PaymentPageCubit>().setEnabled,
-        ),
+        if (state.hasExistingPage) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: state.displayCurrency,
+            decoration: const InputDecoration(labelText: 'Display currency'),
+            key: ValueKey(state.displayCurrency),
+            items: paymentPageSupportedDisplayCurrencies
+                .map(
+                  (currency) =>
+                      DropdownMenuItem(value: currency, child: Text(currency)),
+                )
+                .toList(growable: false),
+            onChanged: state.isBusy || state.isSaving
+                ? null
+                : (value) {
+                    if (value == null) return;
+                    context.read<PaymentPageCubit>().setDisplayCurrency(value);
+                  },
+          ),
+        ],
         const SizedBox(height: 24),
         FilledButton(
           onPressed: state.isBusy
               ? null
-              : context.read<PaymentPageCubit>().save,
-          child: Text(state.isSaving ? 'Saving...' : 'Save'),
+              : state.hasExistingPage && !state.enabled
+              ? context.read<PaymentPageCubit>().publish
+              : () => context.read<PaymentPageCubit>().save(
+                  imageBytes: _pendingImageBytes,
+                ),
+          child: Text(
+            state.isSaving
+                ? 'Saving...'
+                : state.hasExistingPage
+                ? state.enabled
+                      ? 'Save'
+                      : 'Publish'
+                : 'Create',
+          ),
         ),
-        if (state.hasExistingPage) ...[
+        if (state.hasExistingPage && state.enabled) ...[
           const SizedBox(height: 8),
           OutlinedButton(
             onPressed: state.isBusy
                 ? null
                 : context.read<PaymentPageCubit>().archive,
-            child: Text(state.isArchiving ? 'Archiving...' : 'Archive'),
+            child: Text(state.isArchiving ? 'Deactivating...' : 'Deactivate'),
           ),
         ],
         if (state.saved || state.archived) ...[
           const SizedBox(height: 12),
-          Text(state.saved ? 'Saved' : 'Archived'),
+          Text(state.saved ? 'Saved' : 'Deactivated'),
         ],
       ],
     );
@@ -278,13 +309,21 @@ class _PaymentPageForm extends StatelessWidget {
 
 class _ImageSection extends StatelessWidget {
   final PaymentPageState state;
+  final List<int>? pendingImageBytes;
   final Future<List<int>?> Function() pickImageBytes;
+  final Future<void> Function(List<int> bytes) onImagePicked;
 
-  const _ImageSection({required this.state, required this.pickImageBytes});
+  const _ImageSection({
+    required this.state,
+    required this.pendingImageBytes,
+    required this.pickImageBytes,
+    required this.onImagePicked,
+  });
 
   @override
   Widget build(BuildContext context) {
     final imageUrl = _imageUrl(state);
+    final imageBytes = pendingImageBytes;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -302,10 +341,15 @@ class _ImageSection extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: imageUrl == null
-                      ? const ColoredBox(
-                          color: Colors.black12,
-                          child: Icon(Icons.image),
-                        )
+                      ? imageBytes == null
+                            ? const ColoredBox(
+                                color: Colors.black12,
+                                child: Icon(Icons.image),
+                              )
+                            : Image.memory(
+                                Uint8List.fromList(imageBytes),
+                                fit: BoxFit.cover,
+                              )
                       : Image.network(
                           imageUrl,
                           fit: BoxFit.cover,
@@ -324,11 +368,9 @@ class _ImageSection extends StatelessWidget {
               : () async {
                   final bytes = await pickImageBytes();
                   if (bytes == null || !context.mounted) return;
-                  await context.read<PaymentPageCubit>().uploadImage(bytes);
+                  await onImagePicked(bytes);
                 },
-          child: Text(
-            state.isUploadingImage ? 'Uploading...' : 'Preview image',
-          ),
+          child: Text(state.isUploadingImage ? 'Uploading...' : 'OG image'),
         ),
       ],
     );
@@ -345,6 +387,76 @@ class _ImageSection extends StatelessWidget {
         : bullnymDefaultBaseUrl;
 
     return '$origin/img/${state.nym}/og.jpg?v=$ogSha256';
+  }
+}
+
+class _StoreUrlSection extends StatelessWidget {
+  final String url;
+
+  const _StoreUrlSection({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Store URL', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.dividerColor),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final uri = Uri.tryParse(url);
+                    if (uri == null) return;
+                    final opened = await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    );
+                    if (!opened && context.mounted) {
+                      SnackBarUtils.showSnackBar(
+                        context,
+                        'Could not open store URL',
+                      );
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    child: Text(
+                      url,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                        decoration: TextDecoration.underline,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Copy store URL',
+                icon: const Icon(Icons.copy),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: url));
+                },
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 

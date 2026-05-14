@@ -587,6 +587,10 @@ InvoiceStatusSnapshot _snapshot({
     remainingAmountSat: _invoiceAmountSat,
     paymentToleranceSat: 1,
     rateMinorPerBtc: null,
+    publicDescription: 'Coffee',
+    recipientName: 'Alice',
+    invoiceNumber: 'INV-1',
+    createdAt: now,
     rateLocksUntil: now.add(const Duration(minutes: 5)),
     expiresAt: now.add(const Duration(hours: 1)),
     paidVia: null,
@@ -600,5 +604,6 @@ InvoiceStatusSnapshot _snapshot({
     acceptBtc: true,
     acceptLn: true,
     acceptLiquid: true,
+    shareUrl: InvoiceUrl('https://bullpay.ca/alice/i/$id'),
   );
 }

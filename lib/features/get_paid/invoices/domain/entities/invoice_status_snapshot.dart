@@ -1,6 +1,7 @@
 import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_status.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/payment_method.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_url.dart';
 
 class InvoiceStatusSnapshot {
   final InvoiceId invoiceId;
@@ -13,6 +14,10 @@ class InvoiceStatusSnapshot {
   final int remainingAmountSat;
   final int paymentToleranceSat;
   final int? rateMinorPerBtc;
+  final String? publicDescription;
+  final String? recipientName;
+  final String? invoiceNumber;
+  final DateTime? createdAt;
   final DateTime rateLocksUntil;
   final DateTime expiresAt;
   final PaymentMethod? paidVia;
@@ -26,6 +31,7 @@ class InvoiceStatusSnapshot {
   final bool acceptBtc;
   final bool acceptLn;
   final bool acceptLiquid;
+  final InvoiceUrl? shareUrl;
 
   const InvoiceStatusSnapshot({
     required this.invoiceId,
@@ -38,6 +44,10 @@ class InvoiceStatusSnapshot {
     required this.remainingAmountSat,
     required this.paymentToleranceSat,
     required this.rateMinorPerBtc,
+    required this.publicDescription,
+    required this.recipientName,
+    required this.invoiceNumber,
+    required this.createdAt,
     required this.rateLocksUntil,
     required this.expiresAt,
     required this.paidVia,
@@ -51,5 +61,6 @@ class InvoiceStatusSnapshot {
     required this.acceptBtc,
     required this.acceptLn,
     required this.acceptLiquid,
+    required this.shareUrl,
   });
 }

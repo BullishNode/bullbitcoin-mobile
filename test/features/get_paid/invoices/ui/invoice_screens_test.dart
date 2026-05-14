@@ -20,6 +20,7 @@ import 'package:bb_mobile/features/get_paid/invoices/presentation/invoices_list_
 import 'package:bb_mobile/features/get_paid/invoices/ui/invoices_router.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_create_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_detail_screen.dart';
+import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_home_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_list_screen.dart';
 import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
@@ -74,6 +75,97 @@ void main() {
 
   setUp(() {
     now = DateTime.utc(2026, 5, 11, 12);
+  });
+
+  testWidgets('invoice home shows create and view cards', (tester) async {
+    await tester.pumpWidget(_app(const InvoicesHomeScreen()));
+
+    expect(find.text('Create new invoice'), findsOneWidget);
+    expect(find.text('View invoices'), findsOneWidget);
+    expect(find.text('Request a payment from a customer'), findsOneWidget);
+    expect(
+      find.text('Track invoice status and payment history'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('invoice home opens create and returns true after create', (
+    tester,
+  ) async {
+    bool? result;
+    final router = GoRouter(
+      initialLocation: '/invoices',
+      routes: [
+        GoRoute(
+          path: '/invoices',
+          builder: (context, state) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                result = await context.pushNamed<bool>(InvoicesRoute.home.name);
+              },
+              child: const Text('Open invoices'),
+            ),
+          ),
+          routes: [
+            GoRoute(
+              name: InvoicesRoute.home.name,
+              path: 'home',
+              builder: (context, state) => const InvoicesHomeScreen(),
+            ),
+            GoRoute(
+              name: InvoicesRoute.create.name,
+              path: 'create',
+              builder: (context, state) => Scaffold(
+                body: TextButton(
+                  onPressed: () => context.pop(true),
+                  child: const Text('Created'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Open invoices'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create new invoice'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Created'));
+    await tester.pumpAndSettle();
+
+    expect(result, isTrue);
+  });
+
+  testWidgets('invoice home opens invoice list', (tester) async {
+    final router = GoRouter(
+      initialLocation: '/invoices',
+      routes: [
+        GoRoute(
+          path: '/invoices',
+          builder: (context, state) => const InvoicesHomeScreen(),
+          routes: [
+            GoRoute(
+              name: InvoicesRoute.list.name,
+              path: 'list',
+              builder: (context, state) =>
+                  const Scaffold(body: Text('Invoice list route')),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('View invoices'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Invoice list route'), findsOneWidget);
   });
 
   testWidgets('invoice list loads and filters locally', (tester) async {
@@ -654,7 +746,7 @@ void main() {
     expect(createButton.disabled, isTrue);
   });
 
-  testWidgets('invoice create screen keeps direct Liquid disabled', (
+  testWidgets('invoice create screen allows direct Liquid payments', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(800, 2000));
@@ -688,11 +780,15 @@ void main() {
       find.widgetWithText(SwitchListTile, 'Liquid'),
     );
     expect(liquidSwitch.value, isFalse);
-    expect(liquidSwitch.onChanged, isNull);
-    expect(
-      find.text('Direct Liquid payments are not available yet'),
-      findsOneWidget,
+    expect(liquidSwitch.onChanged, isNotNull);
+
+    await tester.tap(find.text('Liquid'));
+    await tester.pumpAndSettle();
+
+    final enabledLiquidSwitch = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Liquid'),
     );
+    expect(enabledLiquidSwitch.value, isTrue);
   });
 
   testWidgets('invoice create screen keeps selected expiry across rebuilds', (
@@ -812,6 +908,8 @@ void main() {
     await tester.tap(find.text('Open detail'));
     await tester.pumpAndSettle();
 
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pumpAndSettle();
     await tester.tap(
       find.byWidgetPredicate(
         (widget) => widget is BBButton && widget.label == 'Cancel invoice',
@@ -859,14 +957,14 @@ void main() {
 
     expect(find.text('Invoice URL'), findsOneWidget);
     expect(find.text('https://bullpay.ca/alice/i/$id'), findsOneWidget);
-    expect(find.text('Bitcoin payment'), findsOneWidget);
-    expect(find.text('bitcoin:bc1qchain?amount=0.00001000'), findsOneWidget);
+    expect(find.text('Recipient'), findsOneWidget);
+    expect(find.text('Alice'), findsOneWidget);
+    expect(find.text('Description'), findsOneWidget);
+    expect(find.text('Coffee'), findsOneWidget);
     expect(find.byType(Countdown), findsOneWidget);
   });
 
-  testWidgets('invoice detail falls back to base bitcoin address', (
-    tester,
-  ) async {
+  testWidgets('invoice detail hides payment rail payloads', (tester) async {
     final getInvoice = _MockGetInvoiceUsecase();
     final cancelInvoice = _MockCancelInvoiceUsecase();
     final id = InvoiceId('00000000-0000-0000-0000-000000000001');
@@ -893,8 +991,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Bitcoin payment'), findsOneWidget);
-    expect(find.text('bc1qinvoice'), findsOneWidget);
+    expect(find.text('Bitcoin payment'), findsNothing);
+    expect(find.text('Lightning invoice'), findsNothing);
+    expect(find.text('Liquid address'), findsNothing);
+    expect(find.text('bc1qinvoice'), findsNothing);
+    expect(find.text('lnbc...'), findsNothing);
+    expect(find.text('lq1invoice'), findsNothing);
   });
 
   testWidgets('invoice detail shows remaining amount when partially paid', (
@@ -926,7 +1028,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Remaining'), findsOneWidget);
-    expect(find.text('$_partiallyPaidRemainingSat sats'), findsOneWidget);
+    expect(find.text('$_partiallyPaidRemainingSat sats'), findsWidgets);
     expect(find.text('$_invoiceAmountSat sats'), findsNothing);
   });
 
@@ -1129,6 +1231,10 @@ InvoiceStatusSnapshot _snapshot({
     remainingAmountSat: remainingAmountSat,
     paymentToleranceSat: 1,
     rateMinorPerBtc: null,
+    publicDescription: 'Coffee',
+    recipientName: 'Alice',
+    invoiceNumber: 'INV-1',
+    createdAt: now,
     rateLocksUntil: now.add(const Duration(minutes: 5)),
     expiresAt: expiresAt ?? now.add(const Duration(hours: 1)),
     paidVia: null,
@@ -1142,5 +1248,6 @@ InvoiceStatusSnapshot _snapshot({
     acceptBtc: true,
     acceptLn: true,
     acceptLiquid: true,
+    shareUrl: InvoiceUrl('https://bullpay.ca/alice/i/$id'),
   );
 }

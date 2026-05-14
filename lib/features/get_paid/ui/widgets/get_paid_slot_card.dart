@@ -1,10 +1,13 @@
+import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:gap/gap.dart';
 
 class GetPaidSlotCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final String actionLabel;
+  final String? statusLabel;
+  final bool statusActive;
   final VoidCallback? onPressed;
 
   const GetPaidSlotCard({
@@ -12,65 +15,105 @@ class GetPaidSlotCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.actionLabel,
+    this.statusLabel,
+    this.statusActive = false,
     required this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: InkWell(
+    return Opacity(
+      opacity: onPressed == null ? 0.58 : 1,
+      child: GestureDetector(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(8),
-        child: IntrinsicHeight(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: context.appColors.surface,
+            border: Border.all(color: context.appColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: context.appColors.border,
+                offset: const Offset(0, 2),
+              ),
+            ],
+            borderRadius: BorderRadius.circular(2),
+          ),
           child: Row(
             children: [
-              Container(width: 4, color: theme.colorScheme.primary),
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: Icon(icon, color: context.appColors.primary, size: 32),
+              ),
+              const Gap(12),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(icon, color: theme.colorScheme.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: theme.textTheme.titleMedium,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              subtitle,
-                              style: theme.textTheme.bodyMedium,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: context.font.headlineMedium),
+                    const Gap(8),
+                    Text(
+                      subtitle,
+                      style: context.font.bodySmall?.copyWith(
+                        color: context.appColors.textMuted,
                       ),
-                      const SizedBox(width: 12),
-                      TextButton(
-                        onPressed: onPressed,
-                        child: Text(actionLabel),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (statusLabel != null) ...[
+                      const Gap(10),
+                      _StatusIndicator(
+                        label: statusLabel!,
+                        active: statusActive,
                       ),
                     ],
-                  ),
+                  ],
                 ),
+              ),
+              const Gap(12),
+              Icon(
+                Icons.arrow_forward,
+                color: context.appColors.onSurface,
+                size: 24,
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _StatusIndicator extends StatelessWidget {
+  final String label;
+  final bool active;
+
+  const _StatusIndicator({required this.label, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: active
+                ? context.appColors.success
+                : context.appColors.textMuted,
+          ),
+        ),
+        const Gap(8),
+        Text(
+          label,
+          style: context.font.bodySmall?.copyWith(
+            color: context.appColors.onSurface,
+          ),
+        ),
+      ],
     );
   }
 }

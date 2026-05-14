@@ -382,6 +382,10 @@ BullnymInvoiceStatusDto _statusDto({String? paidVia}) {
     remainingAmountSat: _invoiceAmountSat,
     paymentToleranceSat: 1,
     rateMinorPerBtc: null,
+    publicDescription: 'Coffee',
+    recipientName: 'Alice',
+    invoiceNumber: 'INV-1',
+    createdAtUnix: 1778498100,
     rateLocksUntilUnix: 1778501700,
     expiresAtUnix: 1778587200,
     paidVia: paidVia,
@@ -395,5 +399,6 @@ BullnymInvoiceStatusDto _statusDto({String? paidVia}) {
     acceptBtc: true,
     acceptLn: true,
     acceptLiquid: true,
+    shareUrl: 'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
   );
 }

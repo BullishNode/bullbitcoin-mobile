@@ -4,13 +4,15 @@ import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoices_list_cubit.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_create_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_detail_screen.dart';
+import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_home_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_list_screen.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 enum InvoicesRoute {
-  list('invoices'),
+  home('invoices'),
+  list('invoices/list'),
   create('invoices/create'),
   detail('invoices/:invoiceId');
 
@@ -21,6 +23,11 @@ enum InvoicesRoute {
 
 class InvoicesRouter {
   static final routes = [
+    GoRoute(
+      name: InvoicesRoute.home.name,
+      path: InvoicesRoute.home.path,
+      builder: (context, state) => const InvoicesHomeScreen(),
+    ),
     GoRoute(
       name: InvoicesRoute.list.name,
       path: InvoicesRoute.list.path,

@@ -4,6 +4,7 @@ import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/inputs/utf8_byte_limit_formatter.dart';
 import 'package:bb_mobile/core/widgets/price_input/price_input.dart';
+import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_state.dart';
@@ -13,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class InvoiceCreateScreen extends StatefulWidget {
   final String? paymentPageNym;
@@ -267,8 +269,9 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
       SwitchListTile(
         value: state.acceptLiquid,
         title: const Text('Liquid'),
-        subtitle: const Text('Direct Liquid payments are not available yet'),
-        onChanged: null,
+        onChanged: state.isBusy
+            ? null
+            : context.read<InvoiceCreateCubit>().setAcceptLiquid,
       ),
       if (widget.paymentPageNym != null)
         SwitchListTile(
@@ -426,7 +429,11 @@ class _InvoiceCreatedView extends StatelessWidget {
       children: [
         Text('Invoice created', style: context.font.headlineSmall),
         const Gap(16),
-        CopyInput(text: result.shareUrl.value, silent: true),
+        CopyInput(
+          text: result.shareUrl.value,
+          silent: true,
+          onTap: () => _openShareUrl(context, result.shareUrl.value),
+        ),
         const Gap(24),
         BBButton.big(
           label: 'Done',
@@ -436,5 +443,14 @@ class _InvoiceCreatedView extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _openShareUrl(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      SnackBarUtils.showSnackBar(context, 'Could not open invoice URL');
+    }
   }
 }

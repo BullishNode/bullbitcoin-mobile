@@ -194,6 +194,12 @@ extension on BullnymInvoiceStatusDto {
       remainingAmountSat: remainingAmountSat,
       paymentToleranceSat: paymentToleranceSat,
       rateMinorPerBtc: rateMinorPerBtc,
+      publicDescription: publicDescription,
+      recipientName: recipientName,
+      invoiceNumber: invoiceNumber,
+      createdAt: createdAtUnix == null
+          ? null
+          : _fromUnixSeconds(createdAtUnix!),
       rateLocksUntil: _fromUnixSeconds(rateLocksUntilUnix),
       expiresAt: _fromUnixSeconds(expiresAtUnix),
       paidVia: _paymentMethodOrNull(paidVia),
@@ -207,6 +213,7 @@ extension on BullnymInvoiceStatusDto {
       acceptBtc: acceptBtc,
       acceptLn: acceptLn,
       acceptLiquid: acceptLiquid,
+      shareUrl: shareUrl == null ? null : InvoiceUrl(shareUrl!),
     );
   }
 }

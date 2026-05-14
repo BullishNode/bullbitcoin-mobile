@@ -854,6 +854,10 @@ void main() {
         remainingAmountSat: 1000,
         paymentToleranceSat: 1,
         rateMinorPerBtc: null,
+        publicDescription: 'Coffee',
+        recipientName: 'Alice',
+        invoiceNumber: 'INV-1',
+        createdAt: now,
         rateLocksUntil: now,
         expiresAt: now.add(const Duration(hours: 1)),
         paidVia: null,
@@ -867,6 +871,7 @@ void main() {
         acceptBtc: true,
         acceptLn: true,
         acceptLiquid: true,
+        shareUrl: InvoiceUrl('https://bullpay.ca/alice/i/$id'),
       );
       when(
         () => invoiceService.getInvoiceStatus(id: id),

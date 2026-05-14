@@ -18,6 +18,16 @@ class UploadPaymentPageImageUsecase {
     required String nym,
     required List<int> bytes,
   }) async {
+    validateBytes(bytes);
+    final handle = await _paymentPageIdentity.getSigningHandle();
+    return _paymentPageService.uploadImage(
+      nym: nym,
+      bytes: bytes,
+      handle: handle,
+    );
+  }
+
+  static void validateBytes(List<int> bytes) {
     if (bytes.isEmpty) {
       throw const PaymentPageValidationError('image file is empty');
     }
@@ -29,26 +39,20 @@ class UploadPaymentPageImageUsecase {
         'image file must be JPEG, PNG, or WebP',
       );
     }
-    final handle = await _paymentPageIdentity.getSigningHandle();
-    return _paymentPageService.uploadImage(
-      nym: nym,
-      bytes: bytes,
-      handle: handle,
-    );
   }
 
-  bool _isAllowedImage(List<int> bytes) {
+  static bool _isAllowedImage(List<int> bytes) {
     return _isJpeg(bytes) || _isPng(bytes) || _isWebp(bytes);
   }
 
-  bool _isJpeg(List<int> bytes) {
+  static bool _isJpeg(List<int> bytes) {
     return bytes.length >= 3 &&
         bytes[0] == 0xff &&
         bytes[1] == 0xd8 &&
         bytes[2] == 0xff;
   }
 
-  bool _isPng(List<int> bytes) {
+  static bool _isPng(List<int> bytes) {
     return bytes.length >= 8 &&
         bytes[0] == 0x89 &&
         bytes[1] == 0x50 &&
@@ -60,7 +64,7 @@ class UploadPaymentPageImageUsecase {
         bytes[7] == 0x0a;
   }
 
-  bool _isWebp(List<int> bytes) {
+  static bool _isWebp(List<int> bytes) {
     return bytes.length >= 12 &&
         bytes[0] == 0x52 &&
         bytes[1] == 0x49 &&

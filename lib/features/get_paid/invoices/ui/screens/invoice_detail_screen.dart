@@ -1,6 +1,9 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
-import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
+import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
+import 'package:bb_mobile/core/widgets/tables/details_table.dart';
+import 'package:bb_mobile/core/widgets/tables/details_table_item.dart';
 import 'package:bb_mobile/core/widgets/timers/countdown.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_status.dart';
@@ -11,6 +14,8 @@ import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class InvoiceDetailScreen extends StatefulWidget {
   final InvoiceId invoiceId;
@@ -103,7 +108,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
 
 class _InvoiceDetailBody extends StatelessWidget {
   final InvoiceDetailState state;
-  final String? shareUrl;
+  final String shareUrl;
 
   const _InvoiceDetailBody({required this.state, required this.shareUrl});
 
@@ -111,87 +116,131 @@ class _InvoiceDetailBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final snapshot = state.snapshot!;
     final status = state.cancelResult?.status ?? snapshot.status;
-    final bitcoinPayment =
-        snapshot.bitcoinChainBip21 ??
-        snapshot.bitcoinChainAddress ??
-        snapshot.bitcoinAddress;
     final amountSat = status == InvoiceStatus.partiallyPaid
         ? snapshot.remainingAmountSat
         : snapshot.amountSat;
+    final dateFormat = DateFormat('MMM d, y, h:mm a');
+    final resolvedShareUrl = snapshot.shareUrl?.value ?? shareUrl;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _DetailRow(label: 'Status', value: _statusLabel(status)),
-        _DetailRow(
-          label: status == InvoiceStatus.partiallyPaid ? 'Remaining' : 'Amount',
-          value: '$amountSat sats',
-        ),
-        _DetailWidgetRow(
-          label: 'Expires',
-          child: Countdown(
-            until: snapshot.expiresAt,
-            format: CountdownFormat.dhm,
-            onTimeout: () {
-              context.read<InvoiceDetailCubit>().refresh();
-            },
+        Icon(_statusIcon(status), color: context.appColors.primary, size: 40),
+        const Gap(16),
+        Text(
+          _statusLabel(status),
+          style: context.font.titleMedium?.copyWith(
+            color: context.appColors.textMuted,
           ),
         ),
-        if (shareUrl != null) ...[
-          const Gap(12),
-          const Text('Invoice URL'),
-          const Gap(6),
-          CopyInput(text: shareUrl!, silent: true),
-        ],
-        if (bitcoinPayment != null) ...[
-          const Gap(12),
-          const Text('Bitcoin payment'),
-          const Gap(6),
-          CopyInput(
-            text: bitcoinPayment,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            canShowValueModal: true,
-            modalTitle: 'Bitcoin payment',
-            silent: true,
+        const Gap(8),
+        Text(
+          '$amountSat sats',
+          style: context.font.displaySmall?.copyWith(
+            color: context.appColors.onSurface,
+            fontWeight: FontWeight.w500,
           ),
-        ],
-        if (snapshot.lightningPr != null) ...[
-          const Gap(12),
-          const Text('Lightning invoice'),
-          const Gap(6),
-          CopyInput(
-            text: snapshot.lightningPr!,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            canShowValueModal: true,
-            modalTitle: 'Lightning invoice',
-            silent: true,
-          ),
-        ],
-        if (snapshot.liquidAddress != null) ...[
-          const Gap(12),
-          const Text('Liquid address'),
-          const Gap(6),
-          CopyInput(text: snapshot.liquidAddress!, silent: true),
-        ],
-        if (snapshot.paidVia != null)
-          _DetailRow(label: 'Paid via', value: snapshot.paidVia!.value),
-        if (snapshot.paidAmountSat != null)
-          _DetailRow(
-            label: 'Paid amount',
-            value: '${snapshot.paidAmountSat} sats',
-          ),
+        ),
         const Gap(24),
-        if (status == InvoiceStatus.unpaid)
-          BBButton.big(
-            label: state.isCancelling ? 'Cancelling...' : 'Cancel invoice',
-            disabled: state.isBusy,
-            onPressed: () => _confirmCancel(context),
-            bgColor: context.appColors.transparent,
-            textColor: context.appColors.onSurface,
-            outlined: true,
-            borderColor: context.appColors.onSurface,
+        DetailsTable(
+          items: [
+            DetailsTableItem(
+              label: 'Status',
+              displayValue: _statusLabel(status),
+            ),
+            DetailsTableItem(
+              label: status == InvoiceStatus.partiallyPaid
+                  ? 'Remaining'
+                  : 'Amount',
+              displayValue: '$amountSat sats',
+            ),
+            DetailsTableItem(
+              label: 'Invoice URL',
+              displayValue: resolvedShareUrl,
+              copyValue: resolvedShareUrl,
+              displayWidget: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _openShareUrl(context, resolvedShareUrl),
+                child: Text(
+                  resolvedShareUrl,
+                  textAlign: TextAlign.end,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: context.appColors.primary,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
+            if (snapshot.recipientName != null)
+              DetailsTableItem(
+                label: 'Recipient',
+                displayValue: snapshot.recipientName,
+              ),
+            if (snapshot.publicDescription != null)
+              DetailsTableItem(
+                label: 'Description',
+                displayValue: snapshot.publicDescription,
+              ),
+            if (snapshot.invoiceNumber != null)
+              DetailsTableItem(
+                label: 'Invoice number',
+                displayValue: snapshot.invoiceNumber,
+                copyValue: snapshot.invoiceNumber,
+              ),
+            if (snapshot.createdAt != null)
+              DetailsTableItem(
+                label: 'Created',
+                displayValue: dateFormat.format(snapshot.createdAt!.toLocal()),
+              ),
+            if (snapshot.paidAt != null)
+              DetailsTableItem(
+                label: 'Paid',
+                displayValue: dateFormat.format(snapshot.paidAt!.toLocal()),
+              ),
+            DetailsTableItem(
+              label: 'Expires',
+              displayValue: status == InvoiceStatus.unpaid
+                  ? null
+                  : dateFormat.format(snapshot.expiresAt.toLocal()),
+              displayWidget: status == InvoiceStatus.unpaid
+                  ? Countdown(
+                      until: snapshot.expiresAt,
+                      format: CountdownFormat.dhm,
+                      onTimeout: () {
+                        context.read<InvoiceDetailCubit>().refresh();
+                      },
+                    )
+                  : null,
+            ),
+            if (snapshot.paidVia != null)
+              DetailsTableItem(
+                label: 'Paid via',
+                displayValue: _paymentMethodLabel(snapshot.paidVia!.value),
+              ),
+            if (snapshot.paidAmountSat != null)
+              DetailsTableItem(
+                label: 'Paid amount',
+                displayValue: '${snapshot.paidAmountSat} sats',
+              ),
+          ],
+        ),
+        if (status == InvoiceStatus.unpaid) ...[
+          const Gap(24),
+          SizedBox(
+            width: double.infinity,
+            child: BBButton.big(
+              label: state.isCancelling ? 'Cancelling...' : 'Cancel invoice',
+              disabled: state.isBusy,
+              onPressed: () => _confirmCancel(context),
+              bgColor: context.appColors.transparent,
+              textColor: context.appColors.onSurface,
+              outlined: true,
+              borderColor: context.appColors.onSurface,
+            ),
           ),
+        ],
       ],
     );
   }
@@ -222,79 +271,41 @@ class _InvoiceDetailBody extends StatelessWidget {
     }
   }
 
+  Future<void> _openShareUrl(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      SnackBarUtils.showSnackBar(context, 'Could not open invoice URL');
+    }
+  }
+
   String _statusLabel(InvoiceStatus status) {
     return switch (status) {
-      InvoiceStatus.inProgress => 'in progress',
-      _ => status.value,
+      InvoiceStatus.inProgress => 'In progress',
+      InvoiceStatus.partiallyPaid => 'Partially paid',
+      _ => StringFormatting.capitalize(status.value),
     };
   }
-}
 
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _DetailRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: context.font.bodyMedium?.copyWith(
-                color: context.appColors.textMuted,
-              ),
-            ),
-          ),
-          const Gap(12),
-          Expanded(
-            flex: 2,
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: context.font.bodyMedium,
-            ),
-          ),
-        ],
-      ),
-    );
+  IconData _statusIcon(InvoiceStatus status) {
+    return switch (status) {
+      InvoiceStatus.paid => Icons.check_circle_outline,
+      InvoiceStatus.cancelled => Icons.cancel_outlined,
+      InvoiceStatus.expired => Icons.schedule_outlined,
+      InvoiceStatus.underpaid || InvoiceStatus.overpaid => Icons.error_outline,
+      _ => Icons.receipt_long_outlined,
+    };
   }
-}
 
-class _DetailWidgetRow extends StatelessWidget {
-  final String label;
-  final Widget child;
-
-  const _DetailWidgetRow({required this.label, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: context.font.bodyMedium?.copyWith(
-                color: context.appColors.textMuted,
-              ),
-            ),
-          ),
-          const Gap(12),
-          Expanded(
-            flex: 2,
-            child: Align(alignment: Alignment.centerRight, child: child),
-          ),
-        ],
-      ),
-    );
+  String _paymentMethodLabel(String value) {
+    return switch (value) {
+      'ln' || 'lightning' => 'Lightning',
+      'btc' || 'bitcoin' => 'Bitcoin',
+      'liquid' => 'Liquid',
+      'mixed' => 'Mixed',
+      _ => StringFormatting.capitalize(value),
+    };
   }
 }
 

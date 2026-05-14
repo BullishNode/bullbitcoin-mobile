@@ -66,9 +66,8 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                     icon: Icons.alternate_email,
                     title: 'Lightning Address',
                     subtitle: state.lightningAddress ?? 'Not set up',
-                    actionLabel: state.hasLightningAddress
-                        ? 'Manage'
-                        : 'Set up',
+                    statusLabel: state.hasLightningAddress ? 'Active' : null,
+                    statusActive: state.hasLightningAddress,
                     onPressed: () => _openLightningAddress(context),
                   ),
                   const SizedBox(height: 12),
@@ -76,7 +75,8 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                     icon: Icons.storefront,
                     title: 'Payment Page',
                     subtitle: _paymentPageSubtitle(state),
-                    actionLabel: state.hasPaymentPage ? 'Edit' : 'Create',
+                    statusLabel: _paymentPageStatusLabel(state),
+                    statusActive: state.paymentPage?.enabled ?? false,
                     onPressed: state.nym == null
                         ? null
                         : () => _openPaymentPage(context, state.nym!),
@@ -86,7 +86,6 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                     icon: Icons.receipt_long,
                     title: 'Invoices',
                     subtitle: 'Create and manage invoices',
-                    actionLabel: 'Open',
                     onPressed: () => _openInvoices(context),
                   ),
                 ],
@@ -104,7 +103,13 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
     }
     final page = state.paymentPage;
     if (page == null) return 'Not set up';
-    return page.enabled ? page.publicUrl : '${page.publicUrl} (disabled)';
+    return page.publicUrl;
+  }
+
+  String? _paymentPageStatusLabel(GetPaidDashboardState state) {
+    final page = state.paymentPage;
+    if (page == null) return null;
+    return page.enabled ? 'Active' : 'Not published';
   }
 
   Future<void> _openLightningAddress(BuildContext context) async {
@@ -123,7 +128,7 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
   }
 
   Future<void> _openInvoices(BuildContext context) async {
-    final changed = await context.pushNamed<bool>(InvoicesRoute.list.name);
+    final changed = await context.pushNamed<bool>(InvoicesRoute.home.name);
     if (changed != true || !mounted) return;
     await context.read<GetPaidDashboardCubit>().refresh();
   }

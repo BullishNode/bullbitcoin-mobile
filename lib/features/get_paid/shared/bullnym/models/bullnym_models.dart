@@ -323,6 +323,10 @@ class BullnymInvoiceStatusDto {
   final int remainingAmountSat;
   final int paymentToleranceSat;
   final int? rateMinorPerBtc;
+  final String? publicDescription;
+  final String? recipientName;
+  final String? invoiceNumber;
+  final int? createdAtUnix;
   final int rateLocksUntilUnix;
   final int expiresAtUnix;
   final String? paidVia;
@@ -336,6 +340,7 @@ class BullnymInvoiceStatusDto {
   final bool acceptBtc;
   final bool acceptLn;
   final bool acceptLiquid;
+  final String? shareUrl;
 
   const BullnymInvoiceStatusDto({
     required this.status,
@@ -347,6 +352,10 @@ class BullnymInvoiceStatusDto {
     required this.remainingAmountSat,
     required this.paymentToleranceSat,
     required this.rateMinorPerBtc,
+    required this.publicDescription,
+    required this.recipientName,
+    required this.invoiceNumber,
+    required this.createdAtUnix,
     required this.rateLocksUntilUnix,
     required this.expiresAtUnix,
     required this.paidVia,
@@ -360,6 +369,7 @@ class BullnymInvoiceStatusDto {
     required this.acceptBtc,
     required this.acceptLn,
     required this.acceptLiquid,
+    required this.shareUrl,
   });
 
   factory BullnymInvoiceStatusDto.fromJson(Map<String, dynamic> json) {
@@ -373,6 +383,10 @@ class BullnymInvoiceStatusDto {
       remainingAmountSat: (json['remaining_amount_sat'] as num).toInt(),
       paymentToleranceSat: (json['payment_tolerance_sat'] as num).toInt(),
       rateMinorPerBtc: (json['rate_minor_per_btc'] as num?)?.toInt(),
+      publicDescription: json['public_description'] as String?,
+      recipientName: json['recipient_name'] as String?,
+      invoiceNumber: json['invoice_number'] as String?,
+      createdAtUnix: (json['created_at_unix'] as num?)?.toInt(),
       rateLocksUntilUnix: (json['rate_locks_until_unix'] as num).toInt(),
       expiresAtUnix: (json['expires_at_unix'] as num).toInt(),
       paidVia: json['paid_via'] as String?,
@@ -386,6 +400,7 @@ class BullnymInvoiceStatusDto {
       acceptBtc: json['accept_btc'] as bool,
       acceptLn: json['accept_ln'] as bool,
       acceptLiquid: json['accept_liquid'] as bool,
+      shareUrl: json['share_url'] as String?,
     );
   }
 }

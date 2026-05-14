@@ -14,6 +14,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_pa
 import 'package:bb_mobile/features/get_paid/payment_page/ui/screens/payment_page_editor_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -89,7 +90,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('Edit alice'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
+    expect(find.text('Store URL'), findsOneWidget);
+    expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Page title'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Description'), findsOneWidget);
 
     await tester.drag(find.byType(ListView), const Offset(0, -500));
@@ -102,7 +105,149 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pump();
 
-    expect(find.text('Archive'), findsOneWidget);
+    expect(find.text('Deactivate'), findsOneWidget);
+  });
+
+  testWidgets('shows clickable store URL with copy action', (tester) async {
+    String? clipboardText;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final data = call.arguments as Map<dynamic, dynamic>;
+            clipboardText = data['text'] as String?;
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page());
+
+    await tester.pumpWidget(
+      _harness(
+        nym: 'alice',
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Store URL'), findsOneWidget);
+    expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
+    expect(find.byTooltip('Copy store URL'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Copy store URL'));
+
+    expect(clipboardText, 'https://bullpay.ca/alice');
+  });
+
+  testWidgets('keeps creation flow focused before page exists', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        nym: 'alice',
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Create alice'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Page title'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Description'), findsOneWidget);
+    expect(find.text('OG image'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pump();
+    expect(find.text('Create'), findsOneWidget);
+    expect(find.text('Display currency'), findsNothing);
+    expect(find.text('Published'), findsNothing);
+    expect(find.text('Deactivate'), findsNothing);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pump();
+    expect(find.widgetWithText(TextField, 'Website'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Twitter'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Instagram'), findsOneWidget);
+  });
+
+  testWidgets('shows publish action for an unpublished existing page', (
+    tester,
+  ) async {
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page(enabled: false));
+    when(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: any(named: 'handle'),
+      ),
+    ).thenAnswer((_) async => _page(enabled: true));
+
+    await tester.pumpWidget(
+      _harness(
+        nym: 'alice',
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+      ),
+    );
+    await tester.pump();
+    await tester.drag(find.byType(ListView), const Offset(0, -700));
+    await tester.pump();
+
+    expect(find.text('Publish'), findsOneWidget);
+    expect(find.text('Deactivate'), findsNothing);
+
+    await tester.tap(find.text('Publish'));
+    await tester.pumpAndSettle();
+
+    final command =
+        verify(
+              () => paymentPageService.savePaymentPage(
+                command: captureAny(named: 'command'),
+                handle: any(named: 'handle'),
+              ),
+            ).captured.single
+            as SavePaymentPageCommand;
+    expect(command.enabled, isTrue);
+  });
+
+  testWidgets('rejects invalid OG images before save or upload', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        nym: 'alice',
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+        pickImageBytes: () async => const [1, 2, 3],
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('OG image'));
+    await tester.pump();
+
+    expect(
+      find.text('Choose a JPEG, PNG, or WebP image under 2 MB.'),
+      findsOneWidget,
+    );
+    verifyNever(() => paymentPageIdentity.getSigningHandle());
+    verifyNever(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: any(named: 'handle'),
+      ),
+    );
+    verifyNever(
+      () => paymentPageService.uploadImage(
+        nym: any(named: 'nym'),
+        bytes: any(named: 'bytes'),
+        handle: any(named: 'handle'),
+      ),
+    );
   });
 
   testWidgets('uses UTF-8 byte limits for server-limited fields', (
@@ -122,7 +267,7 @@ void main() {
     await tester.pump();
 
     final title = tester.widget<TextField>(
-      find.widgetWithText(TextField, 'Title'),
+      find.widgetWithText(TextField, 'Page title'),
     );
     expect(title.maxLength, paymentPageHeaderMaxBytes);
     expect(title.buildCounter, isNotNull);
@@ -162,7 +307,7 @@ void main() {
   testWidgets('uploads image from the editor for an existing payment page', (
     tester,
   ) async {
-    const bytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    const bytes = _validPngBytes;
     when(
       () => paymentPageService.getPaymentPage(nym: 'alice'),
     ).thenAnswer((_) async => _page());
@@ -184,9 +329,67 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Preview image'));
+    await tester.drag(find.byType(ListView), const Offset(0, -250));
+    await tester.pump();
+    await tester.tap(find.text('OG image'));
     await tester.pumpAndSettle();
 
+    verify(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: bytes,
+        handle: any(named: 'handle'),
+      ),
+    ).called(1);
+  });
+
+  testWidgets('creates page then uploads selected image', (tester) async {
+    const bytes = _validPngBytes;
+    when(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: any(named: 'handle'),
+      ),
+    ).thenAnswer((_) async => _page());
+    when(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: bytes,
+        handle: any(named: 'handle'),
+      ),
+    ).thenAnswer((_) async => _page(ogSha256: 'aa' * 32));
+
+    await tester.pumpWidget(
+      _harness(
+        nym: 'alice',
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+        pickImageBytes: () async => bytes,
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Page title'),
+      "Alice's Coffee",
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Description'),
+      'Tips welcome',
+    );
+    await tester.tap(find.text('OG image'));
+    await tester.pump();
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pump();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+
+    verify(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: any(named: 'handle'),
+      ),
+    ).called(1);
     verify(
       () => paymentPageService.uploadImage(
         nym: 'alice',
@@ -264,6 +467,76 @@ void main() {
     expect(find.text('changed: true'), findsOneWidget);
   });
 }
+
+const _validPngBytes = <int>[
+  0x89,
+  0x50,
+  0x4e,
+  0x47,
+  0x0d,
+  0x0a,
+  0x1a,
+  0x0a,
+  0x00,
+  0x00,
+  0x00,
+  0x0d,
+  0x49,
+  0x48,
+  0x44,
+  0x52,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x08,
+  0x06,
+  0x00,
+  0x00,
+  0x00,
+  0x1f,
+  0x15,
+  0xc4,
+  0x89,
+  0x00,
+  0x00,
+  0x00,
+  0x0a,
+  0x49,
+  0x44,
+  0x41,
+  0x54,
+  0x78,
+  0x9c,
+  0x63,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x05,
+  0x00,
+  0x01,
+  0x0d,
+  0x0a,
+  0x2d,
+  0xb4,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x49,
+  0x45,
+  0x4e,
+  0x44,
+  0xae,
+  0x42,
+  0x60,
+  0x82,
+];
 
 Widget _harness({
   required String nym,
@@ -366,6 +639,7 @@ class _RouteHarnessState extends State<_RouteHarness> {
 }
 
 PaymentPage _page({
+  bool enabled = true,
   String? avatarSha256,
   String? ogSha256,
   String publicUrl = 'https://bullpay.ca/alice',
@@ -378,7 +652,7 @@ PaymentPage _page({
     website: 'https://alice.example',
     twitter: 'alice',
     instagram: null,
-    enabled: true,
+    enabled: enabled,
     isArchived: false,
     avatarSha256: avatarSha256,
     ogSha256: ogSha256,

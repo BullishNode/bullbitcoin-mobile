@@ -201,8 +201,7 @@ void main() {
         ..setDescription(' Tips welcome ')
         ..setWebsite(' https://alice.example ')
         ..setTwitter(' ')
-        ..setInstagram('')
-        ..setEnabled(true);
+        ..setInstagram('');
 
       await cubit.save();
 
@@ -280,6 +279,155 @@ void main() {
     expect(cubit.state.error, 'Something went wrong. Please try again.');
     expect(cubit.state.error, isNot(contains('connection refused')));
     expect(cubit.state.isSaving, isFalse);
+  });
+
+  test('save validates selected image before creating page', () async {
+    await cubit.load(nym: 'alice');
+    cubit
+      ..setHeader("Alice's Coffee")
+      ..setDescription('Tips welcome');
+
+    await cubit.save(imageBytes: [1, 2, 3]);
+
+    expect(cubit.state.error, 'Choose a JPEG, PNG, or WebP image under 2 MB.');
+    expect(cubit.state.isSaving, isFalse);
+    verifyNever(() => paymentPageIdentity.getSigningHandle());
+    verifyNever(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: any(named: 'handle'),
+      ),
+    );
+  });
+
+  test(
+    'valid image selection clears previous image validation error',
+    () async {
+      await cubit.load(nym: 'alice');
+
+      expect(cubit.validateImageBytes([1, 2, 3]), isFalse);
+      expect(
+        cubit.state.error,
+        'Choose a JPEG, PNG, or WebP image under 2 MB.',
+      );
+
+      const pngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+      expect(cubit.validateImageBytes(pngHeader), isTrue);
+      expect(cubit.state.error, isNull);
+    },
+  );
+
+  test('save uploads selected image after page creation', () async {
+    const pngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    when(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: handle,
+      ),
+    ).thenAnswer((_) async => _page());
+    when(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: pngHeader,
+        handle: handle,
+      ),
+    ).thenAnswer((_) async => _page(ogSha256: 'aa' * 32));
+
+    await cubit.load(nym: 'alice');
+    cubit
+      ..setHeader("Alice's Coffee")
+      ..setDescription('Tips welcome');
+
+    await cubit.save(imageBytes: pngHeader);
+
+    expect(cubit.state.saved, isTrue);
+    expect(cubit.state.page?.ogSha256, 'aa' * 32);
+    verify(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: handle,
+      ),
+    ).called(1);
+    verify(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: pngHeader,
+        handle: handle,
+      ),
+    ).called(1);
+    verify(() => paymentPageIdentity.getSigningHandle()).called(2);
+  });
+
+  test('publish saves an unpublished page as enabled', () async {
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page(enabled: false));
+    when(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: handle,
+      ),
+    ).thenAnswer((_) async => _page(enabled: true));
+
+    await cubit.load(nym: 'alice');
+    expect(cubit.state.enabled, isFalse);
+
+    await cubit.publish();
+
+    final command =
+        verify(
+              () => paymentPageService.savePaymentPage(
+                command: captureAny(named: 'command'),
+                handle: handle,
+              ),
+            ).captured.single
+            as SavePaymentPageCommand;
+    expect(command.enabled, isTrue);
+    expect(cubit.state.enabled, isTrue);
+    expect(cubit.state.saved, isTrue);
+  });
+
+  test('save keeps created page when selected image upload fails', () async {
+    const pngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    when(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: handle,
+      ),
+    ).thenAnswer((_) async => _page());
+    when(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: pngHeader,
+        handle: handle,
+      ),
+    ).thenThrow(
+      const PaymentPageValidationError('Image dimensions are too large.'),
+    );
+
+    await cubit.load(nym: 'alice');
+    cubit
+      ..setHeader("Alice's Coffee")
+      ..setDescription('Tips welcome');
+
+    await cubit.save(imageBytes: pngHeader);
+
+    expect(cubit.state.hasExistingPage, isTrue);
+    expect(cubit.state.saved, isFalse);
+    expect(cubit.state.error, 'Choose a JPEG, PNG, or WebP image under 2 MB.');
+    verify(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: handle,
+      ),
+    ).called(1);
+    verify(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: pngHeader,
+        handle: handle,
+      ),
+    ).called(1);
   });
 
   test('archive archives only the payment page', () async {
@@ -403,6 +551,7 @@ void main() {
 
 PaymentPage _page({
   bool isArchived = false,
+  bool enabled = true,
   String? website,
   String? avatarSha256,
   String? ogSha256,
@@ -415,7 +564,7 @@ PaymentPage _page({
     website: website,
     twitter: null,
     instagram: null,
-    enabled: true,
+    enabled: enabled,
     isArchived: isArchived,
     avatarSha256: avatarSha256,
     ogSha256: ogSha256,

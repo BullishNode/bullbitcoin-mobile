@@ -50,7 +50,6 @@ void main() {
     expect(find.text('Payment Page'), findsOneWidget);
     expect(find.text('Choose a Bullnym name first'), findsOneWidget);
     expect(find.text('Create and manage invoices'), findsOneWidget);
-    expect(find.text('Open'), findsOneWidget);
     verifyNever(() => findPaymentPage.execute(nym: any(named: 'nym')));
   });
 
@@ -76,7 +75,10 @@ void main() {
 
     expect(find.text('alice@bullpay.ca'), findsOneWidget);
     expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
-    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Active'), findsNWidgets(2));
+    expect(find.text('Edit'), findsNothing);
+    expect(find.text('Manage'), findsNothing);
+    expect(find.text('Open'), findsNothing);
   });
 
   testWidgets('refreshes when editor route pops true', (tester) async {
@@ -124,7 +126,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('Create'));
+    await tester.tap(find.text('Payment Page'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Finish'));
     await tester.pumpAndSettle();
@@ -157,10 +159,10 @@ void main() {
           ),
           routes: [
             GoRoute(
-              name: InvoicesRoute.list.name,
-              path: InvoicesRoute.list.path,
+              name: InvoicesRoute.home.name,
+              path: InvoicesRoute.home.path,
               builder: (context, state) =>
-                  const Scaffold(body: Text('Invoices list')),
+                  const Scaffold(body: Text('Invoices home')),
             ),
           ],
         ),
@@ -171,10 +173,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('Open'));
+    await tester.tap(find.text('Invoices'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Invoices list'), findsOneWidget);
+    expect(find.text('Invoices home'), findsOneWidget);
     verifyNever(() => findPaymentPage.execute(nym: any(named: 'nym')));
   });
 
@@ -205,8 +207,8 @@ void main() {
           ),
           routes: [
             GoRoute(
-              name: InvoicesRoute.list.name,
-              path: InvoicesRoute.list.path,
+              name: InvoicesRoute.home.name,
+              path: InvoicesRoute.home.path,
               builder: (context, state) => Scaffold(
                 body: TextButton(
                   onPressed: () => context.pop(true),
@@ -223,7 +225,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('Open'));
+    await tester.tap(find.text('Invoices'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Close invoices changed'));
     await tester.pumpAndSettle();

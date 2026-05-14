@@ -16,6 +16,7 @@ class CopyInput extends StatelessWidget {
     this.modalTitle,
     this.modalContent,
     this.silent = false,
+    this.onTap,
   });
 
   final String text;
@@ -28,6 +29,7 @@ class CopyInput extends StatelessWidget {
   // In case it should be different from the shown text
   final String? modalContent;
   final bool silent;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +49,11 @@ class CopyInput extends StatelessWidget {
           const Gap(15),
           Expanded(
             child: InkWell(
-              onTap:
-                  canShowValueModal
-                      ? () {
-                        _onShowValueModal(context, canCopy: canCopy);
-                      }
-                      : null,
+              onTap: onTap ?? (canShowValueModal
+                  ? () {
+                      _onShowValueModal(context, canCopy: canCopy);
+                    }
+                  : null),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12.0),
                 child:
@@ -62,6 +63,9 @@ class CopyInput extends StatelessWidget {
                           text,
                           style: context.font.bodyLarge?.copyWith(
                             color: context.appColors.secondary,
+                            decoration: onTap == null
+                                ? null
+                                : TextDecoration.underline,
                           ),
                           maxLines: maxLines,
                           overflow: overflow,

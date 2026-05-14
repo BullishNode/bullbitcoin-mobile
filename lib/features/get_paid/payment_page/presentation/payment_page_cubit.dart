@@ -105,14 +105,31 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
     emit(state.copyWith(instagram: value, clearError: true, saved: false));
   }
 
-  void setEnabled(bool value) {
-    emit(state.copyWith(enabled: value, clearError: true, saved: false));
+  bool validateImageBytes(List<int> bytes) {
+    try {
+      UploadPaymentPageImageUsecase.validateBytes(bytes);
+      if (state.error != null) {
+        emit(state.copyWith(clearError: true));
+      }
+      return true;
+    } on PaymentPageApplicationError catch (e) {
+      emit(state.copyWith(error: paymentPageErrorMessage(e)));
+      return false;
+    }
   }
 
-  Future<void> save() async {
+  Future<void> publish() async {
+    await save(enabled: true);
+  }
+
+  Future<void> save({List<int>? imageBytes, bool? enabled}) async {
     if (state.nym.isEmpty || state.isBusy) return;
     emit(state.copyWith(isSaving: true, clearError: true, saved: false));
     try {
+      final selectedImageBytes = imageBytes;
+      if (selectedImageBytes != null) {
+        UploadPaymentPageImageUsecase.validateBytes(selectedImageBytes);
+      }
       final command = SavePaymentPageCommand(
         nym: state.nym,
         header: state.header.trim(),
@@ -121,9 +138,34 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
         website: _blankToNull(state.website),
         twitter: _blankToNull(state.twitter),
         instagram: _blankToNull(state.instagram),
-        enabled: state.enabled,
+        enabled: enabled ?? state.enabled,
       );
-      final page = await _savePaymentPage.execute(command: command);
+      var page = await _savePaymentPage.execute(command: command);
+      if (selectedImageBytes != null) {
+        try {
+          page = await _uploadImage.execute(
+            nym: state.nym,
+            bytes: selectedImageBytes,
+          );
+        } on PaymentPageApplicationError catch (e) {
+          if (isClosed) return;
+          emit(
+            PaymentPageState.fromPage(
+              page,
+            ).copyWith(error: paymentPageErrorMessage(e)),
+          );
+          return;
+        } on Exception catch (e) {
+          if (isClosed) return;
+          log.warning('Payment Page image upload failed after save', error: e);
+          emit(
+            PaymentPageState.fromPage(
+              page,
+            ).copyWith(error: 'Something went wrong. Please try again.'),
+          );
+          return;
+        }
+      }
       if (isClosed) return;
       emit(
         PaymentPageState.fromPage(
