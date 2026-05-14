@@ -267,7 +267,7 @@ class _EmptyNymView extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.all(24),
         child: Text(
-          'Create a Lightning Address before creating a payment page',
+          'Choose a Bullnym name before creating a payment page',
           textAlign: TextAlign.center,
         ),
       ),

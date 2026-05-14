@@ -26,7 +26,7 @@ void main() {
     findPaymentPage = _MockFindPaymentPageUsecase();
   });
 
-  testWidgets('renders setup state when Lightning Address is absent', (
+  testWidgets('keeps invoices available when Lightning Address is absent', (
     tester,
   ) async {
     when(
@@ -48,7 +48,9 @@ void main() {
     expect(find.text('Lightning Address'), findsOneWidget);
     expect(find.text('Not set up'), findsWidgets);
     expect(find.text('Payment Page'), findsOneWidget);
-    expect(find.text('Create a Lightning Address first'), findsNWidgets(2));
+    expect(find.text('Choose a Bullnym name first'), findsOneWidget);
+    expect(find.text('Create and manage invoices'), findsOneWidget);
+    expect(find.text('Open'), findsOneWidget);
     verifyNever(() => findPaymentPage.execute(nym: any(named: 'nym')));
   });
 
@@ -131,15 +133,14 @@ void main() {
     expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
   });
 
-  testWidgets('opens invoices route from dashboard slot', (tester) async {
+  testWidgets('opens invoices route without a Lightning Address', (
+    tester,
+  ) async {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
-    ).thenAnswer((_) async => 'alice@bullpay.ca');
+    ).thenAnswer((_) async => null);
     when(
       () => lightningAddressFacade.getCurrentNym(),
-    ).thenAnswer((_) async => 'alice');
-    when(
-      () => findPaymentPage.execute(nym: 'alice'),
     ).thenAnswer((_) async => null);
 
     final router = GoRouter(
@@ -174,6 +175,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Invoices list'), findsOneWidget);
+    verifyNever(() => findPaymentPage.execute(nym: any(named: 'nym')));
   });
 
   testWidgets('refreshes when invoices route pops true', (tester) async {

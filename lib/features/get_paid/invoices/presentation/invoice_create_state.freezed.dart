@@ -214,7 +214,7 @@ return $default(_that.amountSat,_that.fiatAmountMinor,_that.fiatCurrency,_that.p
 
 
 class _InvoiceCreateState extends InvoiceCreateState {
-  const _InvoiceCreateState({this.amountSat, this.fiatAmountMinor, this.fiatCurrency, this.publicDescription = '', this.recipientName = '', this.invoiceNumber = '', this.acceptBtc = true, this.acceptLn = true, this.acceptLiquid = true, required this.expiresAt, this.linkToPageNym = '', this.privateMemo = '', this.isSubmitting = false, this.result, this.error}): super._();
+  const _InvoiceCreateState({this.amountSat, this.fiatAmountMinor, this.fiatCurrency, this.publicDescription = '', this.recipientName = '', this.invoiceNumber = '', this.acceptBtc = true, this.acceptLn = true, this.acceptLiquid = false, required this.expiresAt, this.linkToPageNym = '', this.privateMemo = '', this.isSubmitting = false, this.result, this.error}): super._();
 
 
 @override final  int? amountSat;

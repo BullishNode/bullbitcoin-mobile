@@ -50,7 +50,7 @@ void main() {
     ).thenAnswer((_) async => NostrKeychainHandle.fromSecretKeyHex('01' * 32));
   });
 
-  testWidgets('shows Lightning Address requirement when nym is empty', (
+  testWidgets('shows Bullnym name requirement when nym is empty', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -63,7 +63,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Create a Lightning Address before creating a payment page'),
+      find.text('Choose a Bullnym name before creating a payment page'),
       findsOneWidget,
     );
     verifyNever(

@@ -35,8 +35,8 @@ class _MockClearProfile extends Mock
 
 class _MockPayService extends Mock implements PayServicePort {}
 
-class _MockSettings extends Mock implements LightningAddressSettingsDatasource {
-}
+class _MockSettings extends Mock
+    implements LightningAddressSettingsDatasource {}
 
 void main() {
   setUpAll(() {
@@ -65,32 +65,36 @@ void main() {
     when(() => settings.setNostrPublishOutcome(any())).thenAnswer((_) async {});
     when(() => settings.clearNostrPublishOutcome()).thenAnswer((_) async {});
     when(() => settings.getNostrPublishOutcome()).thenAnswer((_) async => null);
-    when(() => publishProfile.execute(nym: any(named: 'nym')))
-        .thenAnswer((_) async {});
+    when(
+      () => publishProfile.execute(nym: any(named: 'nym')),
+    ).thenAnswer((_) async {});
     when(() => clearProfile.execute()).thenAnswer((_) async {});
   });
 
   LightningAddressCubit build() => LightningAddressCubit(
-        getWallet: getWallet,
-        register: register,
-        delete: delete,
-        lookupStatus: lookupStatus,
-        publishProfile: publishProfile,
-        clearProfile: clearProfile,
-        payService: payService,
-        settings: settings,
-      );
+    getWallet: getWallet,
+    register: register,
+    delete: delete,
+    lookupStatus: lookupStatus,
+    publishProfile: publishProfile,
+    clearProfile: clearProfile,
+    payService: payService,
+    settings: settings,
+  );
 
   void stubRegisterOk({NymQuota quota = const NymQuota(used: 1, cap: 3)}) {
-    when(() => register.execute(
-          nym: any(named: 'nym'),
-          environment: any(named: 'environment'),
-        )).thenAnswer((_) async => (address: 'alice@bullpay.ca', quota: quota));
+    when(
+      () => register.execute(
+        nym: any(named: 'nym'),
+        environment: any(named: 'environment'),
+      ),
+    ).thenAnswer((_) async => (address: 'alice@bullpay.ca', quota: quota));
   }
 
   void stubDeleteOk({NymQuota quota = const NymQuota(used: 1, cap: 3)}) {
-    when(() => delete.execute(nym: any(named: 'nym')))
-        .thenAnswer((_) async => quota);
+    when(
+      () => delete.execute(nym: any(named: 'nym')),
+    ).thenAnswer((_) async => quota);
   }
 
   test('registerNym is reentrancy-guarded (I-2)', () async {
@@ -102,10 +106,12 @@ void main() {
       cubit.registerNym('alice', Environment.mainnet),
     ]);
 
-    verify(() => register.execute(
-          nym: any(named: 'nym'),
-          environment: any(named: 'environment'),
-        )).called(1);
+    verify(
+      () => register.execute(
+        nym: any(named: 'nym'),
+        environment: any(named: 'environment'),
+      ),
+    ).called(1);
     await cubit.close();
   });
 
@@ -114,7 +120,11 @@ void main() {
     stubDeleteOk();
 
     final cubit = build();
-    await cubit.registerNym('alice', Environment.mainnet, publishOnNostr: false);
+    await cubit.registerNym(
+      'alice',
+      Environment.mainnet,
+      publishOnNostr: false,
+    );
     await Future.wait([cubit.deleteAddress(), cubit.deleteAddress()]);
 
     verify(() => delete.execute(nym: 'alice')).called(1);
@@ -124,19 +134,23 @@ void main() {
   test('registerNym ignores empty nym', () async {
     final cubit = build();
     await cubit.registerNym('', Environment.mainnet);
-    verifyNever(() => register.execute(
-          nym: any(named: 'nym'),
-          environment: any(named: 'environment'),
-        ));
+    verifyNever(
+      () => register.execute(
+        nym: any(named: 'nym'),
+        environment: any(named: 'environment'),
+      ),
+    );
     expect(cubit.state.registering, isFalse);
     await cubit.close();
   });
 
   test('register generic failure uses friendly state.error copy', () async {
-    when(() => register.execute(
-          nym: any(named: 'nym'),
-          environment: any(named: 'environment'),
-        )).thenThrow(Exception('NymTaken'));
+    when(
+      () => register.execute(
+        nym: any(named: 'nym'),
+        environment: any(named: 'environment'),
+      ),
+    ).thenThrow(Exception('NymTaken'));
 
     final cubit = build();
     await cubit.registerNym('alice', Environment.mainnet);
@@ -148,10 +162,12 @@ void main() {
   });
 
   test('register unavailable nym uses curated validation copy', () async {
-    when(() => register.execute(
-          nym: any(named: 'nym'),
-          environment: any(named: 'environment'),
-        )).thenThrow(
+    when(
+      () => register.execute(
+        nym: any(named: 'nym'),
+        environment: any(named: 'environment'),
+      ),
+    ).thenThrow(
       LightningAddressRegistrationException('This nym is not available'),
     );
 
@@ -164,10 +180,12 @@ void main() {
   });
 
   test('register server reason does not leak to state.error', () async {
-    when(() => register.execute(
-          nym: any(named: 'nym'),
-          environment: any(named: 'environment'),
-        )).thenThrow(
+    when(
+      () => register.execute(
+        nym: any(named: 'nym'),
+        environment: any(named: 'environment'),
+      ),
+    ).thenThrow(
       LightningAddressRegistrationException('AuthError: bad signature'),
     );
 
@@ -183,45 +201,69 @@ void main() {
     await cubit.close();
   });
 
-  test(
-      'registerNym emits success + nostrPublishStatus.pending immediately, '
-      'then transitions to .success when the background publish settles',
-      () async {
-    stubRegisterOk(quota: const NymQuota(used: 2, cap: 3));
-    final completer = Completer<void>();
-    when(() => publishProfile.execute(nym: any(named: 'nym')))
-        .thenAnswer((_) => completer.future);
+  test('register surfaces network rate limit message', () async {
+    const message =
+        'Too many distinct wallets have used this service from this network. '
+        'Retry later, or switch networks.';
+    when(
+      () => register.execute(
+        nym: any(named: 'nym'),
+        environment: any(named: 'environment'),
+      ),
+    ).thenThrow(LightningAddressRegistrationException(message));
 
     final cubit = build();
     await cubit.registerNym('alice', Environment.mainnet);
 
-    // Synchronous-after-server-success snapshot: address visible, pending
-    // status, registering already false, publish not yet settled.
-    expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
-    expect(cubit.state.nostrPublishStatus, NostrPublishStatus.pending);
     expect(cubit.state.registering, isFalse);
-
-    completer.complete();
-    await Future<void>.delayed(Duration.zero);
-
-    expect(cubit.state.nostrPublishStatus, NostrPublishStatus.success);
-    verify(() => settings.setNostrPublishOutcome(NostrPublishStatus.success))
-        .called(1);
+    expect(cubit.state.error, message);
     await cubit.close();
   });
 
+  test(
+    'registerNym emits success + nostrPublishStatus.pending immediately, '
+    'then transitions to .success when the background publish settles',
+    () async {
+      stubRegisterOk(quota: const NymQuota(used: 2, cap: 3));
+      final completer = Completer<void>();
+      when(
+        () => publishProfile.execute(nym: any(named: 'nym')),
+      ).thenAnswer((_) => completer.future);
+
+      final cubit = build();
+      await cubit.registerNym('alice', Environment.mainnet);
+
+      // Synchronous-after-server-success snapshot: address visible, pending
+      // status, registering already false, publish not yet settled.
+      expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
+      expect(cubit.state.nostrPublishStatus, NostrPublishStatus.pending);
+      expect(cubit.state.registering, isFalse);
+
+      completer.complete();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.nostrPublishStatus, NostrPublishStatus.success);
+      verify(
+        () => settings.setNostrPublishOutcome(NostrPublishStatus.success),
+      ).called(1);
+      await cubit.close();
+    },
+  );
+
   test('background publish failure transitions pending → failed', () async {
     stubRegisterOk();
-    when(() => publishProfile.execute(nym: any(named: 'nym')))
-        .thenThrow(LightningAddressNostrPublishFailedException('no relays'));
+    when(
+      () => publishProfile.execute(nym: any(named: 'nym')),
+    ).thenThrow(LightningAddressNostrPublishFailedException('no relays'));
 
     final cubit = build();
     await cubit.registerNym('alice', Environment.mainnet);
     await Future<void>.delayed(Duration.zero);
 
     expect(cubit.state.nostrPublishStatus, NostrPublishStatus.failed);
-    verify(() => settings.setNostrPublishOutcome(NostrPublishStatus.failed))
-        .called(1);
+    verify(
+      () => settings.setNostrPublishOutcome(NostrPublishStatus.failed),
+    ).called(1);
     await cubit.close();
   });
 
@@ -229,15 +271,17 @@ void main() {
     stubRegisterOk();
     final cubit = build();
 
-    when(() => publishProfile.execute(nym: any(named: 'nym')))
-        .thenThrow(LightningAddressNostrPublishFailedException('no relays'));
+    when(
+      () => publishProfile.execute(nym: any(named: 'nym')),
+    ).thenThrow(LightningAddressNostrPublishFailedException('no relays'));
     await cubit.registerNym('alice', Environment.mainnet);
     await Future<void>.delayed(Duration.zero);
     expect(cubit.state.nostrPublishStatus, NostrPublishStatus.failed);
 
     final completer = Completer<void>();
-    when(() => publishProfile.execute(nym: any(named: 'nym')))
-        .thenAnswer((_) => completer.future);
+    when(
+      () => publishProfile.execute(nym: any(named: 'nym')),
+    ).thenAnswer((_) => completer.future);
 
     await cubit.republishOnNostr();
     expect(cubit.state.nostrPublishStatus, NostrPublishStatus.pending);
@@ -264,78 +308,92 @@ void main() {
     await cubit.close();
   });
 
-  test('successful delete prepends deactivated nym to previousNyms + clears persisted outcome',
-      () async {
-    stubRegisterOk();
-    stubDeleteOk();
+  test(
+    'successful delete prepends deactivated nym to previousNyms + clears persisted outcome',
+    () async {
+      stubRegisterOk();
+      stubDeleteOk();
 
-    final cubit = build();
-    await cubit.registerNym('alice', Environment.mainnet);
-    await cubit.deleteAddress();
-    await Future<void>.delayed(Duration.zero);
+      final cubit = build();
+      await cubit.registerNym('alice', Environment.mainnet);
+      await cubit.deleteAddress();
+      await Future<void>.delayed(Duration.zero);
 
-    expect(cubit.state.previousNyms.length, 1);
-    expect(cubit.state.previousNyms.first.nym, 'alice');
-    expect(cubit.state.lightningAddress, isNull);
-    expect(cubit.state.nostrPublishStatus, NostrPublishStatus.none);
-    verify(() => settings.clearNostrPublishOutcome()).called(greaterThan(0));
-    verify(() => clearProfile.execute()).called(1);
-    await cubit.close();
-  });
+      expect(cubit.state.previousNyms.length, 1);
+      expect(cubit.state.previousNyms.first.nym, 'alice');
+      expect(cubit.state.lightningAddress, isNull);
+      expect(cubit.state.nostrPublishStatus, NostrPublishStatus.none);
+      verify(() => settings.clearNostrPublishOutcome()).called(greaterThan(0));
+      verify(() => clearProfile.execute()).called(1);
+      await cubit.close();
+    },
+  );
 
-  test('checkStatus surfaces full previousNyms list from inactive lookup',
-      () async {
-    when(() => getWallet.execute(environment: any(named: 'environment')))
-        .thenAnswer((_) async => null);
-    when(() => payService.getStoredAddress()).thenAnswer((_) async => null);
-    when(() => lookupStatus.execute()).thenAnswer((_) async =>
-        InactiveLookupResult(
+  test(
+    'checkStatus surfaces full previousNyms list from inactive lookup',
+    () async {
+      when(
+        () => getWallet.execute(environment: any(named: 'environment')),
+      ).thenAnswer((_) async => null);
+      when(() => payService.getStoredAddress()).thenAnswer((_) async => null);
+      when(() => lookupStatus.execute()).thenAnswer(
+        (_) async => InactiveLookupResult(
           nym: 'tester3',
           quota: const NymQuota(used: 3, cap: 3),
           previousNyms: [
             PreviousNym(
-                nym: 'tester3', createdAt: DateTime.utc(2026, 5, 2, 21, 5)),
+              nym: 'tester3',
+              createdAt: DateTime.utc(2026, 5, 2, 21, 5),
+            ),
             PreviousNym(
-                nym: 'tester2', createdAt: DateTime.utc(2026, 5, 2, 20, 58)),
+              nym: 'tester2',
+              createdAt: DateTime.utc(2026, 5, 2, 20, 58),
+            ),
             PreviousNym(
-                nym: 'tester1', createdAt: DateTime.utc(2026, 5, 2, 1, 56)),
+              nym: 'tester1',
+              createdAt: DateTime.utc(2026, 5, 2, 1, 56),
+            ),
           ],
-        ));
+        ),
+      );
 
-    final cubit = build();
-    await cubit.checkStatus(Environment.mainnet);
+      final cubit = build();
+      await cubit.checkStatus(Environment.mainnet);
 
-    expect(cubit.state.previousNyms.length, 3);
-    expect(cubit.state.previousNyms.first.nym, 'tester3');
-    expect(cubit.state.previousNyms.last.nym, 'tester1');
-    await cubit.close();
-  });
+      expect(cubit.state.previousNyms.length, 3);
+      expect(cubit.state.previousNyms.first.nym, 'tester3');
+      expect(cubit.state.previousNyms.last.nym, 'tester1');
+      await cubit.close();
+    },
+  );
 
   test('registerNym strips just-registered nym from previousNyms', () async {
     stubRegisterOk();
-    when(() => getWallet.execute(environment: any(named: 'environment')))
-        .thenAnswer((_) async => null);
+    when(
+      () => getWallet.execute(environment: any(named: 'environment')),
+    ).thenAnswer((_) async => null);
     when(() => payService.getStoredAddress()).thenAnswer((_) async => null);
-    when(() => lookupStatus.execute()).thenAnswer((_) async =>
-        InactiveLookupResult(
-          nym: 'alice',
-          quota: const NymQuota(used: 2, cap: 3),
-          previousNyms: [
-            PreviousNym(nym: 'alice', createdAt: DateTime.utc(2026, 5, 1)),
-            PreviousNym(nym: 'bob', createdAt: DateTime.utc(2026, 4, 30)),
-          ],
-        ));
+    when(() => lookupStatus.execute()).thenAnswer(
+      (_) async => InactiveLookupResult(
+        nym: 'alice',
+        quota: const NymQuota(used: 2, cap: 3),
+        previousNyms: [
+          PreviousNym(nym: 'alice', createdAt: DateTime.utc(2026, 5, 1)),
+          PreviousNym(nym: 'bob', createdAt: DateTime.utc(2026, 4, 30)),
+        ],
+      ),
+    );
 
     final cubit = build();
     await cubit.checkStatus(Environment.mainnet);
-    await cubit.registerNym('alice', Environment.mainnet,
-        publishOnNostr: false);
+    await cubit.registerNym(
+      'alice',
+      Environment.mainnet,
+      publishOnNostr: false,
+    );
 
     expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
-    expect(
-      cubit.state.previousNyms.map((p) => p.nym).toList(),
-      ['bob'],
-    );
+    expect(cubit.state.previousNyms.map((p) => p.nym).toList(), ['bob']);
     await cubit.close();
   });
 

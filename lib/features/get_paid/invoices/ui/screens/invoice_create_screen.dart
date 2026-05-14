@@ -267,9 +267,8 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
       SwitchListTile(
         value: state.acceptLiquid,
         title: const Text('Liquid'),
-        onChanged: state.isBusy
-            ? null
-            : context.read<InvoiceCreateCubit>().setAcceptLiquid,
+        subtitle: const Text('Direct Liquid payments are not available yet'),
+        onChanged: null,
       ),
       if (widget.paymentPageNym != null)
         SwitchListTile(

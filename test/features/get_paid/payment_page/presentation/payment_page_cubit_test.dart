@@ -67,22 +67,19 @@ void main() {
 
   tearDown(() => cubit.close());
 
-  test(
-    'load blocks creation when Lightning Address nym is unavailable',
-    () async {
-      await cubit.load(nym: '');
+  test('load blocks creation when Bullnym name is unavailable', () async {
+    await cubit.load(nym: '');
 
-      expect(cubit.state.nym, isEmpty);
-      expect(cubit.state.page, isNull);
-      expect(
-        cubit.state.error,
-        'Create a Lightning Address before creating a payment page',
-      );
-      verifyNever(
-        () => paymentPageService.getPaymentPage(nym: any(named: 'nym')),
-      );
-    },
-  );
+    expect(cubit.state.nym, isEmpty);
+    expect(cubit.state.page, isNull);
+    expect(
+      cubit.state.error,
+      'Choose a Bullnym name before creating a payment page',
+    );
+    verifyNever(
+      () => paymentPageService.getPaymentPage(nym: any(named: 'nym')),
+    );
+  });
 
   test('load populates an existing active payment page', () async {
     when(
@@ -127,6 +124,26 @@ void main() {
     expect(
       paymentPageErrorMessage(const PaymentPageValidationError('raw invalid')),
       'Check the payment page details and try again.',
+    );
+    expect(
+      paymentPageErrorMessage(
+        const PaymentPageValidationError('must be between 1 and 80 bytes'),
+      ),
+      'Add a title.',
+    );
+    expect(
+      paymentPageErrorMessage(
+        const PaymentPageValidationError('must be between 1 and 280 bytes'),
+      ),
+      'Add a description.',
+    );
+    expect(
+      paymentPageErrorMessage(
+        const PaymentPageValidationError(
+          'must start with https:// and be at most 200 bytes',
+        ),
+      ),
+      'Website must start with https://.',
     );
     expect(
       paymentPageErrorMessage(const PaymentPageNotFoundError('raw missing')),
@@ -202,7 +219,7 @@ void main() {
 
     await cubit.save();
 
-    expect(cubit.state.error, isNotNull);
+    expect(cubit.state.error, 'Add a title.');
     expect(cubit.state.isSaving, isFalse);
     verifyNever(
       () => paymentPageService.savePaymentPage(

@@ -24,6 +24,7 @@ import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_list_sc
 import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/amount_input_formatter.dart';
+import 'package:bb_mobile/core/widgets/price_input/price_input.dart';
 import 'package:bb_mobile/core/widgets/timers/countdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -390,6 +391,9 @@ void main() {
             as CreateInvoiceCommand;
     expect(command.amountSat, 1000);
     expect(command.fiatAmountMinor, isNull);
+    expect(command.acceptBtc, isTrue);
+    expect(command.acceptLn, isTrue);
+    expect(command.acceptLiquid, isFalse);
   });
 
   testWidgets('invoice create screen pops true after Done', (tester) async {
@@ -637,7 +641,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    for (final label in ['Bitcoin on-chain', 'Lightning', 'Liquid']) {
+    for (final label in ['Bitcoin on-chain', 'Lightning']) {
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();
     }
@@ -648,6 +652,47 @@ void main() {
       ),
     );
     expect(createButton.disabled, isTrue);
+  });
+
+  testWidgets('invoice create screen keeps direct Liquid disabled', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final createInvoice = _MockCreateInvoiceUsecase();
+
+    await tester.pumpWidget(
+      _app(
+        BlocProvider(
+          create: (_) => InvoiceCreateCubit(
+            createInvoice: createInvoice,
+            initialExpiresAt: DateTime.now().toUtc().add(
+              const Duration(hours: 1),
+            ),
+          ),
+          child: const InvoiceCreateScreen(),
+        ),
+      ),
+    );
+    await tester.enterText(_amountField(), '1000');
+    await tester.pump();
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is BBButton && widget.label == 'Continue',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final liquidSwitch = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Liquid'),
+    );
+    expect(liquidSwitch.value, isFalse);
+    expect(liquidSwitch.onChanged, isNull);
+    expect(
+      find.text('Direct Liquid payments are not available yet'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('invoice create screen keeps selected expiry across rebuilds', (
@@ -976,6 +1021,24 @@ void main() {
           .text,
       '100',
     );
+  });
+
+  testWidgets('currency picker renders COP without country metadata', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        const Scaffold(
+          body: CurrencyBottomSheet(
+            availableCurrencies: ['COP'],
+            selectedValue: 'COP',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('COP'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 

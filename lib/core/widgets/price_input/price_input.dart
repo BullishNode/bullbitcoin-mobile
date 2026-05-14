@@ -300,37 +300,21 @@ extension _CurrencyStrEx on String {
   String get currencyIcon {
     switch (this) {
       case 'USD':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'US',
-        )['flag']!;
+        return _countryFlag('US');
       case 'EUR':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'EU',
-        )['flag']!;
+        return _countryFlag('EU');
       case 'CAD':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'CA',
-        )['flag']!;
+        return _countryFlag('CA');
       case 'INR':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'IN',
-        )['flag']!;
+        return _countryFlag('IN');
       case 'CRC':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'CR',
-        )['flag']!;
+        return _countryFlag('CR');
       case 'MXN':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'MX',
-        )['flag']!;
+        return _countryFlag('MX');
       case 'ARS':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'AR',
-        )['flag']!;
+        return _countryFlag('AR');
       case 'COP':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'CO',
-        )['flag']!;
+        return _countryFlag('CO');
       case 'sats':
       case 'BTC':
       default:
@@ -341,37 +325,38 @@ extension _CurrencyStrEx on String {
   String get currencyName {
     switch (this) {
       case 'USD':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'US',
-        )['name']!;
+        return _countryName('US', fallback: this);
       case 'EUR':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'EU',
-        )['name']!;
+        return _countryName('EU', fallback: this);
       case 'CAD':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'CA',
-        )['name']!;
+        return _countryName('CA', fallback: this);
       case 'CRC':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'CR',
-        )['name']!;
+        return _countryName('CR', fallback: this);
       case 'MXN':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'MX',
-        )['name']!;
+        return _countryName('MX', fallback: this);
       case 'ARS':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'AR',
-        )['name']!;
+        return _countryName('AR', fallback: this);
       case 'COP':
-        return CountryConstants.countries.firstWhere(
-          (element) => element['code'] == 'CO',
-        )['name']!;
+        return _countryName('CO', fallback: this);
       case 'sats':
       case 'BTC':
       default:
         return this;
     }
+  }
+
+  String _countryFlag(String code) {
+    return _countryValue(code, 'flag') ?? '¤';
+  }
+
+  String _countryName(String code, {required String fallback}) {
+    return _countryValue(code, 'name') ?? fallback;
+  }
+
+  String? _countryValue(String code, String key) {
+    final country = CountryConstants.countries.where(
+      (element) => element['code'] == code,
+    );
+    return country.isEmpty ? null : country.first[key];
   }
 }

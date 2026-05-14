@@ -68,4 +68,5 @@ stored inside commands, DTOs, generated state, equality, `copyWith`, or JSON.
 
 - Image upload, QR/save-to-gallery, and a bottom-nav entry are separate product
   work.
-- Payment Page creation still requires an existing Lightning Address nym.
+- Payment Page creation requires a Bullnym name; it does not require an active
+  Lightning Address.

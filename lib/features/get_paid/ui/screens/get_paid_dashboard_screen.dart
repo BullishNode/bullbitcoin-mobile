@@ -85,13 +85,9 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                   GetPaidSlotCard(
                     icon: Icons.receipt_long,
                     title: 'Invoices',
-                    subtitle: state.hasLightningAddress
-                        ? 'Create and manage invoices'
-                        : 'Create a Lightning Address first',
-                    actionLabel: state.hasLightningAddress ? 'Open' : 'Locked',
-                    onPressed: state.hasLightningAddress
-                        ? () => _openInvoices(context)
-                        : null,
+                    subtitle: 'Create and manage invoices',
+                    actionLabel: 'Open',
+                    onPressed: () => _openInvoices(context),
                   ),
                 ],
               ),
@@ -103,8 +99,8 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
   }
 
   String _paymentPageSubtitle(GetPaidDashboardState state) {
-    if (!state.hasLightningAddress) {
-      return 'Create a Lightning Address first';
+    if (state.nym == null) {
+      return 'Choose a Bullnym name first';
     }
     final page = state.paymentPage;
     if (page == null) return 'Not set up';

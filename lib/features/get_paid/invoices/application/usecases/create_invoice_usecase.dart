@@ -48,7 +48,7 @@ class CreateInvoiceUsecase {
       liquidBlindingKeyHex = address.blindingKeyHex;
     }
 
-    final result = await _createInvoiceRetryingUsedAddress(
+    final create = await _createInvoiceRetryingUsedAddress(
       command: command,
       handle: handle,
       bitcoinAddress: bitcoinAddress,
@@ -59,17 +59,24 @@ class CreateInvoiceUsecase {
     final privateMemo = command.privateMemo;
     if (privateMemo != null && privateMemo.isNotEmpty) {
       await _storeMemoLabelsBestEffort(
-        invoiceId: result.invoiceId.value,
+        invoiceId: create.result.invoiceId.value,
         privateMemo: privateMemo,
-        bitcoinAddress: bitcoinAddress,
-        liquidAddress: liquidAddress,
+        bitcoinAddress: create.bitcoinAddress,
+        liquidAddress: create.liquidAddress,
       );
     }
 
-    return result;
+    return create.result;
   }
 
-  Future<CreateInvoiceResult> _createInvoiceRetryingUsedAddress({
+  Future<
+    ({
+      CreateInvoiceResult result,
+      String? bitcoinAddress,
+      String? liquidAddress,
+    })
+  >
+  _createInvoiceRetryingUsedAddress({
     required CreateInvoiceCommand command,
     required NostrKeychainHandle handle,
     required String? bitcoinAddress,
@@ -77,33 +84,49 @@ class CreateInvoiceUsecase {
     required String? liquidBlindingKeyHex,
   }) async {
     try {
-      return await _invoiceService.createInvoice(
+      final result = await _invoiceService.createInvoice(
         command: command,
         handle: handle,
         bitcoinAddress: bitcoinAddress,
         liquidAddress: liquidAddress,
         liquidBlindingKeyHex: liquidBlindingKeyHex,
       );
+      return (
+        result: result,
+        bitcoinAddress: bitcoinAddress,
+        liquidAddress: liquidAddress,
+      );
     } on InvoicesBitcoinAddressAlreadyUsedError {
       if (!command.acceptBtc) rethrow;
-      return _invoiceService.createInvoice(
+      final freshBitcoinAddress = await _generateBitcoinAddress();
+      final result = await _invoiceService.createInvoice(
         command: command,
         handle: handle,
-        bitcoinAddress: await _generateBitcoinAddress(),
+        bitcoinAddress: freshBitcoinAddress,
         liquidAddress: liquidAddress,
         liquidBlindingKeyHex: liquidBlindingKeyHex,
+      );
+      return (
+        result: result,
+        bitcoinAddress: freshBitcoinAddress,
+        liquidAddress: liquidAddress,
       );
     } on InvoicesLiquidAddressAlreadyUsedError {
       if (!command.acceptLn && !command.acceptLiquid) rethrow;
       final address = await _generateLiquidAddress(
         includeBlindingKey: command.acceptLiquid,
       );
-      return _invoiceService.createInvoice(
+      final result = await _invoiceService.createInvoice(
         command: command,
         handle: handle,
         bitcoinAddress: bitcoinAddress,
         liquidAddress: address.address,
         liquidBlindingKeyHex: address.blindingKeyHex,
+      );
+      return (
+        result: result,
+        bitcoinAddress: bitcoinAddress,
+        liquidAddress: address.address,
       );
     }
   }

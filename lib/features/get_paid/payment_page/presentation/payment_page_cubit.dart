@@ -29,7 +29,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
         state.copyWith(
           nym: '',
           clearPage: true,
-          error: 'Create a Lightning Address before creating a payment page',
+          error: 'Choose a Bullnym name before creating a payment page',
           isLoading: false,
         ),
       );

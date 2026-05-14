@@ -17,8 +17,10 @@ import 'package:bb_mobile/features/get_paid/invoices/application/usecases/create
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/get_invoice_usecase.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_command.dart';
 import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_invoices_usecase.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/entities/invoice_status_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_status.dart';
+import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/payment_method.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_url.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
@@ -369,6 +371,79 @@ void main() {
     );
 
     test(
+      'stores memo label on fresh address after Bitcoin address retry',
+      () async {
+        final command = _createCommand(
+          now: now,
+          acceptBtc: true,
+          acceptLn: false,
+          acceptLiquid: false,
+          privateMemo: 'Order 100',
+        );
+        final result = _createResult();
+        var generated = 0;
+        when(
+          () => invoiceIdentity.getSigningHandle(),
+        ).thenAnswer((_) async => handle);
+        when(
+          () => walletRepository.getWallets(
+            onlyDefaults: true,
+            onlyBitcoin: true,
+          ),
+        ).thenAnswer((_) async => [_wallet(id: 'btc-wallet')]);
+        when(
+          () => walletAddressRepository.generateNewReceiveAddress(
+            walletId: 'btc-wallet',
+          ),
+        ).thenAnswer((_) async {
+          generated += 1;
+          return _address(generated == 1 ? 'bc1qused' : 'bc1qfresh');
+        });
+        when(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: 'bc1qused',
+            liquidAddress: null,
+            liquidBlindingKeyHex: null,
+          ),
+        ).thenThrow(
+          const InvoicesBitcoinAddressAlreadyUsedError('address already used'),
+        );
+        when(
+          () => invoiceService.createInvoice(
+            command: command,
+            handle: handle,
+            bitcoinAddress: 'bc1qfresh',
+            liquidAddress: null,
+            liquidBlindingKeyHex: null,
+          ),
+        ).thenAnswer((_) async => result);
+        when(() => labelsFacade.store(any())).thenAnswer(
+          (_) async =>
+              Label.addr(id: 1, address: 'bc1qfresh', label: 'Order 100'),
+        );
+
+        final usecase = _createUsecase(
+          walletRepository: walletRepository,
+          walletAddressRepository: walletAddressRepository,
+          labelsFacade: labelsFacade,
+          invoiceService: invoiceService,
+          invoiceIdentity: invoiceIdentity,
+        );
+
+        await expectLater(
+          usecase.execute(command: command),
+          completion(result),
+        );
+        final labels = verify(
+          () => labelsFacade.store(captureAny()),
+        ).captured.cast<NewLabel>();
+        expect(labels.single.reference, 'bc1qfresh');
+      },
+    );
+
+    test(
       'retries once with a fresh Liquid address when server rejects reuse',
       () async {
         final command = _createCommand(
@@ -685,8 +760,65 @@ void main() {
       invoiceIdentity: invoiceIdentity,
     );
 
-    await expectLater(usecase.execute(command: command), completion(result));
+    final listed = await usecase.execute(command: command);
+
+    expect(listed.invoices, isEmpty);
+    expect(listed.page, result.page);
+    expect(listed.pageSize, result.pageSize);
+    expect(listed.hasMore, result.hasMore);
   });
+
+  test(
+    'ListInvoicesUsecase hides unpaid and expired checkout invoices',
+    () async {
+      final command = ListInvoicesCommand(status: null);
+      final walletUnpaid = _invoice(
+        id: '00000000-0000-0000-0000-000000000001',
+        origin: 'wallet',
+        status: InvoiceStatus.unpaid,
+        now: now,
+      );
+      final checkoutUnpaid = _invoice(
+        id: '00000000-0000-0000-0000-000000000002',
+        origin: 'checkout',
+        status: InvoiceStatus.unpaid,
+        now: now,
+      );
+      final checkoutExpired = _invoice(
+        id: '00000000-0000-0000-0000-000000000003',
+        origin: 'checkout',
+        status: InvoiceStatus.expired,
+        now: now,
+      );
+      final checkoutPaid = _invoice(
+        id: '00000000-0000-0000-0000-000000000004',
+        origin: 'checkout',
+        status: InvoiceStatus.paid,
+        now: now,
+      );
+      final result = ListInvoicesResult(
+        invoices: [walletUnpaid, checkoutUnpaid, checkoutExpired, checkoutPaid],
+        page: 1,
+        pageSize: 100,
+        hasMore: false,
+      );
+      when(
+        () => invoiceIdentity.getSigningHandle(),
+      ).thenAnswer((_) async => handle);
+      when(
+        () => invoiceService.listInvoices(command: command, handle: handle),
+      ).thenAnswer((_) async => result);
+
+      final usecase = ListInvoicesUsecase(
+        invoiceService: invoiceService,
+        invoiceIdentity: invoiceIdentity,
+      );
+
+      final filtered = await usecase.execute(command: command);
+
+      expect(filtered.invoices, [walletUnpaid, checkoutPaid]);
+    },
+  );
 
   test('ListInvoicesCommand rejects values outside backend page bounds', () {
     expect(
@@ -794,6 +926,40 @@ CreateInvoiceResult _createResult() {
     shareUrl: InvoiceUrl(
       'https://bullpay.ca/alice/i/00000000-0000-0000-0000-000000000001',
     ),
+  );
+}
+
+Invoice _invoice({
+  required String id,
+  required String origin,
+  required InvoiceStatus status,
+  required DateTime now,
+}) {
+  return Invoice(
+    id: InvoiceId(id),
+    nymOwner: 'alice',
+    origin: origin,
+    status: status,
+    amountSat: 1000,
+    remainingAmountSat: status == InvoiceStatus.paid ? 0 : 1000,
+    fiatAmountMinor: null,
+    fiatCurrency: null,
+    publicDescription: 'Coffee',
+    recipientName: 'Alice',
+    invoiceNumber: 'INV-1',
+    acceptBtc: true,
+    acceptLn: true,
+    acceptLiquid: false,
+    bitcoinAddress: 'bc1qinvoice',
+    liquidAddress: 'lq1invoice',
+    createdAt: now,
+    expiresAt: status == InvoiceStatus.expired
+        ? now.subtract(const Duration(minutes: 1))
+        : now.add(const Duration(hours: 1)),
+    paidVia: status == InvoiceStatus.paid ? PaymentMethod.lightning : null,
+    paidAt: status == InvoiceStatus.paid ? now : null,
+    paidAmountSat: status == InvoiceStatus.paid ? 1000 : null,
+    shareUrl: InvoiceUrl('https://bullpay.ca/alice/i/$id'),
   );
 }
 
