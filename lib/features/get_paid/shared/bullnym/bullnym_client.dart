@@ -3,6 +3,7 @@ import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dar
 import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_errors.dart';
 import 'package:bb_mobile/features/get_paid/shared/bullnym/bullpay_signing.dart';
 import 'package:bb_mobile/features/get_paid/shared/bullnym/models/bullnym_models.dart';
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
 const Duration bullnymConnectTimeout = Duration(seconds: 10);
@@ -157,6 +158,36 @@ class BullnymClient {
           timestampSecs: ts,
         ),
       },
+    );
+    return BullnymDonationPageDto.fromJson(response);
+  }
+
+  Future<BullnymDonationPageDto> uploadPaymentPageImage({
+    required NostrKeychainHandle handle,
+    required String nym,
+    required List<int> bytes,
+    int? timestampSecs,
+  }) async {
+    final ts = timestampSecs ?? currentBullpayTimestampSecs();
+    final sha256Hex = sha256.convert(bytes).toString();
+    const kind = 'og';
+    final response = await _postMap(
+      '/donation-page/image',
+      data: FormData.fromMap({
+        'nym': nym,
+        'npub': handle.publicKeyHex,
+        'kind': kind,
+        'sha256': sha256Hex,
+        'timestamp': ts.toString(),
+        'signature': signBullpayAction(
+          handle: handle,
+          action: bullpayActionDonationPageImage,
+          nymOrEmpty: nym,
+          payloadFields: [kind, sha256Hex],
+          timestampSecs: ts,
+        ),
+        'file': MultipartFile.fromBytes(bytes, filename: 'preview-image'),
+      }),
     );
     return BullnymDonationPageDto.fromJson(response);
   }

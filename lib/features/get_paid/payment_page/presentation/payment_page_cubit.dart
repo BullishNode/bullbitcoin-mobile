@@ -4,6 +4,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/ar
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_command.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/upload_payment_page_image_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_error_message.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_state.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
@@ -13,14 +14,17 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
   final FindPaymentPageUsecase _findPaymentPage;
   final SavePaymentPageUsecase _savePaymentPage;
   final ArchivePaymentPageUsecase _archivePaymentPage;
+  final UploadPaymentPageImageUsecase _uploadImage;
 
   PaymentPageCubit({
     required FindPaymentPageUsecase findPaymentPage,
     required SavePaymentPageUsecase savePaymentPage,
     required ArchivePaymentPageUsecase archivePaymentPage,
+    required UploadPaymentPageImageUsecase uploadImage,
   }) : _findPaymentPage = findPaymentPage,
        _savePaymentPage = savePaymentPage,
        _archivePaymentPage = archivePaymentPage,
+       _uploadImage = uploadImage,
        super(const PaymentPageState());
 
   Future<void> load({required String nym}) async {
@@ -169,6 +173,37 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       emit(
         state.copyWith(
           isArchiving: false,
+          error: 'Something went wrong. Please try again.',
+        ),
+      );
+    }
+  }
+
+  Future<void> uploadImage(List<int> bytes) async {
+    if (state.nym.isEmpty || !state.hasExistingPage || state.isBusy) return;
+    emit(state.copyWith(isUploadingImage: true, clearError: true));
+    try {
+      final page = await _uploadImage.execute(nym: state.nym, bytes: bytes);
+      if (isClosed) return;
+      emit(
+        PaymentPageState.fromPage(
+          page,
+        ).copyWith(isUploadingImage: false, clearError: true),
+      );
+    } on PaymentPageApplicationError catch (e) {
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          isUploadingImage: false,
+          error: paymentPageErrorMessage(e),
+        ),
+      );
+    } on Exception catch (e) {
+      if (isClosed) return;
+      log.warning('Payment Page image upload failed', error: e);
+      emit(
+        state.copyWith(
+          isUploadingImage: false,
           error: 'Something went wrong. Please try again.',
         ),
       );

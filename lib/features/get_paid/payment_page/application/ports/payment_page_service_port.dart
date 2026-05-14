@@ -15,4 +15,10 @@ abstract class PaymentPageServicePort {
     required ArchivePaymentPageCommand command,
     required NostrKeychainHandle handle,
   });
+
+  Future<PaymentPage> uploadImage({
+    required String nym,
+    required List<int> bytes,
+    required NostrKeychainHandle handle,
+  });
 }

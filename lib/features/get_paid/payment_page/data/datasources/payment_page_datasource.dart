@@ -63,11 +63,26 @@ class PaymentPageDatasource implements PaymentPageServicePort {
     }
   }
 
+  @override
+  Future<PaymentPage> uploadImage({
+    required String nym,
+    required List<int> bytes,
+    required NostrKeychainHandle handle,
+  }) async {
+    try {
+      final dto = await _bullnymClient.uploadPaymentPageImage(
+        handle: handle,
+        nym: nym,
+        bytes: bytes,
+      );
+      return dto.toEntity();
+    } on BullnymException catch (e) {
+      throw _mapBullnymError(e);
+    }
+  }
+
   PaymentPageApplicationError _mapBullnymError(BullnymException e) {
-    return PaymentPageApplicationError.fromCode(
-      code: e.code,
-      reason: e.reason,
-    );
+    return PaymentPageApplicationError.fromCode(code: e.code, reason: e.reason);
   }
 }
 

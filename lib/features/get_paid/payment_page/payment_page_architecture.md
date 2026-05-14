@@ -15,6 +15,7 @@ The feature uses the existing Bullnym endpoints through
 - `GET /donation-page/:nym` returns `DonationPageView`.
 - `PUT /donation-page` saves or reactivates a page.
 - `DELETE /donation-page` archives a page.
+- `POST /donation-page/image` uploads the page image.
 
 Signed write actions use the deployed `bullpay-la-v2` wire domain:
 
@@ -22,6 +23,8 @@ Signed write actions use the deployed `bullpay-la-v2` wire domain:
   `header`, `description`, `display_currency`, `website`, `twitter`,
   `instagram`, `enabled`.
 - `donation-page-archive` signs no payload fields.
+- `donation-page-image` signs `kind` and `sha256`. Mobile uploads the social
+  preview image as `kind=og`.
 
 The Nostr key handle is passed separately to use cases and ports. It is never
 stored inside commands, DTOs, generated state, equality, `copyWith`, or JSON.
@@ -42,6 +45,8 @@ stored inside commands, DTOs, generated state, equality, `copyWith`, or JSON.
 - `ArchivePaymentPageCommand` contains the target nym only.
 - `GetPaymentPageUsecase`, `SavePaymentPageUsecase`, and
   `ArchivePaymentPageUsecase` are thin application entry points.
+- `UploadPaymentPageImageUsecase` validates the file size and magic bytes before
+  deriving a signing handle and uploading.
 - `FindPaymentPageUsecase` maps not-found into `null` for dashboard/status
   flows where "no page yet" is expected.
 - `PaymentPageApplicationError` maps Bullnym transport/backend errors into
@@ -56,7 +61,8 @@ stored inside commands, DTOs, generated state, equality, `copyWith`, or JSON.
 ### Presentation And UI
 
 - `PaymentPageCubit` loads an existing page, saves edits, and archives the
-  page through application use cases.
+  page through application use cases. Existing pages can also upload the social
+  preview image.
 - The editor route is owned by `payment_page/ui/payment_page_router.dart`.
 - Save/archive success pops `true` so the Get Paid dashboard can refresh.
 - User-facing errors come from `payment_page_error_message.dart`; raw backend
@@ -66,7 +72,6 @@ stored inside commands, DTOs, generated state, equality, `copyWith`, or JSON.
 
 ## Deferred
 
-- Image upload, QR/save-to-gallery, and a bottom-nav entry are separate product
-  work.
+- QR/save-to-gallery and a bottom-nav entry are separate product work.
 - Payment Page creation requires a Bullnym name; it does not require an active
   Lightning Address.

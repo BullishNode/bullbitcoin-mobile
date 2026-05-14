@@ -7,6 +7,8 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/ar
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_command.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/upload_payment_page_image_usecase.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_constants.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_error_message.dart';
@@ -59,6 +61,10 @@ void main() {
         paymentPageIdentity: paymentPageIdentity,
       ),
       archivePaymentPage: ArchivePaymentPageUsecase(
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+      ),
+      uploadImage: UploadPaymentPageImageUsecase(
         paymentPageService: paymentPageService,
         paymentPageIdentity: paymentPageIdentity,
       ),
@@ -158,6 +164,14 @@ void main() {
     expect(
       paymentPageErrorMessage(const PaymentPageNetworkError('raw network')),
       'Network error. Check your connection.',
+    );
+    expect(
+      paymentPageErrorMessage(
+        const PaymentPageValidationError(
+          'Image dimensions are too large. Maximum 1200x1200.',
+        ),
+      ),
+      'Choose a JPEG, PNG, or WebP image under 2 MB.',
     );
     expect(
       paymentPageErrorMessage(
@@ -308,9 +322,91 @@ void main() {
     expect(cubit.state.error, isNot(contains('disk full')));
     expect(cubit.state.isArchiving, isFalse);
   });
+
+  test('upload image validates file bytes before signing', () async {
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page());
+    await cubit.load(nym: 'alice');
+
+    await cubit.uploadImage([1, 2, 3]);
+
+    expect(cubit.state.error, 'Choose a JPEG, PNG, or WebP image under 2 MB.');
+    verifyNever(() => paymentPageIdentity.getSigningHandle());
+    verifyNever(
+      () => paymentPageService.uploadImage(
+        nym: any(named: 'nym'),
+        bytes: any(named: 'bytes'),
+        handle: any(named: 'handle'),
+      ),
+    );
+  });
+
+  test('upload image rejects oversized files before signing', () async {
+    final bytes = <int>[
+      0x89,
+      0x50,
+      0x4e,
+      0x47,
+      0x0d,
+      0x0a,
+      0x1a,
+      0x0a,
+      ...List<int>.filled(paymentPageImageMaxBytes - 7, 0),
+    ];
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page());
+    await cubit.load(nym: 'alice');
+
+    await cubit.uploadImage(bytes);
+
+    expect(cubit.state.error, 'Choose a JPEG, PNG, or WebP image under 2 MB.');
+    verifyNever(() => paymentPageIdentity.getSigningHandle());
+    verifyNever(
+      () => paymentPageService.uploadImage(
+        nym: any(named: 'nym'),
+        bytes: any(named: 'bytes'),
+        handle: any(named: 'handle'),
+      ),
+    );
+  });
+
+  test('upload image delegates through identity port', () async {
+    const pngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page());
+    when(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: pngHeader,
+        handle: handle,
+      ),
+    ).thenAnswer((_) async => _page(ogSha256: 'aa' * 32));
+
+    await cubit.load(nym: 'alice');
+    await cubit.uploadImage(pngHeader);
+
+    expect(cubit.state.isUploadingImage, isFalse);
+    expect(cubit.state.page?.ogSha256, 'aa' * 32);
+    verify(() => paymentPageIdentity.getSigningHandle()).called(1);
+    verify(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: pngHeader,
+        handle: handle,
+      ),
+    ).called(1);
+  });
 }
 
-PaymentPage _page({bool isArchived = false, String? website}) {
+PaymentPage _page({
+  bool isArchived = false,
+  String? website,
+  String? avatarSha256,
+  String? ogSha256,
+}) {
   return PaymentPage(
     nym: 'alice',
     header: "Alice's Coffee",
@@ -321,8 +417,8 @@ PaymentPage _page({bool isArchived = false, String? website}) {
     instagram: null,
     enabled: true,
     isArchived: isArchived,
-    avatarSha256: null,
-    ogSha256: null,
+    avatarSha256: avatarSha256,
+    ogSha256: ogSha256,
     publicUrl: 'https://bullpay.ca/alice',
   );
 }

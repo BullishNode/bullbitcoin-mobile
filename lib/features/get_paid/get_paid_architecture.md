@@ -8,7 +8,7 @@ keeping their implementation boundaries intact.
 The dashboard reads Lightning Address state through `LightningAddressFacade`,
 Payment Page state through Payment Page use cases, and links to invoice routes
 owned by the Invoices sub-feature. It does not move Lightning Address, change
-the app shell, add a bottom navigation tab, or add image upload.
+the app shell, or add a bottom navigation tab.
 
 ## Dependencies
 
@@ -38,5 +38,5 @@ screens, but it does not compose their write operations.
 
 ## Deferred
 
-Bottom navigation, image upload, QR/save, and broader dashboard polish remain
-outside this slice.
+Bottom navigation, QR/save, and broader dashboard polish remain outside this
+slice. Payment Page supports social preview image upload from the editor.

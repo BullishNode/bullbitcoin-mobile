@@ -6,11 +6,17 @@ import 'package:bb_mobile/features/get_paid/shared/bullnym/bullnym_constants.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 class PaymentPageEditorScreen extends StatefulWidget {
   final String nym;
+  final Future<List<int>?> Function()? pickImageBytes;
 
-  const PaymentPageEditorScreen({super.key, required this.nym});
+  const PaymentPageEditorScreen({
+    super.key,
+    required this.nym,
+    this.pickImageBytes,
+  });
 
   @override
   State<PaymentPageEditorScreen> createState() =>
@@ -71,6 +77,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
                 websiteController: _websiteController,
                 twitterController: _twitterController,
                 instagramController: _instagramController,
+                pickImageBytes: widget.pickImageBytes ?? _pickImageBytes,
               );
             },
           ),
@@ -91,6 +98,11 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     if (controller.text == value) return;
     controller.text = value;
   }
+
+  Future<List<int>?> _pickImageBytes() async {
+    final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+    return file?.readAsBytes();
+  }
 }
 
 class _PaymentPageForm extends StatelessWidget {
@@ -100,6 +112,7 @@ class _PaymentPageForm extends StatelessWidget {
   final TextEditingController websiteController;
   final TextEditingController twitterController;
   final TextEditingController instagramController;
+  final Future<List<int>?> Function() pickImageBytes;
 
   const _PaymentPageForm({
     required this.state,
@@ -108,6 +121,7 @@ class _PaymentPageForm extends StatelessWidget {
     required this.websiteController,
     required this.twitterController,
     required this.instagramController,
+    required this.pickImageBytes,
   });
 
   @override
@@ -120,6 +134,10 @@ class _PaymentPageForm extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 16),
+        if (state.hasExistingPage) ...[
+          _ImageSection(state: state, pickImageBytes: pickImageBytes),
+          const SizedBox(height: 16),
+        ],
         if (state.error != null) ...[
           Text(
             state.error!,
@@ -255,6 +273,78 @@ class _PaymentPageForm extends StatelessWidget {
 
   List<TextInputFormatter> _byteLimit(int maxBytes) {
     return [Utf8ByteLimitFormatter(maxBytes)];
+  }
+}
+
+class _ImageSection extends StatelessWidget {
+  final PaymentPageState state;
+  final Future<List<int>?> Function() pickImageBytes;
+
+  const _ImageSection({required this.state, required this.pickImageBytes});
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = _imageUrl(state);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: AspectRatio(
+              aspectRatio: 1200 / 630,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: imageUrl == null
+                      ? const ColoredBox(
+                          color: Colors.black12,
+                          child: Icon(Icons.image),
+                        )
+                      : Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.image),
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: state.isBusy
+              ? null
+              : () async {
+                  final bytes = await pickImageBytes();
+                  if (bytes == null || !context.mounted) return;
+                  await context.read<PaymentPageCubit>().uploadImage(bytes);
+                },
+          child: Text(
+            state.isUploadingImage ? 'Uploading...' : 'Preview image',
+          ),
+        ),
+      ],
+    );
+  }
+
+  String? _imageUrl(PaymentPageState state) {
+    final page = state.page;
+    final ogSha256 = page?.ogSha256;
+    if (page == null || ogSha256 == null) return null;
+
+    final pageUri = Uri.tryParse(page.publicUrl);
+    final origin = pageUri != null && pageUri.hasScheme && pageUri.hasAuthority
+        ? pageUri.origin
+        : bullnymDefaultBaseUrl;
+
+    return '$origin/img/${state.nym}/og.jpg?v=$ogSha256';
   }
 }
 

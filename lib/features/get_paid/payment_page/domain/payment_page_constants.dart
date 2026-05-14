@@ -2,6 +2,7 @@ const int paymentPageHeaderMaxBytes = 80;
 const int paymentPageDescriptionMaxBytes = 280;
 const int paymentPageWebsiteMaxBytes = 200;
 const int paymentPageSocialHandleMaxChars = 50;
+const int paymentPageImageMaxBytes = 2 * 1024 * 1024;
 
 const paymentPageSupportedDisplayCurrencies = {
   'USD',

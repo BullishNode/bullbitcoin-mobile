@@ -7,6 +7,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/ar
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/get_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/upload_payment_page_image_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/data/datasources/payment_page_datasource.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/data/datasources/payment_page_identity_datasource.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
@@ -92,6 +93,12 @@ class GetPaidLocator {
         paymentPageIdentity: locator<PaymentPageIdentityPort>(),
       ),
     );
+    locator.registerFactory<UploadPaymentPageImageUsecase>(
+      () => UploadPaymentPageImageUsecase(
+        paymentPageService: locator<PaymentPageServicePort>(),
+        paymentPageIdentity: locator<PaymentPageIdentityPort>(),
+      ),
+    );
     locator.registerFactory<CreateInvoiceUsecase>(
       () => CreateInvoiceUsecase(
         walletRepository: locator<WalletRepository>(),
@@ -134,6 +141,7 @@ class GetPaidLocator {
         findPaymentPage: locator<FindPaymentPageUsecase>(),
         savePaymentPage: locator<SavePaymentPageUsecase>(),
         archivePaymentPage: locator<ArchivePaymentPageUsecase>(),
+        uploadImage: locator<UploadPaymentPageImageUsecase>(),
       ),
     );
     locator.registerFactory<GetPaidDashboardCubit>(

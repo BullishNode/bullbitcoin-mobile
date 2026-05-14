@@ -7,6 +7,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/ar
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_command.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/upload_payment_page_image_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_constants.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
@@ -90,13 +91,17 @@ void main() {
     expect(find.text('Edit alice'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Description'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Website'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Twitter'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -700));
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pump();
 
+    expect(find.widgetWithText(TextField, 'Website'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Twitter'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Instagram'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pump();
+
     expect(find.text('Archive'), findsOneWidget);
   });
 
@@ -133,15 +138,15 @@ void main() {
       contains(isA<Utf8ByteLimitFormatter>()),
     );
 
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pump();
+
     final website = tester.widget<TextField>(
       find.widgetWithText(TextField, 'Website'),
     );
     expect(website.maxLength, paymentPageWebsiteMaxBytes);
     expect(website.buildCounter, isNotNull);
     expect(website.inputFormatters, contains(isA<Utf8ByteLimitFormatter>()));
-
-    await tester.drag(find.byType(ListView), const Offset(0, -700));
-    await tester.pump();
 
     final twitter = tester.widget<TextField>(
       find.widgetWithText(TextField, 'Twitter'),
@@ -152,6 +157,67 @@ void main() {
       find.widgetWithText(TextField, 'Instagram'),
     );
     expect(instagram.maxLength, paymentPageSocialHandleMaxChars);
+  });
+
+  testWidgets('uploads image from the editor for an existing payment page', (
+    tester,
+  ) async {
+    const bytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page());
+    when(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: bytes,
+        handle: any(named: 'handle'),
+      ),
+    ).thenAnswer((_) async => _page(ogSha256: 'aa' * 32));
+
+    await tester.pumpWidget(
+      _harness(
+        nym: 'alice',
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+        pickImageBytes: () async => bytes,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Preview image'));
+    await tester.pumpAndSettle();
+
+    verify(
+      () => paymentPageService.uploadImage(
+        nym: 'alice',
+        bytes: bytes,
+        handle: any(named: 'handle'),
+      ),
+    ).called(1);
+  });
+
+  testWidgets('renders existing image from the payment page origin', (
+    tester,
+  ) async {
+    when(() => paymentPageService.getPaymentPage(nym: 'alice')).thenAnswer(
+      (_) async =>
+          _page(ogSha256: 'aa' * 32, publicUrl: 'https://pay.example/alice'),
+    );
+
+    await tester.pumpWidget(
+      _harness(
+        nym: 'alice',
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+      ),
+    );
+    await tester.pump();
+
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(
+      (image.image as NetworkImage).url,
+      'https://pay.example/img/alice/og.jpg?v=${'aa' * 32}',
+    );
   });
 
   test('UTF-8 byte formatter rejects over-limit multibyte edits', () {
@@ -203,6 +269,7 @@ Widget _harness({
   required String nym,
   required PaymentPageServicePort paymentPageService,
   required PaymentPageIdentityPort paymentPageIdentity,
+  Future<List<int>?> Function()? pickImageBytes,
 }) {
   return MaterialApp(
     home: BlocProvider(
@@ -218,8 +285,12 @@ Widget _harness({
           paymentPageService: paymentPageService,
           paymentPageIdentity: paymentPageIdentity,
         ),
+        uploadImage: UploadPaymentPageImageUsecase(
+          paymentPageService: paymentPageService,
+          paymentPageIdentity: paymentPageIdentity,
+        ),
       ),
-      child: PaymentPageEditorScreen(nym: nym),
+      child: PaymentPageEditorScreen(nym: nym, pickImageBytes: pickImageBytes),
     ),
   );
 }
@@ -275,6 +346,10 @@ class _RouteHarnessState extends State<_RouteHarness> {
                         paymentPageService: widget.paymentPageService,
                         paymentPageIdentity: widget.paymentPageIdentity,
                       ),
+                      uploadImage: UploadPaymentPageImageUsecase(
+                        paymentPageService: widget.paymentPageService,
+                        paymentPageIdentity: widget.paymentPageIdentity,
+                      ),
                     ),
                     child: const PaymentPageEditorScreen(nym: 'alice'),
                   ),
@@ -290,8 +365,12 @@ class _RouteHarnessState extends State<_RouteHarness> {
   }
 }
 
-PaymentPage _page() {
-  return const PaymentPage(
+PaymentPage _page({
+  String? avatarSha256,
+  String? ogSha256,
+  String publicUrl = 'https://bullpay.ca/alice',
+}) {
+  return PaymentPage(
     nym: 'alice',
     header: "Alice's Coffee",
     description: 'Tips welcome',
@@ -301,8 +380,8 @@ PaymentPage _page() {
     instagram: null,
     enabled: true,
     isArchived: false,
-    avatarSha256: null,
-    ogSha256: null,
-    publicUrl: 'https://bullpay.ca/alice',
+    avatarSha256: avatarSha256,
+    ogSha256: ogSha256,
+    publicUrl: publicUrl,
   );
 }

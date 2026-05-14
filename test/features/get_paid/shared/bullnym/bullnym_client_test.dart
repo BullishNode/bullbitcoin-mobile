@@ -189,7 +189,8 @@ void main() {
     final stub = _stubDio([
       _donationPageJson(
         website: 'https://alice.example',
-        avatarSha256: 'aa' * 32,
+        avatarSha256: 'bb' * 32,
+        ogSha256: 'aa' * 32,
       ),
     ]);
     final client = BullnymClient(dio: stub.dio);
@@ -199,7 +200,8 @@ void main() {
     expect(response.nym, 'alice');
     expect(response.displayCurrency, 'CAD');
     expect(response.website, 'https://alice.example');
-    expect(response.avatarSha256, 'aa' * 32);
+    expect(response.avatarSha256, 'bb' * 32);
+    expect(response.ogSha256, 'aa' * 32);
     expect(response.isArchived, isFalse);
     final request = stub.captured.requests.single;
     expect(request.method, 'GET');
@@ -361,6 +363,42 @@ void main() {
       action: bullpayActionDonationPageArchive,
       nymOrEmpty: 'alice',
       payloadFields: const [],
+      timestampSecs: timestamp,
+    );
+  });
+
+  test('uploads signed donation page image as multipart og image', () async {
+    final bytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2];
+    final sha256Hex = sha256.convert(bytes).toString();
+    final stub = _stubDio([_donationPageJson(ogSha256: sha256Hex)]);
+    final client = BullnymClient(dio: stub.dio);
+
+    final response = await client.uploadPaymentPageImage(
+      handle: handle,
+      nym: 'alice',
+      bytes: bytes,
+      timestampSecs: timestamp,
+    );
+
+    expect(response.ogSha256, sha256Hex);
+    final request = stub.captured.requests.single;
+    expect(request.method, 'POST');
+    expect(request.path, '/donation-page/image');
+    final form = request.data as FormData;
+    final fields = Map.fromEntries(form.fields);
+    expect(fields['nym'], 'alice');
+    expect(fields['npub'], handle.publicKeyHex);
+    expect(fields['kind'], 'og');
+    expect(fields['sha256'], sha256Hex);
+    expect(fields['timestamp'], timestamp.toString());
+    expect(form.files.single.key, 'file');
+    expect(form.files.single.value.length, bytes.length);
+    _expectSignatureValid(
+      handle: handle,
+      signatureHex: fields['signature']!,
+      action: bullpayActionDonationPageImage,
+      nymOrEmpty: 'alice',
+      payloadFields: ['og', sha256Hex],
       timestampSecs: timestamp,
     );
   });

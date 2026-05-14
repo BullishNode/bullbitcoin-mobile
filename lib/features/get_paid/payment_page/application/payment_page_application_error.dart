@@ -11,6 +11,9 @@ sealed class PaymentPageApplicationError implements Exception {
       'DonationPageNotFound' => PaymentPageNotFoundError(reason),
       'AuthError' => PaymentPageAuthorizationError(reason),
       'DonationPageInvalid' => PaymentPageValidationError(reason),
+      'ImageInvalid' => PaymentPageValidationError(reason),
+      'ImageDimensionsTooLarge' => PaymentPageValidationError(reason),
+      'MultipartInvalid' => PaymentPageValidationError(reason),
       'NetworkError' => PaymentPageNetworkError(reason),
       _ => PaymentPageUnexpectedError(reason),
     };

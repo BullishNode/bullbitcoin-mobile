@@ -13,6 +13,7 @@ class PaymentPageState {
   final bool isLoading;
   final bool isSaving;
   final bool isArchiving;
+  final bool isUploadingImage;
   final String? error;
   final bool saved;
   final bool archived;
@@ -30,13 +31,14 @@ class PaymentPageState {
     this.isLoading = false,
     this.isSaving = false,
     this.isArchiving = false,
+    this.isUploadingImage = false,
     this.error,
     this.saved = false,
     this.archived = false,
   });
 
   bool get hasExistingPage => page != null && !page!.isArchived;
-  bool get isBusy => isLoading || isSaving || isArchiving;
+  bool get isBusy => isLoading || isSaving || isArchiving || isUploadingImage;
 
   PaymentPageState copyWith({
     String? nym,
@@ -52,6 +54,7 @@ class PaymentPageState {
     bool? isLoading,
     bool? isSaving,
     bool? isArchiving,
+    bool? isUploadingImage,
     String? error,
     bool clearError = false,
     bool? saved,
@@ -70,6 +73,7 @@ class PaymentPageState {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       isArchiving: isArchiving ?? this.isArchiving,
+      isUploadingImage: isUploadingImage ?? this.isUploadingImage,
       error: clearError ? null : error ?? this.error,
       saved: saved ?? this.saved,
       archived: archived ?? this.archived,
