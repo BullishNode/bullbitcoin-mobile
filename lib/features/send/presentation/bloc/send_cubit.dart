@@ -37,11 +37,14 @@ import 'package:bb_mobile/features/send/domain/usecases/create_send_swap_usecase
 import 'package:bb_mobile/features/send/domain/usecases/detect_bitcoin_string_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/prepare_bitcoin_send_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/prepare_liquid_send_usecase.dart';
+import 'package:bb_mobile/features/send/domain/errors/bullpay_proof_error.dart';
 import 'package:bb_mobile/features/send/domain/usecases/select_best_wallet_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_bitcoin_tx_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.dart';
+import 'package:bb_mobile/features/send/domain/usecases/try_liquid_direct_pay_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/update_paid_send_swap_usecase.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
+import 'package:bb_mobile/features/external_receive_wallets/public/external_receive_wallets.dart';
 
 import 'package:bb_mobile/features/send/presentation/bloc/send_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -82,6 +85,8 @@ class SendCubit extends Cubit<SendState> {
     calculateBitcoinAbsoluteFeesUsecase,
     required UpdateSendSwapLockupFeesUsecase updateSendSwapLockupFeesUsecase,
     required VerifyChainSwapAmountSendUsecase verifyChainSwapAmountSendUsecase,
+    required TryLiquidDirectPayUsecase tryLiquidDirectPayUsecase,
+    required ExternalReceiveWalletsFacade externalReceiveWalletsFacade,
   }) : _wallet = wallet,
        _labelsFacade = labelsFacade,
        _getSettingsUsecase = getSettingsUsecase,
@@ -114,6 +119,8 @@ class SendCubit extends Cubit<SendState> {
            calculateBitcoinAbsoluteFeesUsecase,
        _updateSendSwapLockupFeesUsecase = updateSendSwapLockupFeesUsecase,
        _verifyChainSwapAmountSendUsecase = verifyChainSwapAmountSendUsecase,
+       _tryLiquidDirectPayUsecase = tryLiquidDirectPayUsecase,
+       _externalReceiveWalletsFacade = externalReceiveWalletsFacade,
        super(const SendState());
 
   // ignore: unused_field
@@ -152,10 +159,13 @@ class SendCubit extends Cubit<SendState> {
   _calculateBitcoinAbsoluteFeesUsecase;
   final UpdateSendSwapLockupFeesUsecase _updateSendSwapLockupFeesUsecase;
   final VerifyChainSwapAmountSendUsecase _verifyChainSwapAmountSendUsecase;
+  final TryLiquidDirectPayUsecase _tryLiquidDirectPayUsecase;
+  final ExternalReceiveWalletsFacade _externalReceiveWalletsFacade;
 
   StreamSubscription<Swap>? _swapSubscription;
   StreamSubscription<Wallet>? _selectedWalletSyncingSubscription;
   StreamSubscription<WalletTransaction>? _txSubscription;
+  ExternalReceiveWalletIds? _lastExternalReceiveWalletIds;
 
   @override
   Future<void> close() async {
@@ -182,9 +192,13 @@ class SendCubit extends Cubit<SendState> {
 
   void backClicked() {
     if (state.step == SendStep.address) {
-      emit(state.copyWith(step: SendStep.address));
+      emit(
+        state.copyWith(step: SendStep.address, forceLightningFallback: false),
+      );
     } else if (state.step == SendStep.amount) {
-      emit(state.copyWith(step: SendStep.address));
+      emit(
+        state.copyWith(step: SendStep.address, forceLightningFallback: false),
+      );
     } else if (state.step == SendStep.confirm) {
       emit(
         state.copyWith(step: SendStep.amount, buildTransactionException: null),
@@ -195,14 +209,40 @@ class SendCubit extends Cubit<SendState> {
   Future<void> loadWalletWithRatesAndFees() async {
     try {
       final wallets = await _getWalletsUsecase.execute();
+      final externalReceiveWalletIds = await _externalReceiveWalletIds(wallets);
       emit(
-        state.copyWith(wallets: wallets.where((w) => !w.isWatchOnly).toList()),
+        state.copyWith(
+          wallets: wallets
+              .where(
+                (w) =>
+                    !w.isWatchOnly &&
+                    !externalReceiveWalletIds.isExternalReceiveWallet(w.id),
+              )
+              .toList(),
+        ),
       );
       await getCurrencies();
       await getExchangeRate();
       await loadFees();
     } catch (e) {
       emit(state.copyWith(error: e.toString()));
+    }
+  }
+
+  Future<ExternalReceiveWalletIds> _externalReceiveWalletIds(
+    List<Wallet> wallets,
+  ) async {
+    try {
+      final ids = await _externalReceiveWalletsFacade.idsForWallets(wallets);
+      _lastExternalReceiveWalletIds = ids;
+      return ids;
+    } catch (e) {
+      log.warning(
+        '[SendCubit] Failed to classify external receive wallets: $e',
+      );
+      final lastKnownIds = _lastExternalReceiveWalletIds;
+      if (lastKnownIds != null) return lastKnownIds;
+      rethrow;
     }
   }
 
@@ -281,7 +321,9 @@ class SendCubit extends Cubit<SendState> {
           emit(
             state.copyWith(
               loadingBestWallet: false,
-              swapCreationException: AmountlessInvoiceException('Invoice has no amount'),
+              swapCreationException: AmountlessInvoiceException(
+                'Invoice has no amount',
+              ),
             ),
           );
           return;
@@ -303,7 +345,7 @@ class SendCubit extends Cubit<SendState> {
       // Use the preselected wallet passed in the constructor if available,
       //  otherwise use the best wallet for the payment request and amount
       final wallet =
-          _wallet ??
+          _availablePreselectedWallet() ??
           _bestWalletUsecase.execute(
             wallets: state.wallets,
             request: state.paymentRequest!,
@@ -882,7 +924,7 @@ class SendCubit extends Cubit<SendState> {
       // Use the preselected wallet passed in the constructor if available,
       //  otherwise use the best wallet for the payment request and amount
       final wallet =
-          _wallet ??
+          _availablePreselectedWallet() ??
           _bestWalletUsecase.execute(
             wallets: state.wallets,
             request: state.paymentRequest!,
@@ -971,6 +1013,48 @@ class SendCubit extends Cubit<SendState> {
         );
         return;
       }
+      // LUD-22: try Liquid-direct payment before falling back to swap
+      if (state.selectedWallet!.isLiquid &&
+          state.paymentRequest is LnAddressPaymentRequest &&
+          state.confirmedAmountSat != null &&
+          !state.forceLightningFallback) {
+        try {
+          final liquidDirect = await _tryLiquidDirectPayUsecase.execute(
+            lnAddress: state.paymentRequestAddress,
+            amountSat: state.confirmedAmountSat!,
+            walletId: state.selectedWallet!.id,
+          );
+          final originalAddress = state.paymentRequestAddress;
+          final liquidRequest = PaymentRequest.liquid(
+            address: liquidDirect.address,
+            isTestnet: state.selectedWallet!.network.isTestnet,
+          );
+          emit(
+            state.copyWith(
+              sendType: SendType.liquid,
+              paymentRequest: liquidRequest,
+              confirmedAmountSat: liquidDirect.amountSat,
+              lud22OriginalAddress: originalAddress,
+              step: SendStep.confirm,
+            ),
+          );
+          await createTransaction();
+          return;
+        } on LiquidDirectPayUnavailable {
+          // fall through to the standard Lightning/Boltz swap path
+        } on BullpayProofError catch (e, st) {
+          log.warning(
+            'LUD-22 unavailable, falling back to Lightning',
+            error: e,
+            trace: st,
+          );
+          // Re-entry skips this branch via the forceLightningFallback guard above.
+          emit(state.copyWith(forceLightningFallback: true));
+          await onAmountConfirmed();
+          return;
+        }
+      }
+
       try {
         emit(state.copyWith(creatingSwap: true));
 
@@ -1738,5 +1822,15 @@ class SendCubit extends Cubit<SendState> {
 
   void updateSelectedWallet(Wallet newWallet) {
     emit(state.copyWith(selectedWallet: newWallet));
+  }
+
+  Wallet? _availablePreselectedWallet() {
+    final wallet = _wallet;
+    if (wallet == null) return null;
+    return state.wallets.any(
+          (availableWallet) => availableWallet.id == wallet.id,
+        )
+        ? wallet
+        : null;
   }
 }
