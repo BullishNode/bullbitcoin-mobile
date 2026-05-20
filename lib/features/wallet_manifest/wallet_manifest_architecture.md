@@ -243,10 +243,12 @@ reserved-wallet recovery fallback.
 General BIP85 Add Wallet creation is implemented as a manifest-backed creation
 path. It creates Bitcoin, Liquid, or paired Bitcoin/Liquid wallets, records
 their local BIP85 origin through the manifest restore primitive, and publishes a
-replacement manifest best-effort after local creation. General manual recovery
-by arbitrary BIP85 index remains out of scope; users can recreate manifest
-listed wallets through Wallet Manifest recovery and can use Get Paid manual
-restore for reserved purpose wallets.
+replacement manifest best-effort after local creation.
+
+Custom BIP85 path/index entry is a wallet-creation flow, not a recovery flow.
+If funds already exist on the selected path, normal wallet sync discovers them;
+if not, the result is simply a new wallet at that deterministic path. Manifest
+recovery and Get Paid reserved-wallet restore remain separate recovery flows.
 
 ## Backup Settings UI
 
@@ -383,8 +385,9 @@ Publishing rules:
 - publish after manifest-eligible wallet rename;
 - publishing is always best-effort and non-blocking.
 
-Deletion/removal semantics are out of scope. Do not change existing wallet
-deletion behavior, and do not publish manifest deletions in this phase.
-This accepted tradeoff means a deleted manifest-eligible wallet can reappear
-after seed restore if the latest published manifest still lists it. Future
-delete/revocation UX must address that deliberately.
+Deleted wallets must never be removed from the wallet manifest. A manifest is a
+recovery record for Bull-created BIP85 wallet identities, not a mirror of the
+current home-screen wallet list. This means a deleted manifest-eligible wallet
+can reappear after seed restore if the latest published manifest still lists
+it. That is intentional: local deletion must not make a deterministic wallet
+unrecoverable from the user's backup metadata.

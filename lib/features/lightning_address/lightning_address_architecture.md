@@ -6,9 +6,11 @@ swaps into a BIP85-derived Lightning Address receive wallet on the device.
 Funds are eligible for Get Paid autosweep when the wallet is classified as an
 external receive wallet and autosweep is enabled for that purpose.
 
-When sending TO a Lightning Address, if the recipient's pay service advertises
-LUD-22 with `payment_method=L-BTC`, the app pays directly on Liquid and skips
-the Boltz swap.
+When sending TO a Lightning Address, the app may use LUD-22 to pay directly on
+Liquid and skip the Boltz swap. LUD-22 probing/proof requests can reveal sender
+intent to the recipient service, so they must be deferred until the user
+confirms direct Liquid payment. Do not add a separate consent/disclosure step;
+the privacy boundary is the timing of the direct-pay action itself.
 
 ## BIP85 derivations
 
@@ -77,11 +79,12 @@ Schnorr-signed (BIP-340). Server enforces ±300 s freshness.
 `try_liquid_direct_pay_usecase.dart`:
 
 1. Validate `<nym>@<domain>` against strict regexes (LUD-16 local-part + RFC 1035 hostname).
-2. `GET https://<domain>/.well-known/lnurlp/<nym>` (no redirects).
-3. Require `payment_methods` array containing `"L-BTC"`.
-4. Validate `metadata.callback`: `scheme == 'https' && host == domain`.
-5. POST proof of funds (`outpoint`, `pubkey`, `sig`) via the same callback.
-6. Server returns `{ "L-BTC": { "address": "lq1q…" } }`; the app builds a
+2. Run only after the user has confirmed direct Liquid payment.
+3. `GET https://<domain>/.well-known/lnurlp/<nym>` (no redirects).
+4. Require `payment_methods` array containing `"L-BTC"`.
+5. Validate `metadata.callback`: `scheme == 'https' && host == domain`.
+6. POST proof of funds (`outpoint`, `pubkey`, `sig`) via the same callback.
+7. Server returns `{ "L-BTC": { "address": "lq1q…" } }`; the app builds a
    Liquid payment request from the returned address.
 
 `SendState.lud22OriginalAddress` preserves the user-pasted nym for display
@@ -133,6 +136,8 @@ call Lightning Address settings or classify wallets by reserved labels.
 
 - Nostr secret keys stay behind the `NostrIdentity` / `NostrKeychainHandle`
   callback boundary. `toString()` prints only the public key.
+- LUD-22 metadata/proof requests are not used as an automatic preflight before
+  the user confirms direct Liquid payment.
 - LUD-22 callback is pinned to `https` + the metadata host. Redirects
   disabled on both metadata fetch and callback POST.
 - Sweep destination is a fresh receive index per sweep (not address-reused).
