@@ -137,6 +137,8 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
   }) async {
     if (state.operationInProgress) return;
     final isTestnet = await _isTestnet();
+    if (isClosed) return;
+    if (state.operationInProgress) return;
     final previous = _autoSweepValue(purpose);
     emit(
       _copyAutoSweep(
@@ -171,6 +173,8 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
   }) async {
     if (state.operationInProgress) return false;
     final isTestnet = await _isTestnet();
+    if (isClosed) return false;
+    if (state.operationInProgress) return false;
     final previous = _hideWalletValue(purpose);
     emit(
       _copyHideWallet(
@@ -242,6 +246,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
   }) async {
     if (state.operationInProgress) return false;
     final isTestnet = await _isTestnet();
+    if (isClosed) return false;
     return _setGetPaidHideWalletForAccount(
       accountKey: _bitcoinAccountKey(purpose, isTestnet: isTestnet),
       value: value,
@@ -284,6 +289,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
   }) async {
     if (state.operationInProgress) return;
     final isTestnet = await _isTestnet();
+    if (isClosed) return;
     return _setGetPaidAutoSweepForAccount(
       accountKey: _bitcoinAccountKey(purpose, isTestnet: isTestnet),
       value: value,

@@ -237,6 +237,64 @@ void main() {
     ).called(1);
   });
 
+  test(
+    'does not save Liquid settings after close during settings lookup',
+    () async {
+      final settingsCompleter = Completer<SettingsEntity>();
+      when(
+        () => getSettings.execute(),
+      ).thenAnswer((_) => settingsCompleter.future);
+
+      final save = cubit.setPaymentPageAutoSweep(false);
+      await cubit.close();
+      settingsCompleter.complete(_settings());
+
+      await expectLater(save, completes);
+      verifyNever(
+        () => externalReceiveWallets.setAutoSweepForAccount(any(), any()),
+      );
+    },
+  );
+
+  test('serializes Liquid settings after delayed settings lookup', () async {
+    final settingsCompleter = Completer<SettingsEntity>();
+    when(
+      () => getSettings.execute(),
+    ).thenAnswer((_) => settingsCompleter.future);
+    when(
+      () => externalReceiveWallets.setAutoSweepForAccount(any(), any()),
+    ).thenAnswer((_) async {});
+
+    final first = cubit.setPaymentPageAutoSweep(false);
+    final second = cubit.setLightningAddressAutoSweep(false);
+    settingsCompleter.complete(_settings());
+
+    await expectLater(first, completes);
+    await expectLater(second, completes);
+    verify(
+      () => externalReceiveWallets.setAutoSweepForAccount(any(), any()),
+    ).called(1);
+  });
+
+  test(
+    'does not save Bitcoin settings after close during settings lookup',
+    () async {
+      final settingsCompleter = Completer<SettingsEntity>();
+      when(
+        () => getSettings.execute(),
+      ).thenAnswer((_) => settingsCompleter.future);
+
+      final save = cubit.setBtcpayBitcoinHideWallet(true);
+      await cubit.close();
+      settingsCompleter.complete(_settings());
+
+      await expectLater(save, completion(isFalse));
+      verifyNever(
+        () => externalReceiveWallets.setHiddenOnHomeForAccount(any(), any()),
+      );
+    },
+  );
+
   test('restores reserved Get Paid wallets for current environment', () async {
     when(() => getSettings.execute()).thenAnswer((_) async => _settings());
     when(
