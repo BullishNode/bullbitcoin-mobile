@@ -12,7 +12,7 @@ import 'package:bb_mobile/features/bitcoin_price/ui/currency_text.dart';
 import 'package:bb_mobile/features/ledger/ui/ledger_router.dart';
 import 'package:bb_mobile/features/ledger/ui/screens/ledger_action_screen.dart';
 import 'package:bb_mobile/features/receive/presentation/bloc/receive_bloc.dart';
-import 'package:bb_mobile/features/receive/ui/receive_router.dart';
+import 'package:bb_mobile/features/receive/ui/receive_route.dart';
 import 'package:bb_mobile/features/receive/ui/widgets/receive_enter_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

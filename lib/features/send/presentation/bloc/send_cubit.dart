@@ -166,6 +166,7 @@ class SendCubit extends Cubit<SendState> {
   StreamSubscription<Wallet>? _selectedWalletSyncingSubscription;
   StreamSubscription<WalletTransaction>? _txSubscription;
   ExternalReceiveWalletIds? _lastExternalReceiveWalletIds;
+  bool _preselectedExternalReceiveWalletBlocked = false;
 
   @override
   Future<void> close() async {
@@ -224,6 +225,12 @@ class SendCubit extends Cubit<SendState> {
     try {
       final wallets = await _getWalletsUsecase.execute();
       final externalReceiveWalletIds = await _externalReceiveWalletIds(wallets);
+      final preselectedWallet = _wallet;
+      _preselectedExternalReceiveWalletBlocked =
+          preselectedWallet != null &&
+          externalReceiveWalletIds.isExternalReceiveWallet(
+            preselectedWallet.id,
+          );
       emit(
         state.copyWith(
           wallets: wallets
@@ -233,6 +240,9 @@ class SendCubit extends Cubit<SendState> {
                     !externalReceiveWalletIds.isExternalReceiveWallet(w.id),
               )
               .toList(),
+          error: _preselectedExternalReceiveWalletBlocked
+              ? 'This wallet cannot be used for sending.'
+              : null,
         ),
       );
       await getCurrencies();
@@ -317,7 +327,6 @@ class SendCubit extends Cubit<SendState> {
   Future<void> continueOnAddressConfirmed() async {
     try {
       emit(state.copyWith(loadingBestWallet: true, invoiceHasMrh: false));
-      await unifiedBip21Prioritization();
 
       if (!state.hasValidPaymentRequest) {
         emit(
@@ -328,6 +337,18 @@ class SendCubit extends Cubit<SendState> {
         );
         return;
       }
+
+      if (_preselectedExternalReceiveWalletBlocked) {
+        emit(
+          state.copyWith(
+            loadingBestWallet: false,
+            error: 'This wallet cannot be used for sending.',
+          ),
+        );
+        return;
+      }
+
+      await unifiedBip21Prioritization();
 
       if (state.paymentRequest!.isBolt11) {
         final paymentRequest = state.paymentRequest! as Bolt11PaymentRequest;
@@ -937,6 +958,16 @@ class SendCubit extends Cubit<SendState> {
       final previousSelectedWallet = state.selectedWallet!;
 
       emit(state.copyWith(loadingBestWallet: true));
+
+      if (_preselectedExternalReceiveWalletBlocked) {
+        emit(
+          state.copyWith(
+            loadingBestWallet: false,
+            error: 'This wallet cannot be used for sending.',
+          ),
+        );
+        return;
+      }
 
       // Use the preselected wallet passed in the constructor if available,
       //  otherwise use the best wallet for the payment request and amount
@@ -1879,6 +1910,7 @@ class SendCubit extends Cubit<SendState> {
   }
 
   Wallet? _availablePreselectedWallet() {
+    if (_preselectedExternalReceiveWalletBlocked) return null;
     final wallet = _wallet;
     if (wallet == null) return null;
     return state.wallets.any(

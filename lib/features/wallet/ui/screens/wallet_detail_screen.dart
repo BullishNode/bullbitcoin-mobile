@@ -23,13 +23,14 @@ class WalletDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wallet = context.select((WalletBloc bloc) {
+    final walletState = context.watch<WalletBloc>().state;
+    final wallet = (() {
       try {
-        return bloc.state.wallets.firstWhere((w) => w.id == walletId);
+        return walletState.wallets.firstWhere((w) => w.id == walletId);
       } catch (e) {
         return null;
       }
-    });
+    })();
     final walletName = wallet != null ? wallet.displayLabel(context) : '';
 
     return Scaffold(
@@ -76,7 +77,10 @@ class WalletDetailScreen extends StatelessWidget {
                     horizontal: 13.0,
                     vertical: 40,
                   ),
-                  child: WalletBottomButtons(wallet: wallet),
+                  child: WalletBottomButtons(
+                    wallet: wallet,
+                    sendDisabled: walletState.isExternalReceiveWallet(wallet),
+                  ),
                 ),
               ),
             ),

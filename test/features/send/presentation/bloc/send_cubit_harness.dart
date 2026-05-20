@@ -15,6 +15,7 @@ import 'package:bb_mobile/core/swaps/domain/usecases/get_swap_limits_usecase.dar
 import 'package:bb_mobile/core/swaps/domain/usecases/update_send_swap_lockup_fees_usecase.dart';
 import 'package:bb_mobile/core/swaps/domain/usecases/verify_chain_swap_amount_send_usecase.dart';
 import 'package:bb_mobile/core/swaps/domain/usecases/watch_swap_usecase.dart';
+import 'package:bb_mobile/core/utils/payment_request.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_utxos_usecase.dart';
@@ -125,6 +126,9 @@ class _MockExternalReceiveWalletsFacade extends Mock
 void registerSendCubitHarnessFallbacks() {
   registerFallbackValue(SwapType.liquidToLightning);
   registerFallbackValue(const NetworkFee.absolute(1));
+  registerFallbackValue(
+    const PaymentRequest.liquid(address: 'lq1fallback', isTestnet: false),
+  );
 }
 
 class SendCubitHarness {
@@ -176,6 +180,7 @@ class SendCubitHarness {
       _MockTryLiquidDirectPayUsecase();
   final ExternalReceiveWalletsFacade externalReceiveWallets =
       _MockExternalReceiveWalletsFacade();
+  SelectBestWalletUsecase get bestWallet => _bestWallet;
 
   SendCubitHarness() {
     when(() => _getSettings.execute()).thenAnswer(
@@ -203,8 +208,9 @@ class SendCubitHarness {
     when(() => _getWallets.execute()).thenAnswer((_) async => wallets);
   }
 
-  SendCubit createCubit() {
+  SendCubit createCubit({Wallet? wallet}) {
     return SendCubit(
+      wallet: wallet,
       labelsFacade: _labels,
       bestWalletUsecase: _bestWallet,
       detectBitcoinStringUsecase: _detectBitcoinString,
