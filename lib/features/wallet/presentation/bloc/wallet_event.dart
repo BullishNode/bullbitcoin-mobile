@@ -12,6 +12,14 @@ class WalletRefreshed extends WalletEvent {
   const WalletRefreshed();
 }
 
+class WalletExternalReceiveSettingsChanged extends WalletEvent {
+  const WalletExternalReceiveSettingsChanged();
+}
+
+class WalletListChanged extends WalletEvent {
+  const WalletListChanged();
+}
+
 class WalletSyncStarted extends WalletEvent {
   final Wallet wallet;
 
@@ -70,8 +78,4 @@ class DismissBackupWarning extends WalletEvent {
 
 class DismissLegacyStorageWarning extends WalletEvent {
   const DismissLegacyStorageWarning();
-}
-
-class VerifyBackupStatus extends WalletEvent {
-  const VerifyBackupStatus();
 }

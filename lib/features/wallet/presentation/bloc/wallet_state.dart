@@ -26,10 +26,16 @@ sealed class WalletState with _$WalletState {
     @Default(false) bool backupWarningDismissed,
     @Default(false) bool isOnLegacyStorage,
     @Default(false) bool legacyStorageWarningDismissed,
+    @Default(ExternalReceiveWalletIds.empty)
+    ExternalReceiveWalletIds externalReceiveWalletIds,
   }) = _WalletState;
   const WalletState._();
 
   bool get isSyncing => syncStatus.values.any((syncing) => syncing);
+
+  bool isExternalReceiveWallet(Wallet wallet) {
+    return externalReceiveWalletIds.isExternalReceiveWallet(wallet.id);
+  }
 
   Wallet? defaultLiquidWallet() => wallets.isEmpty
       ? null
@@ -59,7 +65,8 @@ sealed class WalletState with _$WalletState {
   }
 
   bool showBackupWarning() {
-    return hasNoBackup() && totalBalance() > 0 && !backupWarningDismissed;
+    // Suppressed when on legacy storage — the legacy overlay handles both cases.
+    return hasNoBackup() && !backupWarningDismissed && !isOnLegacyStorage;
   }
 
   bool showLegacyStorageWarning() {

@@ -4,19 +4,23 @@ import 'package:bb_mobile/core/settings/data/settings_repository.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/wallet_label_reservations.dart';
 
 class ImportWalletUsecase {
   final SeedRepository _seedRepository;
   final SettingsRepository _settingsRepository;
   final WalletRepository _wallet;
+  final WalletLabelReservationPolicy _walletLabelReservationPolicy;
 
   ImportWalletUsecase({
     required SeedRepository seedRepository,
     required SettingsRepository settingsRepository,
     required WalletRepository walletRepository,
+    required WalletLabelReservationPolicy walletLabelReservationPolicy,
   }) : _seedRepository = seedRepository,
        _settingsRepository = settingsRepository,
-       _wallet = walletRepository;
+       _wallet = walletRepository,
+       _walletLabelReservationPolicy = walletLabelReservationPolicy;
 
   Future<Wallet> execute({
     required List<String> mnemonicWords,
@@ -25,6 +29,8 @@ class ImportWalletUsecase {
     String? label,
   }) async {
     try {
+      _walletLabelReservationPolicy.throwIfReserved(label);
+
       // Get the current environment to determine the network
       final settings = await _settingsRepository.fetch();
       final environment = settings.environment;
@@ -50,6 +56,8 @@ class ImportWalletUsecase {
       log.fine('Wallet imported');
 
       return wallet;
+    } on ReservedWalletLabelException {
+      rethrow;
     } catch (e) {
       throw ImportWalletException(e.toString());
     }

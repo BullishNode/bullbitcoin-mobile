@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/widgets/cards/wallet_card.dart';
 import 'package:bb_mobile/features/ark/router.dart';
+import 'package:bb_mobile/features/external_receive_wallets/public/external_receive_wallets.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -23,6 +24,17 @@ class WalletCards extends StatelessWidget {
   final Function(Wallet wallet)? onTap;
   final String? fiatCurrency;
 
+  static List<Wallet> visibleWallets({
+    required Iterable<Wallet> wallets,
+    required bool localSignersOnly,
+    required ExternalReceiveWalletIds externalReceiveWalletIds,
+  }) {
+    Iterable<Wallet> ws = wallets;
+    if (localSignersOnly) ws = ws.where((w) => w.signsLocally);
+    ws = ws.where((w) => !externalReceiveWalletIds.isHiddenOnHome(w.id));
+    return ws.toList();
+  }
+
   static Color cardDetails(BuildContext context, Wallet wallet) {
     final isTestnet = wallet.isTestnet;
     final isLiquid = wallet.isLiquid;
@@ -41,11 +53,13 @@ class WalletCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wallets = context.select(
-      (WalletBloc bloc) => localSignersOnly
-          ? bloc.state.wallets.where((w) => w.signsLocally)
-          : bloc.state.wallets,
-    );
+    final wallets = context.select((WalletBloc bloc) {
+      return visibleWallets(
+        wallets: bloc.state.wallets,
+        localSignersOnly: localSignersOnly,
+        externalReceiveWalletIds: bloc.state.externalReceiveWalletIds,
+      );
+    });
     final syncStatus = context.select(
       (WalletBloc bloc) => bloc.state.syncStatus,
     );

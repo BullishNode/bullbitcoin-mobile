@@ -17,7 +17,6 @@ import 'package:bb_mobile/core/tor/data/usecases/init_tor_usecase.dart';
 import 'package:bb_mobile/core/tor/data/usecases/is_tor_required_usecase.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
-import 'package:bb_mobile/core/wallet/domain/usecases/check_backup_needed_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/check_wallet_syncing_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/delete_wallet_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
@@ -26,6 +25,7 @@ import 'package:bb_mobile/core/wallet/domain/usecases/watch_finished_wallet_sync
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_started_wallet_syncs_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/wallet_error.dart';
 import 'package:bb_mobile/features/electrum_settings/frameworks/ui/routing/electrum_settings_router.dart';
+import 'package:bb_mobile/features/external_receive_wallets/public/external_receive_wallets.dart';
 import 'package:bb_mobile/features/wallet/domain/entity/warning.dart';
 import 'package:bb_mobile/features/wallet/domain/usecase/get_unconfirmed_incoming_balance_usecase.dart';
 import 'package:flutter/material.dart';
@@ -57,9 +57,8 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     required GetArkWalletUsecase getArkWalletUsecase,
     required CheckArkWalletSetupUsecase checkArkWalletSetupUsecase,
     required SeedStoreTypeDatasource seedStoreTypeDatasource,
-    required CheckBackupNeededUsecase checkBackupNeededUsecase,
+    required ExternalReceiveWalletsFacade externalReceiveWalletsFacade,
   }) : _getWalletsUsecase = getWalletsUsecase,
-       _checkBackupNeededUsecase = checkBackupNeededUsecase,
        _checkWalletSyncingUsecase = checkWalletSyncingUsecase,
        _watchStartedWalletSyncsUsecase = watchStartedWalletSyncsUsecase,
        _watchFinishedWalletSyncsUsecase = watchFinishedWalletSyncsUsecase,
@@ -79,9 +78,12 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
        _getArkWalletUsecase = getArkWalletUsecase,
        _checkArkWalletSetupUsecase = checkArkWalletSetupUsecase,
        _seedStoreTypeDatasource = seedStoreTypeDatasource,
+       _externalReceiveWalletsFacade = externalReceiveWalletsFacade,
        super(const WalletState()) {
     on<WalletStarted>(_onStarted);
     on<WalletRefreshed>(_onRefreshed);
+    on<WalletExternalReceiveSettingsChanged>(_onExternalReceiveSettingsChanged);
+    on<WalletListChanged>(_onWalletListChanged);
     on<WalletSyncStarted>(_onWalletSyncStarted);
     on<WalletSyncFinished>(_onWalletSyncFinished);
     on<ElectrumSyncResultChanged>(_onElectrumSyncResultChanged);
@@ -95,7 +97,6 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     on<DisableAutoSwap>(_onDisableAutoSwap);
     on<DismissBackupWarning>(_onDismissBackupWarning);
     on<DismissLegacyStorageWarning>(_onDismissLegacyStorageWarning);
-    on<VerifyBackupStatus>(_onVerifyBackupStatus);
   }
 
   final GetWalletsUsecase _getWalletsUsecase;
@@ -117,7 +118,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   final GetArkWalletUsecase _getArkWalletUsecase;
   final CheckArkWalletSetupUsecase _checkArkWalletSetupUsecase;
   final SeedStoreTypeDatasource _seedStoreTypeDatasource;
-  final CheckBackupNeededUsecase _checkBackupNeededUsecase;
+  final ExternalReceiveWalletsFacade _externalReceiveWalletsFacade;
 
   StreamSubscription? _startedSyncsSubscription;
   StreamSubscription? _finishedSyncsSubscription;
@@ -144,6 +145,9 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
       // Don't sync the wallets here so the wallet list is shown immediately
       // and the sync is done after that
       final wallets = await _getWalletsUsecase.execute();
+      final externalReceiveWalletIds = await _resolveExternalReceiveWalletIds(
+        wallets,
+      );
       final isSyncing = _checkWalletSyncingUsecase.execute();
 
       // Initialize sync status map with all wallets
@@ -163,6 +167,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
           wallets: wallets,
           syncStatus: syncStatus,
           isOnLegacyStorage: isOnLegacyStorage,
+          externalReceiveWalletIds: externalReceiveWalletIds,
         ),
       );
 
@@ -203,6 +208,9 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   ) async {
     try {
       final wallets = await _getWalletsUsecase.execute(sync: true);
+      final externalReceiveWalletIds = await _resolveExternalReceiveWalletIds(
+        wallets,
+      );
 
       // Initialize all wallets as not syncing
       final syncStatus = {for (final wallet in wallets) wallet.id: false};
@@ -230,12 +238,73 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
           error: null,
           syncStatus: syncStatus,
           autoSwapSettings: autoSwapSettings,
+          externalReceiveWalletIds: externalReceiveWalletIds,
         ),
       );
       // After the wallets are synced we also restart the swap watcher.
       // We do it after the syncing of the wallets to not wait for the
       // swap watcher to be restarted before the wallets are synced.
       await _restartSwapWatcherUsecase.execute();
+    } on NoWalletsFoundException catch (e) {
+      emit(
+        state.copyWith(
+          noWalletsFoundException: e,
+          status: WalletStatus.failure,
+          error: e,
+        ),
+      );
+    } catch (e) {
+      emit(state.copyWith(status: WalletStatus.failure, error: e));
+    }
+  }
+
+  Future<void> _onExternalReceiveSettingsChanged(
+    WalletExternalReceiveSettingsChanged event,
+    Emitter<WalletState> emit,
+  ) async {
+    var wallets = state.wallets;
+    var externalReceiveWalletIds = await _resolveExternalReceiveWalletIds(
+      wallets,
+    );
+    if (!identical(wallets, state.wallets)) {
+      wallets = state.wallets;
+      externalReceiveWalletIds = await _resolveExternalReceiveWalletIds(
+        wallets,
+      );
+    }
+    emit(state.copyWith(externalReceiveWalletIds: externalReceiveWalletIds));
+  }
+
+  Future<void> _onWalletListChanged(
+    WalletListChanged event,
+    Emitter<WalletState> emit,
+  ) async {
+    try {
+      final wallets = await _getWalletsUsecase.execute();
+      final externalReceiveWalletIds = await _resolveExternalReceiveWalletIds(
+        wallets,
+      );
+      final syncStatus = {
+        for (final wallet in wallets)
+          wallet.id: state.syncStatus[wallet.id] ?? false,
+      };
+      final unconfirmedIncomingBalance = wallets.isEmpty
+          ? state.unconfirmedIncomingBalance
+          : await _getUnconfirmedIncomingBalanceUsecase.execute(
+              walletIds: wallets.map((wallet) => wallet.id).toList(),
+            );
+
+      emit(
+        state.copyWith(
+          status: WalletStatus.success,
+          wallets: wallets,
+          syncStatus: syncStatus,
+          externalReceiveWalletIds: externalReceiveWalletIds,
+          unconfirmedIncomingBalance: unconfirmedIncomingBalance,
+          error: null,
+          noWalletsFoundException: null,
+        ),
+      );
     } on NoWalletsFoundException catch (e) {
       emit(
         state.copyWith(
@@ -295,25 +364,34 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) async {
     try {
-      final wallets = await _getWalletsUsecase.execute();
-      if (wallets.isNotEmpty) {
-        final walletIds = wallets.map((w) => w.id).toList();
-        final unconfirmedIncomingBalance =
-            await _getUnconfirmedIncomingBalanceUsecase.execute(
-              walletIds: walletIds,
-            );
-        emit(
-          state.copyWith(
-            unconfirmedIncomingBalance: unconfirmedIncomingBalance,
-          ),
-        );
-      }
+      var wallets = await _getWalletsUsecase.execute();
+      var externalReceiveWalletIds = await _resolveExternalReceiveWalletIds(
+        wallets,
+      );
+
       if (event.wallet.isLiquid && !state.autoSwapExecuting) {
         debugPrint(
           'onWalletSyncFinished(Liquid): Starting Auto Swap Execution',
         );
         add(const ExecuteAutoSwap());
       }
+
+      final swept = await _sweepSyncedExternalReceiveWalletIfEnabled(
+        event.wallet,
+        externalReceiveWalletIds,
+      );
+      if (swept) {
+        wallets = await _getWalletsUsecase.execute(sync: true);
+        externalReceiveWalletIds = await _resolveExternalReceiveWalletIds(
+          wallets,
+        );
+      }
+
+      final unconfirmedIncomingBalance = wallets.isEmpty
+          ? state.unconfirmedIncomingBalance
+          : await _getUnconfirmedIncomingBalanceUsecase.execute(
+              walletIds: wallets.map((wallet) => wallet.id).toList(),
+            );
 
       // Set sync status to false for the wallet that finished syncing
       final newSyncStatus = Map<String, bool>.from(state.syncStatus);
@@ -326,6 +404,8 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
           error: null,
           noWalletsFoundException: null,
           syncStatus: newSyncStatus,
+          unconfirmedIncomingBalance: unconfirmedIncomingBalance,
+          externalReceiveWalletIds: externalReceiveWalletIds,
         ),
       );
     } on NoWalletsFoundException catch (e) {
@@ -382,6 +462,19 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     final walletId = event.walletId;
     try {
       emit(state.copyWith(isDeletingWallet: true, walletDeletionError: null));
+      final wallet = state.wallets
+          .where((wallet) => wallet.id == walletId)
+          .firstOrNull;
+      if (wallet != null && state.isExternalReceiveWallet(wallet)) {
+        emit(
+          state.copyWith(
+            walletDeletionError: const WalletError.unexpected(
+              'External receive wallets cannot be deleted from wallet details',
+            ),
+          ),
+        );
+        return;
+      }
       await _deleteWalletUsecase.execute(walletId: event.walletId);
       log.info('[WalletBloc] Wallet with id $walletId deleted successfully');
       // Remove the wallet from the state to directly update the UI
@@ -458,9 +551,9 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) async {
     try {
-      emit(state.copyWith(autoSwapExecuting: true));
       final defaultLiquidWallet = state.defaultLiquidWallet();
       if (defaultLiquidWallet == null) return;
+      emit(state.copyWith(autoSwapExecuting: true));
       final autoSwapSettings = await _getAutoSwapSettingsUsecase.execute();
       emit(state.copyWith(autoSwapSettings: autoSwapSettings));
       if (!autoSwapSettings.enabled) {
@@ -506,6 +599,8 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) async {
     try {
+      final defaultLiquidWallet = state.defaultLiquidWallet();
+      if (defaultLiquidWallet == null) return;
       emit(
         state.copyWith(
           autoSwapFeeLimitExceeded: false,
@@ -513,8 +608,6 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
         ),
       );
 
-      final defaultLiquidWallet = state.defaultLiquidWallet();
-      if (defaultLiquidWallet == null) return;
       final autoSwapSettings = await _getAutoSwapSettingsUsecase.execute();
       emit(state.copyWith(autoSwapSettings: autoSwapSettings));
       if (!autoSwapSettings.enabled) {
@@ -594,8 +687,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
       final defaultLiquidWallet = state.defaultLiquidWallet();
       if (defaultLiquidWallet == null) return;
 
-      final updatedSettings =
-          await _disableAutoswapWarningUsecase.execute();
+      final updatedSettings = await _disableAutoswapWarningUsecase.execute();
 
       emit(state.copyWith(autoSwapSettings: updatedSettings));
     } catch (e) {
@@ -641,13 +733,55 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     emit(state.copyWith(legacyStorageWarningDismissed: true));
   }
 
-  Future<void> _onVerifyBackupStatus(
-    VerifyBackupStatus event,
-    Emitter<WalletState> emit,
+  Future<ExternalReceiveWalletIds> _resolveExternalReceiveWalletIds(
+    List<Wallet> wallets,
   ) async {
-    final dbBackupNeeded = await _checkBackupNeededUsecase.execute();
-    if (dbBackupNeeded == state.hasNoBackup()) return;
-    final wallets = await _getWalletsUsecase.execute();
-    emit(state.copyWith(wallets: wallets));
+    try {
+      return await _externalReceiveWalletsFacade.idsForWallets(wallets);
+    } catch (e) {
+      log.warning(
+        '[WalletBloc] Failed to classify external receive wallets: $e',
+      );
+      return state.externalReceiveWalletIds;
+    }
+  }
+
+  Future<bool> _sweepSyncedExternalReceiveWalletIfEnabled(
+    Wallet wallet,
+    ExternalReceiveWalletIds externalReceiveWalletIds,
+  ) async {
+    try {
+      if (!externalReceiveWalletIds.isExternalReceiveWallet(wallet.id)) {
+        return false;
+      }
+      final accountKey = externalReceiveWalletIds.accountKeyForWalletId(
+        wallet.id,
+      );
+      if (accountKey == null) {
+        log.warning(
+          '[WalletBloc] External receive wallet ${wallet.id} is missing an account key',
+        );
+        return false;
+      }
+      final purpose = externalReceiveWalletIds.purposeForWalletId(wallet.id);
+      if (purpose == null) return false;
+      final shouldSweep = await _externalReceiveWalletsFacade
+          .shouldAutoSweepForAccount(accountKey);
+      if (!shouldSweep) return false;
+      final txid = await _externalReceiveWalletsFacade.sweep(
+        isTestnet: wallet.network.isTestnet,
+        purpose: purpose,
+        expectedWalletId: wallet.id,
+        accountKey: accountKey,
+      );
+      if (txid != null) {
+        debugPrint('${purpose.name} external receive wallet sweep: $txid');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('External receive wallet sweep failed: $e');
+      return false;
+    }
   }
 }

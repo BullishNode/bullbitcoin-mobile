@@ -37,6 +37,7 @@ import 'package:bb_mobile/core/wallet/domain/usecases/watch_finished_wallet_sync
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_started_wallet_syncs_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_wallet_transaction_by_address_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_wallet_transaction_by_tx_id_usecase.dart';
+import 'package:bb_mobile/core/wallet/domain/wallet_label_reservations.dart';
 import 'package:bb_mobile/core/wallet/interface_adapters/electrum_server_adapter.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:get_it/get_it.dart';
@@ -216,6 +217,7 @@ class WalletLocator {
         walletRepository: locator<WalletRepository>(),
         seedRepository: locator<SeedRepository>(),
         settingsRepository: locator<SettingsRepository>(),
+        walletLabelReservationPolicy: locator<WalletLabelReservationPolicy>(),
       ),
     );
     locator.registerFactory<TheDirtyUsecase>(
