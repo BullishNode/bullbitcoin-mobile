@@ -98,8 +98,8 @@ class WalletRepository {
       }
     }
 
-    final balance = await _getBalance(metadata, sync: sync);
     await _walletMetadataDatasource.store(metadata);
+    final balance = await _getBalance(metadata, sync: sync);
 
     return Wallet(
       origin: metadata.id,

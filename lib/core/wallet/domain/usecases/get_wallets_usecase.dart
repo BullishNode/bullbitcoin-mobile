@@ -18,10 +18,12 @@ class GetWalletsUsecase {
     bool? onlyBitcoin,
     bool? onlyLiquid,
     bool sync = false,
+    bool allEnvironments = false,
   }) async {
     try {
-      final settings = await _settingsRepository.fetch();
-      final environment = settings.environment;
+      final environment = allEnvironments
+          ? null
+          : (await _settingsRepository.fetch()).environment;
       final wallets = await _wallet.getWallets(
         environment: environment,
         onlyDefaults: onlyDefaults,
@@ -32,7 +34,9 @@ class GetWalletsUsecase {
 
       if (wallets.isEmpty) {
         throw NoWalletsFoundException(
-          "No wallets found for the current environment: $environment",
+          allEnvironments
+              ? 'No wallets found'
+              : "No wallets found for the current environment: $environment",
         );
       }
 

@@ -157,6 +157,45 @@ class WalletAddressRepository {
     return walletAddress;
   }
 
+  Future<({String address, String blindingKey})>
+  generateNewLiquidReceiveAddressWithBlindingKey({
+    required String walletId,
+  }) async {
+    final metadata = await _walletMetadataDatasource.fetch(walletId);
+
+    if (metadata == null) {
+      throw WalletError.notFound(walletId);
+    }
+
+    final walletModel = WalletModel.fromMetadata(metadata);
+    if (walletModel is PublicBdkWalletModel) {
+      throw WalletError.unexpected('Wallet is not a Liquid wallet');
+    }
+
+    final lastUnusedAddressInfo = await _lwkWallet.getLastUnusedAddress(
+      wallet: walletModel,
+    );
+    var addressInfo = await _lwkWallet.getAddressWithBlindingKeyByIndex(
+      lastUnusedAddressInfo.index + 1,
+      wallet: walletModel,
+    );
+
+    var labels = await _labelsFacade.fetchByReference(addressInfo.confidential);
+
+    while (labels.any((label) => LabelSystem.isSystemLabel(label.label))) {
+      addressInfo = await _lwkWallet.getAddressWithBlindingKeyByIndex(
+        addressInfo.index + 1,
+        wallet: walletModel,
+      );
+      labels = await _labelsFacade.fetchByReference(addressInfo.confidential);
+    }
+
+    return (
+      address: addressInfo.confidential,
+      blindingKey: addressInfo.blindingKey,
+    );
+  }
+
   Future<List<WalletAddress>> getGeneratedReceiveAddresses(
     String walletId, {
     int? limit,

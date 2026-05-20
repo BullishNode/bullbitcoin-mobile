@@ -31,6 +31,8 @@ sealed class WalletUtxo with _$WalletUtxo {
     required BigInt amountSat,
     required String standardAddress,
     required String confidentialAddress,
+    required String assetIdHex,
+    int? addressIndex,
     @Default(WalletAddressKeyChain.external)
     WalletAddressKeyChain addressKeyChain,
     @Default([]) List<Label> labels,

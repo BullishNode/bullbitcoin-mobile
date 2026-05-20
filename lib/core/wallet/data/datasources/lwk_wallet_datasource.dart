@@ -122,6 +122,8 @@ class LwkWalletDatasource {
           scriptPubkey: utxo.scriptPubkey,
           standardAddress: utxo.address.standard,
           confidentialAddress: utxo.address.confidential,
+          assetIdHex: utxo.unblinded.asset,
+          addressIndex: utxo.address.index,
         );
       });
 
@@ -192,6 +194,35 @@ class LwkWalletDatasource {
         confidential: addressInfo.confidential,
       );
       return address;
+    } catch (e) {
+      if (e is lwk.LwkError) {
+        throw e.msg;
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  Future<
+    ({String standard, String confidential, int index, String blindingKey})
+  >
+  getAddressWithBlindingKeyByIndex(
+    int index, {
+    required WalletModel wallet,
+  }) async {
+    try {
+      final lwkWallet = await LwkFacade.createPublicWallet(wallet);
+      final addressInfo = await lwkWallet.address(index: index);
+      final blindingKey = addressInfo.blindingKey;
+      if (blindingKey == null || blindingKey.isEmpty) {
+        throw Exception('LWK address did not include a blinding key');
+      }
+      return (
+        index: addressInfo.index!,
+        standard: addressInfo.standard,
+        confidential: addressInfo.confidential,
+        blindingKey: blindingKey,
+      );
     } catch (e) {
       if (e is lwk.LwkError) {
         throw e.msg;
