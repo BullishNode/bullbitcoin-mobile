@@ -22,11 +22,11 @@ The receive wallet is created from the child mnemonic and labeled by external
 receive wallet purpose. `GetExternalReceiveWalletUsecase` finds it by wallet
 manifest origin metadata, not by label. Lightning Address provisions the
 `Lightning Address-LBTC` wallet today.
-Payment Page does not currently provision `Payment Page-LBTC` from its save
-flow; descriptor binding belongs to the future server/API phase. BTCPay pairing
+Payment Page provisions `Payment Page-LBTC` when saving an enabled page, but
+descriptor binding belongs to the future server/API phase. BTCPay pairing
 provisions `BTCPay-LBTC` and/or `BTCPay-BTC` path-77 wallets after a valid
-SamRock pairing request starts. BTCPay wallets are not created from Lightning
-Address flows.
+SamRock pairing request starts. Payment Page and BTCPay wallets are not created
+from Lightning Address flows.
 The Nostr path is independent from the
 receive-wallet index; `75` is not reused as a Nostr identity number.
 
@@ -49,7 +49,6 @@ wallet use cases live behind
 | `GetExternalReceiveWalletUsecase` | environment, purpose/account key | `Wallet?` (manifest origin match) |
 | `RegisterLightningAddressUsecase` | nym, environment | `String` (`nym@domain`) |
 | `DeleteLightningAddressUsecase` | nym | `NymQuota` |
-| `RecoverLightningAddressUsecase` | environment | `String?` |
 | `SweepExternalReceiveWalletUsecase` | isTestnet, purpose, expected synced wallet id | `String?` (txid) |
 
 Setter use cases take `…Command` objects; getters take named params.
@@ -111,17 +110,10 @@ it through the neutral `wallet_manifest` facade. That path restores only wallets
 listed in the encrypted wallet manifest, does not scan reserved fallback paths,
 and does not call Lightning Address server recovery.
 
-`RecoverLightningAddressUsecase` is the Lightning Address server recovery
-helper exposed through the Lightning Address facade for explicit server-record
-recovery flows. It is not called by seed-restore wallet manifest recovery, and
-the Get Paid reserved-wallet recovery action restores wallets only:
-
-1. If `getStoredAddress()` is non-null, exit.
-2. Derive Nostr identity, `lookupByNpub()` on the pay service.
-   - 404 → no record, exit.
-   - 5xx / timeout → throws `PayServiceException`; caller catches and exits
-     so recovery retries on the next launch.
-3. If active record: create wallet (if missing) + store the address.
+Lightning Address server-record recovery is not exposed through the cross-
+feature facade. Any future server-state recovery flow must be designed as an
+explicit Lightning Address product action, separate from automatic seed-restore
+wallet manifest recovery.
 
 The tradeoff of manifest-authoritative recovery is that it may recreate empty
 external receive wallets, adding wallets to normal sync and making future syncs
@@ -147,7 +139,7 @@ call Lightning Address settings or classify wallets by reserved labels.
 
 ## Files
 
-- `domain/usecases/` — Lightning Address registration, deletion, recovery, lookup, and Nostr profile use cases
+- `domain/usecases/` — Lightning Address registration, deletion, lookup, and Nostr profile use cases
 - `../external_receive_wallets/public/external_receive_wallets.dart` — public external receive wallet facade boundary
 - `domain/lightning_address_key_derivation.dart` — xprv + Nostr derivation helpers
 - `domain/ports/pay_service_port.dart` — abstract HTTP interface

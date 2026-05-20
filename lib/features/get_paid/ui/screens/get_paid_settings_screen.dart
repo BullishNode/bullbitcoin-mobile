@@ -366,10 +366,7 @@ class _RestoreResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasAttention = outcomes.any(
       (outcome) =>
-          outcome.status == ExternalReceiveWalletRestoreOutcomeStatus.failed ||
-          outcome.status ==
-              ExternalReceiveWalletRestoreOutcomeStatus
-                  .createdWithMetadataFailure,
+          outcome.status == ExternalReceiveWalletRestoreOutcomeStatus.failed,
     );
     return Container(
       padding: const EdgeInsets.all(16),
@@ -406,23 +403,14 @@ class _RestoreOutcomeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFailure =
         outcome.status == ExternalReceiveWalletRestoreOutcomeStatus.failed;
-    final needsAttention =
-        outcome.status ==
-        ExternalReceiveWalletRestoreOutcomeStatus.createdWithMetadataFailure;
     final iconColor = isFailure
         ? context.appColors.error
-        : needsAttention
-        ? context.appColors.warning
         : context.appColors.success;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
-          isFailure
-              ? Icons.error_outline
-              : needsAttention
-              ? Icons.warning_amber
-              : Icons.check_circle_outline,
+          isFailure ? Icons.error_outline : Icons.check_circle_outline,
           color: iconColor,
           size: 20,
         ),
@@ -439,9 +427,7 @@ class _RestoreOutcomeRow extends StatelessWidget {
               Text(
                 _statusLabel(context, outcome),
                 style: context.font.bodySmall?.copyWith(
-                  color: isFailure || needsAttention
-                      ? iconColor
-                      : context.appColors.secondary,
+                  color: isFailure ? iconColor : context.appColors.secondary,
                 ),
               ),
             ],
@@ -480,8 +466,6 @@ String _statusLabel(
       return context.loc.getPaidSettingsStatusRefreshed;
     case ExternalReceiveWalletRestoreOutcomeStatus.created:
       return context.loc.getPaidSettingsStatusAdded;
-    case ExternalReceiveWalletRestoreOutcomeStatus.createdWithMetadataFailure:
-      return context.loc.getPaidSettingsStatusAddedWithMetadataFailure;
     case ExternalReceiveWalletRestoreOutcomeStatus.failed:
       return _failureLabel(context, outcome);
   }
@@ -558,9 +542,6 @@ bool _restoreChangedWallets(
   return outcomes.any(
     (outcome) =>
         outcome.status == ExternalReceiveWalletRestoreOutcomeStatus.created ||
-        outcome.status == ExternalReceiveWalletRestoreOutcomeStatus.repaired ||
-        outcome.status ==
-            ExternalReceiveWalletRestoreOutcomeStatus
-                .createdWithMetadataFailure,
+        outcome.status == ExternalReceiveWalletRestoreOutcomeStatus.repaired,
   );
 }

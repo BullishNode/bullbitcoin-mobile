@@ -44,6 +44,7 @@ graph TB
     DCA[DCA]
     EXTERNAL_RECEIVE[External Receive Wallets]
     GET_PAID[Get Paid]
+    LIGHTNING_ADDRESS[Lightning Address]
     WALLET_MANIFEST[Wallet Manifest]
     NOSTR_IDENTITY[Nostr Identity]
     ONBOARDING[Onboarding]
@@ -77,9 +78,13 @@ graph TB
     FUNDING --> EXCHANGE
     GET_PAID --> BULLNYM
     GET_PAID --> EXTERNAL_RECEIVE
+    GET_PAID --> LIGHTNING_ADDRESS
     GET_PAID --> WALLET_MANIFEST
     HW_WALLETS --> CORE
     LABELS --> CORE
+    LIGHTNING_ADDRESS --> BULLNYM
+    LIGHTNING_ADDRESS --> EXTERNAL_RECEIVE
+    LIGHTNING_ADDRESS --> NOSTR_IDENTITY
     NOSTR_IDENTITY --> BIP85
     ONBOARDING --> WALLET_MANIFEST
     PAY --> RECIPIENTS
@@ -121,7 +126,7 @@ graph TB
     classDef featureStyle fill:#1a202c,stroke:#2d3748,stroke-width:2px,color:#e2e8f0
 
     class CORE coreStyle
-    class SETTINGS,TOR,PIN_CODE,LABELS,SECRETS,HW_WALLETS,BTC_PRICE,NETWORK,BIP85,FEES,WALLETS,EXCHANGE,APP_STARTUP,UTXO_MGMT,ADDRESS_MGMT,RECIPIENTS,FUNDING,BACKUPS,SWAPS,PAYJOIN,WITHDRAWAL,STATUS,SEND,RECEIVE,TRANSFER,TX_HISTORY,BG_TASKS,AUTOSWAPS,BULLNYM,DCA,EXTERNAL_RECEIVE,GET_PAID,WALLET_MANIFEST,NOSTR_IDENTITY,ONBOARDING,RECOVERBULL,SELL,PAY,BUY featureStyle
+    class SETTINGS,TOR,PIN_CODE,LABELS,SECRETS,HW_WALLETS,BTC_PRICE,NETWORK,BIP85,FEES,WALLETS,EXCHANGE,APP_STARTUP,UTXO_MGMT,ADDRESS_MGMT,RECIPIENTS,FUNDING,BACKUPS,SWAPS,PAYJOIN,WITHDRAWAL,STATUS,SEND,RECEIVE,TRANSFER,TX_HISTORY,BG_TASKS,AUTOSWAPS,BULLNYM,DCA,EXTERNAL_RECEIVE,GET_PAID,LIGHTNING_ADDRESS,WALLET_MANIFEST,NOSTR_IDENTITY,ONBOARDING,RECOVERBULL,SELL,PAY,BUY featureStyle
 ```
 
 ## About Package Dependency Diagrams
@@ -191,7 +196,8 @@ graph TB
 - **Backups**: Depends on BIP85, Wallets
 - **Wallet Manifest**: Depends on BIP85, Wallets, Nostr Identity
 - **External Receive Wallets**: Depends on Wallet Manifest and Wallets
-- **Get Paid**: Depends on Bullnym Protocol, Wallet Manifest, and External Receive Wallets
+- **Lightning Address**: Depends on Bullnym Protocol, External Receive Wallets, and Nostr Identity
+- **Get Paid**: Depends on Bullnym Protocol, Lightning Address, Wallet Manifest, and External Receive Wallets
 
 ### Exchange-Related Features
 

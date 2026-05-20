@@ -2,6 +2,7 @@ export 'package:bb_mobile/features/wallet_manifest/domain/bip85_derivation_path.
 export 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_network.dart';
 export 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_network_mapper.dart';
 export 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_origin.dart';
+export 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_reserved_bip85_indexes.dart';
 export 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_reserved_identities.dart';
 export 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_wallet_type.dart';
 export 'package:bb_mobile/features/wallet_manifest/public/create_manual_bip85_wallets.dart';

@@ -13197,10 +13197,6 @@
   "@getPaidSettingsStatusAdded": {
     "description": "Per-wallet status when the Get Paid wallet was recreated on this device"
   },
-  "getPaidSettingsStatusAddedWithMetadataFailure": "Added to this device; details need another recovery attempt",
-  "@getPaidSettingsStatusAddedWithMetadataFailure": {
-    "description": "Per-wallet status when the wallet was created but metadata repair failed"
-  },
   "getPaidSettingsFailureNoDefaultWallet": "Default wallet is unavailable",
   "@getPaidSettingsFailureNoDefaultWallet": {
     "description": "Per-wallet failure when the corresponding default wallet is unavailable"

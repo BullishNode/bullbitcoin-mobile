@@ -34,10 +34,6 @@ void main() {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
     ).thenAnswer((_) async => null);
-    when(
-      () => lightningAddressFacade.getCurrentNym(),
-    ).thenAnswer((_) async => null);
-
     await tester.pumpWidget(
       _harness(
         lightningAddressFacade: lightningAddressFacade,
@@ -61,9 +57,6 @@ void main() {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
     ).thenAnswer((_) async => 'alice@bullpay.ca');
-    when(
-      () => lightningAddressFacade.getCurrentNym(),
-    ).thenAnswer((_) async => 'alice');
     when(
       () => findPaymentPage.execute(nym: 'alice'),
     ).thenAnswer((_) async => _page());
@@ -89,9 +82,6 @@ void main() {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
     ).thenAnswer((_) async => 'alice@bullpay.ca');
-    when(
-      () => lightningAddressFacade.getCurrentNym(),
-    ).thenAnswer((_) async => 'alice');
     var refreshCount = 0;
     when(() => findPaymentPage.execute(nym: 'alice')).thenAnswer((_) async {
       refreshCount += 1;
@@ -145,10 +135,6 @@ void main() {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
     ).thenAnswer((_) async => null);
-    when(
-      () => lightningAddressFacade.getCurrentNym(),
-    ).thenAnswer((_) async => null);
-
     final router = GoRouter(
       initialLocation: '/get-paid',
       routes: [
@@ -188,10 +174,6 @@ void main() {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
     ).thenAnswer((_) async => null);
-    when(
-      () => lightningAddressFacade.getCurrentNym(),
-    ).thenAnswer((_) async => null);
-
     final router = GoRouter(
       initialLocation: '/get-paid',
       routes: [
@@ -230,9 +212,6 @@ void main() {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
     ).thenAnswer((_) async => 'alice@bullpay.ca');
-    when(
-      () => lightningAddressFacade.getCurrentNym(),
-    ).thenAnswer((_) async => 'alice');
     var refreshCount = 0;
     when(() => findPaymentPage.execute(nym: 'alice')).thenAnswer((_) async {
       refreshCount += 1;
@@ -286,9 +265,6 @@ void main() {
     when(
       () => lightningAddressFacade.getCurrentLightningAddress(),
     ).thenAnswer((_) async => 'alice@bullpay.ca');
-    when(
-      () => lightningAddressFacade.getCurrentNym(),
-    ).thenAnswer((_) async => 'alice');
     var refreshCount = 0;
     when(() => findPaymentPage.execute(nym: 'alice')).thenAnswer((_) async {
       refreshCount += 1;

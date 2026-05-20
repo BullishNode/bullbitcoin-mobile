@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/external_receive_wallets/reserved_external_receive_wallet_labels.dart';
-import 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_reserved_bip85_indexes.dart';
+import 'package:bb_mobile/features/wallet_manifest/public/wallet_manifest.dart';
 
 enum ExternalReceiveWalletPurpose { lightningAddress, paymentPage, btcpay }
 

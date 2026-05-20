@@ -9,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
   final LightningAddressFacade _lightningAddressFacade;
   final FindPaymentPageUsecase _findPaymentPage;
+  int _refreshGeneration = 0;
 
   GetPaidDashboardCubit({
     required LightningAddressFacade lightningAddressFacade,
@@ -18,16 +19,17 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
        super(const GetPaidDashboardState());
 
   Future<void> refresh() async {
+    final generation = ++_refreshGeneration;
     emit(state.copyWith(isLoading: true, clearError: true));
     String? lightningAddress;
     String? nym;
     try {
       lightningAddress = await _lightningAddressFacade
           .getCurrentLightningAddress();
-      nym = await _lightningAddressFacade.getCurrentNym();
+      nym = lightningAddress?.split('@').firstOrNull;
 
       if (nym == null || nym.isEmpty) {
-        if (isClosed) return;
+        if (_isStale(generation)) return;
         emit(
           state.copyWith(
             isLoading: false,
@@ -39,8 +41,9 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         return;
       }
 
+      if (_isStale(generation)) return;
       final paymentPage = await _findPaymentPage.execute(nym: nym);
-      if (isClosed) return;
+      if (_isStale(generation)) return;
       emit(
         state.copyWith(
           isLoading: false,
@@ -51,7 +54,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         ),
       );
     } on PaymentPageApplicationError catch (e) {
-      if (isClosed) return;
+      if (_isStale(generation)) return;
       emit(
         state.copyWith(
           isLoading: false,
@@ -61,7 +64,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         ),
       );
     } on Exception catch (e) {
-      if (isClosed) return;
+      if (_isStale(generation)) return;
       log.warning('Get Paid dashboard refresh failed', error: e);
       emit(
         state.copyWith(
@@ -72,5 +75,9 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         ),
       );
     }
+  }
+
+  bool _isStale(int generation) {
+    return isClosed || generation != _refreshGeneration;
   }
 }

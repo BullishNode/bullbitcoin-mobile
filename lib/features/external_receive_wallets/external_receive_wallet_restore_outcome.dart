@@ -4,7 +4,6 @@ enum ExternalReceiveWalletRestoreOutcomeStatus {
   existing,
   repaired,
   created,
-  createdWithMetadataFailure,
   failed,
 }
 
@@ -28,7 +27,5 @@ class ExternalReceiveWalletRestoreOutcome {
 
   bool get changedLocalState =>
       status == ExternalReceiveWalletRestoreOutcomeStatus.repaired ||
-      status == ExternalReceiveWalletRestoreOutcomeStatus.created ||
-      status ==
-          ExternalReceiveWalletRestoreOutcomeStatus.createdWithMetadataFailure;
+      status == ExternalReceiveWalletRestoreOutcomeStatus.created;
 }

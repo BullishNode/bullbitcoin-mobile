@@ -12,7 +12,6 @@ import 'package:bb_mobile/features/external_receive_wallets/public/external_rece
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_status_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/publish_lightning_address_nostr_profile_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/recover_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
@@ -79,15 +78,6 @@ class LightningAddressLocator {
       ),
     );
 
-    locator.registerFactory<RecoverLightningAddressUsecase>(
-      () => RecoverLightningAddressUsecase(
-        externalReceiveWallets: locator<ExternalReceiveWalletsFacade>(),
-        payService: locator<PayServicePort>(),
-        walletRepository: locator<WalletRepository>(),
-        seedRepository: locator<SeedRepository>(),
-      ),
-    );
-
     locator.registerFactory<LightningAddressCubit>(
       () => LightningAddressCubit(
         externalReceiveWallets: locator<ExternalReceiveWalletsFacade>(),
@@ -102,10 +92,7 @@ class LightningAddressLocator {
     );
 
     locator.registerFactory<LightningAddressFacade>(
-      () => LightningAddressFacade(
-        recover: locator<RecoverLightningAddressUsecase>(),
-        payService: locator<PayServicePort>(),
-      ),
+      () => LightningAddressFacade(payService: locator<PayServicePort>()),
     );
   }
 }

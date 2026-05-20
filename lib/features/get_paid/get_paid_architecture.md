@@ -36,11 +36,12 @@ does not move Lightning Address.
 
 ## Dashboard Flow
 
-1. `GetPaidDashboardCubit.refresh()` reads the current Lightning Address from
-   `LightningAddressFacade`.
-2. If no Lightning Address exists, the dashboard shows the Lightning Address
-   setup action and does not query Payment Page.
-3. If a Lightning Address exists, the cubit derives the nym and loads the
+1. `GetPaidDashboardCubit.refresh()` reads the locally known Bullnym address
+   through `LightningAddressFacade`.
+2. If no local Bullnym address exists, the dashboard shows the Lightning Address
+   setup action and does not query Payment Page because there is no nym to
+   address the page.
+3. If a local Bullnym address exists, the cubit derives the nym and loads the
    active Payment Page with `FindPaymentPageUsecase`.
 4. Sub-feature screens return `true` after a mutation. The dashboard refreshes
    only when that value is returned, or on pull-to-refresh/app-resume.

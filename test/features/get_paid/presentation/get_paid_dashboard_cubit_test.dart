@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
@@ -34,10 +36,6 @@ void main() {
       when(
         () => lightningAddressFacade.getCurrentLightningAddress(),
       ).thenAnswer((_) async => null);
-      when(
-        () => lightningAddressFacade.getCurrentNym(),
-      ).thenAnswer((_) async => null);
-
       await cubit.refresh();
 
       expect(cubit.state.isLoading, isFalse);
@@ -53,9 +51,6 @@ void main() {
       when(
         () => lightningAddressFacade.getCurrentLightningAddress(),
       ).thenAnswer((_) async => 'alice@bullpay.ca');
-      when(
-        () => lightningAddressFacade.getCurrentNym(),
-      ).thenAnswer((_) async => 'alice');
       when(
         () => findPaymentPage.execute(nym: 'alice'),
       ).thenAnswer((_) async => _page());
@@ -76,9 +71,6 @@ void main() {
         () => lightningAddressFacade.getCurrentLightningAddress(),
       ).thenAnswer((_) async => 'alice@bullpay.ca');
       when(
-        () => lightningAddressFacade.getCurrentNym(),
-      ).thenAnswer((_) async => 'alice');
-      when(
         () => findPaymentPage.execute(nym: 'alice'),
       ).thenAnswer((_) async => null);
 
@@ -97,9 +89,6 @@ void main() {
       when(
         () => lightningAddressFacade.getCurrentLightningAddress(),
       ).thenAnswer((_) async => 'alice@bullpay.ca');
-      when(
-        () => lightningAddressFacade.getCurrentNym(),
-      ).thenAnswer((_) async => 'alice');
       when(
         () => findPaymentPage.execute(nym: 'alice'),
       ).thenThrow(const PaymentPageNetworkError('network down'));
@@ -125,12 +114,48 @@ void main() {
     expect(cubit.state.error, isNot(contains('socket details')));
     expect(cubit.state.isLoading, isFalse);
   });
+
+  test('refresh ignores stale results from older requests', () async {
+    final firstAddress = Completer<String?>();
+    final secondAddress = Completer<String?>();
+    final secondPage = Completer<PaymentPage?>();
+    var addressCalls = 0;
+
+    when(() => lightningAddressFacade.getCurrentLightningAddress()).thenAnswer((
+      _,
+    ) {
+      addressCalls += 1;
+      return addressCalls == 1 ? firstAddress.future : secondAddress.future;
+    });
+    when(
+      () => findPaymentPage.execute(nym: 'bob'),
+    ).thenAnswer((_) => secondPage.future);
+
+    final firstRefresh = cubit.refresh();
+    final secondRefresh = cubit.refresh();
+
+    secondAddress.complete('bob@bullpay.ca');
+    secondPage.complete(_page(nym: 'bob'));
+    await secondRefresh;
+
+    expect(cubit.state.lightningAddress, 'bob@bullpay.ca');
+    expect(cubit.state.nym, 'bob');
+    expect(cubit.state.paymentPage?.publicUrl, 'https://bullpay.ca/bob');
+
+    firstAddress.complete('alice@bullpay.ca');
+    await firstRefresh;
+
+    expect(cubit.state.lightningAddress, 'bob@bullpay.ca');
+    expect(cubit.state.nym, 'bob');
+    expect(cubit.state.paymentPage?.publicUrl, 'https://bullpay.ca/bob');
+    verifyNever(() => findPaymentPage.execute(nym: 'alice'));
+  });
 }
 
-PaymentPage _page() {
-  return const PaymentPage(
-    nym: 'alice',
-    header: "Alice's Coffee",
+PaymentPage _page({String nym = 'alice'}) {
+  return PaymentPage(
+    nym: nym,
+    header: "${nym[0].toUpperCase()}${nym.substring(1)}'s Coffee",
     description: 'Tips welcome',
     displayCurrency: 'CAD',
     website: null,
@@ -140,6 +165,6 @@ PaymentPage _page() {
     isArchived: false,
     avatarSha256: null,
     ogSha256: null,
-    publicUrl: 'https://bullpay.ca/alice',
+    publicUrl: 'https://bullpay.ca/$nym',
   );
 }
