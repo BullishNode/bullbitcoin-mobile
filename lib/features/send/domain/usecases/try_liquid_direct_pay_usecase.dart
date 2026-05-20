@@ -1,19 +1,6 @@
-import 'package:bb_mobile/core/utils/constants.dart';
 import 'package:bb_mobile/features/send/domain/errors/bullpay_proof_error.dart';
 import 'package:bb_mobile/features/send/domain/ports/liquid_direct_pay_port.dart';
 import 'package:bb_mobile/features/send/domain/usecases/build_bullpay_proof_usecase.dart';
-
-class LiquidDirectPayment {
-  final String address;
-  final int amountSat;
-  final String bip21;
-
-  LiquidDirectPayment({
-    required this.address,
-    required this.amountSat,
-    required this.bip21,
-  });
-}
 
 // LUD-16 username: lowercase alnum + `._-`, max 64. Rejects path traversal,
 // scheme bleed, whitespace, etc.
@@ -36,7 +23,7 @@ class TryLiquidDirectPayUsecase {
   }) : _buildProof = buildProof,
        _liquidDirectPay = liquidDirectPay;
 
-  Future<LiquidDirectPayment> execute({
+  Future<String> execute({
     required String lnAddress,
     required int amountSat,
     required String walletId,
@@ -98,13 +85,6 @@ class TryLiquidDirectPayUsecase {
     if (address == null) {
       throw const BullpayProofInternal('MalformedResponse');
     }
-    final btcDecimal = (amountSat / 100000000).toStringAsFixed(8);
-    final bip21 =
-        'liquidnetwork:$address?amount=$btcDecimal&assetid=${AssetConstants.lbtcMainnet}';
-    return LiquidDirectPayment(
-      address: address,
-      amountSat: amountSat,
-      bip21: bip21,
-    );
+    return address;
   }
 }

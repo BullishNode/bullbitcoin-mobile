@@ -990,6 +990,84 @@ class SendCubit extends Cubit<SendState> {
           ? SwapType.liquidToLightning
           : SwapType.bitcoinToLightning;
 
+      // LUD-22 direct Liquid pay is not a Boltz swap, so it must run before
+      // swap min/max, swap-fee balance, and fallback swap creation checks.
+      if (state.selectedWallet!.isLiquid &&
+          !state.selectedWallet!.network.isTestnet &&
+          !state.sendMax &&
+          state.paymentRequest is LnAddressPaymentRequest &&
+          state.confirmedAmountSat != null) {
+        try {
+          final originalRequest = state.paymentRequest;
+          emit(state.copyWith(creatingSwap: true));
+          final liquidAddress = await _tryLiquidDirectPayUsecase.execute(
+            lnAddress: state.paymentRequestAddress,
+            amountSat: state.confirmedAmountSat!,
+            walletId: state.selectedWallet!.id,
+          );
+          final originalAddress = state.paymentRequestAddress;
+          final liquidRequest = PaymentRequest.liquid(
+            address: liquidAddress,
+            isTestnet: state.selectedWallet!.network.isTestnet,
+          );
+          emit(
+            state.copyWith(
+              creatingSwap: false,
+              sendType: SendType.liquid,
+              paymentRequest: liquidRequest,
+              confirmedAmountSat: state.confirmedAmountSat!,
+              lud22OriginalAddress: originalAddress,
+            ),
+          );
+          await createTransaction();
+          if (!await hasBalance()) {
+            emit(
+              state.copyWith(
+                sendType: SendType.lightning,
+                paymentRequest: originalRequest,
+                lud22OriginalAddress: null,
+                insufficientBalanceException: InsufficientBalanceException(
+                  'Not enough funds to cover amount and fees',
+                ),
+                amountConfirmedClicked: false,
+              ),
+            );
+            return;
+          }
+          if (state.buildTransactionException == null &&
+              state.unsignedPsbt != null) {
+            emit(
+              state.copyWith(
+                step: SendStep.confirm,
+                confirmedAmountSat: state.inputAmountSat,
+                amountConfirmedClicked: false,
+              ),
+            );
+          } else {
+            emit(
+              state.copyWith(
+                sendType: SendType.lightning,
+                paymentRequest: originalRequest,
+                lud22OriginalAddress: null,
+                amountConfirmedClicked: false,
+              ),
+            );
+          }
+          return;
+        } on LiquidDirectPayUnavailable {
+          emit(state.copyWith(creatingSwap: false));
+          // fall through to the standard Lightning/Boltz swap path
+        } on BullpayProofError catch (e, st) {
+          emit(state.copyWith(creatingSwap: false));
+          log.warning(
+            'LUD-22 unavailable, falling back to Lightning',
+            error: e,
+            trace: st,
+          );
+          // Fall through to the standard Lightning/Boltz swap path.
+        }
+      }
+
       if (state.swapAmountBelowLimit) {
         final isLiquidToLightning = state.selectedWallet!.isLiquid;
         final minLimit = isLiquidToLightning
@@ -1029,43 +1107,6 @@ class SendCubit extends Cubit<SendState> {
           ),
         );
         return;
-      }
-      // LUD-22: try Liquid-direct payment before falling back to swap
-      if (state.selectedWallet!.isLiquid &&
-          state.paymentRequest is LnAddressPaymentRequest &&
-          state.confirmedAmountSat != null) {
-        try {
-          final liquidDirect = await _tryLiquidDirectPayUsecase.execute(
-            lnAddress: state.paymentRequestAddress,
-            amountSat: state.confirmedAmountSat!,
-            walletId: state.selectedWallet!.id,
-          );
-          final originalAddress = state.paymentRequestAddress;
-          final liquidRequest = PaymentRequest.liquid(
-            address: liquidDirect.address,
-            isTestnet: state.selectedWallet!.network.isTestnet,
-          );
-          emit(
-            state.copyWith(
-              sendType: SendType.liquid,
-              paymentRequest: liquidRequest,
-              confirmedAmountSat: liquidDirect.amountSat,
-              lud22OriginalAddress: originalAddress,
-              step: SendStep.confirm,
-            ),
-          );
-          await createTransaction();
-          return;
-        } on LiquidDirectPayUnavailable {
-          // fall through to the standard Lightning/Boltz swap path
-        } on BullpayProofError catch (e, st) {
-          log.warning(
-            'LUD-22 unavailable, falling back to Lightning',
-            error: e,
-            trace: st,
-          );
-          // Fall through to the standard Lightning/Boltz swap path.
-        }
       }
 
       try {

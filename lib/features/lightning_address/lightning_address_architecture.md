@@ -82,7 +82,8 @@ Schnorr-signed (BIP-340). Server enforces ±300 s freshness.
 3. Require `payment_methods` array containing `"L-BTC"`.
 4. Validate `metadata.callback`: `scheme == 'https' && host == domain`.
 5. POST proof of funds (`outpoint`, `pubkey`, `sig`) via the same callback.
-6. Server returns `{ "L-BTC": { "address": "lq1q…" } }` → BIP21 Liquid URI.
+6. Server returns `{ "L-BTC": { "address": "lq1q…" } }`; the app builds a
+   Liquid payment request from the returned address.
 
 `SendState.lud22OriginalAddress` preserves the user-pasted nym for display
 on the confirm screen.

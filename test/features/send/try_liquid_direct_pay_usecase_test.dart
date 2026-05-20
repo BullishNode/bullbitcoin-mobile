@@ -103,7 +103,7 @@ void main() {
         amountSat: 1000,
         walletId: 'w',
       );
-      expect(out.address, 'lq1qfake');
+      expect(out, 'lq1qfake');
       final captured =
           verify(
                 () => liquidDirectPay.fetchMetadata(captureAny()),

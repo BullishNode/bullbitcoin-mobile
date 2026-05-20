@@ -170,6 +170,48 @@ void main() {
       },
     );
 
+    test('publishes and parses testnet_3', () {
+      final snapshot = WalletManifestSnapshot(
+        createdAt: 1,
+        accounts: [
+          WalletManifestAccount(
+            rootFingerprint: 'abcd1234',
+            bip85DerivationPath: Bip85DerivationPath.mnemonic12(index: 4),
+            network: WalletManifestNetwork.testnet3,
+          ),
+        ],
+      );
+
+      final json = jsonDecode(codec.encode(snapshot)) as Map<String, dynamic>;
+      final account = (json['accounts'] as List).single as Map<String, dynamic>;
+      expect(account['network'], 'testnet_3');
+
+      final decoded = codec.fromJson(json);
+      expect(decoded.accounts.single.network, WalletManifestNetwork.testnet3);
+    });
+
+    test('rejects pre-release testnet3 spelling', () {
+      expect(
+        () => codec.fromJson({
+          'bip': 139,
+          'version': 1,
+          'created_at': 1,
+          'accounts': [
+            {
+              'network': 'testnet3',
+              'keys': {
+                'abcd1234': {
+                  'origin': "m/83696968'/39'/0'/12'/4'",
+                  'key': 'xprv',
+                },
+              },
+            },
+          ],
+        }),
+        throwsA(isA<WalletManifestCodecException>()),
+      );
+    });
+
     test('rejects accounts without a restorable BIP85 key', () {
       expect(
         () => codec.fromJson({

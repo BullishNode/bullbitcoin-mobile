@@ -58,7 +58,7 @@ descriptors unless another consumer needs them.
 Supported network strings:
 
 - `bitcoin`
-- `testnet3`
+- `testnet_3`
 - `liquid`
 - `liquid_testnet`
 

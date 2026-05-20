@@ -31,11 +31,9 @@ class CountdownState extends State<Countdown> {
   void initState() {
     super.initState();
     remainingTime = _calculateRemainingTime();
-    if (remainingTime.isNegative) {
+    if (remainingTime <= Duration.zero) {
       remainingTime = Duration.zero;
-      // If the deadline has already passed, we directly call the timeout callback
-      // and do not start the timer.
-      widget.onTimeout();
+      _scheduleTimeout();
       return;
     }
     timer = Timer.periodic(const Duration(seconds: 1), _updateTimer);
@@ -51,9 +49,9 @@ class CountdownState extends State<Countdown> {
       // Recalculate remaining time with new deadline
       remainingTime = _calculateRemainingTime();
 
-      if (remainingTime.isNegative) {
+      if (remainingTime <= Duration.zero) {
         remainingTime = Duration.zero;
-        widget.onTimeout();
+        _scheduleTimeout();
         return;
       }
 
@@ -70,14 +68,30 @@ class CountdownState extends State<Countdown> {
   }
 
   void _updateTimer(Timer timer) {
-    if (remainingTime.inSeconds <= 0) {
-      widget.onTimeout();
+    final nextRemainingTime = _calculateRemainingTime();
+    if (nextRemainingTime <= Duration.zero) {
       timer.cancel();
+      if (mounted) {
+        setState(() {
+          remainingTime = Duration.zero;
+        });
+      }
+      _scheduleTimeout();
       return;
     }
 
     setState(() {
-      remainingTime = _calculateRemainingTime();
+      remainingTime = nextRemainingTime;
+    });
+  }
+
+  void _scheduleTimeout() {
+    final deadline = widget.until;
+    Timer.run(() {
+      if (!mounted) return;
+      if (deadline != widget.until) return;
+      if (_calculateRemainingTime() > Duration.zero) return;
+      widget.onTimeout();
     });
   }
 
