@@ -33,6 +33,13 @@ void main() {
     await tester.pumpWidget(_harness(walletManifest));
     await tester.tap(find.text('Open create'));
     await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Create a wallet from this backup using BIP85. If the selected index was used before, any funds at that wallet can be found after sync.',
+      ),
+      findsOneWidget,
+    );
     await tester.enterText(find.byType(TextFormField), 'Savings');
 
     await tester.tap(find.text('Create wallet'));
@@ -104,12 +111,12 @@ void main() {
     expect(find.text('Create returned true'), findsOneWidget);
   });
 
-  testWidgets('validates manual recovery index', (tester) async {
+  testWidgets('validates manual BIP85 index', (tester) async {
     final walletManifest = _MockWalletManifestFacade();
     await tester.pumpWidget(_harness(walletManifest));
     await tester.tap(find.text('Open create'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Select recovery index manually'));
+    await tester.tap(find.text('Select BIP85 index manually'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Create wallet'));

@@ -76,6 +76,13 @@ class _CreateBip85WalletPageState extends State<CreateBip85WalletPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       BBText(
+                        context.loc.importWalletCreateManualBip85Description,
+                        style: context.font.bodyMedium?.copyWith(
+                          color: context.appColors.textMuted,
+                        ),
+                      ),
+                      const Gap(24),
+                      BBText(
                         context.loc.importWalletCreateManualBip85NetworkLabel,
                         style: context.font.titleMedium,
                       ),
@@ -269,7 +276,7 @@ class _CreateBip85WalletPageState extends State<CreateBip85WalletPage> {
       CreateManualBip85WalletsFailure.labelRequired =>
         context.loc.importWalletCreateManualBip85LabelRequired,
       CreateManualBip85WalletsFailure.reservedLabel =>
-        'This wallet label is reserved.',
+        context.loc.importWalletCreateManualBip85ReservedLabel,
       CreateManualBip85WalletsFailure.invalidIndex =>
         context.loc.importWalletCreateManualBip85InvalidBip85Index,
       CreateManualBip85WalletsFailure.indexUnavailable =>

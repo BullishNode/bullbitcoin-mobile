@@ -9559,6 +9559,10 @@
   "@importWalletCreateManualBip85Title": {
     "description": "Title for creating a new manual BIP85 wallet"
   },
+  "importWalletCreateManualBip85Description": "Create a wallet from this backup using BIP85. If the selected index was used before, any funds at that wallet can be found after sync.",
+  "@importWalletCreateManualBip85Description": {
+    "description": "Description for creating a manual BIP85 wallet"
+  },
   "importWalletCreateManualBip85NetworkLabel": "Network",
   "@importWalletCreateManualBip85NetworkLabel": {
     "description": "Field label for selecting which network to create manual BIP85 wallets for"
@@ -9583,21 +9587,21 @@
   "@importWalletCreateManualBip85LiquidLabel": {
     "description": "Input label for the Liquid wallet name when creating manual BIP85 wallets"
   },
-  "importWalletCreateManualBip85SelectIndex": "Select recovery index manually",
+  "importWalletCreateManualBip85SelectIndex": "Select BIP85 index manually",
   "@importWalletCreateManualBip85SelectIndex": {
-    "description": "Checkbox label for manually choosing the BIP85 recovery index"
+    "description": "Checkbox label for manually choosing the BIP85 index"
   },
-  "importWalletCreateManualBip85Index": "Recovery index",
+  "importWalletCreateManualBip85Index": "BIP85 index",
   "@importWalletCreateManualBip85Index": {
-    "description": "Input label for a manually selected BIP85 recovery index"
+    "description": "Input label for a manually selected BIP85 index"
   },
   "importWalletCreateManualBip85InvalidIndex": "Enter a valid index",
   "@importWalletCreateManualBip85InvalidIndex": {
-    "description": "Validation error for a missing or invalid manual BIP85 recovery index"
+    "description": "Validation error for a missing or invalid manual BIP85 index"
   },
   "importWalletCreateManualBip85IndexMin": "Index must be 0 or higher",
   "@importWalletCreateManualBip85IndexMin": {
-    "description": "Validation error when a manual BIP85 recovery index is negative"
+    "description": "Validation error when a manual BIP85 index is negative"
   },
   "importWalletCreateManualBip85Submit": "Create wallet",
   "@importWalletCreateManualBip85Submit": {
@@ -9611,7 +9615,7 @@
   "@importWalletCreateManualBip85OperationInProgress": {
     "description": "Message shown when leaving manual BIP85 wallet creation is blocked during creation"
   },
-  "importWalletCreateManualBip85Success": "{walletCount, plural, =1{Created 1 wallet at recovery index {index}.{partialWarning}{publishWarning}} other{Created {walletCount} wallets at recovery index {index}.{partialWarning}{publishWarning}}}",
+  "importWalletCreateManualBip85Success": "{walletCount, plural, =1{Created 1 wallet at BIP85 index {index}.{partialWarning}{publishWarning}} other{Created {walletCount} wallets at BIP85 index {index}.{partialWarning}{publishWarning}}}",
   "@importWalletCreateManualBip85Success": {
     "description": "Success snackbar after creating manual BIP85 wallets",
     "placeholders": {
@@ -9640,6 +9644,10 @@
   "importWalletCreateManualBip85LabelRequired": "A label is required for each selected network.",
   "@importWalletCreateManualBip85LabelRequired": {
     "description": "Validation or error message when a manual BIP85 wallet label is missing"
+  },
+  "importWalletCreateManualBip85ReservedLabel": "This wallet label is reserved.",
+  "@importWalletCreateManualBip85ReservedLabel": {
+    "description": "Error message when a manual BIP85 wallet uses a reserved label"
   },
   "importWalletCreateManualBip85InvalidBip85Index": "Enter a valid BIP85 index.",
   "@importWalletCreateManualBip85InvalidBip85Index": {
