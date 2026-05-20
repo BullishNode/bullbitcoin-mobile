@@ -1,9 +1,7 @@
 import 'dart:io';
 
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_client.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_errors.dart';
-import 'package:bb_mobile/features/bullnym/models/bullnym_models.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:bb_mobile/features/lightning_address/data/datasources/pay_service_datasource.dart';
 import 'package:bb_mobile/features/lightning_address/domain/entities/lookup_result.dart';
 import 'package:bb_mobile/features/lightning_address/domain/ports/pay_service_port.dart';

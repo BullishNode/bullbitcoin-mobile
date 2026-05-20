@@ -1,6 +1,6 @@
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_constants.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_constants.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 
 class SavePaymentPageCommand {
   static final _twitterHandleRegex = RegExp(r'^[A-Za-z0-9_]{1,50}$');

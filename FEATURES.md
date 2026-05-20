@@ -40,7 +40,12 @@ graph TB
     TX_HISTORY[Transaction History]
     BG_TASKS[Background Tasks]
     AUTOSWAPS[AutoSwaps]
+    BULLNYM[Bullnym Protocol]
     DCA[DCA]
+    EXTERNAL_RECEIVE[External Receive Wallets]
+    GET_PAID[Get Paid]
+    WALLET_MANIFEST[Wallet Manifest]
+    NOSTR_IDENTITY[Nostr Identity]
     SELL[Sell]
     PAY[Pay]
     BUY[Buy]
@@ -57,15 +62,23 @@ graph TB
     BACKUPS --> BIP85
     BACKUPS --> TOR
     BACKUPS --> WALLETS
+    BACKUPS --> WALLET_MANIFEST
+    BULLNYM --> NOSTR_IDENTITY
     BTC_PRICE --> SETTINGS
     BUY --> EXCHANGE
     BUY --> RECEIVE
     DCA --> RECEIVE
     EXCHANGE --> SETTINGS
+    EXTERNAL_RECEIVE --> WALLET_MANIFEST
+    EXTERNAL_RECEIVE --> WALLETS
     FEES --> NETWORK
     FUNDING --> EXCHANGE
+    GET_PAID --> BULLNYM
+    GET_PAID --> EXTERNAL_RECEIVE
+    GET_PAID --> WALLET_MANIFEST
     HW_WALLETS --> CORE
     LABELS --> CORE
+    NOSTR_IDENTITY --> BIP85
     PAY --> RECIPIENTS
     PAYJOIN --> UTXO_MGMT
     PIN_CODE --> CORE
@@ -94,6 +107,9 @@ graph TB
     WALLETS --> NETWORK
     WALLETS --> SECRETS
     WALLETS --> SETTINGS
+    WALLET_MANIFEST --> BIP85
+    WALLET_MANIFEST --> WALLETS
+    WALLET_MANIFEST --> NOSTR_IDENTITY
     WITHDRAWAL --> RECIPIENTS
 
     %% Styling
@@ -101,7 +117,7 @@ graph TB
     classDef featureStyle fill:#1a202c,stroke:#2d3748,stroke-width:2px,color:#e2e8f0
 
     class CORE coreStyle
-    class SETTINGS,TOR,PIN_CODE,LABELS,SECRETS,HW_WALLETS,BTC_PRICE,NETWORK,BIP85,FEES,WALLETS,EXCHANGE,APP_STARTUP,UTXO_MGMT,ADDRESS_MGMT,RECIPIENTS,FUNDING,BACKUPS,SWAPS,PAYJOIN,WITHDRAWAL,STATUS,SEND,RECEIVE,TRANSFER,TX_HISTORY,BG_TASKS,AUTOSWAPS,DCA,SELL,PAY,BUY featureStyle
+    class SETTINGS,TOR,PIN_CODE,LABELS,SECRETS,HW_WALLETS,BTC_PRICE,NETWORK,BIP85,FEES,WALLETS,EXCHANGE,APP_STARTUP,UTXO_MGMT,ADDRESS_MGMT,RECIPIENTS,FUNDING,BACKUPS,SWAPS,PAYJOIN,WITHDRAWAL,STATUS,SEND,RECEIVE,TRANSFER,TX_HISTORY,BG_TASKS,AUTOSWAPS,BULLNYM,DCA,EXTERNAL_RECEIVE,GET_PAID,WALLET_MANIFEST,NOSTR_IDENTITY,SELL,PAY,BUY featureStyle
 ```
 
 ## About Package Dependency Diagrams
@@ -169,6 +185,9 @@ graph TB
 - **Receive**: Depends on Payjoin, Swaps
 - **AutoSwaps**: Depends on Receive, Swaps
 - **Backups**: Depends on BIP85, Wallets
+- **Wallet Manifest**: Depends on BIP85, Wallets, Nostr Identity
+- **External Receive Wallets**: Depends on Wallet Manifest and Wallets
+- **Get Paid**: Depends on Bullnym Protocol, Wallet Manifest, and External Receive Wallets
 
 ### Exchange-Related Features
 

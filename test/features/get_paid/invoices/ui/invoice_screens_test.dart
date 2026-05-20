@@ -22,7 +22,7 @@ import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_create_s
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoice_detail_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_home_screen.dart';
 import 'package:bb_mobile/features/get_paid/invoices/ui/screens/invoices_list_screen.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_constants.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/amount_input_formatter.dart';
 import 'package:bb_mobile/core/widgets/price_input/price_input.dart';

@@ -3,7 +3,7 @@ import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_constants.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_state.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_constants.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';

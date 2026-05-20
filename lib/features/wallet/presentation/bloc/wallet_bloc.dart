@@ -18,6 +18,7 @@ import 'package:bb_mobile/core/tor/data/usecases/is_tor_required_usecase.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/check_wallet_syncing_usecase.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/check_backup_needed_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/delete_wallet_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_electrum_sync_results_usecase.dart';
@@ -58,8 +59,10 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     required CheckArkWalletSetupUsecase checkArkWalletSetupUsecase,
     required SeedStoreTypeDatasource seedStoreTypeDatasource,
     required ExternalReceiveWalletsFacade externalReceiveWalletsFacade,
+    required CheckBackupNeededUsecase checkBackupNeededUsecase,
   }) : _getWalletsUsecase = getWalletsUsecase,
        _checkWalletSyncingUsecase = checkWalletSyncingUsecase,
+       _checkBackupNeededUsecase = checkBackupNeededUsecase,
        _watchStartedWalletSyncsUsecase = watchStartedWalletSyncsUsecase,
        _watchFinishedWalletSyncsUsecase = watchFinishedWalletSyncsUsecase,
        _watchElectrumSyncResultsUsecase = watchElectrumSyncResultsUsecase,
@@ -97,9 +100,11 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     on<DisableAutoSwap>(_onDisableAutoSwap);
     on<DismissBackupWarning>(_onDismissBackupWarning);
     on<DismissLegacyStorageWarning>(_onDismissLegacyStorageWarning);
+    on<VerifyBackupStatus>(_onVerifyBackupStatus);
   }
 
   final GetWalletsUsecase _getWalletsUsecase;
+  final CheckBackupNeededUsecase _checkBackupNeededUsecase;
   final CheckWalletSyncingUsecase _checkWalletSyncingUsecase;
   final WatchStartedWalletSyncsUsecase _watchStartedWalletSyncsUsecase;
   final WatchFinishedWalletSyncsUsecase _watchFinishedWalletSyncsUsecase;
@@ -731,6 +736,24 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) {
     emit(state.copyWith(legacyStorageWarningDismissed: true));
+  }
+
+  Future<void> _onVerifyBackupStatus(
+    VerifyBackupStatus event,
+    Emitter<WalletState> emit,
+  ) async {
+    final dbBackupNeeded = await _checkBackupNeededUsecase.execute();
+    if (dbBackupNeeded == state.hasNoBackup()) return;
+    final wallets = await _getWalletsUsecase.execute();
+    final externalReceiveWalletIds = await _resolveExternalReceiveWalletIds(
+      wallets,
+    );
+    emit(
+      state.copyWith(
+        wallets: wallets,
+        externalReceiveWalletIds: externalReceiveWalletIds,
+      ),
+    );
   }
 
   Future<ExternalReceiveWalletIds> _resolveExternalReceiveWalletIds(

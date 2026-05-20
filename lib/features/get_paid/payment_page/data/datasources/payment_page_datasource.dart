@@ -4,9 +4,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payme
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/archive_payment_page_command.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/save_payment_page_command.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_client.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_errors.dart';
-import 'package:bb_mobile/features/bullnym/models/bullnym_models.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 
 class PaymentPageDatasource implements PaymentPageServicePort {
   final BullnymClient _bullnymClient;

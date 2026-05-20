@@ -1,9 +1,7 @@
 import 'dart:convert';
 
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_client.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_errors.dart';
-import 'package:bb_mobile/features/bullnym/bullpay_signing.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';

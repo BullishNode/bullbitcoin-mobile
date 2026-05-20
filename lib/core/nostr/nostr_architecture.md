@@ -24,7 +24,8 @@ index `75`; that wallet index is not a Nostr identity number.
 
 - `NostrKeychainHandle` wraps the dart-nostr key object and keeps the secret key
   private behind callback-scoped access.
-- `NostrFacade` derives keys, returns x-only public keys, and signs messages.
+- `NostrKeychainHandle` derives role-scoped keys, returns x-only public keys,
+  and signs messages.
 - `NostrRelayClient` publishes already-built Nostr events to relays and can
   fetch events with explicit caller-owned filters.
 

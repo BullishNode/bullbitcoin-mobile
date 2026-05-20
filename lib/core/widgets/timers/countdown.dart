@@ -3,16 +3,20 @@ import 'dart:async';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:flutter/material.dart';
 
+enum CountdownFormat { mmss, dhm }
+
 class Countdown extends StatefulWidget {
   final DateTime until;
   final VoidCallback onTimeout;
   final TextStyle? textStyle;
+  final CountdownFormat format;
 
   const Countdown({
     super.key,
     required this.until,
     required this.onTimeout,
     this.textStyle,
+    this.format = CountdownFormat.mmss,
   });
 
   @override
@@ -21,7 +25,7 @@ class Countdown extends StatefulWidget {
 
 class CountdownState extends State<Countdown> {
   late Duration remainingTime;
-  late Timer? timer;
+  Timer? timer;
 
   @override
   void initState() {
@@ -86,7 +90,7 @@ class CountdownState extends State<Countdown> {
   @override
   Widget build(BuildContext context) {
     return Text(
-      '${remainingTime.inMinutes}:${(remainingTime.inSeconds % 60).toString().padLeft(2, '0')}',
+      _formatRemainingTime(),
       style:
           widget.textStyle ??
           context.font.bodyMedium?.copyWith(
@@ -94,5 +98,23 @@ class CountdownState extends State<Countdown> {
             color: context.appColors.primary,
           ),
     );
+  }
+
+  String _formatRemainingTime() {
+    return switch (widget.format) {
+      CountdownFormat.mmss =>
+        '${remainingTime.inMinutes}:${(remainingTime.inSeconds % 60).toString().padLeft(2, '0')}',
+      CountdownFormat.dhm => _formatDaysHoursMinutes(),
+    };
+  }
+
+  String _formatDaysHoursMinutes() {
+    final days = remainingTime.inDays;
+    final hours = remainingTime.inHours % 24;
+    final minutes = remainingTime.inMinutes % 60;
+
+    if (days > 0) return '${days}d ${hours}h ${minutes}m';
+    if (hours > 0) return '${hours}h ${minutes}m';
+    return '${minutes}m';
   }
 }

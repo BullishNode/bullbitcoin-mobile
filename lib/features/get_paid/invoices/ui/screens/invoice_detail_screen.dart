@@ -10,7 +10,7 @@ import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_s
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail_cubit.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail_state.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_constants.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';

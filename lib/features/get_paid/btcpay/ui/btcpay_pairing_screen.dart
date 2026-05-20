@@ -4,6 +4,7 @@ import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/presentation/btcpay_pairing_cubit.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/presentation/btcpay_pairing_state.dart';
+import 'package:bb_mobile/features/get_paid/btcpay/domain/samrock_pairing_request.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -100,9 +101,63 @@ class _BtcpayPairingScreenState extends State<BtcpayPairingScreen> {
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    context.read<BtcpayPairingCubit>().submit(_urlController.text.trim());
+    final pairingUrl = _urlController.text.trim();
+    final SamRockPairingRequest request;
+    try {
+      request = const SamRockPairingRequestParser().parse(pairingUrl);
+    } on SamRockPairingRequestException {
+      context.read<BtcpayPairingCubit>().submit(pairingUrl);
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.loc.btcpayPairingConfirmTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.loc.btcpayPairingConfirmBody(request.protocolUri.host),
+            ),
+            const Gap(12),
+            Text(
+              _capabilitySummary(context, request),
+              style: Theme.of(
+                dialogContext,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.loc.btcpayPairingConfirmCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(context.loc.btcpayPairingConfirmSubmit),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    context.read<BtcpayPairingCubit>().submit(pairingUrl);
+  }
+
+  String _capabilitySummary(
+    BuildContext context,
+    SamRockPairingRequest request,
+  ) {
+    final capabilities = <String>[
+      if (request.supportsBitcoinChain) context.loc.btcpayPairingRailBitcoin,
+      if (request.supportsLiquidChain) context.loc.btcpayPairingRailLiquid,
+      if (request.supportsLightning) context.loc.btcpayPairingRailLightning,
+    ];
+    return context.loc.btcpayPairingConfirmRails(capabilities.join(', '));
   }
 
   String _errorMessage(BuildContext context, BtcpayPairingState state) {

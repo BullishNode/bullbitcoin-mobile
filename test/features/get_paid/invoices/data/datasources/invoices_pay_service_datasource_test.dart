@@ -6,9 +6,7 @@ import 'package:bb_mobile/features/get_paid/invoices/application/usecases/list_i
 import 'package:bb_mobile/features/get_paid/invoices/data/datasources/invoices_pay_service_datasource.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/primitives/invoice_status.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/value_objects/invoice_id.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_client.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_errors.dart';
-import 'package:bb_mobile/features/bullnym/models/bullnym_models.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 

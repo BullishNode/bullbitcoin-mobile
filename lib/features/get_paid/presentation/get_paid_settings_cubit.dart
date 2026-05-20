@@ -18,24 +18,42 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
     emit(state.copyWith(isLoadingSettings: true, loadFailed: false));
 
     try {
+      final settings = await _getSettings.execute();
+      final isTestnet = settings.environment.isTestnet;
+      final lightningAddressLiquidAccountKey = _liquidAccountKey(
+        ExternalReceiveWalletPurpose.lightningAddress,
+        isTestnet: isTestnet,
+      );
+      final paymentPageLiquidAccountKey = _liquidAccountKey(
+        ExternalReceiveWalletPurpose.paymentPage,
+        isTestnet: isTestnet,
+      );
+      final btcpayLiquidAccountKey = _liquidAccountKey(
+        ExternalReceiveWalletPurpose.btcpay,
+        isTestnet: isTestnet,
+      );
+      final btcpayBitcoinAccountKey = _bitcoinAccountKey(
+        ExternalReceiveWalletPurpose.btcpay,
+        isTestnet: isTestnet,
+      );
       final autoSweep = await _externalReceiveWallets.shouldAutoSweepForAccount(
-        _lightningAddressLiquidAccountKey,
+        lightningAddressLiquidAccountKey,
       );
       final hideWallet = await _externalReceiveWallets.isHiddenOnHomeForAccount(
-        _lightningAddressLiquidAccountKey,
+        lightningAddressLiquidAccountKey,
       );
       final paymentPageAutoSweep = await _externalReceiveWallets
-          .shouldAutoSweepForAccount(_paymentPageLiquidAccountKey);
+          .shouldAutoSweepForAccount(paymentPageLiquidAccountKey);
       final paymentPageHideWallet = await _externalReceiveWallets
-          .isHiddenOnHomeForAccount(_paymentPageLiquidAccountKey);
+          .isHiddenOnHomeForAccount(paymentPageLiquidAccountKey);
       final btcpayAutoSweep = await _externalReceiveWallets
-          .shouldAutoSweepForAccount(_btcpayLiquidAccountKey);
+          .shouldAutoSweepForAccount(btcpayLiquidAccountKey);
       final btcpayHideWallet = await _externalReceiveWallets
-          .isHiddenOnHomeForAccount(_btcpayLiquidAccountKey);
+          .isHiddenOnHomeForAccount(btcpayLiquidAccountKey);
       final btcpayBitcoinHideWallet = await _externalReceiveWallets
-          .isHiddenOnHomeForAccount(_btcpayBitcoinAccountKey);
+          .isHiddenOnHomeForAccount(btcpayBitcoinAccountKey);
       final btcpayBitcoinAutoSweep = await _externalReceiveWallets
-          .shouldAutoSweepForAccount(_btcpayBitcoinAccountKey);
+          .shouldAutoSweepForAccount(btcpayBitcoinAccountKey);
       if (isClosed) return;
       emit(
         state.copyWith(
@@ -100,15 +118,15 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
   }
 
   Future<bool> setBtcpayBitcoinHideWallet(bool value) {
-    return _setGetPaidHideWalletForAccount(
-      accountKey: _btcpayBitcoinAccountKey,
+    return _setGetPaidBitcoinHideWallet(
+      purpose: ExternalReceiveWalletPurpose.btcpay,
       value: value,
     );
   }
 
   Future<void> setBtcpayBitcoinAutoSweep(bool value) {
-    return _setGetPaidAutoSweepForAccount(
-      accountKey: _btcpayBitcoinAccountKey,
+    return _setGetPaidBitcoinAutoSweep(
+      purpose: ExternalReceiveWalletPurpose.btcpay,
       value: value,
     );
   }
@@ -118,6 +136,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
     required bool value,
   }) async {
     if (state.operationInProgress) return;
+    final isTestnet = await _isTestnet();
     final previous = _autoSweepValue(purpose);
     emit(
       _copyAutoSweep(
@@ -129,7 +148,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
 
     try {
       await _externalReceiveWallets.setAutoSweepForAccount(
-        _liquidAccountKey(purpose),
+        _liquidAccountKey(purpose, isTestnet: isTestnet),
         value,
       );
       if (isClosed) return;
@@ -151,6 +170,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
     required bool value,
   }) async {
     if (state.operationInProgress) return false;
+    final isTestnet = await _isTestnet();
     final previous = _hideWalletValue(purpose);
     emit(
       _copyHideWallet(
@@ -162,7 +182,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
 
     try {
       await _externalReceiveWallets.setHiddenOnHomeForAccount(
-        _liquidAccountKey(purpose),
+        _liquidAccountKey(purpose, isTestnet: isTestnet),
         value,
       );
       if (isClosed) return false;
@@ -216,6 +236,18 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
     }
   }
 
+  Future<bool> _setGetPaidBitcoinHideWallet({
+    required ExternalReceiveWalletPurpose purpose,
+    required bool value,
+  }) async {
+    if (state.operationInProgress) return false;
+    final isTestnet = await _isTestnet();
+    return _setGetPaidHideWalletForAccount(
+      accountKey: _bitcoinAccountKey(purpose, isTestnet: isTestnet),
+      value: value,
+    );
+  }
+
   Future<void> _setGetPaidAutoSweepForAccount({
     required ExternalReceiveWalletAccountKey accountKey,
     required bool value,
@@ -244,6 +276,23 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
         ),
       );
     }
+  }
+
+  Future<void> _setGetPaidBitcoinAutoSweep({
+    required ExternalReceiveWalletPurpose purpose,
+    required bool value,
+  }) async {
+    if (state.operationInProgress) return;
+    final isTestnet = await _isTestnet();
+    return _setGetPaidAutoSweepForAccount(
+      accountKey: _bitcoinAccountKey(purpose, isTestnet: isTestnet),
+      value: value,
+    );
+  }
+
+  Future<bool> _isTestnet() async {
+    final settings = await _getSettings.execute();
+    return settings.environment.isTestnet;
   }
 
   bool _autoSweepValue(ExternalReceiveWalletPurpose purpose) {
@@ -374,22 +423,28 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
 }
 
 ExternalReceiveWalletAccountKey _liquidAccountKey(
-  ExternalReceiveWalletPurpose purpose,
-) {
+  ExternalReceiveWalletPurpose purpose, {
+  required bool isTestnet,
+}) {
   return switch (purpose) {
     ExternalReceiveWalletPurpose.lightningAddress =>
-      _lightningAddressLiquidAccountKey,
-    ExternalReceiveWalletPurpose.paymentPage => _paymentPageLiquidAccountKey,
-    ExternalReceiveWalletPurpose.btcpay => _btcpayLiquidAccountKey,
+      ExternalReceiveWalletPurpose.lightningAddress.liquidAccountKey(
+        isTestnet: isTestnet,
+      ),
+    ExternalReceiveWalletPurpose.paymentPage =>
+      ExternalReceiveWalletPurpose.paymentPage.liquidAccountKey(
+        isTestnet: isTestnet,
+      ),
+    ExternalReceiveWalletPurpose.btcpay =>
+      ExternalReceiveWalletPurpose.btcpay.liquidAccountKey(
+        isTestnet: isTestnet,
+      ),
   };
 }
 
-final _lightningAddressLiquidAccountKey = ExternalReceiveWalletPurpose
-    .lightningAddress
-    .liquidAccountKey(isTestnet: false);
-final _paymentPageLiquidAccountKey = ExternalReceiveWalletPurpose.paymentPage
-    .liquidAccountKey(isTestnet: false);
-final _btcpayLiquidAccountKey = ExternalReceiveWalletPurpose.btcpay
-    .liquidAccountKey(isTestnet: false);
-final _btcpayBitcoinAccountKey = ExternalReceiveWalletPurpose.btcpay
-    .bitcoinAccountKey(isTestnet: false);
+ExternalReceiveWalletAccountKey _bitcoinAccountKey(
+  ExternalReceiveWalletPurpose purpose, {
+  required bool isTestnet,
+}) {
+  return purpose.bitcoinAccountKey(isTestnet: isTestnet);
+}

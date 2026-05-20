@@ -30,6 +30,16 @@ void main() {
     );
 
     await tester.tap(find.text('Pair BTCPay'));
+    await tester.pumpAndSettle();
+    expect(find.text('Share wallet descriptors?'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'This will share dedicated wallet descriptors with btcpay.example',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Requested rails: Bitcoin'), findsOneWidget);
+    await tester.tap(find.text('Share descriptors'));
     await tester.pump();
     await tester.tap(find.text('Pairing...'), warnIfMissed: false);
     await tester.pump();
@@ -63,6 +73,8 @@ void main() {
     );
 
     await tester.tap(find.text('Pair BTCPay'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Share descriptors'));
     await tester.pump();
 
     verify(
@@ -101,14 +113,17 @@ void main() {
     await tester.pumpWidget(_harness(completePairing));
     await tester.enterText(
       find.byType(TextFormField),
-      'https://btcpay.example/plugins/samrock/protocol?otp=123',
+      'https://btcpay.example/plugins/samrock/protocol?setup=btc-chain&otp=123',
     );
     await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Share descriptors'));
     await tester.pump();
 
     verify(
       () => completePairing.execute(
-        pairingUrl: 'https://btcpay.example/plugins/samrock/protocol?otp=123',
+        pairingUrl:
+            'https://btcpay.example/plugins/samrock/protocol?setup=btc-chain&otp=123',
       ),
     ).called(1);
   });

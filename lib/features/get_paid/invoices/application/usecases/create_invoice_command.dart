@@ -1,6 +1,6 @@
 import 'package:bb_mobile/features/get_paid/invoices/application/invoices_application_error.dart';
 import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_constants.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 
 class CreateInvoiceCommand {
   static const Duration minExpiry = Duration(seconds: 60);

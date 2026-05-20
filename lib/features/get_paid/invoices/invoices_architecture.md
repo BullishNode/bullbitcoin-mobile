@@ -174,16 +174,14 @@ presentation.
 
 ### Identity
 
-Invoices reuse the single Bullnym/Get Paid Nostr identity also used by
-Lightning Address and Payment Page. The derivation policy is owned by
+Invoices use the Bullnym/Get Paid server-authentication Nostr identity. The
+derivation policy is owned by
 `features/get_paid/shared/get_paid_identity_derivation.dart`, not `core/nostr`
 and not an invoice-local copy.
 
 `InvoicesIdentityDatasource` adapts that shared helper to
 `InvoicesIdentityPort`. If the helper returns null because no default Bitcoin
 wallet exists, the datasource throws `InvoicesIdentityUnavailableError`.
-Lightning Address still has a local compatibility path while its remaining
-`NostrIdentity` call sites are retired.
 
 ### Use Cases
 

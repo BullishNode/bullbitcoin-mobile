@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:bb_mobile/core/bip85/data/bip85_repository.dart';
 import 'package:bb_mobile/core/bip85/domain/bip85_derivation_entity.dart';
 import 'package:bb_mobile/core/bip85/domain/derive_next_bip85_mnemonic_from_default_wallet_usecase.dart';
-import 'package:bb_mobile/core/bip85/domain/reserved_bip85_indexes.dart';
+import 'package:bb_mobile/core/bip85/domain/bip85_manual_index_reservations.dart';
 import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
@@ -86,7 +86,7 @@ void main() {
         () => bip85Repository.fetchNextIndexForApplication(
           application: Bip85Application.bip39,
           xprvBase58: any(named: 'xprvBase58'),
-          excludedIndexes: ReservedBip85Indexes.manuallyUnavailable,
+          excludedIndexes: Bip85ManualIndexReservations.unavailable,
           usage: Bip85Usage.manual,
         ),
       ).thenAnswer((_) async => 78);
@@ -108,7 +108,7 @@ void main() {
         () => bip85Repository.fetchNextIndexForApplication(
           application: Bip85Application.bip39,
           xprvBase58: any(named: 'xprvBase58'),
-          excludedIndexes: ReservedBip85Indexes.manuallyUnavailable,
+          excludedIndexes: Bip85ManualIndexReservations.unavailable,
           usage: Bip85Usage.manual,
         ),
       ).called(1);

@@ -299,8 +299,7 @@ Use a dedicated BIP85-derived Nostr key for wallet manifests. Do not reuse the
 Bullnym server-authentication key or the public NIP-05 verification key.
 
 Current wallet manifest publish/fetch code must use the dedicated wallet-
-manifest Nostr role. Do not preserve or add shared-key manifest paths in this
-R&D branch.
+manifest Nostr role. Do not preserve or add shared-key manifest paths.
 
 Nostr keys follow the draft BIP85 Nostr application path:
 
@@ -337,9 +336,9 @@ Planned backend contract:
 - `/.well-known/nostr.json` resolves the nym to the verification npub;
 - profile publish/clear uses `9000'/3'/1'`.
 
-Because no production Bullnym identity split has shipped from this R&D branch,
-mobile and Bullnym can move directly to this contract together. Do not ship a
-combined auth/profile fallback from this branch.
+Because no production Bullnym identity split has shipped, mobile and Bullnym
+can move directly to this contract together. Do not ship a combined
+auth/profile fallback.
 
 The reserved identity constants and role-specific derivation helpers live in the
 shared Nostr identity boundary. Product code must use role-named helpers such as

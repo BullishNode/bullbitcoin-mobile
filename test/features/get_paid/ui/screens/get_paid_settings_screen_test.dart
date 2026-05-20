@@ -30,6 +30,7 @@ void main() {
   setUp(() {
     getSettings = _MockGetSettingsUsecase();
     externalReceiveWallets = _MockExternalReceiveWalletsFacade();
+    when(() => getSettings.execute()).thenAnswer((_) async => _settings());
     when(
       () => externalReceiveWallets.shouldAutoSweepForAccount(any()),
     ).thenAnswer((_) async => true);
@@ -46,7 +47,7 @@ void main() {
 
   testWidgets('does not restore wallets on load', (tester) async {
     await tester.pumpWidget(_harness(getSettings, externalReceiveWallets));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Get Paid settings'), findsOneWidget);
     expect(find.text('Lightning Address'), findsOneWidget);
@@ -66,14 +67,18 @@ void main() {
       ),
       findsOneWidget,
     );
-    verifyNever(() => getSettings.execute());
+    verify(() => getSettings.execute()).called(1);
+    verifyNever(
+      () => externalReceiveWallets.restoreReservedExternalReceiveWallets(
+        environment: Environment.mainnet,
+      ),
+    );
   });
 
   testWidgets('shows per-wallet restore result after explicit action', (
     tester,
   ) async {
     var refreshCount = 0;
-    when(() => getSettings.execute()).thenAnswer((_) async => _settings());
     when(
       () => externalReceiveWallets.restoreReservedExternalReceiveWallets(
         environment: Environment.mainnet,
@@ -87,7 +92,7 @@ void main() {
         onExternalReceiveWalletsCreated: () => refreshCount += 1,
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
     await _scrollToRecoverWallets(tester);
     await tester.tap(find.text('Recover Get Paid wallets'));
     await tester.pumpAndSettle();
@@ -121,7 +126,6 @@ void main() {
     tester,
   ) async {
     final completer = Completer<List<ExternalReceiveWalletRestoreOutcome>>();
-    when(() => getSettings.execute()).thenAnswer((_) async => _settings());
     when(
       () => externalReceiveWallets.restoreReservedExternalReceiveWallets(
         environment: Environment.mainnet,
@@ -129,7 +133,7 @@ void main() {
     ).thenAnswer((_) => completer.future);
 
     await tester.pumpWidget(_harness(getSettings, externalReceiveWallets));
-    await tester.pump();
+    await tester.pumpAndSettle();
     await _scrollToRecoverWallets(tester);
     await tester.tap(find.text('Recover Get Paid wallets'));
     await tester.pumpAndSettle();
@@ -163,7 +167,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_harness(getSettings, externalReceiveWallets));
-    await tester.pump();
+    await tester.pumpAndSettle();
     await _scrollToRecoverWallets(tester);
     await tester.tap(find.text('Recover Get Paid wallets'));
     await tester.pumpAndSettle();
@@ -171,7 +175,6 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
-    verifyNever(() => getSettings.execute());
     verifyNever(
       () => externalReceiveWallets.restoreReservedExternalReceiveWallets(
         environment: Environment.mainnet,
@@ -181,7 +184,7 @@ void main() {
 
   testWidgets('updates Lightning Address wallet settings', (tester) async {
     await tester.pumpWidget(_harness(getSettings, externalReceiveWallets));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byType(Switch).first);
     await tester.pump();
@@ -207,7 +210,7 @@ void main() {
           onExternalReceiveSettingsChanged: () => refreshCount += 1,
         ),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byType(Switch).at(1));
       await tester.pump();
@@ -244,7 +247,7 @@ void main() {
         onExternalReceiveSettingsChanged: () => refreshCount += 1,
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byType(Switch).at(1));
     await tester.pump();

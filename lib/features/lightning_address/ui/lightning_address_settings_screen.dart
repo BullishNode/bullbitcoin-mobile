@@ -60,7 +60,7 @@ class _LightningAddressSettingsScreenState
                     ),
                     const Gap(24),
                     Text(
-                      context.loc.lightningAddressLoading,
+                      context.loc.lightningAddressCheckingStatus,
                       style: Theme.of(context).textTheme.titleMedium,
                       textAlign: TextAlign.center,
                     ),
@@ -491,8 +491,16 @@ class _RegistrationView extends StatefulWidget {
 
 class _RegistrationViewState extends State<_RegistrationView> {
   bool _publishOnNostr = true;
+  String? _localError;
 
-  void _submit() => widget.onRegister(_publishOnNostr);
+  void _submit() {
+    if (widget.controller.text.trim().isEmpty) {
+      setState(() => _localError = context.loc.lightningAddressNymRequired);
+      return;
+    }
+    setState(() => _localError = null);
+    widget.onRegister(_publishOnNostr);
+  }
 
   Future<void> _showPreviousNymsSheet(
     BuildContext context,
@@ -565,102 +573,114 @@ class _RegistrationViewState extends State<_RegistrationView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Gap(16),
-          if (widget.previousNyms.isNotEmpty) ...[
-            GestureDetector(
-              onTap: () => _showPreviousNymsSheet(context, widget.previousNyms),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.loc.lightningAddressPreviousDetectedTitle,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    const Gap(4),
-                    Text(
-                      context.loc.lightningAddressPreviousDetectedBody,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
+    final validationError = _localError ?? widget.error;
+
+    return ListView(
+      padding: EdgeInsets.fromLTRB(
+        24,
+        24,
+        24,
+        24 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.previousNyms.isNotEmpty) ...[
+              GestureDetector(
+                onTap: () =>
+                    _showPreviousNymsSheet(context, widget.previousNyms),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.loc.lightningAddressPreviousDetectedTitle,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const Gap(4),
+                      Text(
+                        context.loc.lightningAddressPreviousDetectedBody,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              const Gap(16),
+            ],
+            Text(
+              context.loc.lightningAddressChooseNym,
+              style: theme.textTheme.titleLarge,
+            ),
+            const Gap(24),
+            TextField(
+              controller: widget.controller,
+              enabled: !widget.registering,
+              autocorrect: false,
+              textCapitalization: TextCapitalization.none,
+              textInputAction: TextInputAction.done,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9\-]')),
+                LengthLimitingTextInputFormatter(32),
+              ],
+              onChanged: (_) {
+                if (_localError != null) setState(() => _localError = null);
+              },
+              decoration: InputDecoration(
+                hintText: context.loc.lightningAddressNymHint,
+                border: const OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => _submit(),
+            ),
+            if (validationError != null) ...[
+              const Gap(12),
+              Text(
+                validationError,
+                style: TextStyle(color: context.appColors.error),
+              ),
+            ],
+            const Gap(8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    context.loc.lightningAddressPublishNostrTitle,
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                ),
+                Switch(
+                  value: _publishOnNostr,
+                  onChanged: widget.registering
+                      ? null
+                      : (v) => setState(() => _publishOnNostr = v),
+                ),
+              ],
             ),
             const Gap(16),
-          ],
-          Text(
-            context.loc.lightningAddressChooseNym,
-            style: theme.textTheme.titleLarge,
-          ),
-          const Gap(24),
-          TextField(
-            controller: widget.controller,
-            enabled: !widget.registering,
-            autocorrect: false,
-            textCapitalization: TextCapitalization.none,
-            textInputAction: TextInputAction.done,
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9\-]')),
-              LengthLimitingTextInputFormatter(32),
-            ],
-            decoration: InputDecoration(
-              hintText: context.loc.lightningAddressNymHint,
-              border: const OutlineInputBorder(),
-            ),
-            onSubmitted: (_) => _submit(),
-          ),
-          if (widget.error != null) ...[
-            const Gap(12),
-            Text(
-              widget.error!,
-              style: TextStyle(color: context.appColors.error),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                onPressed: widget.registering ? null : _submit,
+                child: widget.registering
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(context.loc.lightningAddressRegister),
+              ),
             ),
           ],
-          const Gap(8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  context.loc.lightningAddressPublishNostrTitle,
-                  style: theme.textTheme.bodyLarge,
-                ),
-              ),
-              Switch(
-                value: _publishOnNostr,
-                onChanged: widget.registering
-                    ? null
-                    : (v) => setState(() => _publishOnNostr = v),
-              ),
-            ],
-          ),
-          const Gap(16),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton(
-              onPressed: widget.registering ? null : _submit,
-              child: widget.registering
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(context.loc.lightningAddressRegister),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -15,6 +15,7 @@ import 'package:bb_mobile/core/tor/data/usecases/init_tor_usecase.dart';
 import 'package:bb_mobile/core/tor/data/usecases/is_tor_required_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/check_wallet_syncing_usecase.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/check_backup_needed_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/delete_wallet_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_electrum_sync_results_usecase.dart';
@@ -30,6 +31,9 @@ class _MockGetWalletsUsecase extends Mock implements GetWalletsUsecase {}
 
 class _MockCheckWalletSyncingUsecase extends Mock
     implements CheckWalletSyncingUsecase {}
+
+class _MockCheckBackupNeededUsecase extends Mock
+    implements CheckBackupNeededUsecase {}
 
 class _MockWatchStartedWalletSyncsUsecase extends Mock
     implements WatchStartedWalletSyncsUsecase {}
@@ -539,6 +543,7 @@ void main() {
 class _Harness {
   final getWallets = _MockGetWalletsUsecase();
   final checkWalletSyncing = _MockCheckWalletSyncingUsecase();
+  final checkBackupNeeded = _MockCheckBackupNeededUsecase();
   final watchStartedSyncs = _MockWatchStartedWalletSyncsUsecase();
   final watchFinishedSyncs = _MockWatchFinishedWalletSyncsUsecase();
   final watchElectrumSyncResults = _MockWatchElectrumSyncResultsUsecase();
@@ -560,6 +565,7 @@ class _Harness {
 
   _Harness() {
     when(() => checkWalletSyncing.execute()).thenReturn(false);
+    when(() => checkBackupNeeded.execute()).thenAnswer((_) async => false);
     when(() => watchStartedSyncs.execute()).thenAnswer((_) => Stream.empty());
     when(() => watchFinishedSyncs.execute()).thenAnswer((_) => Stream.empty());
     when(
@@ -579,6 +585,7 @@ class _Harness {
     return WalletBloc(
       getWalletsUsecase: getWallets,
       checkWalletSyncingUsecase: checkWalletSyncing,
+      checkBackupNeededUsecase: checkBackupNeeded,
       watchStartedWalletSyncsUsecase: watchStartedSyncs,
       watchFinishedWalletSyncsUsecase: watchFinishedSyncs,
       watchElectrumSyncResultsUsecase: watchElectrumSyncResults,

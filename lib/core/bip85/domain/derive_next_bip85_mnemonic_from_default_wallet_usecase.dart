@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/bip85/data/bip85_repository.dart';
 import 'package:bb_mobile/core/bip85/domain/bip85_derivation_entity.dart';
-import 'package:bb_mobile/core/bip85/domain/reserved_bip85_indexes.dart';
+import 'package:bb_mobile/core/bip85/domain/bip85_manual_index_reservations.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -43,7 +43,7 @@ class DeriveNextBip85MnemonicFromDefaultWalletUsecase {
     final nextIndex = await _bip85Repository.fetchNextIndexForApplication(
       application: application,
       xprvBase58: xprv,
-      excludedIndexes: ReservedBip85Indexes.manuallyUnavailable,
+      excludedIndexes: Bip85ManualIndexReservations.unavailable,
       usage: Bip85Usage.manual,
     );
     final bip85 = await _bip85Repository.deriveMnemonic(

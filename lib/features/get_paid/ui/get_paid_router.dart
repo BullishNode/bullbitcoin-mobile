@@ -6,9 +6,7 @@ import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubi
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_settings_cubit.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_settings_screen.dart';
-import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_cubit.dart';
-import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
-import 'package:bb_mobile/features/lightning_address/ui/lightning_address_settings_screen.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_routes.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:flutter/widgets.dart';
@@ -50,14 +48,7 @@ class GetPaidRouter {
           ),
         ),
       ),
-      GoRoute(
-        name: LightningAddressFacade.manageRouteName,
-        path: 'lightning-address',
-        builder: (context, state) => BlocProvider(
-          create: (_) => locator<LightningAddressCubit>(),
-          child: const LightningAddressSettingsScreen(),
-        ),
-      ),
+      LightningAddressRoutes.manageRoute,
       GoRoute(
         name: GetPaidRoute.btcpayPairing.name,
         path: GetPaidRoute.btcpayPairing.path,

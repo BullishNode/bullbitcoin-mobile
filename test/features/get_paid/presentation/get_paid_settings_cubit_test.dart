@@ -32,6 +32,7 @@ void main() {
       getSettings: getSettings,
       externalReceiveWallets: externalReceiveWallets,
     );
+    when(() => getSettings.execute()).thenAnswer((_) async => _settings());
   });
 
   tearDown(() async {
@@ -85,6 +86,40 @@ void main() {
     expect(cubit.state.btcpayBitcoinHideWallet, isFalse);
     expect(cubit.state.loadFailed, isFalse);
     expect(cubit.state.saveFailed, isFalse);
+  });
+
+  test('loads settings with testnet account keys on testnet', () async {
+    when(
+      () => getSettings.execute(),
+    ).thenAnswer((_) async => _settings(environment: Environment.testnet));
+    when(
+      () => externalReceiveWallets.shouldAutoSweepForAccount(any()),
+    ).thenAnswer((_) async => true);
+    when(
+      () => externalReceiveWallets.isHiddenOnHomeForAccount(any()),
+    ).thenAnswer((_) async => true);
+
+    await cubit.load();
+
+    verify(
+      () => externalReceiveWallets.shouldAutoSweepForAccount(
+        ExternalReceiveWalletPurpose.lightningAddress.liquidAccountKey(
+          isTestnet: true,
+        ),
+      ),
+    ).called(1);
+    verify(
+      () => externalReceiveWallets.isHiddenOnHomeForAccount(
+        ExternalReceiveWalletPurpose.paymentPage.liquidAccountKey(
+          isTestnet: true,
+        ),
+      ),
+    ).called(1);
+    verify(
+      () => externalReceiveWallets.shouldAutoSweepForAccount(
+        ExternalReceiveWalletPurpose.btcpay.bitcoinAccountKey(isTestnet: true),
+      ),
+    ).called(1);
   });
 
   test('updates Lightning Address wallet settings', () async {
@@ -173,6 +208,35 @@ void main() {
     ).called(1);
   });
 
+  test('updates settings with testnet account keys on testnet', () async {
+    when(
+      () => getSettings.execute(),
+    ).thenAnswer((_) async => _settings(environment: Environment.testnet));
+    final paymentPage = ExternalReceiveWalletPurpose.paymentPage
+        .liquidAccountKey(isTestnet: true);
+    final btcpayBitcoin = ExternalReceiveWalletPurpose.btcpay.bitcoinAccountKey(
+      isTestnet: true,
+    );
+    when(
+      () => externalReceiveWallets.setAutoSweepForAccount(paymentPage, false),
+    ).thenAnswer((_) async {});
+    when(
+      () =>
+          externalReceiveWallets.setHiddenOnHomeForAccount(btcpayBitcoin, true),
+    ).thenAnswer((_) async {});
+
+    await cubit.setPaymentPageAutoSweep(false);
+    await cubit.setBtcpayBitcoinHideWallet(true);
+
+    verify(
+      () => externalReceiveWallets.setAutoSweepForAccount(paymentPage, false),
+    ).called(1);
+    verify(
+      () =>
+          externalReceiveWallets.setHiddenOnHomeForAccount(btcpayBitcoin, true),
+    ).called(1);
+  });
+
   test('restores reserved Get Paid wallets for current environment', () async {
     when(() => getSettings.execute()).thenAnswer((_) async => _settings());
     when(
@@ -254,9 +318,9 @@ void main() {
   });
 }
 
-SettingsEntity _settings() {
-  return const SettingsEntity(
-    environment: Environment.mainnet,
+SettingsEntity _settings({Environment environment = Environment.mainnet}) {
+  return SettingsEntity(
+    environment: environment,
     bitcoinUnit: BitcoinUnit.sats,
     currencyCode: 'CAD',
   );

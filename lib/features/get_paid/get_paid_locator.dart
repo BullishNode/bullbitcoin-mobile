@@ -32,7 +32,7 @@ import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_detail
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoices_list_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_settings_cubit.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_client.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:bb_mobile/features/get_paid/shared/get_paid_identity_derivation.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/external_receive_wallets/public/external_receive_wallets.dart';

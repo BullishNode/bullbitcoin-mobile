@@ -1,6 +1,6 @@
-import 'package:bb_mobile/core/bip85/domain/reserved_bip85_indexes.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/external_receive_wallets/reserved_external_receive_wallet_labels.dart';
+import 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_reserved_bip85_indexes.dart';
 
 enum ExternalReceiveWalletPurpose { lightningAddress, paymentPage, btcpay }
 
@@ -85,9 +85,10 @@ class ExternalReceiveWalletAccountKey {
 class ExternalReceiveWalletBip85Index {
   const ExternalReceiveWalletBip85Index._();
 
-  static const lightningAddress = ReservedBip85Indexes.lightningAddress;
-  static const paymentPage = ReservedBip85Indexes.paymentPage;
-  static const btcpay = ReservedBip85Indexes.btcpay;
+  static const lightningAddress =
+      WalletManifestReservedBip85Indexes.lightningAddress;
+  static const paymentPage = WalletManifestReservedBip85Indexes.paymentPage;
+  static const btcpay = WalletManifestReservedBip85Indexes.btcpay;
 }
 
 extension ExternalReceiveWalletPurposeConfig on ExternalReceiveWalletPurpose {

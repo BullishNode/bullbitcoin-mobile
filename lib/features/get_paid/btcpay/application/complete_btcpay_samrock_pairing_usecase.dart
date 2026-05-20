@@ -74,7 +74,6 @@ class CompleteBtcpaySamRockPairingUsecase {
       throw BtcpayPairingException.generic(e.toString());
     }
 
-    if (preparedWallets == null) return;
     await _publishManifestBestEffort(
       'BTCPay paired but wallet manifest publish failed',
     );

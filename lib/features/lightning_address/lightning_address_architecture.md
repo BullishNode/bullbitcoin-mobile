@@ -33,9 +33,8 @@ receive-wallet index; `75` is not reused as a Nostr identity number.
 Wallet manifest work uses reserved BIP85 Nostr application `9000` identities
 for wallet manifest, Bullnym server authentication, and NIP-05 verification.
 Registration/auth updates use the Bullnym server-authentication key, while
-NIP-05 profile publish/clear uses the NIP-05 verification key. Nothing has been
-published under the old or new manifest scheme yet, so this R&D branch does not
-need a legacy manifest migration.
+NIP-05 profile publish/clear uses the NIP-05 verification key. There is no
+legacy manifest migration path for internal pre-release state.
 
 ## Use cases
 

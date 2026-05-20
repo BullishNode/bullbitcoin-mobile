@@ -1,4 +1,4 @@
-import 'package:bb_mobile/core/bip85/domain/reserved_bip85_indexes.dart';
+import 'package:bb_mobile/core/bip85/domain/bip85_manual_index_reservations.dart';
 import 'package:bb_mobile/core/bip85/domain/bip85_derivation_entity.dart';
 import 'package:bb_mobile/core/bip85/domain/fetch_all_derivations_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/repositories/settings_repository.dart';
@@ -243,7 +243,7 @@ class CreateManualBip85WalletsUsecase {
   }
 
   bool _isReserved(int index) {
-    return ReservedBip85Indexes.manuallyUnavailable.contains(index);
+    return Bip85ManualIndexReservations.unavailable.contains(index);
   }
 
   bool _isUsed(

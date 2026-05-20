@@ -9,7 +9,7 @@ import 'package:bb_mobile/features/get_paid/invoices/domain/invoice_constants.da
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_create_state.dart';
 import 'package:bb_mobile/features/get_paid/invoices/presentation/invoice_expiry_days.dart';
-import 'package:bb_mobile/features/bullnym/bullnym_constants.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
