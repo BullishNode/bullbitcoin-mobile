@@ -13173,6 +13173,30 @@
   "@getPaidSettingsRetry": {
     "description": "Button text to retry loading Get Paid settings"
   },
+  "getPaidSettingsAutoSweep": "Auto-sweep to default wallet",
+  "@getPaidSettingsAutoSweep": {
+    "description": "Get Paid settings switch title for automatically sweeping receive-wallet funds to the default wallet"
+  },
+  "getPaidSettingsAutoSweepSub": "Automatically move received funds",
+  "@getPaidSettingsAutoSweepSub": {
+    "description": "Get Paid settings switch subtitle for automatically sweeping receive-wallet funds"
+  },
+  "getPaidSettingsAutoSweepInfo": "Funds received in this dedicated wallet are automatically sent to the default wallet on the same network.\n\nWhy? This wallet descriptor may be shared with an external receiving service. Sweeping funds back keeps the dedicated receive wallet empty during normal use.\n\nDownside: You pay a network fee each time funds are swept. Bitcoin sweeps are skipped when the fee is above your autoswap fee threshold.",
+  "@getPaidSettingsAutoSweepInfo": {
+    "description": "Get Paid settings help text explaining auto-sweep behavior"
+  },
+  "getPaidSettingsHideWallet": "Hide wallet on Home",
+  "@getPaidSettingsHideWallet": {
+    "description": "Get Paid settings switch title for hiding a receive wallet from the Home screen"
+  },
+  "getPaidSettingsHideWalletSub": "Keep Home focused on regular wallets",
+  "@getPaidSettingsHideWalletSub": {
+    "description": "Get Paid settings switch subtitle for hiding a receive wallet from the Home screen"
+  },
+  "getPaidSettingsHideWalletInfo": "This is a dedicated receive wallet for Get Paid features. Hiding it keeps your Home screen focused on your regular wallets.\n\nHidden wallets still count toward your total balance. You can always find this wallet in Settings > Wallets.",
+  "@getPaidSettingsHideWalletInfo": {
+    "description": "Get Paid settings help text explaining hidden receive wallets"
+  },
   "getPaidSettingsRecoverError": "Could not recover Get Paid wallets. Please try again.",
   "@getPaidSettingsRecoverError": {
     "description": "Generic error shown when manual Get Paid wallet recovery fails"

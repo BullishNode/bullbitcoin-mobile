@@ -53,6 +53,8 @@ void main() {
     expect(find.text('Lightning Address'), findsOneWidget);
     expect(find.text('Payment Page'), findsOneWidget);
     expect(find.text('BTCPay Liquid'), findsOneWidget);
+    expect(find.text('Auto-sweep to default wallet'), findsWidgets);
+    expect(find.text('Hide wallet on Home'), findsWidgets);
     await tester.scrollUntilVisible(
       find.text('BTCPay Bitcoin'),
       220,
