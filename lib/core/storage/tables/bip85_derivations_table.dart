@@ -8,10 +8,35 @@ class Bip85Derivations extends Table {
   TextColumn get xprvFingerprint => text()();
   TextColumn get application => textEnum<Bip85ApplicationColumn>()();
   TextColumn get status => textEnum<Bip85StatusColumn>()();
+  TextColumn get usage =>
+      textEnum<Bip85UsageColumn>().withDefault(const Constant('manual'))();
   TextColumn get alias => text().nullable()();
 
   @override
-  Set<Column> get primaryKey => {path};
+  Set<Column> get primaryKey => {xprvFingerprint, path};
+}
+
+enum Bip85UsageColumn {
+  manual,
+  system;
+
+  static Bip85UsageColumn fromEntity(Bip85Usage usage) {
+    switch (usage) {
+      case Bip85Usage.manual:
+        return Bip85UsageColumn.manual;
+      case Bip85Usage.system:
+        return Bip85UsageColumn.system;
+    }
+  }
+
+  Bip85Usage toEntity() {
+    switch (this) {
+      case Bip85UsageColumn.manual:
+        return Bip85Usage.manual;
+      case Bip85UsageColumn.system:
+        return Bip85Usage.system;
+    }
+  }
 }
 
 enum Bip85StatusColumn {

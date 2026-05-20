@@ -7,6 +7,7 @@ class Bip85DerivationModel {
   final String xprvFingerprint;
   final String? alias;
   final Bip85StatusColumn status;
+  final Bip85UsageColumn usage;
   final Bip85ApplicationColumn application;
 
   Bip85DerivationModel({
@@ -14,6 +15,7 @@ class Bip85DerivationModel {
     required this.xprvFingerprint,
     required this.alias,
     required this.status,
+    required this.usage,
     required this.application,
   });
 
@@ -33,6 +35,7 @@ class Bip85DerivationModel {
       xprvFingerprint: row.xprvFingerprint,
       alias: row.alias,
       status: row.status,
+      usage: row.usage,
       application: row.application,
     );
   }
@@ -43,6 +46,7 @@ class Bip85DerivationModel {
       xprvFingerprint: entity.xprvFingerprint,
       alias: entity.alias,
       status: Bip85StatusColumn.fromEntity(entity.status),
+      usage: Bip85UsageColumn.fromEntity(entity.usage),
       application: Bip85ApplicationColumn.fromEntity(entity.application),
     );
   }
@@ -53,6 +57,7 @@ class Bip85DerivationModel {
       xprvFingerprint: xprvFingerprint,
       alias: alias,
       status: status.toEntity(),
+      usage: usage.toEntity(),
       application: application.toEntity(),
       index: index,
     );

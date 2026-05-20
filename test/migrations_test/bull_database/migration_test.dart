@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'generated/schema.dart';
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
+import 'generated/schema_v12.dart' as v12;
+import 'generated/schema_v13.dart' as v13;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -118,4 +120,48 @@ void main() {
       },
     );
   });
+
+  test(
+    'migration from v12 to v13 preserves BIP85 rows as manual rows',
+    () async {
+      final oldBip85Data = <v12.Bip85DerivationsData>[
+        const v12.Bip85DerivationsData(
+          path: "39'/0'/12'/75'",
+          xprvFingerprint: 'root-a',
+          application: 'bip39',
+          status: 'active',
+          alias: 'Lightning Address',
+        ),
+        const v12.Bip85DerivationsData(
+          path: "39'/0'/12'/8'",
+          xprvFingerprint: 'root-a',
+          application: 'bip39',
+          status: 'active',
+          alias: 'Personal',
+        ),
+      ];
+
+      await verifier.testWithDataIntegrity(
+        oldVersion: 12,
+        newVersion: 13,
+        createOld: v12.DatabaseAtV12.new,
+        createNew: v13.DatabaseAtV13.new,
+        openTestedDatabase: SqliteDatabase.new,
+        createItems: (batch, oldDb) {
+          batch.insertAll(oldDb.bip85Derivations, oldBip85Data);
+        },
+        validateItems: (newDb) async {
+          final rows = await (newDb.select(
+            newDb.bip85Derivations,
+          )..orderBy([(t) => OrderingTerm.asc(t.path)])).get();
+
+          final usageByAlias = {for (final row in rows) row.alias: row.usage};
+          expect(usageByAlias['Lightning Address'], 'manual');
+          expect(usageByAlias['Personal'], 'manual');
+          expect(rows.map((row) => row.xprvFingerprint).toSet(), {'root-a'});
+
+        },
+      );
+    },
+  );
 }

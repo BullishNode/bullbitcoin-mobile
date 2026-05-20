@@ -7,9 +7,11 @@ class FetchAllBip85DerivationsUsecase {
   FetchAllBip85DerivationsUsecase({required Bip85Repository bip85Repository})
     : _bip85Repository = bip85Repository;
 
-  Future<List<Bip85DerivationEntity>> execute() async {
+  Future<List<Bip85DerivationEntity>> execute({
+    Bip85Usage? usage = Bip85Usage.manual,
+  }) async {
     try {
-      return await _bip85Repository.fetchAll();
+      return await _bip85Repository.fetchAll(usage: usage);
     } catch (e) {
       rethrow;
     }

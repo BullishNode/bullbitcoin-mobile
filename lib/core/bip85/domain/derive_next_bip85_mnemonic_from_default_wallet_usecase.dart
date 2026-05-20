@@ -40,7 +40,8 @@ class DeriveNextBip85MnemonicFromDefaultWalletUsecase {
 
     const application = Bip85Application.bip39;
     final nextIndex = await _bip85Repository.fetchNextIndexForApplication(
-      application,
+      application: application,
+      xprvBase58: xprv,
     );
     final bip85 = await _bip85Repository.deriveMnemonic(
       xprvBase58: xprv,

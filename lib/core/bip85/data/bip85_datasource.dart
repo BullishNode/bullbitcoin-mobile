@@ -17,6 +17,7 @@ class Bip85Datasource {
     required int length,
     required int index,
     String? alias,
+    Bip85UsageColumn usage = Bip85UsageColumn.manual,
   }) async {
     try {
       const application = Bip85ApplicationColumn.hex;
@@ -38,6 +39,7 @@ class Bip85Datasource {
           xprvFingerprint: hex.encode(xprv.fingerprint),
           alias: alias,
           status: Bip85StatusColumn.active,
+          usage: usage,
           application: application,
         ),
       );
@@ -53,12 +55,16 @@ class Bip85Datasource {
     required bip39.MnemonicLength length,
     required int index,
     String? alias,
+    Bip85UsageColumn usage = Bip85UsageColumn.manual,
     bip39.Language language = bip39.Language.english,
   }) async {
     try {
       const application = Bip85ApplicationColumn.bip39;
-      final derivationPath =
-          "${application.number}'/${language.toBip85Code()}'/${length.toBip85Code()}'/$index'";
+      final derivationPath = _mnemonicDerivationPath(
+        length: length,
+        index: index,
+        language: language,
+      );
 
       // Ensure the xprv is valid.
       final xprv = bip32.Bip32Keys.fromBase58(xprvBase58);
@@ -77,6 +83,7 @@ class Bip85Datasource {
           xprvFingerprint: hex.encode(xprv.fingerprint),
           alias: alias,
           status: Bip85StatusColumn.active,
+          usage: usage,
           application: application,
         ),
       );
@@ -87,9 +94,96 @@ class Bip85Datasource {
     }
   }
 
-  Future<Bip85DerivationModel?> fetch(String path) async {
+  Future<({String derivation, bip39.Mnemonic mnemonic})> deriveMnemonicPreview({
+    required String xprvBase58,
+    required bip39.MnemonicLength length,
+    required int index,
+    bip39.Language language = bip39.Language.english,
+  }) async {
+    try {
+      const application = Bip85ApplicationColumn.bip39;
+      final derivationPath =
+          "${application.number}'/${language.toBip85Code()}'/${length.toBip85Code()}'/$index'";
+
+      // Ensure the xprv is valid.
+      bip32.Bip32Keys.fromBase58(xprvBase58);
+
+      final bip85Mnemonic = bip85.Bip85Entropy.deriveMnemonic(
+        xprvBase58: xprvBase58,
+        language: language,
+        length: length,
+        index: index,
+      );
+
+      return (derivation: derivationPath, mnemonic: bip85Mnemonic);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> recordMnemonicDerivation({
+    required String xprvBase58,
+    required String derivationPath,
+    String? alias,
+    Bip85UsageColumn usage = Bip85UsageColumn.manual,
+  }) async {
+    try {
+      const application = Bip85ApplicationColumn.bip39;
+      final xprv = bip32.Bip32Keys.fromBase58(xprvBase58);
+      final xprvFingerprint = hex.encode(xprv.fingerprint);
+      final existing = await fetch(
+        xprvFingerprint: xprvFingerprint,
+        path: derivationPath,
+      );
+      if (existing != null) return;
+
+      await _store(
+        Bip85DerivationModel(
+          path: derivationPath,
+          xprvFingerprint: xprvFingerprint,
+          alias: alias,
+          status: Bip85StatusColumn.active,
+          usage: usage,
+          application: application,
+        ),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> delete({
+    required String xprvFingerprint,
+    required String path,
+  }) async {
+    try {
+      await _sqlite.customStatement(
+        '''
+DELETE FROM bip85_derivations
+WHERE xprv_fingerprint = ? AND path = ?;
+''',
+        [xprvFingerprint, path],
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  String _mnemonicDerivationPath({
+    required bip39.MnemonicLength length,
+    required int index,
+    required bip39.Language language,
+  }) {
+    const application = Bip85ApplicationColumn.bip39;
+    return "${application.number}'/${language.toBip85Code()}'/${length.toBip85Code()}'/$index'";
+  }
+
+  Future<Bip85DerivationModel?> fetch({
+    required String xprvFingerprint,
+    required String path,
+  }) async {
     final row = await _sqlite.managers.bip85Derivations
-        .filter((b) => b.path(path))
+        .filter((b) => b.xprvFingerprint(xprvFingerprint) & b.path(path))
         .getSingleOrNull();
 
     return row != null ? Bip85DerivationModel.fromSqlite(row) : null;
@@ -97,56 +191,79 @@ class Bip85Datasource {
 
   Future<int> fetchNextIndexForApplication(
     Bip85ApplicationColumn application,
-  ) async {
-    final rows = await _sqlite.managers.bip85Derivations
-        .filter((b) => b.application(application))
-        .get();
+    String xprvFingerprint, {
+    Set<int> excludedIndexes = const {},
+    Bip85UsageColumn? usage,
+  }) async {
+    final rows = await _sqlite.managers.bip85Derivations.filter((b) {
+      var predicate =
+          b.application(application) & b.xprvFingerprint(xprvFingerprint);
+      if (usage != null) {
+        predicate = predicate & b.usage(usage);
+      }
+      return predicate;
+    }).get();
 
     final models = rows
         .map((row) => Bip85DerivationModel.fromSqlite(row))
         .toList();
 
-    int nextIndex = 0;
-    for (final model in models) {
-      if (model.index >= nextIndex) nextIndex = model.index + 1;
+    final usedIndexes = models.map((model) => model.index).toSet();
+    var nextIndex = 0;
+    while (usedIndexes.contains(nextIndex) ||
+        excludedIndexes.contains(nextIndex)) {
+      nextIndex += 1;
     }
 
     return nextIndex;
   }
 
-  Future<List<Bip85DerivationModel>> fetchAll() async {
+  Future<List<Bip85DerivationModel>> fetchAll({Bip85UsageColumn? usage}) async {
     try {
-      final rows = await _sqlite.managers.bip85Derivations.get();
+      final rows = await _sqlite.managers.bip85Derivations.filter((b) {
+        if (usage == null) return const Constant(true);
+        return b.usage(usage);
+      }).get();
       return rows.map((row) => Bip85DerivationModel.fromSqlite(row)).toList();
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<void> revoke(String path) async {
+  Future<void> revoke({
+    required String xprvFingerprint,
+    required String path,
+  }) async {
     try {
       await _sqlite.managers.bip85Derivations
-          .filter((b) => b.path(path))
+          .filter((b) => b.xprvFingerprint(xprvFingerprint) & b.path(path))
           .update((b) => b(status: const Value(Bip85StatusColumn.revoked)));
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<void> activate(String path) async {
+  Future<void> activate({
+    required String xprvFingerprint,
+    required String path,
+  }) async {
     try {
       await _sqlite.managers.bip85Derivations
-          .filter((b) => b.path(path))
+          .filter((b) => b.xprvFingerprint(xprvFingerprint) & b.path(path))
           .update((b) => b(status: const Value(Bip85StatusColumn.active)));
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<void> alias(String path, String alias) async {
+  Future<void> alias({
+    required String xprvFingerprint,
+    required String path,
+    required String alias,
+  }) async {
     try {
       await _sqlite.managers.bip85Derivations
-          .filter((b) => b.path(path))
+          .filter((b) => b.xprvFingerprint(xprvFingerprint) & b.path(path))
           .update((b) => b(alias: Value(alias)));
     } catch (e) {
       rethrow;
@@ -162,8 +279,10 @@ class Bip85Datasource {
           xprvFingerprint: bip85.xprvFingerprint,
           alias: Value(bip85.alias),
           status: bip85.status,
+          usage: Value(bip85.usage),
           application: bip85.application,
         ),
+        mode: InsertMode.insertOrReplace,
       );
     } catch (e) {
       rethrow;
