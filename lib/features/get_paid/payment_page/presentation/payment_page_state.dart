@@ -14,6 +14,7 @@ class PaymentPageState {
   final bool isSaving;
   final bool isArchiving;
   final bool isUploadingImage;
+  final bool loadFailed;
   final String? error;
   final bool saved;
   final bool archived;
@@ -32,6 +33,7 @@ class PaymentPageState {
     this.isSaving = false,
     this.isArchiving = false,
     this.isUploadingImage = false,
+    this.loadFailed = false,
     this.error,
     this.saved = false,
     this.archived = false,
@@ -55,6 +57,7 @@ class PaymentPageState {
     bool? isSaving,
     bool? isArchiving,
     bool? isUploadingImage,
+    bool? loadFailed,
     String? error,
     bool clearError = false,
     bool? saved,
@@ -74,6 +77,7 @@ class PaymentPageState {
       isSaving: isSaving ?? this.isSaving,
       isArchiving: isArchiving ?? this.isArchiving,
       isUploadingImage: isUploadingImage ?? this.isUploadingImage,
+      loadFailed: loadFailed ?? this.loadFailed,
       error: clearError ? null : error ?? this.error,
       saved: saved ?? this.saved,
       archived: archived ?? this.archived,

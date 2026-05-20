@@ -144,6 +144,7 @@ void main() {
     expect(cubit.state.page, isNull);
     expect(cubit.state.error, isNull);
     expect(cubit.state.isLoading, isFalse);
+    expect(cubit.state.loadFailed, isFalse);
   });
 
   test('load maps generic exceptions to friendly copy', () async {
@@ -156,6 +157,62 @@ void main() {
     expect(cubit.state.error, 'Something went wrong. Please try again.');
     expect(cubit.state.error, isNot(contains('socket details')));
     expect(cubit.state.isLoading, isFalse);
+    expect(cubit.state.loadFailed, isTrue);
+  });
+
+  test('save is blocked after load failure', () async {
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenThrow(Exception('socket details'));
+
+    await cubit.load(nym: 'alice');
+    cubit
+      ..setHeader("Alice's Coffee")
+      ..setDescription('Tips welcome');
+
+    await cubit.save();
+
+    expect(cubit.state.loadFailed, isTrue);
+    verifyNever(() => paymentPageIdentity.getSigningHandle());
+    verifyNever(
+      () => paymentPageService.savePaymentPage(
+        command: any(named: 'command'),
+        handle: any(named: 'handle'),
+      ),
+    );
+  });
+
+  test('page mutations are blocked after load failure', () async {
+    const pngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page());
+
+    await cubit.load(nym: 'alice');
+
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenThrow(Exception('socket details'));
+
+    await cubit.load(nym: 'alice');
+    await cubit.archive();
+    await cubit.uploadImage(pngHeader);
+
+    expect(cubit.state.loadFailed, isTrue);
+    verifyNever(() => paymentPageIdentity.getSigningHandle());
+    verifyNever(
+      () => paymentPageService.archivePaymentPage(
+        command: any(named: 'command'),
+        handle: any(named: 'handle'),
+      ),
+    );
+    verifyNever(
+      () => paymentPageService.uploadImage(
+        nym: any(named: 'nym'),
+        bytes: any(named: 'bytes'),
+        handle: any(named: 'handle'),
+      ),
+    );
   });
 
   test('payment page error mapper hides raw reasons', () {

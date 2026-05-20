@@ -88,6 +88,17 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
                     if (state.nym.isEmpty) {
                       return const _EmptyNymView();
                     }
+                    if (state.loadFailed) {
+                      return _LoadFailedView(
+                        message:
+                            state.error ??
+                            'Could not load your Payment Page. Please try again.',
+                        onRetry: () => context.read<PaymentPageCubit>().load(
+                          nym: state.nym,
+                        ),
+                        onBack: () => Navigator.of(context).maybePop(),
+                      );
+                    }
                     return _PaymentPageForm(
                       state: state,
                       headerController: _headerController,
@@ -112,7 +123,11 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
   }
 
   bool _hasPendingChanges(PaymentPageState state) {
-    if (state.isLoading || state.nym.isEmpty || state.saved || state.archived) {
+    if (state.isLoading ||
+        state.loadFailed ||
+        state.nym.isEmpty ||
+        state.saved ||
+        state.archived) {
       return false;
     }
     if (_pendingImageBytes != null) return true;
@@ -556,6 +571,42 @@ class _EmptyNymView extends StatelessWidget {
         child: Text(
           'Choose a Bullnym name before creating a payment page',
           textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadFailedView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onBack;
+
+  const _LoadFailedView({
+    required this.message,
+    required this.onRetry,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            const SizedBox(height: 8),
+            OutlinedButton(onPressed: onBack, child: const Text('Back')),
+          ],
         ),
       ),
     );

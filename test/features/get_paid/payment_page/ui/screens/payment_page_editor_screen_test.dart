@@ -185,6 +185,37 @@ void main() {
     expect(find.widgetWithText(TextField, 'Instagram'), findsOneWidget);
   });
 
+  testWidgets('blocks editor form when existing page load fails', (
+    tester,
+  ) async {
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenThrow(Exception('network down'));
+
+    await tester.pumpWidget(
+      _harness(
+        nym: 'alice',
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.text('Something went wrong. Please try again.'),
+      findsOneWidget,
+    );
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Back'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Page title'), findsNothing);
+    expect(find.text('Create'), findsNothing);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+
+    verify(() => paymentPageService.getPaymentPage(nym: 'alice')).called(2);
+  });
+
   testWidgets('shows publish action for an unpublished existing page', (
     tester,
   ) async {
@@ -512,6 +543,47 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('changed: false'), findsOneWidget);
+  });
+
+  testWidgets('failed reload back action ignores hidden stale edits', (
+    tester,
+  ) async {
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenAnswer((_) async => _page());
+
+    await tester.pumpWidget(
+      _routeHarness(
+        paymentPageService: paymentPageService,
+        paymentPageIdentity: paymentPageIdentity,
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Page title'),
+      "Alice's Updated Coffee",
+    );
+    await tester.pump();
+
+    when(
+      () => paymentPageService.getPaymentPage(nym: 'alice'),
+    ).thenThrow(Exception('network down'));
+
+    final editorContext = tester.element(find.byType(PaymentPageEditorScreen));
+    await editorContext.read<PaymentPageCubit>().load(nym: 'alice');
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Something went wrong. Please try again.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Discard changes?'), findsNothing);
+    expect(find.text('Open'), findsOneWidget);
   });
 
   testWidgets('blocks back navigation while save is in flight', (tester) async {

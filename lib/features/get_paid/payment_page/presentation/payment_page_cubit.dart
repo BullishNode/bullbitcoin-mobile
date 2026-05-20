@@ -35,6 +35,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           clearPage: true,
           error: 'Choose a Bullnym name before creating a payment page',
           isLoading: false,
+          loadFailed: false,
         ),
       );
       return;
@@ -45,6 +46,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
         nym: nym,
         isLoading: true,
         clearError: true,
+        loadFailed: false,
         saved: false,
         archived: false,
       ),
@@ -59,6 +61,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
             isLoading: false,
             clearError: true,
             clearPage: true,
+            loadFailed: false,
           ),
         );
         return;
@@ -66,13 +69,20 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       emit(PaymentPageState.fromPage(page));
     } on PaymentPageApplicationError catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(isLoading: false, error: paymentPageErrorMessage(e)));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          loadFailed: true,
+          error: paymentPageErrorMessage(e),
+        ),
+      );
     } on Exception catch (e) {
       if (isClosed) return;
       log.warning('Payment Page load failed', error: e);
       emit(
         state.copyWith(
           isLoading: false,
+          loadFailed: true,
           error: 'Something went wrong. Please try again.',
         ),
       );
@@ -123,7 +133,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
   }
 
   Future<void> save({List<int>? imageBytes, bool? enabled}) async {
-    if (state.nym.isEmpty || state.isBusy) return;
+    if (state.nym.isEmpty || state.loadFailed || state.isBusy) return;
     emit(state.copyWith(isSaving: true, clearError: true, saved: false));
     try {
       final selectedImageBytes = imageBytes;
@@ -188,7 +198,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
   }
 
   Future<void> archive() async {
-    if (state.nym.isEmpty || state.isBusy) return;
+    if (state.nym.isEmpty || state.loadFailed || state.isBusy) return;
     emit(state.copyWith(isArchiving: true, clearError: true, archived: false));
     try {
       await _archivePaymentPage.execute(
@@ -222,7 +232,12 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
   }
 
   Future<void> uploadImage(List<int> bytes) async {
-    if (state.nym.isEmpty || !state.hasExistingPage || state.isBusy) return;
+    if (state.nym.isEmpty ||
+        state.loadFailed ||
+        !state.hasExistingPage ||
+        state.isBusy) {
+      return;
+    }
     emit(state.copyWith(isUploadingImage: true, clearError: true));
     try {
       final page = await _uploadImage.execute(nym: state.nym, bytes: bytes);
