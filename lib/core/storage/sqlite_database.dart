@@ -4,6 +4,7 @@ import 'package:bb_mobile/core/electrum/domain/value_objects/electrum_server_net
 import 'package:bb_mobile/core/storage/migrations/migrations.dart';
 import 'package:bb_mobile/core/storage/sqlite_database.steps.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
+import 'package:bb_mobile/core/utils/report.dart';
 import 'package:bb_mobile/core/storage/tables/auto_swap.dart';
 import 'package:bb_mobile/core/storage/tables/bip85_derivations_table.dart';
 import 'package:bb_mobile/core/storage/tables/electrum_servers_table.dart';
@@ -75,8 +76,10 @@ class SqliteDatabase extends _$SqliteDatabase {
   SqliteDatabase([QueryExecutor? executor])
     : super(executor ?? _openConnection());
 
+  static const int currentSchemaVersion = 13;
+
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => currentSchemaVersion;
 
   static QueryExecutor _openConnection() {
     return driftDatabase(
@@ -121,6 +124,12 @@ class SqliteDatabase extends _$SqliteDatabase {
         from11To12: _reportingMigration('from11To12', Schema11To12.migrate),
         from12To13: _reportingMigration('from12To13', Schema12To13.migrate),
       ),
+      beforeOpen: (details) async {
+        if (details.versionBefore != null &&
+            details.versionBefore != details.versionNow) {
+          Report.recordSchemaUpgrade(from: details.versionBefore!);
+        }
+      },
     );
   }
 
@@ -136,10 +145,11 @@ class SqliteDatabase extends _$SqliteDatabase {
       try {
         await fn(m, schema);
       } catch (e, s) {
-        log.shout(
+        log.severe(
           message: 'drift migration step $name failed',
           error: e,
           trace: s,
+          category: ReportCategory.migration,
         );
         rethrow;
       }
@@ -154,7 +164,12 @@ class SqliteDatabase extends _$SqliteDatabase {
         await fn(m);
         await m.database.customStatement(createWalletManifestOriginsTableSql);
       } catch (e, s) {
-        log.shout(message: 'drift onCreate failed', error: e, trace: s);
+        log.severe(
+          message: 'drift onCreate failed',
+          error: e,
+          trace: s,
+          category: ReportCategory.migration,
+        );
         rethrow;
       }
     };

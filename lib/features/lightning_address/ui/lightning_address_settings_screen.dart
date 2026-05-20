@@ -105,6 +105,7 @@ class _LightningAddressSettingsScreenState
               return _ActivatedView(
                 address: state.lightningAddress!,
                 deleting: state.registering,
+                error: state.error,
               );
             }
             return _RegistrationView(
@@ -133,7 +134,12 @@ class _LightningAddressSettingsScreenState
 class _ActivatedView extends StatelessWidget {
   final String address;
   final bool deleting;
-  const _ActivatedView({required this.address, this.deleting = false});
+  final String? error;
+  const _ActivatedView({
+    required this.address,
+    this.deleting = false,
+    this.error,
+  });
 
   void _showHowItWorksSheet(BuildContext context) {
     showModalBottomSheet(
@@ -359,6 +365,14 @@ class _ActivatedView extends StatelessWidget {
             NostrPublishStatus.none => const SizedBox.shrink(),
           },
           const Gap(32),
+          if (error != null) ...[
+            Text(
+              error!,
+              style: TextStyle(color: context.appColors.error),
+              textAlign: TextAlign.center,
+            ),
+            const Gap(16),
+          ],
           SizedBox(
             width: double.infinity,
             child: TextButton(
@@ -539,7 +553,11 @@ class _RegistrationViewState extends State<_RegistrationView> {
       final env =
           context.read<SettingsCubit>().state.environment ??
           Environment.mainnet;
-      context.read<LightningAddressCubit>().registerNym(selected, env);
+      context.read<LightningAddressCubit>().registerNym(
+        selected,
+        env,
+        publishOnNostr: _publishOnNostr,
+      );
     }
   }
 
@@ -590,6 +608,7 @@ class _RegistrationViewState extends State<_RegistrationView> {
             controller: widget.controller,
             enabled: !widget.registering,
             autocorrect: false,
+            textCapitalization: TextCapitalization.none,
             textInputAction: TextInputAction.done,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9\-]')),

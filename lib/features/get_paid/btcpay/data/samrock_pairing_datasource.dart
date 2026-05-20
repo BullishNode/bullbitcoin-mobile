@@ -28,6 +28,7 @@ class SamRockPairingDatasource implements SamRockPairingServicePort {
       data: {'json': jsonEncode(payload)},
       options: Options(
         contentType: Headers.formUrlEncodedContentType,
+        followRedirects: false,
         responseType: ResponseType.plain,
         validateStatus: (status) => status != null && status < 600,
       ),

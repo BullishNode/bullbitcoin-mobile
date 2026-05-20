@@ -47,19 +47,24 @@ class DioLiquidDirectPayDatasource implements LiquidDirectPayPort {
 
   @override
   Future<LiquidDirectPayCallbackResult> requestLiquidPayment(
-    Uri callback,
-  ) async {
+    Uri callback, {
+    required Map<String, String> body,
+  }) async {
     final Map<String, dynamic> data;
     try {
-      final response = await _dio.getUri<Map<String, dynamic>>(
+      final response = await _dio.postUri<Map<String, dynamic>>(
         callback,
-        options: Options(followRedirects: false),
+        data: body,
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          followRedirects: false,
+        ),
       );
-      final body = response.data;
-      if (body == null) {
+      final responseBody = response.data;
+      if (responseBody == null) {
         throw const BullpayProofInternal('EmptyResponse');
       }
-      data = body;
+      data = responseBody;
     } on DioException {
       throw const BullpayProofInternal('NetworkError');
     }

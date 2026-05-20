@@ -33,8 +33,10 @@ class CompleteBtcpaySamRockPairingUsecase {
       throw BtcpayPairingException.invalidRequest(e.message);
     }
 
+    var submitAttempted = false;
+    PrepareBtcpayPairingWalletsResult? preparedWallets;
     try {
-      final preparedWallets = await _prepareWallets.execute(request: request);
+      preparedWallets = await _prepareWallets.execute(request: request);
       final Map<String, Object?> payload;
       try {
         payload = _payloadBuilder.build(
@@ -45,12 +47,15 @@ class CompleteBtcpaySamRockPairingUsecase {
         await _rollbackPreparedWalletsBestEffort(preparedWallets);
         rethrow;
       }
+      submitAttempted = true;
       final response = await _pairingService.submitSetup(
         request: request,
         payload: payload,
       );
       if (!response.success) {
-        await _rollbackPreparedWalletsBestEffort(preparedWallets);
+        await _publishManifestBestEffort(
+          'BTCPay pairing failed after descriptor submission and wallet manifest publish failed',
+        );
         if (response.serverFailure) {
           throw BtcpayPairingException.generic(response.message);
         }
@@ -61,17 +66,25 @@ class CompleteBtcpaySamRockPairingUsecase {
     } on SamRockSetupPayloadException catch (e) {
       throw BtcpayPairingException.generic(e.message);
     } catch (e) {
+      if (submitAttempted) {
+        await _publishManifestBestEffort(
+          'BTCPay pairing errored after descriptor submission and wallet manifest publish failed',
+        );
+      }
       throw BtcpayPairingException.generic(e.toString());
     }
 
+    if (preparedWallets == null) return;
+    await _publishManifestBestEffort(
+      'BTCPay paired but wallet manifest publish failed',
+    );
+  }
+
+  Future<void> _publishManifestBestEffort(String message) async {
     try {
       await _walletManifest.publishLocalManifest();
     } catch (e, stack) {
-      log.warning(
-        'BTCPay paired but wallet manifest publish failed',
-        error: e,
-        trace: stack,
-      );
+      log.warning(message, error: e, trace: stack);
     }
   }
 

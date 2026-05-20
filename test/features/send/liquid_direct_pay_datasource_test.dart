@@ -91,12 +91,14 @@ void main() {
 
     final result = await stub.datasource.requestLiquidPayment(
       Uri.parse('https://bullpay.ca/cb'),
+      body: const {'amount': '1000'},
     );
 
     expect(result.status, 'ERROR');
     expect(result.code, 'UtxoSpent');
     expect(result.reason, 'spent');
     expect(stub.captured.requests.single.followRedirects, isFalse);
+    expect(stub.captured.requests.single.method, 'POST');
   });
 
   test(
@@ -106,6 +108,7 @@ void main() {
 
       final result = await stub.datasource.requestLiquidPayment(
         Uri.parse('https://bullpay.ca/cb'),
+        body: const {'amount': '1000'},
       );
 
       expect(result.liquidAddress, isNull);

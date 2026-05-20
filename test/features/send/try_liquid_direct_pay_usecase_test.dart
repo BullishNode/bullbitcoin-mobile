@@ -18,6 +18,7 @@ final _proof = BullpayProofParams(
 void main() {
   setUpAll(() {
     registerFallbackValue(Uri.parse('https://bullpay.ca/cb'));
+    registerFallbackValue(<String, String>{});
   });
 
   late _MockBuildProof buildProof;
@@ -51,9 +52,10 @@ void main() {
     ),
   }) {
     final calls = <Uri>[];
-    when(() => liquidDirectPay.requestLiquidPayment(any())).thenAnswer((
-      inv,
-    ) async {
+    when(
+      () =>
+          liquidDirectPay.requestLiquidPayment(any(), body: any(named: 'body')),
+    ).thenAnswer((inv) async {
       calls.add(inv.positionalArguments[0] as Uri);
       return result;
     });
@@ -158,7 +160,7 @@ void main() {
       );
     });
 
-    test('attaches proof params + msats to callback query', () async {
+    test('posts proof params + msats to callback body', () async {
       stubMetadata(callback: Uri.parse('https://bullpay.ca/cb?existing=1'));
       final calls = stubCallback();
 
@@ -168,8 +170,16 @@ void main() {
         walletId: 'w',
       );
 
-      expect(calls.single.queryParameters, {
-        'existing': '1',
+      expect(calls.single.queryParameters, {'existing': '1'});
+      final capturedBody =
+          verify(
+                () => liquidDirectPay.requestLiquidPayment(
+                  any(),
+                  body: captureAny(named: 'body'),
+                ),
+              ).captured.single
+              as Map<String, String>;
+      expect(capturedBody, {
         'amount': '5000000',
         'payment_method': 'L-BTC',
         'outpoint': _proof.outpoint,

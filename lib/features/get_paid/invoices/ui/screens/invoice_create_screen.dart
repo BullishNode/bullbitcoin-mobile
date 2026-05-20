@@ -67,9 +67,16 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     return BlocBuilder<InvoiceCreateCubit, InvoiceCreateState>(
       builder: (context, state) {
         return PopScope(
-          canPop: !_showDetails && !state.created,
+          canPop: !_showDetails && !state.created && !state.isBusy,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
+            if (state.isBusy) {
+              SnackBarUtils.showSnackBar(
+                context,
+                'Invoice creation is still in progress',
+              );
+              return;
+            }
             if (state.created) {
               Navigator.of(context).pop(true);
               return;

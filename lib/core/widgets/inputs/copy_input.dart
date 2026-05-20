@@ -15,6 +15,8 @@ class CopyInput extends StatelessWidget {
     this.canShowValueModal = false,
     this.modalTitle,
     this.modalContent,
+    this.silent = false,
+    this.onTap,
   });
 
   final String text;
@@ -26,6 +28,8 @@ class CopyInput extends StatelessWidget {
   final String? modalTitle;
   // In case it should be different from the shown text
   final String? modalContent;
+  final bool silent;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -46,24 +50,27 @@ class CopyInput extends StatelessWidget {
           Expanded(
             child: InkWell(
               onTap:
-                  canShowValueModal
+                  onTap ??
+                  (canShowValueModal
                       ? () {
-                        _onShowValueModal(context, canCopy: canCopy);
-                      }
-                      : null,
+                          _onShowValueModal(context, canCopy: canCopy);
+                        }
+                      : null),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12.0),
-                child:
-                    isValueLoading
-                        ? const LoadingLineContent()
-                        : Text(
-                          text,
-                          style: context.font.bodyLarge?.copyWith(
-                            color: context.appColors.secondary,
-                          ),
-                          maxLines: maxLines,
-                          overflow: overflow,
+                child: isValueLoading
+                    ? const LoadingLineContent()
+                    : Text(
+                        text,
+                        style: context.font.bodyLarge?.copyWith(
+                          color: context.appColors.secondary,
+                          decoration: onTap == null
+                              ? null
+                              : TextDecoration.underline,
                         ),
+                        maxLines: maxLines,
+                        overflow: overflow,
+                      ),
               ),
             ),
           ),
@@ -84,13 +91,12 @@ class CopyInput extends StatelessWidget {
             IconButton(
               visualDensity: VisualDensity.compact,
               iconSize: 20,
-              icon: Icon(
-                Icons.copy_sharp,
-                color: context.appColors.secondary,
-              ),
+              icon: Icon(Icons.copy_sharp, color: context.appColors.secondary),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: clipboardText ?? text));
-                SnackBarUtils.showCopiedSnackBar(context);
+                if (!silent) {
+                  SnackBarUtils.showCopiedSnackBar(context);
+                }
               },
             ),
           const Gap(8),
@@ -103,51 +109,47 @@ class CopyInput extends StatelessWidget {
     final theme = context.theme;
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: context.appColors.surface,
-            title:
-                modalTitle != null
-                    ? Text(
-                      modalTitle!,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontSize: 20,
-                        fontWeight: .w700,
-                      ),
-                      textAlign: .center,
-                    )
-                    : null,
+      builder: (context) => AlertDialog(
+        backgroundColor: context.appColors.surface,
+        title: modalTitle != null
+            ? Text(
+                modalTitle!,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontSize: 20,
+                  fontWeight: .w700,
+                ),
+                textAlign: .center,
+              )
+            : null,
 
-            content: SingleChildScrollView(
-              child: SelectableText(
-                modalContent ?? text,
-                style: theme.textTheme.bodyLarge?.copyWith(fontSize: 18),
-              ),
-            ),
-            actions: [
-              if (canCopy)
-                TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: context.appColors.secondary,
-                    textStyle: theme.textTheme.bodyLarge,
-                  ),
-                  onPressed: () {
-                    Clipboard.setData(
-                      ClipboardData(text: clipboardText ?? text),
-                    );
-                  },
-                  child: Text('Copy', style: theme.textTheme.bodyLarge),
-                ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: context.appColors.primary,
-                  textStyle: theme.textTheme.bodyLarge,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('Close', style: theme.textTheme.bodyLarge),
-              ),
-            ],
+        content: SingleChildScrollView(
+          child: SelectableText(
+            modalContent ?? text,
+            style: theme.textTheme.bodyLarge?.copyWith(fontSize: 18),
           ),
+        ),
+        actions: [
+          if (canCopy)
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: context.appColors.secondary,
+                textStyle: theme.textTheme.bodyLarge,
+              ),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: clipboardText ?? text));
+              },
+              child: Text('Copy', style: theme.textTheme.bodyLarge),
+            ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: context.appColors.primary,
+              textStyle: theme.textTheme.bodyLarge,
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Close', style: theme.textTheme.bodyLarge),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -192,16 +192,30 @@ class SendCubit extends Cubit<SendState> {
 
   void backClicked() {
     if (state.step == SendStep.address) {
-      emit(
-        state.copyWith(step: SendStep.address, forceLightningFallback: false),
-      );
+      emit(state.copyWith(step: SendStep.address));
     } else if (state.step == SendStep.amount) {
-      emit(
-        state.copyWith(step: SendStep.address, forceLightningFallback: false),
-      );
+      emit(state.copyWith(step: SendStep.address));
     } else if (state.step == SendStep.confirm) {
+      final originalAddress = state.lud22OriginalAddress;
+      if (originalAddress != null) {
+        emit(
+          state.copyWith(
+            step: SendStep.amount,
+            sendType: SendType.lightning,
+            paymentRequest: PaymentRequest.lnAddress(address: originalAddress),
+            lud22OriginalAddress: null,
+            buildTransactionException: null,
+            amountConfirmedClicked: false,
+          ),
+        );
+        return;
+      }
       emit(
-        state.copyWith(step: SendStep.amount, buildTransactionException: null),
+        state.copyWith(
+          step: SendStep.amount,
+          buildTransactionException: null,
+          amountConfirmedClicked: false,
+        ),
       );
     }
   }
@@ -261,6 +275,7 @@ class SendCubit extends Cubit<SendState> {
         scannedRawPaymentRequest: scannedRawPaymentRequest,
         copiedRawPaymentRequest: sanitizedText,
         paymentRequest: paymentRequest,
+        lud22OriginalAddress: null,
       ),
     );
     await continueOnAddressConfirmed();
@@ -281,6 +296,7 @@ class SendCubit extends Cubit<SendState> {
         state.copyWith(
           copiedRawPaymentRequest: sanitizedText,
           paymentRequest: paymentRequest,
+          lud22OriginalAddress: null,
         ),
       );
     } catch (e) {
@@ -288,6 +304,7 @@ class SendCubit extends Cubit<SendState> {
         state.copyWith(
           copiedRawPaymentRequest: text,
           paymentRequest: null,
+          lud22OriginalAddress: null,
           // Don't show exception if text field is clear
           invalidBitcoinStringException: text.isNotEmpty
               ? InvalidBitcoinStringException()
@@ -1016,8 +1033,7 @@ class SendCubit extends Cubit<SendState> {
       // LUD-22: try Liquid-direct payment before falling back to swap
       if (state.selectedWallet!.isLiquid &&
           state.paymentRequest is LnAddressPaymentRequest &&
-          state.confirmedAmountSat != null &&
-          !state.forceLightningFallback) {
+          state.confirmedAmountSat != null) {
         try {
           final liquidDirect = await _tryLiquidDirectPayUsecase.execute(
             lnAddress: state.paymentRequestAddress,
@@ -1048,10 +1064,7 @@ class SendCubit extends Cubit<SendState> {
             error: e,
             trace: st,
           );
-          // Re-entry skips this branch via the forceLightningFallback guard above.
-          emit(state.copyWith(forceLightningFallback: true));
-          await onAmountConfirmed();
-          return;
+          // Fall through to the standard Lightning/Boltz swap path.
         }
       }
 

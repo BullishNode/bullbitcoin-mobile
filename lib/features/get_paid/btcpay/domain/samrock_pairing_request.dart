@@ -85,7 +85,9 @@ class SamRockPairingRequestParser {
 
   Set<SamRockSetupCapability> _parseSetup(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return SamRockSetupCapability.values.toSet();
+      throw SamRockPairingRequestException(
+        'SamRock pairing URL is missing setup capabilities',
+      );
     }
     if (value.trim().toLowerCase() == 'all') {
       return SamRockSetupCapability.values.toSet();

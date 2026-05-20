@@ -36,14 +36,13 @@ void main() {
     expect(request.supportsLightning, isTrue);
   });
 
-  test('defaults omitted setup to all supported capabilities', () {
-    final request = parser.parse(
-      'https://btcpay.example/plugins/plugin-id/samrock/protocol?otp=abc',
+  test('rejects omitted setup capabilities', () {
+    expect(
+      () => parser.parse(
+        'https://btcpay.example/plugins/plugin-id/samrock/protocol?otp=abc',
+      ),
+      throwsA(isA<SamRockPairingRequestException>()),
     );
-
-    expect(request.supportsBitcoinChain, isTrue);
-    expect(request.supportsLiquidChain, isTrue);
-    expect(request.supportsLightning, isTrue);
   });
 
   test('accepts setup all', () {

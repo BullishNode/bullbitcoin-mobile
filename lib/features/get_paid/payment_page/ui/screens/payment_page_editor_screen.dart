@@ -174,7 +174,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     _setText(_websiteController, state.website);
     _setText(_twitterController, state.twitter);
     _setText(_instagramController, state.instagram);
-    if (state.saved || state.archived || state.hasExistingPage) {
+    if (state.saved || state.archived) {
       _pendingImageBytes = null;
     }
   }

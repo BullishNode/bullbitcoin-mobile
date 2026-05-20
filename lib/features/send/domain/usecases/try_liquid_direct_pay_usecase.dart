@@ -73,18 +73,18 @@ class TryLiquidDirectPayUsecase {
     final proof = await _buildProof.execute(walletId: walletId, nym: username);
 
     final msats = amountSat * 1000;
-    final signedCallback = callback.replace(
-      queryParameters: {
-        ...callback.queryParameters,
-        'amount': msats.toString(),
-        'payment_method': 'L-BTC',
-        'outpoint': proof.outpoint,
-        'pubkey': proof.pubkeyHex,
-        'sig': proof.sigDerHex,
-      },
-    );
+    final body = {
+      'amount': msats.toString(),
+      'payment_method': 'L-BTC',
+      'outpoint': proof.outpoint,
+      'pubkey': proof.pubkeyHex,
+      'sig': proof.sigDerHex,
+    };
 
-    final data = await _liquidDirectPay.requestLiquidPayment(signedCallback);
+    final data = await _liquidDirectPay.requestLiquidPayment(
+      callback,
+      body: body,
+    );
 
     if (data.status == 'ERROR') {
       final code = data.code;

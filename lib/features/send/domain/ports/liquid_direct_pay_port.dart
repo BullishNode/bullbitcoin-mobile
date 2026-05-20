@@ -25,5 +25,8 @@ class LiquidDirectPayCallbackResult {
 abstract class LiquidDirectPayPort {
   Future<LiquidDirectPayMetadata> fetchMetadata(Uri metadataUrl);
 
-  Future<LiquidDirectPayCallbackResult> requestLiquidPayment(Uri callback);
+  Future<LiquidDirectPayCallbackResult> requestLiquidPayment(
+    Uri callback, {
+    required Map<String, String> body,
+  });
 }

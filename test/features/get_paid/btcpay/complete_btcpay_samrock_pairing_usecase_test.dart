@@ -132,8 +132,8 @@ void main() {
             .having((error) => error.message, 'message', 'OTP expired'),
       ),
     );
-    verify(() => prepareWallets.rollbackCreatedWallets(any())).called(1);
-    verifyNever(() => walletManifest.publishLocalManifest());
+    verifyNever(() => prepareWallets.rollbackCreatedWallets(any()));
+    verify(() => walletManifest.publishLocalManifest()).called(1);
   });
 
   test('maps SamRock server failures to generic errors', () async {
@@ -169,8 +169,8 @@ void main() {
             ),
       ),
     );
-    verify(() => prepareWallets.rollbackCreatedWallets(any())).called(1);
-    verifyNever(() => walletManifest.publishLocalManifest());
+    verifyNever(() => prepareWallets.rollbackCreatedWallets(any()));
+    verify(() => walletManifest.publishLocalManifest()).called(1);
   });
 
   test('maps invalid SamRock URLs to application failures', () async {
