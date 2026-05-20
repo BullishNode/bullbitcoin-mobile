@@ -99,6 +99,8 @@ class GetPaidLocator {
       () => SavePaymentPageUsecase(
         paymentPageService: locator<PaymentPageServicePort>(),
         paymentPageIdentity: locator<PaymentPageIdentityPort>(),
+        getSettings: locator<GetSettingsUsecase>(),
+        externalReceiveWallets: locator<ExternalReceiveWalletsFacade>(),
       ),
     );
     locator.registerFactory<ArchivePaymentPageUsecase>(

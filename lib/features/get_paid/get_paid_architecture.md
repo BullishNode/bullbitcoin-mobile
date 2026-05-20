@@ -29,9 +29,10 @@ does not move Lightning Address.
   Server pairing and feature-specific recovery stay in their owning sub-feature
   flows. `wallet_manifest` restores with generic seed/BIP85/wallet primitives;
   it does not call `external_receive_wallets`.
-  Payment Page does not yet provision its `Payment Page-LBTC` wallet on save
-  because the current server API does not bind Payment Page to that descriptor.
-  This avoids durable wallet churn before the descriptor-binding server phase.
+  Payment Page provisions its `Payment Page-LBTC` wallet when saving an enabled
+  page, even though the current server API does not yet bind Payment Page to
+  that descriptor. This makes local settings and manifest recovery consistent
+  before the descriptor-binding server phase.
 
 ## Dashboard Flow
 

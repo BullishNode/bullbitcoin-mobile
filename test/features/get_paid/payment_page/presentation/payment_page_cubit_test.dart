@@ -1,4 +1,9 @@
+import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
+import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/features/external_receive_wallets/public/external_receive_wallets.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_identity_port.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_service_port.dart';
@@ -20,9 +25,16 @@ class _MockPaymentPageService extends Mock implements PaymentPageServicePort {}
 class _MockPaymentPageIdentity extends Mock
     implements PaymentPageIdentityPort {}
 
+class _MockGetSettings extends Mock implements GetSettingsUsecase {}
+
+class _MockExternalReceiveWallets extends Mock
+    implements ExternalReceiveWalletsFacade {}
+
 void main() {
   late _MockPaymentPageService paymentPageService;
   late _MockPaymentPageIdentity paymentPageIdentity;
+  late _MockGetSettings getSettings;
+  late _MockExternalReceiveWallets externalReceiveWallets;
   late PaymentPageCubit cubit;
   late NostrKeychainHandle handle;
 
@@ -43,7 +55,11 @@ void main() {
   setUp(() {
     paymentPageService = _MockPaymentPageService();
     paymentPageIdentity = _MockPaymentPageIdentity();
+    getSettings = _MockGetSettings();
+    externalReceiveWallets = _MockExternalReceiveWallets();
     handle = NostrKeychainHandle.fromSecretKeyHex('01' * 32);
+    final paymentPageKey = ExternalReceiveWalletPurpose.paymentPage
+        .liquidAccountKey(isTestnet: false);
 
     when(
       () => paymentPageIdentity.getSigningHandle(),
@@ -51,6 +67,20 @@ void main() {
     when(
       () => paymentPageService.getPaymentPage(nym: any(named: 'nym')),
     ).thenThrow(const PaymentPageNotFoundError('missing'));
+    when(() => getSettings.execute()).thenAnswer(
+      (_) async => const SettingsEntity(
+        environment: Environment.mainnet,
+        bitcoinUnit: BitcoinUnit.sats,
+        currencyCode: 'CAD',
+      ),
+    );
+    when(
+      () => externalReceiveWallets.get(
+        environment: Environment.mainnet,
+        purpose: ExternalReceiveWalletPurpose.paymentPage,
+        accountKey: paymentPageKey,
+      ),
+    ).thenAnswer((_) async => _wallet('payment-page-wallet'));
 
     cubit = PaymentPageCubit(
       findPaymentPage: FindPaymentPageUsecase(
@@ -59,6 +89,8 @@ void main() {
       savePaymentPage: SavePaymentPageUsecase(
         paymentPageService: paymentPageService,
         paymentPageIdentity: paymentPageIdentity,
+        getSettings: getSettings,
+        externalReceiveWallets: externalReceiveWallets,
       ),
       archivePaymentPage: ArchivePaymentPageUsecase(
         paymentPageService: paymentPageService,
@@ -280,6 +312,40 @@ void main() {
     expect(cubit.state.error, isNot(contains('connection refused')));
     expect(cubit.state.isSaving, isFalse);
   });
+
+  test(
+    'save maps missing payment page wallet prerequisite to setup copy',
+    () async {
+      final paymentPageKey = ExternalReceiveWalletPurpose.paymentPage
+          .liquidAccountKey(isTestnet: false);
+      when(
+        () => externalReceiveWallets.get(
+          environment: Environment.mainnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: paymentPageKey,
+        ),
+      ).thenThrow(ExternalReceiveWalletNoDefaultWalletException());
+
+      await cubit.load(nym: 'alice');
+      cubit
+        ..setHeader("Alice's Coffee")
+        ..setDescription('Tips welcome');
+
+      await cubit.save();
+
+      expect(
+        cubit.state.error,
+        'Set up a Bitcoin wallet before editing your payment page.',
+      );
+      expect(cubit.state.isSaving, isFalse);
+      verifyNever(
+        () => paymentPageService.savePaymentPage(
+          command: any(named: 'command'),
+          handle: any(named: 'handle'),
+        ),
+      );
+    },
+  );
 
   test('save validates selected image before creating page', () async {
     await cubit.load(nym: 'alice');
@@ -547,6 +613,24 @@ void main() {
       ),
     ).called(1);
   });
+}
+
+Wallet _wallet(String id) {
+  return Wallet(
+    origin: id,
+    label: id,
+    network: Network.liquidMainnet,
+    isDefault: false,
+    masterFingerprint: 'aabbccdd',
+    xpubFingerprint: 'aabbccdd',
+    scriptType: ScriptType.bip84,
+    xpub: 'xpub',
+    externalPublicDescriptor: 'ct(slip77(...),elwpkh(xpub/0/*))',
+    internalPublicDescriptor: 'ct(slip77(...),elwpkh(xpub/1/*))',
+    signer: SignerEntity.local,
+    signerDevice: null,
+    balanceSat: BigInt.zero,
+  );
 }
 
 PaymentPage _page({

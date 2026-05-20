@@ -45,9 +45,11 @@ stored inside commands, DTOs, generated state, equality, `copyWith`, or JSON.
 - `ArchivePaymentPageCommand` contains the target nym only.
 - `GetPaymentPageUsecase`, `SavePaymentPageUsecase`, and
   `ArchivePaymentPageUsecase` are application entry points.
-- `SavePaymentPageUsecase` only signs and saves page metadata. It does not
-  provision the local `Payment Page-LBTC` wallet until the server/API phase binds
-  Payment Page to that descriptor.
+- `SavePaymentPageUsecase` provisions or repairs the local `Payment Page-LBTC`
+  wallet before saving an enabled page. Saving a disabled page does not create
+  the wallet. The current server API does not yet bind Payment Page to that
+  descriptor, so this local provisioning only prepares deterministic recovery
+  and settings behavior.
 - `UploadPaymentPageImageUsecase` validates the file size and magic bytes before
   deriving a signing handle and uploading.
 - `FindPaymentPageUsecase` maps not-found into `null` for dashboard/status

@@ -1,4 +1,9 @@
+import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
+import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/features/external_receive_wallets/public/external_receive_wallets.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_identity_port.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_service_port.dart';
@@ -17,19 +22,47 @@ class _MockPaymentPageService extends Mock implements PaymentPageServicePort {}
 class _MockPaymentPageIdentity extends Mock
     implements PaymentPageIdentityPort {}
 
+class _MockGetSettings extends Mock implements GetSettingsUsecase {}
+
+class _MockExternalReceiveWallets extends Mock
+    implements ExternalReceiveWalletsFacade {}
+
 void main() {
   late _MockPaymentPageService paymentPageService;
   late _MockPaymentPageIdentity paymentPageIdentity;
+  late _MockGetSettings getSettings;
+  late _MockExternalReceiveWallets externalReceiveWallets;
   late NostrKeychainHandle handle;
 
   setUp(() {
     paymentPageService = _MockPaymentPageService();
     paymentPageIdentity = _MockPaymentPageIdentity();
+    getSettings = _MockGetSettings();
+    externalReceiveWallets = _MockExternalReceiveWallets();
     handle = NostrKeychainHandle.fromSecretKeyHex('01' * 32);
     when(
       () => paymentPageIdentity.getSigningHandle(),
     ).thenAnswer((_) async => handle);
   });
+
+  SavePaymentPageUsecase saveUsecase() {
+    return SavePaymentPageUsecase(
+      paymentPageService: paymentPageService,
+      paymentPageIdentity: paymentPageIdentity,
+      getSettings: getSettings,
+      externalReceiveWallets: externalReceiveWallets,
+    );
+  }
+
+  void stubSettings({Environment environment = Environment.mainnet}) {
+    when(() => getSettings.execute()).thenAnswer(
+      (_) async => SettingsEntity(
+        environment: environment,
+        bitcoinUnit: BitcoinUnit.sats,
+        currencyCode: 'CAD',
+      ),
+    );
+  }
 
   test('get payment page usecase delegates to service', () async {
     when(
@@ -44,7 +77,7 @@ void main() {
     verify(() => paymentPageService.getPaymentPage(nym: 'alice')).called(1);
   });
 
-  test('save payment page usecase delegates command and handle', () async {
+  test('save payment page usecase provisions wallet before saving', () async {
     final command = SavePaymentPageCommand(
       nym: 'alice',
       header: "Alice's Coffee",
@@ -52,17 +85,58 @@ void main() {
       displayCurrency: 'CAD',
       enabled: true,
     );
+    final key = ExternalReceiveWalletPurpose.paymentPage.liquidAccountKey(
+      isTestnet: false,
+    );
+    final calls = <String>[];
+    stubSettings();
+    when(
+      () => externalReceiveWallets.get(
+        environment: Environment.mainnet,
+        purpose: ExternalReceiveWalletPurpose.paymentPage,
+        accountKey: key,
+      ),
+    ).thenAnswer((_) async {
+      calls.add('get-wallet');
+      return null;
+    });
+    when(
+      () => externalReceiveWallets.create(
+        environment: Environment.mainnet,
+        purpose: ExternalReceiveWalletPurpose.paymentPage,
+        accountKey: key,
+      ),
+    ).thenAnswer((_) async {
+      calls.add('create-wallet');
+      return _wallet('payment-page-wallet');
+    });
     when(
       () =>
           paymentPageService.savePaymentPage(command: command, handle: handle),
-    ).thenAnswer((_) async => _page());
+    ).thenAnswer((_) async {
+      calls.add('save-page');
+      return _page();
+    });
 
-    final page = await SavePaymentPageUsecase(
-      paymentPageService: paymentPageService,
-      paymentPageIdentity: paymentPageIdentity,
-    ).execute(command: command);
+    final page = await saveUsecase().execute(command: command);
 
     expect(page.isActive, isTrue);
+    expect(calls, ['get-wallet', 'create-wallet', 'save-page']);
+    verify(() => getSettings.execute()).called(1);
+    verify(
+      () => externalReceiveWallets.get(
+        environment: Environment.mainnet,
+        purpose: ExternalReceiveWalletPurpose.paymentPage,
+        accountKey: key,
+      ),
+    ).called(1);
+    verify(
+      () => externalReceiveWallets.create(
+        environment: Environment.mainnet,
+        purpose: ExternalReceiveWalletPurpose.paymentPage,
+        accountKey: key,
+      ),
+    ).called(1);
     verify(() => paymentPageIdentity.getSigningHandle()).called(1);
     verify(
       () =>
@@ -87,12 +161,10 @@ void main() {
         ),
       ).thenAnswer((_) async => _page(enabled: false));
 
-      final page = await SavePaymentPageUsecase(
-        paymentPageService: paymentPageService,
-        paymentPageIdentity: paymentPageIdentity,
-      ).execute(command: command);
+      final page = await saveUsecase().execute(command: command);
 
       expect(page.enabled, isFalse);
+      verifyNever(() => getSettings.execute());
       verify(() => paymentPageIdentity.getSigningHandle()).called(1);
       verify(
         () => paymentPageService.savePaymentPage(
@@ -100,6 +172,195 @@ void main() {
           handle: handle,
         ),
       ).called(1);
+    },
+  );
+
+  test(
+    'save payment page usecase reuses existing payment page wallet',
+    () async {
+      final command = SavePaymentPageCommand(
+        nym: 'alice',
+        header: "Alice's Coffee",
+        description: 'Tips welcome',
+        displayCurrency: 'CAD',
+        enabled: true,
+      );
+      final key = ExternalReceiveWalletPurpose.paymentPage.liquidAccountKey(
+        isTestnet: false,
+      );
+      stubSettings();
+      when(
+        () => externalReceiveWallets.get(
+          environment: Environment.mainnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      ).thenAnswer((_) async => _wallet('existing-payment-page-wallet'));
+      when(
+        () => paymentPageService.savePaymentPage(
+          command: command,
+          handle: handle,
+        ),
+      ).thenAnswer((_) async => _page());
+
+      final page = await saveUsecase().execute(command: command);
+
+      expect(page.isActive, isTrue);
+      verify(
+        () => externalReceiveWallets.get(
+          environment: Environment.mainnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      ).called(1);
+      verifyNever(
+        () => externalReceiveWallets.create(
+          environment: Environment.mainnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      );
+      verify(
+        () => paymentPageService.savePaymentPage(
+          command: command,
+          handle: handle,
+        ),
+      ).called(1);
+    },
+  );
+
+  test(
+    'save payment page usecase uses testnet payment page wallet key',
+    () async {
+      final command = SavePaymentPageCommand(
+        nym: 'alice',
+        header: "Alice's Coffee",
+        description: 'Tips welcome',
+        displayCurrency: 'CAD',
+        enabled: true,
+      );
+      final key = ExternalReceiveWalletPurpose.paymentPage.liquidAccountKey(
+        isTestnet: true,
+      );
+      stubSettings(environment: Environment.testnet);
+      when(
+        () => externalReceiveWallets.get(
+          environment: Environment.testnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      ).thenAnswer((_) async => null);
+      when(
+        () => externalReceiveWallets.create(
+          environment: Environment.testnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      ).thenAnswer((_) async => _wallet('payment-page-wallet'));
+      when(
+        () => paymentPageService.savePaymentPage(
+          command: command,
+          handle: handle,
+        ),
+      ).thenAnswer((_) async => _page());
+
+      await saveUsecase().execute(command: command);
+
+      verify(
+        () => externalReceiveWallets.create(
+          environment: Environment.testnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      ).called(1);
+    },
+  );
+
+  test(
+    'save payment page maps missing default wallet before remote save',
+    () async {
+      final command = SavePaymentPageCommand(
+        nym: 'alice',
+        header: "Alice's Coffee",
+        description: 'Tips welcome',
+        displayCurrency: 'CAD',
+        enabled: true,
+      );
+      final key = ExternalReceiveWalletPurpose.paymentPage.liquidAccountKey(
+        isTestnet: false,
+      );
+      stubSettings();
+      when(
+        () => externalReceiveWallets.get(
+          environment: Environment.mainnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      ).thenAnswer((_) async => null);
+      when(
+        () => externalReceiveWallets.create(
+          environment: Environment.mainnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      ).thenThrow(ExternalReceiveWalletNoDefaultWalletException());
+
+      await expectLater(
+        saveUsecase().execute(command: command),
+        throwsA(isA<PaymentPageIdentityUnavailableError>()),
+      );
+
+      verifyNever(() => paymentPageIdentity.getSigningHandle());
+      verifyNever(
+        () => paymentPageService.savePaymentPage(
+          command: command,
+          handle: handle,
+        ),
+      );
+    },
+  );
+
+  test(
+    'save payment page maps missing default wallet during wallet lookup',
+    () async {
+      final command = SavePaymentPageCommand(
+        nym: 'alice',
+        header: "Alice's Coffee",
+        description: 'Tips welcome',
+        displayCurrency: 'CAD',
+        enabled: true,
+      );
+      final key = ExternalReceiveWalletPurpose.paymentPage.liquidAccountKey(
+        isTestnet: false,
+      );
+      stubSettings();
+      when(
+        () => externalReceiveWallets.get(
+          environment: Environment.mainnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      ).thenThrow(ExternalReceiveWalletNoDefaultWalletException());
+
+      await expectLater(
+        saveUsecase().execute(command: command),
+        throwsA(isA<PaymentPageIdentityUnavailableError>()),
+      );
+
+      verifyNever(
+        () => externalReceiveWallets.create(
+          environment: Environment.mainnet,
+          purpose: ExternalReceiveWalletPurpose.paymentPage,
+          accountKey: key,
+        ),
+      );
+      verifyNever(() => paymentPageIdentity.getSigningHandle());
+      verifyNever(
+        () => paymentPageService.savePaymentPage(
+          command: command,
+          handle: handle,
+        ),
+      );
     },
   );
 
@@ -219,5 +480,23 @@ PaymentPage _page({bool enabled = true, bool isArchived = false}) {
     avatarSha256: null,
     ogSha256: null,
     publicUrl: 'https://bullpay.ca/alice',
+  );
+}
+
+Wallet _wallet(String id) {
+  return Wallet(
+    origin: id,
+    label: id,
+    network: Network.liquidMainnet,
+    isDefault: false,
+    masterFingerprint: 'aabbccdd',
+    xpubFingerprint: 'aabbccdd',
+    scriptType: ScriptType.bip84,
+    xpub: 'xpub',
+    externalPublicDescriptor: 'ct(slip77(...),elwpkh(xpub/0/*))',
+    internalPublicDescriptor: 'ct(slip77(...),elwpkh(xpub/1/*))',
+    signer: SignerEntity.local,
+    signerDevice: null,
+    balanceSat: BigInt.zero,
   );
 }

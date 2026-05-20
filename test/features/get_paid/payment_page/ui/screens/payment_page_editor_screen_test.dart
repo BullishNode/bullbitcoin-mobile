@@ -1,7 +1,12 @@
 import 'dart:async';
 
+import 'package:bb_mobile/core/entities/signer_entity.dart';
+import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/widgets/inputs/utf8_byte_limit_formatter.dart';
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
+import 'package:bb_mobile/features/external_receive_wallets/public/external_receive_wallets.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_identity_port.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_service_port.dart';
@@ -24,6 +29,11 @@ class _MockPaymentPageService extends Mock implements PaymentPageServicePort {}
 
 class _MockPaymentPageIdentity extends Mock
     implements PaymentPageIdentityPort {}
+
+class _MockGetSettings extends Mock implements GetSettingsUsecase {}
+
+class _MockExternalReceiveWallets extends Mock
+    implements ExternalReceiveWalletsFacade {}
 
 void main() {
   late _MockPaymentPageService paymentPageService;
@@ -634,6 +644,8 @@ Widget _harness({
         savePaymentPage: SavePaymentPageUsecase(
           paymentPageService: paymentPageService,
           paymentPageIdentity: paymentPageIdentity,
+          getSettings: _paymentPageWalletSettings(),
+          externalReceiveWallets: _existingPaymentPageWallets(),
         ),
         archivePaymentPage: ArchivePaymentPageUsecase(
           paymentPageService: paymentPageService,
@@ -695,6 +707,8 @@ class _RouteHarnessState extends State<_RouteHarness> {
                       savePaymentPage: SavePaymentPageUsecase(
                         paymentPageService: widget.paymentPageService,
                         paymentPageIdentity: widget.paymentPageIdentity,
+                        getSettings: _paymentPageWalletSettings(),
+                        externalReceiveWallets: _existingPaymentPageWallets(),
                       ),
                       archivePaymentPage: ArchivePaymentPageUsecase(
                         paymentPageService: widget.paymentPageService,
@@ -717,6 +731,50 @@ class _RouteHarnessState extends State<_RouteHarness> {
       ),
     );
   }
+}
+
+GetSettingsUsecase _paymentPageWalletSettings() {
+  final getSettings = _MockGetSettings();
+  when(() => getSettings.execute()).thenAnswer(
+    (_) async => const SettingsEntity(
+      environment: Environment.mainnet,
+      bitcoinUnit: BitcoinUnit.sats,
+      currencyCode: 'CAD',
+    ),
+  );
+  return getSettings;
+}
+
+ExternalReceiveWalletsFacade _existingPaymentPageWallets() {
+  final externalReceiveWallets = _MockExternalReceiveWallets();
+  final paymentPageKey = ExternalReceiveWalletPurpose.paymentPage
+      .liquidAccountKey(isTestnet: false);
+  when(
+    () => externalReceiveWallets.get(
+      environment: Environment.mainnet,
+      purpose: ExternalReceiveWalletPurpose.paymentPage,
+      accountKey: paymentPageKey,
+    ),
+  ).thenAnswer((_) async => _wallet('payment-page-wallet'));
+  return externalReceiveWallets;
+}
+
+Wallet _wallet(String id) {
+  return Wallet(
+    origin: id,
+    label: id,
+    network: Network.liquidMainnet,
+    isDefault: false,
+    masterFingerprint: 'aabbccdd',
+    xpubFingerprint: 'aabbccdd',
+    scriptType: ScriptType.bip84,
+    xpub: 'xpub',
+    externalPublicDescriptor: 'ct(slip77(...),elwpkh(xpub/0/*))',
+    internalPublicDescriptor: 'ct(slip77(...),elwpkh(xpub/1/*))',
+    signer: SignerEntity.local,
+    signerDevice: null,
+    balanceSat: BigInt.zero,
+  );
 }
 
 PaymentPage _page({
