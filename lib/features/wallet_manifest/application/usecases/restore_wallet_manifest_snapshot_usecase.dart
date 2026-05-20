@@ -125,6 +125,7 @@ class RestoreWalletManifestSnapshotUsecase {
               status: WalletManifestRestoreStatus.alreadyPresent,
               walletId: outcome.wallet.id,
               actualLabel: outcome.wallet.label ?? outcome.label,
+              walletStateChanged: true,
             ),
           );
         }

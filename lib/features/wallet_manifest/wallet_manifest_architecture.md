@@ -219,9 +219,10 @@ confirmed Backup Settings action. Reviewed callers may explicitly:
 - recreate listed wallets even if no activity is detected.
 
 Automatic recovery refreshes wallet state again only when the background restore
-creates local wallets. It must not make wallet-manifest internals depend on
-`WalletBloc`; callers trigger their own post-restore refresh through the public
-facade callback.
+creates local wallets, repairs local wallet-origin metadata, or reports a
+failed restore with possible local wallet side effects. It must not make
+wallet-manifest internals depend on `WalletBloc`; callers trigger their own
+post-restore refresh through the public facade callback.
 
 Manual recovery does not publish a fresh snapshot as a side effect. Fetching,
 snapshot restore, manual recovery, and publishing remain separate use cases so

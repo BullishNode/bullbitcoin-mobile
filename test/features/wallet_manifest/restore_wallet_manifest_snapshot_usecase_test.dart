@@ -139,6 +139,7 @@ void main() {
       expect(result.restored.map((outcome) => outcome.account), [account]);
       expect(result.restored.single.walletId, 'payment-page');
       expect(result.restored.single.actualLabel, 'Payment Page-LBTC');
+      expect(result.restored.single.walletStateChanged, isFalse);
       expect(result.alreadyPresent, isEmpty);
       expect(result.skipped, isEmpty);
       expect(result.failed, isEmpty);
@@ -198,6 +199,7 @@ void main() {
       expect(result.alreadyPresent.single.account, account);
       expect(result.alreadyPresent.single.walletId, 'existing');
       expect(result.alreadyPresent.single.actualLabel, 'Existing Label');
+      expect(result.alreadyPresent.single.walletStateChanged, isFalse);
       expect(result.skipped, isEmpty);
       expect(result.failed, isEmpty);
       verifyNever(
@@ -260,6 +262,7 @@ void main() {
     );
 
     expect(result.restored.map((outcome) => outcome.account), [succeeding]);
+    expect(result.restored.single.walletStateChanged, isFalse);
     expect(result.failed.single.account, failing);
     expect(
       result.failed.single.failureStage,
@@ -332,6 +335,7 @@ void main() {
       expect(result.restored, isEmpty);
       expect(result.alreadyPresent.single.account, account);
       expect(result.alreadyPresent.single.walletId, 'existing-payment-page');
+      expect(result.alreadyPresent.single.walletStateChanged, isTrue);
       verifyNever(
         () => walletOperations.createWallet(
           seed: any(named: 'seed'),

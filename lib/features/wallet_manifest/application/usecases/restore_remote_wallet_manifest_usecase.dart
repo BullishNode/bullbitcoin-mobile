@@ -23,7 +23,7 @@ class RestoreRemoteWalletManifestUsecase {
       failedCount: result.failed.length,
       walletStateMayHaveChanged:
           result.restored.isNotEmpty ||
-          result.alreadyPresent.isNotEmpty ||
+          result.outcomes.any((outcome) => outcome.walletStateChanged) ||
           result.failed.any((outcome) => outcome.walletId != null),
     );
   }

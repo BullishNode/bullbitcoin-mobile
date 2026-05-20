@@ -321,10 +321,116 @@ void main() {
       expect(result.alreadyPresentCount, 0);
       expect(result.skippedCount, 0);
       expect(result.failedCount, 0);
+      expect(result.walletStateMayHaveChanged, isTrue);
       expect(result.complete, isTrue);
       verify(() => fetchRemoteManifest.execute()).called(1);
       verify(() => restoreSnapshot.execute(snapshot: snapshot)).called(1);
     });
+
+    test(
+      'does not mark wallet state changed for already-present wallets',
+      () async {
+        final snapshot = _snapshot();
+        final fetchRemoteManifest = _MockFetchRemoteManifest();
+        final restoreSnapshot = _MockRestoreSnapshot();
+        final usecase = RestoreRemoteWalletManifestUsecase(
+          fetchRemoteManifest: fetchRemoteManifest,
+          restoreSnapshot: restoreSnapshot,
+        );
+        when(
+          () => fetchRemoteManifest.execute(),
+        ).thenAnswer((_) async => snapshot);
+        when(() => restoreSnapshot.execute(snapshot: snapshot)).thenAnswer(
+          (_) async => WalletManifestSnapshotRestoreResult(
+            outcomes: [
+              WalletManifestAccountRestoreOutcome(
+                account: snapshot.accounts.first,
+                status: WalletManifestRestoreStatus.alreadyPresent,
+                walletId: 'existing-wallet',
+              ),
+            ],
+          ),
+        );
+
+        final result = await usecase.execute();
+
+        expect(result, isNotNull);
+        expect(result!.restoredCount, 0);
+        expect(result.alreadyPresentCount, 1);
+        expect(result.walletStateMayHaveChanged, isFalse);
+      },
+    );
+
+    test(
+      'marks wallet state changed when restore repairs an existing wallet origin',
+      () async {
+        final snapshot = _snapshot();
+        final fetchRemoteManifest = _MockFetchRemoteManifest();
+        final restoreSnapshot = _MockRestoreSnapshot();
+        final usecase = RestoreRemoteWalletManifestUsecase(
+          fetchRemoteManifest: fetchRemoteManifest,
+          restoreSnapshot: restoreSnapshot,
+        );
+        when(
+          () => fetchRemoteManifest.execute(),
+        ).thenAnswer((_) async => snapshot);
+        when(() => restoreSnapshot.execute(snapshot: snapshot)).thenAnswer(
+          (_) async => WalletManifestSnapshotRestoreResult(
+            outcomes: [
+              WalletManifestAccountRestoreOutcome(
+                account: snapshot.accounts.first,
+                status: WalletManifestRestoreStatus.alreadyPresent,
+                walletId: 'existing-wallet',
+                walletStateChanged: true,
+              ),
+            ],
+          ),
+        );
+
+        final result = await usecase.execute();
+
+        expect(result, isNotNull);
+        expect(result!.restoredCount, 0);
+        expect(result.alreadyPresentCount, 1);
+        expect(result.walletStateMayHaveChanged, isTrue);
+      },
+    );
+
+    test(
+      'marks wallet state changed when a failed restore has a wallet side effect',
+      () async {
+        final snapshot = _snapshot();
+        final fetchRemoteManifest = _MockFetchRemoteManifest();
+        final restoreSnapshot = _MockRestoreSnapshot();
+        final usecase = RestoreRemoteWalletManifestUsecase(
+          fetchRemoteManifest: fetchRemoteManifest,
+          restoreSnapshot: restoreSnapshot,
+        );
+        when(
+          () => fetchRemoteManifest.execute(),
+        ).thenAnswer((_) async => snapshot);
+        when(() => restoreSnapshot.execute(snapshot: snapshot)).thenAnswer(
+          (_) async => WalletManifestSnapshotRestoreResult(
+            outcomes: [
+              WalletManifestAccountRestoreOutcome(
+                account: snapshot.accounts.first,
+                status: WalletManifestRestoreStatus.failed,
+                walletId: 'partially-restored-wallet',
+                failureStage: WalletManifestRestoreFailureStage.recordOrigin,
+                cause: Exception('origin write failed'),
+              ),
+            ],
+          ),
+        );
+
+        final result = await usecase.execute();
+
+        expect(result, isNotNull);
+        expect(result!.restoredCount, 0);
+        expect(result.failedCount, 1);
+        expect(result.walletStateMayHaveChanged, isTrue);
+      },
+    );
 
     test('returns null when no remote manifest exists', () async {
       final fetchRemoteManifest = _MockFetchRemoteManifest();

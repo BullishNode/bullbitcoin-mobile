@@ -32,45 +32,47 @@ class OnboardingRouter {
 
   static final route = ShellRoute(
     navigatorKey: rootNavigatorKey,
-    builder:
-        (context, state, child) => BlocProvider<OnboardingBloc>(
-          create: (_) => locator<OnboardingBloc>(),
-          child: child,
+    builder: (context, state, child) {
+      final walletBloc = context.read<WalletBloc>();
+      return BlocProvider<OnboardingBloc>(
+        create: (_) => locator<OnboardingBloc>(
+          param1: () => walletBloc.add(const WalletRefreshed()),
         ),
+        child: child,
+      );
+    },
     routes: [
       ShellRoute(
         navigatorKey: OnboardingRouter.shellNavigatorKey,
-        builder:
-            (context, state, child) => MultiBlocListener(
-              listeners: [
-                BlocListener<OnboardingBloc, OnboardingState>(
-                  listenWhen:
-                      (previous, current) =>
-                          !previous.isSuccess && current.isSuccess,
-                  listener: (context, state) {
-                    // Restart the wallet bloc to ensure it reflects the new wallets state
-                    // with the recently created or recovered wallets before
-                    // navigating.
-                    context.read<WalletBloc>().add(const WalletStarted());
-                    if (state.step == OnboardingStep.create) {
-                      context.goNamed(WalletRoute.walletHome.name);
-                    }
-                  },
-                ),
-                BlocListener<OnboardingBloc, OnboardingState>(
-                  listenWhen: (previous, current) =>
-                      previous.statusError != current.statusError &&
-                      current.statusError.isNotEmpty,
-                  listener: (context, state) {
-                    SnackBarUtils.showSnackBar(
-                      context,
-                      context.loc.walletSetupErrorTryAgain,
-                    );
-                  },
-                ),
-              ],
-              child: child,
+        builder: (context, state, child) => MultiBlocListener(
+          listeners: [
+            BlocListener<OnboardingBloc, OnboardingState>(
+              listenWhen: (previous, current) =>
+                  !previous.isSuccess && current.isSuccess,
+              listener: (context, state) {
+                // Restart the wallet bloc to ensure it reflects the new wallets state
+                // with the recently created or recovered wallets before
+                // navigating.
+                context.read<WalletBloc>().add(const WalletStarted());
+                if (state.step == OnboardingStep.create) {
+                  context.goNamed(WalletRoute.walletHome.name);
+                }
+              },
             ),
+            BlocListener<OnboardingBloc, OnboardingState>(
+              listenWhen: (previous, current) =>
+                  previous.statusError != current.statusError &&
+                  current.statusError.isNotEmpty,
+              listener: (context, state) {
+                SnackBarUtils.showSnackBar(
+                  context,
+                  context.loc.walletSetupErrorTryAgain,
+                );
+              },
+            ),
+          ],
+          child: child,
+        ),
         routes: [
           GoRoute(
             name: OnboardingRoute.onboarding.name,

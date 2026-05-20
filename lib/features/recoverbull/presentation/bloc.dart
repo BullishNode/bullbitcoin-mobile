@@ -20,6 +20,7 @@ import 'package:bb_mobile/core/tor/domain/ports/tor_config_port.dart';
 import 'package:bb_mobile/core/tor/tor_status.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/recoverbull/errors.dart';
+import 'package:bb_mobile/features/recoverbull/application/start_recoverbull_wallet_manifest_restore_usecase.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -46,6 +47,8 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
   _updateLatestEncryptedVaultTestUsecase;
   final TorStatusUsecase _torStatusUsecase;
   final TorConfigPort _torConfigPort;
+  final StartRecoverBullWalletManifestRestoreUsecase
+  _startWalletManifestRestore;
 
   RecoverBullBloc({
     required RecoverBullFlow flow,
@@ -66,6 +69,8 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
     updateLatestEncryptedVaultTestUsecase,
     required TorStatusUsecase torStatusUsecase,
     required TorConfigPort torConfigPort,
+    required StartRecoverBullWalletManifestRestoreUsecase
+    startWalletManifestRestore,
   }) : _createEncryptedVaultUsecase = createEncryptedVaultUsecase,
        _storeVaultKeyIntoServerUsecase = storeVaultKeyIntoServerUsecase,
        _checkKeyServerConnectionUsecase = checkKeyServerConnectionUsecase,
@@ -81,6 +86,7 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
            updateLatestEncryptedVaultTestUsecase,
        _torStatusUsecase = torStatusUsecase,
        _torConfigPort = torConfigPort,
+       _startWalletManifestRestore = startWalletManifestRestore,
        super(RecoverBullState(flow: flow, vault: preSelectedVault)) {
     on<OnVaultProviderSelection>(_onVaultProviderSelection);
     on<OnVaultSelection>(_onVaultSelection);
@@ -412,6 +418,10 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
     try {
       await _restoreVaultUsecase.execute(decryptedVault: decryptedVault);
       _walletBloc.add(const WalletStarted());
+      _startWalletManifestRestore.execute(
+        onWalletStateMayHaveChanged: () =>
+            _walletBloc.add(const WalletRefreshed()),
+      );
       log.fine('Vault recovered');
       emit(state.copyWith(isFlowFinished: true, isLoading: false));
     } catch (e) {

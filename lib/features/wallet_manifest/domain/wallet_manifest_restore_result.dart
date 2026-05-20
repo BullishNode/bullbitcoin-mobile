@@ -50,6 +50,7 @@ class WalletManifestAccountRestoreOutcome {
   final String? actualLabel;
   final WalletManifestRestoreFailureStage? failureStage;
   final Object? cause;
+  final bool walletStateChanged;
 
   const WalletManifestAccountRestoreOutcome({
     required this.account,
@@ -58,5 +59,6 @@ class WalletManifestAccountRestoreOutcome {
     this.actualLabel,
     this.failureStage,
     this.cause,
+    this.walletStateChanged = false,
   });
 }
