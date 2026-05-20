@@ -15,8 +15,14 @@ import 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_origin
 import 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_snapshot.dart';
 import 'package:bb_mobile/features/wallet_manifest/public/create_manual_bip85_wallets.dart';
 import 'package:bb_mobile/features/wallet_manifest/wallet_manifest_errors.dart';
+import 'package:synchronized/synchronized.dart';
 
 class CreateManualBip85WalletsUsecase {
+  static final _lock = Lock();
+  static final _relativeMnemonic12PathPattern = RegExp(
+    r"^39'/0'/12'/([0-9]+)'$",
+  );
+
   final DeriveWalletManifestRootKeyUsecase _deriveRootKey;
   final FetchWalletManifestOriginsUsecase _fetchOrigins;
   final RestoreWalletManifestSnapshotUsecase _restoreSnapshot;
@@ -25,7 +31,7 @@ class CreateManualBip85WalletsUsecase {
   final FetchAllBip85DerivationsUsecase _fetchAllBip85Derivations;
   final WalletLabelReservationPolicy _walletLabelReservationPolicy;
 
-  const CreateManualBip85WalletsUsecase({
+  CreateManualBip85WalletsUsecase({
     required DeriveWalletManifestRootKeyUsecase deriveRootKey,
     required FetchWalletManifestOriginsUsecase fetchOrigins,
     required RestoreWalletManifestSnapshotUsecase restoreSnapshot,
@@ -43,6 +49,12 @@ class CreateManualBip85WalletsUsecase {
 
   Future<CreateManualBip85WalletsResult> execute(
     CreateManualBip85WalletsCommand command,
+  ) {
+    return _lock.synchronized(() => _execute(command));
+  }
+
+  Future<CreateManualBip85WalletsResult> _execute(
+    CreateManualBip85WalletsCommand command,
   ) async {
     final networks = await _networksFor(command.networkSelection);
     final labels = _labelsFor(command, networks);
@@ -51,18 +63,29 @@ class CreateManualBip85WalletsUsecase {
     }
     final rootKey = await _deriveRootKey.execute();
     final origins = await _fetchOrigins.execute();
-    final usedIdentities = _usedIdentitiesForRoot(
+    final usedWallets = _usedWalletsForRoot(
       rootFingerprint: rootKey.rootFingerprint,
       origins: origins,
     );
-    final usedDerivationIndexes = await _usedMnemonicDerivationIndexesForRoot(
-      rootKey.rootFingerprint,
-    );
+    final usedUnmanifestedDerivationIndexes =
+        await _usedUnmanifestedMnemonic12IndexesForRoot(
+          rootFingerprint: rootKey.rootFingerprint,
+          origins: origins,
+        );
     final index =
         command.index ??
-        _nextFreeIndex(networks, usedIdentities, usedDerivationIndexes);
+        _nextFreeIndex(
+          networks,
+          usedWallets,
+          usedUnmanifestedDerivationIndexes,
+        );
 
-    _validateIndex(index, networks, usedIdentities, usedDerivationIndexes);
+    _validateIndex(
+      index,
+      networks,
+      usedWallets,
+      usedUnmanifestedDerivationIndexes,
+    );
 
     final path = Bip85DerivationPath.mnemonic12(index: index);
     final accounts = [
@@ -94,7 +117,9 @@ class CreateManualBip85WalletsUsecase {
         )
         .toList(growable: false);
     final partialFailure =
-        result.failed.isNotEmpty || result.skipped.isNotEmpty;
+        result.failed.isNotEmpty ||
+        result.skipped.isNotEmpty ||
+        result.alreadyPresent.isNotEmpty;
 
     if (result.failed.isNotEmpty && restoredWallets.isEmpty) {
       throw WalletManifestManualBip85WalletCreationException(
@@ -176,10 +201,15 @@ class CreateManualBip85WalletsUsecase {
     return labels;
   }
 
-  Future<Set<int>> _usedMnemonicDerivationIndexesForRoot(
-    String rootFingerprint,
-  ) async {
+  Future<Set<int>> _usedUnmanifestedMnemonic12IndexesForRoot({
+    required String rootFingerprint,
+    required List<WalletManifestOrigin> origins,
+  }) async {
     final derivations = await _fetchAllBip85Derivations.execute(usage: null);
+    final manifestedIndexes = origins
+        .where((origin) => origin.rootFingerprint == rootFingerprint)
+        .map((origin) => origin.bip85Index)
+        .toSet();
     return derivations
         .where(
           (derivation) =>
@@ -187,33 +217,51 @@ class CreateManualBip85WalletsUsecase {
               derivation.application == Bip85Application.bip39 &&
               derivation.status != Bip85Status.revoked,
         )
-        .map((derivation) => derivation.index)
+        .map((derivation) => _mnemonic12IndexForStoredPath(derivation.path))
+        .whereType<int>()
+        .where((index) => !manifestedIndexes.contains(index))
         .toSet();
   }
 
-  Set<String> _usedIdentitiesForRoot({
+  int? _mnemonic12IndexForStoredPath(String path) {
+    final parsed = Bip85DerivationPath.tryParse(path);
+    if (parsed != null) return parsed.index;
+    final relativeMatch = _relativeMnemonic12PathPattern.firstMatch(path);
+    if (relativeMatch == null) return null;
+    final index = int.tryParse(relativeMatch.group(1)!);
+    if (index == null) return null;
+    if (index > Bip85DerivationPath.maxHardenedChildIndex) return null;
+    return index;
+  }
+
+  Set<({String path, WalletManifestNetwork network})> _usedWalletsForRoot({
     required String rootFingerprint,
     required List<WalletManifestOrigin> origins,
   }) {
     return origins
         .where((origin) => origin.rootFingerprint == rootFingerprint)
-        .map((origin) => origin.identity)
+        .map(
+          (origin) =>
+              (path: origin.bip85DerivationPath.value, network: origin.network),
+        )
         .toSet();
   }
 
   int _nextFreeIndex(
     List<WalletManifestNetwork> networks,
-    Set<String> usedIdentities,
+    Set<({String path, WalletManifestNetwork network})> usedWallets,
     Set<int> usedDerivationIndexes,
   ) {
     var index = 0;
+    var path = Bip85DerivationPath.mnemonic12(index: index);
     while (_isReserved(index) ||
         usedDerivationIndexes.contains(index) ||
-        networks.any((network) => _isUsed(index, network, usedIdentities))) {
+        networks.any((network) => _isUsed(path, network, usedWallets))) {
       index += 1;
       if (index > Bip85DerivationPath.maxHardenedChildIndex) {
         throw WalletManifestManualBip85InvalidIndexException(index);
       }
+      path = Bip85DerivationPath.mnemonic12(index: index);
     }
     return index;
   }
@@ -221,14 +269,15 @@ class CreateManualBip85WalletsUsecase {
   void _validateIndex(
     int index,
     List<WalletManifestNetwork> networks,
-    Set<String> usedIdentities,
+    Set<({String path, WalletManifestNetwork network})> usedWallets,
     Set<int> usedDerivationIndexes,
   ) {
     _validateStaticIndex(index);
+    final path = Bip85DerivationPath.mnemonic12(index: index);
     if (usedDerivationIndexes.contains(index)) {
       throw WalletManifestManualBip85IndexUnavailableException(index);
     }
-    if (networks.any((network) => _isUsed(index, network, usedIdentities))) {
+    if (networks.any((network) => _isUsed(path, network, usedWallets))) {
       throw WalletManifestManualBip85IndexUnavailableException(index);
     }
   }
@@ -247,13 +296,10 @@ class CreateManualBip85WalletsUsecase {
   }
 
   bool _isUsed(
-    int index,
+    Bip85DerivationPath path,
     WalletManifestNetwork network,
-    Set<String> usedIdentities,
+    Set<({String path, WalletManifestNetwork network})> usedWallets,
   ) {
-    final path = Bip85DerivationPath.mnemonic12(index: index);
-    return usedIdentities.any(
-      (identity) => identity.endsWith(':${path.value}:${network.value}'),
-    );
+    return usedWallets.contains((path: path.value, network: network));
   }
 }

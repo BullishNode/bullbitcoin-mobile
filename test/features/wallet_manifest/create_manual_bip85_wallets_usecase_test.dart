@@ -3,7 +3,6 @@ import 'package:bb_mobile/core/bip85/domain/fetch_all_derivations_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/repositories/settings_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/domain/wallet_label_reservations.dart';
-import 'package:bb_mobile/features/external_receive_wallets/reserved_external_receive_wallet_labels.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/create_manual_bip85_wallets_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/derive_wallet_manifest_root_key_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/fetch_wallet_manifest_origins_usecase.dart';
@@ -37,6 +36,7 @@ class _MockFetchAllBip85Derivations extends Mock
     implements FetchAllBip85DerivationsUsecase {}
 
 const _rootFingerprint = '73c5da0a';
+const _reservedLabel = 'Reserved Product Wallet';
 
 void main() {
   late _MockDeriveRootKey deriveRootKey;
@@ -68,7 +68,7 @@ void main() {
       settingsRepository: settingsRepository,
       fetchAllBip85Derivations: fetchAllBip85Derivations,
       walletLabelReservationPolicy: const WalletLabelReservationPolicy(
-        reservedLabels: ReservedExternalReceiveWalletLabel.userReserved,
+        reservedLabels: [_reservedLabel],
       ),
     );
 
@@ -196,6 +196,41 @@ void main() {
     },
   );
 
+  test(
+    'auto-index allows opposite network at an existing manifested index',
+    () async {
+      when(() => fetchOrigins.execute()).thenAnswer(
+        (_) async => [
+          _origin(index: 0, network: WalletManifestNetwork.bitcoin),
+        ],
+      );
+      when(
+        () => fetchAllBip85Derivations.execute(usage: any(named: 'usage')),
+      ).thenAnswer(
+        (_) async => [_bip85Derivation(index: 0, alias: 'Existing BTC')],
+      );
+
+      final result = await usecase.execute(
+        const CreateManualBip85WalletsCommand(
+          networkSelection: ManualBip85WalletNetworkSelection.liquid,
+          liquidLabel: 'Matching LBTC',
+        ),
+      );
+
+      expect(result.index, 0);
+
+      final captured =
+          verify(
+                () => restoreSnapshot.execute(
+                  snapshot: captureAny(named: 'snapshot'),
+                ),
+              ).captured.single
+              as WalletManifestSnapshot;
+      expect(captured.accounts.single.network, WalletManifestNetwork.liquid);
+      expect(captured.accounts.single.bip85Index, 0);
+    },
+  );
+
   test('auto-index for both skips when either network side is used', () async {
     when(() => fetchOrigins.execute()).thenAnswer(
       (_) async => [_origin(index: 0, network: WalletManifestNetwork.liquid)],
@@ -250,13 +285,94 @@ void main() {
     );
   });
 
+  test('manual both creation blocks partially used indexes', () async {
+    when(() => fetchOrigins.execute()).thenAnswer(
+      (_) async => [_origin(index: 3, network: WalletManifestNetwork.liquid)],
+    );
+
+    await expectLater(
+      usecase.execute(
+        const CreateManualBip85WalletsCommand(
+          networkSelection: ManualBip85WalletNetworkSelection.both,
+          index: 3,
+          bitcoinLabel: 'Matching BTC',
+          liquidLabel: 'Duplicate LBTC',
+        ),
+      ),
+      throwsA(isA<WalletManifestManualBip85IndexUnavailableException>()),
+    );
+
+    verifyNever(
+      () => restoreSnapshot.execute(snapshot: any(named: 'snapshot')),
+    );
+  });
+
+  test(
+    'manual creation allows opposite network at an existing manifested index',
+    () async {
+      when(() => fetchOrigins.execute()).thenAnswer(
+        (_) async => [
+          _origin(index: 3, network: WalletManifestNetwork.bitcoin),
+        ],
+      );
+      when(
+        () => fetchAllBip85Derivations.execute(usage: any(named: 'usage')),
+      ).thenAnswer(
+        (_) async => [_bip85Derivation(index: 3, alias: 'Existing BTC')],
+      );
+
+      final result = await usecase.execute(
+        const CreateManualBip85WalletsCommand(
+          networkSelection: ManualBip85WalletNetworkSelection.liquid,
+          index: 3,
+          liquidLabel: 'Matching LBTC',
+        ),
+      );
+
+      expect(result.index, 3);
+      expect(result.wallets.single.network, WalletManifestNetwork.liquid);
+    },
+  );
+
+  test(
+    'manual creation ignores unmanifested non-12-word derivation paths',
+    () async {
+      when(() => fetchOrigins.execute()).thenAnswer(
+        (_) async => [
+          _origin(index: 3, network: WalletManifestNetwork.bitcoin),
+        ],
+      );
+      when(
+        () => fetchAllBip85Derivations.execute(usage: any(named: 'usage')),
+      ).thenAnswer(
+        (_) async => [
+          _bip85Derivation(
+            index: 3,
+            alias: 'Unmanifested 24-word',
+            path: "39'/0'/24'/3'",
+          ),
+        ],
+      );
+
+      final result = await usecase.execute(
+        const CreateManualBip85WalletsCommand(
+          networkSelection: ManualBip85WalletNetworkSelection.liquid,
+          index: 3,
+          liquidLabel: 'Matching LBTC',
+        ),
+      );
+
+      expect(result.index, 3);
+      expect(result.wallets.single.network, WalletManifestNetwork.liquid);
+    },
+  );
+
   test('manual creation blocks reserved labels before restore', () async {
     await expectLater(
       usecase.execute(
         const CreateManualBip85WalletsCommand(
           networkSelection: ManualBip85WalletNetworkSelection.liquid,
-          liquidLabel:
-              ReservedExternalReceiveWalletLabel.lightningAddressLiquid,
+          liquidLabel: _reservedLabel,
         ),
       ),
       throwsA(isA<WalletManifestManualBip85ReservedLabelException>()),
@@ -420,6 +536,119 @@ void main() {
     },
   );
 
+  test(
+    'flags partial failure when restore reports already-present outcomes',
+    () async {
+      when(
+        () => restoreSnapshot.execute(snapshot: any(named: 'snapshot')),
+      ).thenAnswer((invocation) async {
+        final snapshot =
+            invocation.namedArguments[#snapshot] as WalletManifestSnapshot;
+        return WalletManifestSnapshotRestoreResult(
+          outcomes: [
+            WalletManifestAccountRestoreOutcome(
+              account: snapshot.accounts.first,
+              status: WalletManifestRestoreStatus.created,
+              walletId: 'bitcoin-wallet',
+              actualLabel: snapshot.accounts.first.name,
+            ),
+            WalletManifestAccountRestoreOutcome(
+              account: snapshot.accounts.last,
+              status: WalletManifestRestoreStatus.alreadyPresent,
+              walletId: 'liquid-wallet',
+              actualLabel: snapshot.accounts.last.name,
+            ),
+          ],
+        );
+      });
+
+      final result = await usecase.execute(
+        const CreateManualBip85WalletsCommand(
+          networkSelection: ManualBip85WalletNetworkSelection.both,
+          bitcoinLabel: 'Created BTC',
+          liquidLabel: 'Existing LBTC',
+        ),
+      );
+
+      expect(result.wallets, hasLength(1));
+      expect(result.wallets.single.network, WalletManifestNetwork.bitcoin);
+      expect(result.partialFailure, isTrue);
+      verify(() => publishLocalManifest.execute()).called(1);
+    },
+  );
+
+  test(
+    'serializes auto-index allocation across separate usecase instances',
+    () async {
+      final origins = <WalletManifestOrigin>[];
+      when(
+        () => fetchOrigins.execute(),
+      ).thenAnswer((_) async => List<WalletManifestOrigin>.of(origins));
+      when(
+        () => restoreSnapshot.execute(snapshot: any(named: 'snapshot')),
+      ).thenAnswer((invocation) async {
+        final snapshot =
+            invocation.namedArguments[#snapshot] as WalletManifestSnapshot;
+        origins.addAll(
+          snapshot.accounts.map(
+            (account) => WalletManifestOrigin(
+              walletId: '${account.network.value}-${account.bip85Index}-wallet',
+              rootFingerprint: account.rootFingerprint,
+              bip85DerivationPath: account.bip85DerivationPath,
+              network: account.network,
+              createdAt: 1,
+              updatedAt: 1,
+            ),
+          ),
+        );
+        return WalletManifestSnapshotRestoreResult(
+          outcomes: [
+            for (final account in snapshot.accounts)
+              WalletManifestAccountRestoreOutcome(
+                account: account,
+                status: WalletManifestRestoreStatus.created,
+                walletId:
+                    '${account.network.value}-${account.bip85Index}-wallet',
+                actualLabel: account.name,
+              ),
+          ],
+        );
+      });
+
+      final secondUsecase = CreateManualBip85WalletsUsecase(
+        deriveRootKey: deriveRootKey,
+        fetchOrigins: fetchOrigins,
+        restoreSnapshot: restoreSnapshot,
+        publishLocalManifest: publishLocalManifest,
+        settingsRepository: settingsRepository,
+        fetchAllBip85Derivations: fetchAllBip85Derivations,
+        walletLabelReservationPolicy: const WalletLabelReservationPolicy(
+          reservedLabels: [_reservedLabel],
+        ),
+      );
+
+      final results = await Future.wait([
+        usecase.execute(
+          const CreateManualBip85WalletsCommand(
+            networkSelection: ManualBip85WalletNetworkSelection.liquid,
+            liquidLabel: 'First LBTC',
+          ),
+        ),
+        secondUsecase.execute(
+          const CreateManualBip85WalletsCommand(
+            networkSelection: ManualBip85WalletNetworkSelection.liquid,
+            liquidLabel: 'Second LBTC',
+          ),
+        ),
+      ]);
+
+      expect(results.map((result) => result.index), [0, 1]);
+      verify(
+        () => restoreSnapshot.execute(snapshot: any(named: 'snapshot')),
+      ).called(2);
+    },
+  );
+
   test('requires labels for selected networks', () async {
     await expectLater(
       usecase.execute(
@@ -479,5 +708,21 @@ WalletManifestOrigin _origin({
     network: network,
     createdAt: 1,
     updatedAt: 1,
+  );
+}
+
+Bip85DerivationEntity _bip85Derivation({
+  required int index,
+  required String alias,
+  String? path,
+}) {
+  return Bip85DerivationEntity(
+    path: path ?? "39'/0'/12'/$index'",
+    xprvFingerprint: _rootFingerprint,
+    alias: alias,
+    status: Bip85Status.active,
+    usage: Bip85Usage.manual,
+    application: Bip85Application.bip39,
+    index: index,
   );
 }
