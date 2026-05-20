@@ -2212,7 +2212,7 @@
   "@sellSendPaymentAdvanced": {
     "description": "Advanced settings button"
   },
-  "bitcoinSettingsImportWalletTitle": "Import Wallet",
+  "bitcoinSettingsImportWalletTitle": "Cüzdan Ekle",
   "@bitcoinSettingsImportWalletTitle": {
     "description": "Title for the import wallet option in Bitcoin settings"
   },
