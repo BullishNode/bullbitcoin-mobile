@@ -38,6 +38,7 @@ import 'package:bb_mobile/features/test_wallet_backup/test_wallet_backup_locator
 import 'package:bb_mobile/features/tor_settings/tor_settings_locator.dart';
 import 'package:bb_mobile/features/transactions/transactions_locator.dart';
 import 'package:bb_mobile/features/wallet/wallet_locator.dart';
+import 'package:bb_mobile/features/wallet_manifest/wallet_manifest_locator.dart';
 import 'package:bb_mobile/features/withdraw/withdraw_locator.dart';
 import 'package:bb_mobile/features/wizard/wizard_locator.dart';
 import 'package:get_it/get_it.dart';
@@ -77,6 +78,7 @@ class AppLocator {
     SettingsLocator.setup(locator);
     BitcoinPriceLocator.setup(locator);
     WalletLocator.setup(locator);
+    WalletManifestLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);
     TransactionsLocator.registerBlocs(locator);
     ReceiveLocator.setup(locator);

@@ -66,6 +66,7 @@ class _Screen extends StatelessWidget {
                         state.lastPhysicalBackup != null)
                       const _TestBackupButton(),
                     const _RecoverBullSettingsButton(),
+                    const _WalletManifestButton(),
                     const _Bip329LabelsButton(),
                     if (state.error != null) ErrorWidget(error: state.error!),
                   ],
@@ -246,6 +247,20 @@ class _Bip329LabelsButton extends StatelessWidget {
       icon: Icons.sell,
       title: context.loc.backupSettingsLabelsButton,
       onTap: () => context.push(LabelsRouter.route.path),
+    );
+  }
+}
+
+class _WalletManifestButton extends StatelessWidget {
+  const _WalletManifestButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsEntryItem(
+      icon: Icons.account_tree,
+      title: context.loc.backupSettingsWalletManifestButton,
+      onTap: () =>
+          context.pushNamed(BackupSettingsSubroute.walletManifest.name),
     );
   }
 }

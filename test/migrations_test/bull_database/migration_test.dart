@@ -160,6 +160,30 @@ void main() {
           expect(usageByAlias['Personal'], 'manual');
           expect(rows.map((row) => row.xprvFingerprint).toSet(), {'root-a'});
 
+          await newDb.customStatement(
+            '''
+INSERT INTO wallet_manifest_origins (
+  wallet_id,
+  root_fingerprint,
+  bip85_derivation_path,
+  network,
+  created_at,
+  updated_at
+) VALUES (?, ?, ?, ?, ?, ?);
+''',
+            [
+              'wallet-lbtc',
+              'abcd1234',
+              "m/83696968'/39'/0'/12'/77'",
+              'liquid',
+              100,
+              100,
+            ],
+          );
+          final originRows = await newDb
+              .customSelect('SELECT wallet_id FROM wallet_manifest_origins')
+              .get();
+          expect(originRows.single.data['wallet_id'], 'wallet-lbtc');
         },
       );
     },

@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/storage/wallet_manifest_origins_schema.dart';
 import 'package:drift/drift.dart';
 
 class Schema12To13 {
@@ -38,5 +39,6 @@ FROM bip85_derivations;
       'ALTER TABLE bip85_derivations_v13 RENAME TO bip85_derivations;',
     );
 
+    await m.database.customStatement(createWalletManifestOriginsTableSql);
   }
 }

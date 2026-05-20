@@ -4,7 +4,6 @@ import 'package:bb_mobile/core/electrum/domain/value_objects/electrum_server_net
 import 'package:bb_mobile/core/storage/migrations/migrations.dart';
 import 'package:bb_mobile/core/storage/sqlite_database.steps.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/core/utils/report.dart';
 import 'package:bb_mobile/core/storage/tables/auto_swap.dart';
 import 'package:bb_mobile/core/storage/tables/bip85_derivations_table.dart';
 import 'package:bb_mobile/core/storage/tables/electrum_servers_table.dart';
@@ -20,6 +19,7 @@ import 'package:bb_mobile/core/storage/tables/settings_table.dart';
 import 'package:bb_mobile/core/storage/tables/swaps_table.dart';
 import 'package:bb_mobile/core/storage/tables/transactions_table.dart';
 import 'package:bb_mobile/core/storage/tables/wallet_metadata_table.dart';
+import 'package:bb_mobile/core/storage/wallet_manifest_origins_schema.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/isolate.dart';
 import 'package:drift/native.dart';
@@ -75,15 +75,8 @@ class SqliteDatabase extends _$SqliteDatabase {
   SqliteDatabase([QueryExecutor? executor])
     : super(executor ?? _openConnection());
 
-  /// Current drift schema version. Bump in lockstep with adding a new
-  /// `Schema<N-1>To<N>.migrate` step in [migration]. `Report.init`
-  /// asserts that an entry for this number exists in the
-  /// schema → app-version map so a future bump can't silently
-  /// misclassify upgrade events.
-  static const int currentSchemaVersion = 13;
-
   @override
-  int get schemaVersion => currentSchemaVersion;
+  int get schemaVersion => 13;
 
   static QueryExecutor _openConnection() {
     return driftDatabase(
@@ -128,25 +121,13 @@ class SqliteDatabase extends _$SqliteDatabase {
         from11To12: _reportingMigration('from11To12', Schema11To12.migrate),
         from12To13: _reportingMigration('from12To13', Schema12To13.migrate),
       ),
-      // Backfills `Report.fromVersion` for installs that predate the
-      // `_lastVersionKey` SharedPreferences marker (added in v6.6.0).
-      // Drift sets `versionBefore` to the on-disk schema before any
-      // step runs, so this fires once on the first launch after a
-      // pre-v6.6.0 → v6.6.0+ upgrade and is a no-op otherwise.
-      beforeOpen: (details) async {
-        if (details.versionBefore != null &&
-            details.versionBefore != details.versionNow) {
-          Report.recordSchemaUpgrade(from: details.versionBefore!);
-        }
-      },
     );
   }
 
   /// Wraps a per-version drift migration step so a failure is surfaced to
-  /// Sentry (consent-gated, tagged `category=migration`) before the
-  /// rethrow aborts init. Drift migrations run lazily on first query,
-  /// so wrapping the step fn (not the constructor) is what actually
-  /// catches failures.
+  /// Sentry via the always-on migration channel before the rethrow aborts
+  /// init. Drift migrations run lazily on first query, so wrapping the step
+  /// fn (not the constructor) is what actually catches failures.
   static Future<void> Function(Migrator, Schema) _reportingMigration<Schema>(
     String name,
     Future<void> Function(Migrator, Schema) fn,
@@ -155,11 +136,10 @@ class SqliteDatabase extends _$SqliteDatabase {
       try {
         await fn(m, schema);
       } catch (e, s) {
-        log.severe(
+        log.shout(
           message: 'drift migration step $name failed',
           error: e,
           trace: s,
-          category: ReportCategory.migration,
         );
         rethrow;
       }
@@ -172,13 +152,9 @@ class SqliteDatabase extends _$SqliteDatabase {
     return (m) async {
       try {
         await fn(m);
+        await m.database.customStatement(createWalletManifestOriginsTableSql);
       } catch (e, s) {
-        log.severe(
-          message: 'drift onCreate failed',
-          error: e,
-          trace: s,
-          category: ReportCategory.migration,
-        );
+        log.shout(message: 'drift onCreate failed', error: e, trace: s);
         rethrow;
       }
     };

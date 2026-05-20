@@ -197,6 +197,7 @@ class SettingsRouter {
         builder: (context, state) => const BackupSettingsScreen(),
         routes: [
           BackupSettingsSettingsRouter.route,
+          BackupSettingsSettingsRouter.walletManifestRoute,
           TestWalletBackupRouter.route,
         ],
       ),

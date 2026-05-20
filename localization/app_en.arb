@@ -4,13 +4,13 @@
   "@translationWarningTitle": {
     "description": "Title for the AI translation warning bottom sheet"
   },
-  "translationWarningDescription": "Most translations in this app were generated using AI and may contain inaccuracies. If you notice any errors or would like to help improve the translations, you can submit a fix on our GitHub repository.",
+  "translationWarningDescription": "Most translations in this app were generated using AI and may contain inaccuracies. If you notice any errors or would like to help improve the translations, you can contribute through our community translation platform.",
   "@translationWarningDescription": {
     "description": "Description explaining that translations are AI-generated and may be inaccurate"
   },
   "translationWarningContributeButton": "Help Improve Translations",
   "@translationWarningContributeButton": {
-    "description": "Button to open GitHub repository for translations"
+    "description": "Button to open Weblate translation platform"
   },
   "translationWarningDismissButton": "Got It",
   "@translationWarningDismissButton": {
@@ -692,7 +692,7 @@
   "@bitcoinSettingsLegacySeedsTitle": {
     "description": "Title for the legacy seeds section in Bitcoin settings"
   },
-  "bitcoinSettingsImportWalletTitle": "Import Wallet",
+  "bitcoinSettingsImportWalletTitle": "Add Wallet",
   "@bitcoinSettingsImportWalletTitle": {
     "description": "Title for the import wallet option in Bitcoin settings"
   },
@@ -7217,6 +7217,10 @@
   "@sendErrorConfirmationFailed": {
     "description": "Error title when transaction confirmation fails"
   },
+  "sendBullpayLud22PrivacyDisclosure": "Direct Liquid payment links one of your wallet's UTXOs to this Lightning Address. The amount stays private.",
+  "@sendBullpayLud22PrivacyDisclosure": {
+    "description": "Privacy notice on the LUD-22 confirm screen explaining the proof-of-funds disclosure."
+  },
   "sendErrorInsufficientBalanceForSwap": "Not enough balance to pay this swap via Liquid and not within swap limits to pay via Bitcoin.",
   "@sendErrorInsufficientBalanceForSwap": {
     "description": "Error when balance insufficient for swap through either network"
@@ -8321,6 +8325,15 @@
       }
     }
   },
+  "recoverbullBalance": "Balance: {balance}",
+  "@recoverbullBalance": {
+    "description": "Label showing wallet balance during vault recovery",
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "recoverbullCheckingConnection": "Checking connection for RecoverBull",
   "@recoverbullCheckingConnection": {
     "description": "Screen title while checking connection status"
@@ -8410,9 +8423,17 @@
   "@recoverbullEnterVaultKeyInstead": {
     "description": "Button text to switch to manual vault key entry"
   },
+  "recoverbullErrorCheckStatusFailed": "Failed to check the vault status",
+  "@recoverbullErrorCheckStatusFailed": {
+    "description": "Error message when vault status check fails"
+  },
   "recoverbullErrorConnectionFailed": "Failed to connect to the target key server. Please try again later!",
   "@recoverbullErrorConnectionFailed": {
     "description": "Error message when server connection fails"
+  },
+  "recoverbullErrorDecryptedVaultNotSet": "Decrypted vault is not set",
+  "@recoverbullErrorDecryptedVaultNotSet": {
+    "description": "Error when attempting operation without decrypted vault"
   },
   "recoverbullErrorDecryptFailed": "Failed to decrypt the vault",
   "@recoverbullErrorDecryptFailed": {
@@ -8426,6 +8447,10 @@
   "@recoverbullErrorInvalidCredentials": {
     "description": "Error message when wrong password is entered for vault"
   },
+  "recoverbullErrorInvalidFlow": "Invalid flow",
+  "@recoverbullErrorInvalidFlow": {
+    "description": "Error message for invalid operation flow"
+  },
   "recoverbullErrorMissingBytes": "Missing bytes from the Tor response. Retry but if the issue persists, it is a known issue for some devices with Tor.",
   "@recoverbullErrorMissingBytes": {
     "description": "Error message when Tor response is incomplete"
@@ -8433,6 +8458,10 @@
   "recoverbullErrorPasswordNotSet": "Password is not set",
   "@recoverbullErrorPasswordNotSet": {
     "description": "Error when attempting operation without setting password"
+  },
+  "recoverbullErrorRecoveryFailed": "Failed to recover the vault",
+  "@recoverbullErrorRecoveryFailed": {
+    "description": "Error message when vault recovery fails"
   },
   "recoverbullTorNotStarted": "Tor is not started",
   "@recoverbullTorNotStarted": {
@@ -8494,6 +8523,10 @@
   "recoverbullKeyServer": "Key Server ",
   "@recoverbullKeyServer": {
     "description": "Label for key server connection status"
+  },
+  "recoverbullLookingForBalance": "Looking for balance and transactions…",
+  "@recoverbullLookingForBalance": {
+    "description": "Loading message while scanning wallet"
   },
   "recoverbullMemorizeWarning": "You must memorize this {inputType} to recover access to your wallet. It must be at least 6 digits. If you lose this {inputType} you cannot recover your backup.",
   "@recoverbullMemorizeWarning": {
@@ -8702,6 +8735,15 @@
   "@recoverbullTorNetwork": {
     "description": "Label for Tor network connection status"
   },
+  "recoverbullTransactions": "Transactions: {count}",
+  "@recoverbullTransactions": {
+    "description": "Label showing transaction count during vault recovery",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "recoverbullVaultCreatedSuccess": "Vault created successfully",
   "@recoverbullVaultCreatedSuccess": {
     "description": "Success message after vault creation"
@@ -8717,6 +8759,10 @@
   "recoverbullVaultKeyInput": "Vault Key",
   "@recoverbullVaultKeyInput": {
     "description": "Input field label for vault key entry"
+  },
+  "recoverbullVaultRecovery": "Vault Recovery",
+  "@recoverbullVaultRecovery": {
+    "description": "Screen title for vault recovery process"
   },
   "recoverbullVaultSelected": "Vault Selected",
   "@recoverbullVaultSelected": {
@@ -9508,6 +9554,104 @@
   "importWalletSectionHardware": "Hardware wallets",
   "@importWalletSectionHardware": {
     "description": "Section header for hardware wallet types"
+  },
+  "importWalletCreateManualBip85Title": "Create new wallet",
+  "@importWalletCreateManualBip85Title": {
+    "description": "Title for creating a new manual BIP85 wallet"
+  },
+  "importWalletCreateManualBip85NetworkLabel": "Network",
+  "@importWalletCreateManualBip85NetworkLabel": {
+    "description": "Field label for selecting which network to create manual BIP85 wallets for"
+  },
+  "importWalletCreateManualBip85Liquid": "Liquid",
+  "@importWalletCreateManualBip85Liquid": {
+    "description": "Liquid network option for manual BIP85 wallet creation"
+  },
+  "importWalletCreateManualBip85Bitcoin": "Bitcoin",
+  "@importWalletCreateManualBip85Bitcoin": {
+    "description": "Bitcoin network option for manual BIP85 wallet creation"
+  },
+  "importWalletCreateManualBip85Both": "Bitcoin and Liquid",
+  "@importWalletCreateManualBip85Both": {
+    "description": "Both networks option for manual BIP85 wallet creation"
+  },
+  "importWalletCreateManualBip85BitcoinLabel": "Bitcoin wallet label",
+  "@importWalletCreateManualBip85BitcoinLabel": {
+    "description": "Input label for the Bitcoin wallet name when creating manual BIP85 wallets"
+  },
+  "importWalletCreateManualBip85LiquidLabel": "Liquid wallet label",
+  "@importWalletCreateManualBip85LiquidLabel": {
+    "description": "Input label for the Liquid wallet name when creating manual BIP85 wallets"
+  },
+  "importWalletCreateManualBip85SelectIndex": "Select recovery index manually",
+  "@importWalletCreateManualBip85SelectIndex": {
+    "description": "Checkbox label for manually choosing the BIP85 recovery index"
+  },
+  "importWalletCreateManualBip85Index": "Recovery index",
+  "@importWalletCreateManualBip85Index": {
+    "description": "Input label for a manually selected BIP85 recovery index"
+  },
+  "importWalletCreateManualBip85InvalidIndex": "Enter a valid index",
+  "@importWalletCreateManualBip85InvalidIndex": {
+    "description": "Validation error for a missing or invalid manual BIP85 recovery index"
+  },
+  "importWalletCreateManualBip85IndexMin": "Index must be 0 or higher",
+  "@importWalletCreateManualBip85IndexMin": {
+    "description": "Validation error when a manual BIP85 recovery index is negative"
+  },
+  "importWalletCreateManualBip85Submit": "Create wallet",
+  "@importWalletCreateManualBip85Submit": {
+    "description": "Submit button for creating manual BIP85 wallets"
+  },
+  "importWalletCreateManualBip85Creating": "Creating...",
+  "@importWalletCreateManualBip85Creating": {
+    "description": "Submit button text while manual BIP85 wallets are being created"
+  },
+  "importWalletCreateManualBip85OperationInProgress": "Wait for wallet creation to finish before leaving.",
+  "@importWalletCreateManualBip85OperationInProgress": {
+    "description": "Message shown when leaving manual BIP85 wallet creation is blocked during creation"
+  },
+  "importWalletCreateManualBip85Success": "{walletCount, plural, =1{Created 1 wallet at recovery index {index}.{partialWarning}{publishWarning}} other{Created {walletCount} wallets at recovery index {index}.{partialWarning}{publishWarning}}}",
+  "@importWalletCreateManualBip85Success": {
+    "description": "Success snackbar after creating manual BIP85 wallets",
+    "placeholders": {
+      "walletCount": {
+        "type": "int"
+      },
+      "index": {
+        "type": "int"
+      },
+      "partialWarning": {
+        "type": "String"
+      },
+      "publishWarning": {
+        "type": "String"
+      }
+    }
+  },
+  "importWalletCreateManualBip85PartialWarning": "Some selected wallets could not be created. Review the wallet list before retrying.",
+  "@importWalletCreateManualBip85PartialWarning": {
+    "description": "Warning appended when only part of a manual BIP85 wallet creation request succeeds"
+  },
+  "importWalletCreateManualBip85ManifestWarning": "Manifest update failed and can be retried from backup settings.",
+  "@importWalletCreateManualBip85ManifestWarning": {
+    "description": "Warning appended when manual BIP85 wallet creation succeeds but manifest publishing fails"
+  },
+  "importWalletCreateManualBip85LabelRequired": "A label is required for each selected network.",
+  "@importWalletCreateManualBip85LabelRequired": {
+    "description": "Validation or error message when a manual BIP85 wallet label is missing"
+  },
+  "importWalletCreateManualBip85InvalidBip85Index": "Enter a valid BIP85 index.",
+  "@importWalletCreateManualBip85InvalidBip85Index": {
+    "description": "Error message when manual BIP85 wallet creation receives an invalid index"
+  },
+  "importWalletCreateManualBip85IndexUnavailable": "A wallet with this BIP85 index already exists or is reserved.",
+  "@importWalletCreateManualBip85IndexUnavailable": {
+    "description": "Error message when a manual BIP85 wallet index is already used or reserved"
+  },
+  "importWalletCreateManualBip85CreationFailed": "Could not create the wallet.",
+  "@importWalletCreateManualBip85CreationFailed": {
+    "description": "Generic error message when manual BIP85 wallet creation fails"
   },
   "importWalletColdcardQ": "Coldcard Q",
   "@importWalletColdcardQ": {
@@ -11157,10 +11301,6 @@
       }
     }
   },
-  "electrumStopGapHighWarning": "High stop gap values significantly increase sync time. Keep the app open in the foreground until the sync completes — backgrounding the app may interrupt it.",
-  "@electrumStopGapHighWarning": {
-    "description": "Warning shown when the user enters a Stop Gap larger than 1000"
-  },
   "electrumTimeoutEmptyError": "Timeout can't be empty",
   "@electrumTimeoutEmptyError": {
     "description": "Validation error for empty Timeout field"
@@ -12784,93 +12924,29 @@
   "@deleteAccountSuccessClose": {
     "description": "Close button label for delete account success bottom sheet"
   },
-  "legacyStorageBadgeActionRequired": "ACTION REQUIRED",
-  "@legacyStorageBadgeActionRequired": {
-    "description": "Red pill badge above the legacy storage warning page title"
+  "homeLegacyStorageWithNoBackupTitle": "Urgent: Backup & Reinstall Required",
+  "@homeLegacyStorageWithNoBackupTitle": {
+    "description": "Warning card title when the wallet is on deprecated storage AND has no backup"
   },
-  "legacyStorageBadgeConfirm": "CONFIRM",
-  "@legacyStorageBadgeConfirm": {
-    "description": "Red pill badge above the are-you-sure confirmation title"
+  "homeLegacyStorageWithNoBackupDescription": "The app you are using is using software that will soon be deprecated. Please follow these steps:\n\n1. Backup your wallet\n2. Uninstall the app. Delete it fully from your phone.\n3. Reinstall the latest version of the app\n4. Use the recovery option instead of \"create new wallet\".\n\nYour funds are safe and you can continue using the app right now, but do this as soon as possible to prevent your app from breaking in the near future.",
+  "@homeLegacyStorageWithNoBackupDescription": {
+    "description": "Warning card description when the wallet is on deprecated storage AND has no backup"
   },
-  "legacyStorageNoBackupPageTitle": "BACKUP AND RE-INSTALL YOUR WALLET",
-  "@legacyStorageNoBackupPageTitle": {
-    "description": "Full-page warning title shown when the wallet has no backup"
+  "homeLegacyStorageTitle": "Action Required: Reinstall App",
+  "@homeLegacyStorageTitle": {
+    "description": "Warning card title when the wallet is on deprecated storage but has a backup"
   },
-  "legacyStorageHasBackupPageTitle": "RE-INSTALL YOUR WALLET",
-  "@legacyStorageHasBackupPageTitle": {
-    "description": "Full-page warning title shown when the wallet already has a backup"
+  "homeLegacyStorageDescription": "The app you are using is using software that will soon be deprecated. Please follow these steps:\n\n1. Backup your wallet\n2. Uninstall the app. Delete it fully from your phone.\n3. Reinstall the latest version of the app\n4. Use the recovery option instead of \"create new wallet\".\n\nYour funds are safe and you can continue using the app right now, but do this as soon as possible to prevent your app from breaking in the near future.",
+  "@homeLegacyStorageDescription": {
+    "description": "Warning card description when the wallet is on deprecated storage but has a backup"
   },
-  "legacyStorageIntroDescription": "Your wallet is running on software that will soon be deprecated. This cannot be updated without uninstalling and re-installing the app.",
-  "@legacyStorageIntroDescription": {
-    "description": "Intro paragraph below the full-page warning title"
+  "legacyStorageWarningBackupNow": "Backup Now",
+  "@legacyStorageWarningBackupNow": {
+    "description": "Primary action button on the legacy storage warning overlay"
   },
-  "legacyStorageStepBackupWallet": "Backup your wallet",
-  "@legacyStorageStepBackupWallet": {
-    "description": "Step 1 in the legacy storage warning checklist"
-  },
-  "legacyStorageStepExportLabels": "Export your labels (if you have any)",
-  "@legacyStorageStepExportLabels": {
-    "description": "Step 2 in the legacy storage warning checklist"
-  },
-  "legacyStorageStepEnsureSwapsCompleted": "Ensure all swaps are completed",
-  "@legacyStorageStepEnsureSwapsCompleted": {
-    "description": "Step in the legacy storage warning checklist instructing the user to wait for in-flight swaps"
-  },
-  "legacyStorageStepUninstall": "Uninstall the app from your device",
-  "@legacyStorageStepUninstall": {
-    "description": "Uninstall step in the legacy storage warning checklist"
-  },
-  "legacyStorageStepReinstall": "Download the latest version and re-install",
-  "@legacyStorageStepReinstall": {
-    "description": "Reinstall step in the legacy storage warning checklist"
-  },
-  "legacyStorageStepRestoreBackup": "Restore your backup",
-  "@legacyStorageStepRestoreBackup": {
-    "description": "Final step in the legacy storage warning checklist"
-  },
-  "legacyStorageImportantTitle": "Important",
-  "@legacyStorageImportantTitle": {
-    "description": "Title of the red callout box on the legacy storage warning page"
-  },
-  "legacyStorageImportantBody": "Please do not skip this process unless you absolutely cannot do a backup at this moment.",
-  "@legacyStorageImportantBody": {
-    "description": "Body of the red callout box on the legacy storage warning page"
-  },
-  "legacyStorageContinueFooterNoBackup": "You can continue using the app without doing a backup, but we strongly recommend against it.",
-  "@legacyStorageContinueFooterNoBackup": {
-    "description": "Footer text on the legacy storage warning page when the wallet has no backup"
-  },
-  "legacyStorageContinueFooterHasBackup": "You can continue using the app, but we strongly recommend against it.",
-  "@legacyStorageContinueFooterHasBackup": {
-    "description": "Footer text on the legacy storage warning page when the wallet already has a backup"
-  },
-  "legacyStorageBackupNowButton": "Backup now",
-  "@legacyStorageBackupNowButton": {
-    "description": "Primary CTA on the legacy storage warning and confirmation pages"
-  },
-  "legacyStorageRiskAckButton": "No, I understand the risk",
-  "@legacyStorageRiskAckButton": {
-    "description": "Secondary CTA on the legacy storage warning page that acknowledges the risk"
-  },
-  "legacyStorageAreYouSureTitle": "ARE YOU SURE?",
-  "@legacyStorageAreYouSureTitle": {
-    "description": "Title of the legacy storage are-you-sure confirmation page"
-  },
-  "legacyStorageAreYouSureParagraphOne": "The software used to store the wallet’s Bitcoin private keys is being deprecated. We strongly recommend you create a backup right now to avoid any disruption in the future.",
-  "@legacyStorageAreYouSureParagraphOne": {
-    "description": "First paragraph of the are-you-sure confirmation page"
-  },
-  "legacyStorageAreYouSureParagraphTwo": "The Encrypted Vault backup option will take about 1 minute, no special tools required. Using the physical backup, all you need is a pen and paper.",
-  "@legacyStorageAreYouSureParagraphTwo": {
-    "description": "Second paragraph of the are-you-sure confirmation page"
-  },
-  "legacyStorageContinueWithoutBackupButton": "Continue without backup",
-  "@legacyStorageContinueWithoutBackupButton": {
-    "description": "Confirm button on the are-you-sure page that dismisses the warning"
-  },
-  "legacyStorageAcceptRisksCheckbox": "I accept the risks of not doing a backup",
-  "@legacyStorageAcceptRisksCheckbox": {
-    "description": "Checkbox label that gates the continue-without-backup button"
+  "legacyStorageWarningLater": "Later",
+  "@legacyStorageWarningLater": {
+    "description": "Dismiss button on the legacy storage warning overlay (only shown when backup exists)"
   },
   "backButton": "Back",
   "@backButton": {
@@ -12904,6 +12980,14 @@
   "@errorReportingStandardLogsTitle": {
     "description": "Title of the standard error reporting switch shown in the wizard and settings"
   },
+  "errorReportingCriticalTitle": "Critical logs",
+  "@errorReportingCriticalTitle": {
+    "description": "Title of the read-only critical logs switch shown in the wizard and settings"
+  },
+  "errorReportingCriticalSnackbar": "Critical logs can't be disabled. They report failed upgrades, migrations, and app startup errors so we can fix problems that may affect others.",
+  "@errorReportingCriticalSnackbar": {
+    "description": "Snackbar shown when the user taps the disabled critical logs switch"
+  },
   "appInitErrorHasBackupTitle": "Use your backup",
   "@appInitErrorHasBackupTitle": {
     "description": "Reassurance headline shown on the init-error screen when the user already has a backup"
@@ -12928,116 +13012,473 @@
   "@appInitErrorDetailsToggle": {
     "description": "Label on the collapsed section that reveals the raw exception text"
   },
-  "wizardSkipButton": "Skip",
-  "@wizardSkipButton": {
-    "description": "Top-right action in the install/upgrade wizard that finishes it immediately with current selections"
+  "lightningAddressTitle": "Lightning Address",
+  "lightningAddressActive": "Your Lightning Address is active",
+  "lightningAddressChooseNym": "Choose your nym",
+  "lightningAddressNymHint": "satoshi",
+  "lightningAddressRegister": "Register",
+  "lightningAddressCopied": "Copied to clipboard",
+  "lightningAddressHowItWorksLink": "How it works: fees and security",
+  "lightningAddressHowItWorksTitle": "How it works",
+  "lightningAddressHowItWorksBody": "Any Lightning Address compatible wallet can send funds to this Lightning Address. Payments you receive will be automatically swapped to Liquid Network (L-BTC). If you have the auto-sweep to Instant Payments wallet feature turned on (it is by default), the funds will land in your regular Instant Payments wallet.",
+  "lightningAddressSecurityTitle": "Security",
+  "lightningAddressSecurityBody1": "To make this work, Bull Bitcoin uses a special server which creates an atomic swap between the sender's Lightning Network payment, and your Liquid Network address.",
+  "lightningAddressSecurityBold": "This system is not trustless.",
+  "lightningAddressSecurityBody2": "The server could technically redirect the funds to another address and effectively steal the incoming payments. You need to trust that the Bull Bitcoin nym server operators are acting honestly.",
+  "lightningAddressFeesTitle": "Fees",
+  "lightningAddressFeesBody": "A swap fee of 0.25% is charged by the Boltz swap service, and the network fees are deducted from the amount you receive (typically 40 sats). If you have auto-sweep enabled, you will pay another ~20 sats.",
+  "lightningAddressPrivacyTitle": "Privacy",
+  "lightningAddressPrivacyBody": "By using this service, you are uploading your Liquid Network descriptor (like an xpub) to the Bull Bitcoin nym server operator. However, the Bull Bitcoin wallet automatically creates a special wallet for this that is different from your default Instant Payments wallet. So while the server has some level of insight, it cannot deanonymize your main Instant Payments wallet. The server does not collect any information about you: no IP address, no KYC information. The service is fully anonymous.",
+  "lightningAddressDelete": "Deactivate Lightning Address",
+  "lightningAddressActivated": "Lightning Address activated: {address}",
+  "@lightningAddressActivated": {
+    "placeholders": { "address": { "type": "String" } }
   },
-  "wizardPageIndicator": "PAGE {current} / {total}",
-  "@wizardPageIndicator": {
-    "description": "Eyebrow label above each wizard page title indicating progress",
+  "lightningAddressDeactivated": "Lightning Address deactivated",
+  "lightningAddressLoading": "Creating your Nostr identity",
+  "lightningAddressCreating": "Your nym is being created",
+  "lightningAddressCreatingDesc": "Registering your Lightning Address...",
+  "lightningAddressAutoSweep": "Auto-sweep to default wallet",
+  "lightningAddressAutoSweepSub": "Automatically move received funds",
+  "lightningAddressAutoSweepInfo": "Funds received in this dedicated wallet are automatically sent to the default wallet on the same network.\n\nWhy? This wallet descriptor may be shared with an external receiving service. Sweeping funds back keeps the dedicated receive wallet empty during normal use.\n\nDownside: You pay a network fee each time funds are swept. Bitcoin sweeps are skipped when the fee is above your autoswap fee threshold.",
+  "lightningAddressHideWallet": "Hide wallet on home",
+  "lightningAddressHideWalletSub": "Keep home screen clean",
+  "lightningAddressHideWalletInfo": "This is a dedicated receive wallet for Get Paid features. Hiding it keeps your home screen focused on your regular wallets.\n\nHidden wallets still count toward your total balance. You can always find this wallet in Settings > Wallets.",
+  "lightningAddressDeactivateTitle": "Deactivate Lightning Address?",
+  "lightningAddressDeactivateBody": "People will no longer be able to send funds to {address} until you reactivate it. No one else can claim this address — it stays reserved for you.",
+  "@lightningAddressDeactivateBody": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+  "lightningAddressDeactivateCancel": "Cancel",
+  "lightningAddressDeactivateConfirm": "Deactivate",
+  "lightningAddressNostrPublishing": "Publishing on Nostr…",
+  "lightningAddressNostrPublished": "Address published on Nostr",
+  "lightningAddressNostrRepublish": "Republish on Nostr",
+  "lightningAddressDeactivateLastSlotWarning": "After deactivating this Lightning Address, you only have 1 more Lightning Address you can register before you reach the maximum number of Lightning Addresses available for your Nostr identity.",
+  "lightningAddressDeactivateExhaustedWarning": "After deactivating this Lightning Address, you cannot register a new Lightning Address. You can only reactivate one of your previous addresses.",
+  "lightningAddressPublishNostrTitle": "Publish on Nostr",
+  "lightningAddressPublishNostrSubtitle": "Broadcasts a Nostr profile under your npub linking it to this Lightning Address. Uncheck to keep your npub off Nostr relays — your address still works for receiving payments.",
+  "lightningAddressTapToCopy": "Tap to copy",
+  "lightningAddressPreviousFound": "Previous address found",
+  "lightningAddressPreviousBody": "{nym}@{domain} was deactivated. Tap Register to reactivate it.",
+  "lightningAddressPreviousDetectedTitle": "Previous Lightning Addresses detected",
+  "lightningAddressPreviousDetectedBody": "Click to view and reactivate.",
+  "getPaidSettingsTitle": "Get Paid settings",
+  "@getPaidSettingsTitle": {
+    "description": "Title for the Get Paid settings screen"
+  },
+  "getPaidDashboardTitle": "Get paid",
+  "@getPaidDashboardTitle": {
+    "description": "Title for the Get Paid dashboard screen"
+  },
+  "getPaidDashboardLightningAddressTitle": "Lightning Address",
+  "@getPaidDashboardLightningAddressTitle": {
+    "description": "Lightning Address slot title on the Get Paid dashboard"
+  },
+  "getPaidDashboardPaymentPageTitle": "Payment Page",
+  "@getPaidDashboardPaymentPageTitle": {
+    "description": "Payment Page slot title on the Get Paid dashboard"
+  },
+  "getPaidDashboardInvoicesTitle": "Invoices",
+  "@getPaidDashboardInvoicesTitle": {
+    "description": "Invoices slot title on the Get Paid dashboard"
+  },
+  "getPaidDashboardInvoicesSubtitle": "Create and manage invoices",
+  "@getPaidDashboardInvoicesSubtitle": {
+    "description": "Invoices slot subtitle on the Get Paid dashboard"
+  },
+  "getPaidDashboardBtcpayTitle": "BTCPay",
+  "@getPaidDashboardBtcpayTitle": {
+    "description": "BTCPay slot title on the Get Paid dashboard"
+  },
+  "getPaidDashboardBtcpaySubtitle": "Connect BTCPay Server",
+  "@getPaidDashboardBtcpaySubtitle": {
+    "description": "BTCPay slot subtitle on the Get Paid dashboard"
+  },
+  "getPaidDashboardNotSetUp": "Not set up",
+  "@getPaidDashboardNotSetUp": {
+    "description": "Status text for Get Paid features that are not configured"
+  },
+  "getPaidDashboardActive": "Active",
+  "@getPaidDashboardActive": {
+    "description": "Status text for active Get Paid features"
+  },
+  "getPaidDashboardNotPublished": "Not published",
+  "@getPaidDashboardNotPublished": {
+    "description": "Status text for configured but unpublished Get Paid features"
+  },
+  "getPaidDashboardChooseNymFirst": "Choose a Bullnym name first",
+  "@getPaidDashboardChooseNymFirst": {
+    "description": "Payment Page slot subtitle when no Bullnym name exists yet"
+  },
+  "getPaidSettingsRecoverWallets": "Recover Get Paid wallets",
+  "@getPaidSettingsRecoverWallets": {
+    "description": "Button text to manually recover reserved Get Paid wallets"
+  },
+  "getPaidSettingsRecoverWalletsDescription": "Checks reserved Get Paid wallets for this seed and recreates missing local wallets. Empty recreated wallets may still be added to sync.",
+  "@getPaidSettingsRecoverWalletsDescription": {
+    "description": "Description for the manual Get Paid wallet recovery action"
+  },
+  "getPaidSettingsRecoverConfirmTitle": "Recover Get Paid wallets?",
+  "@getPaidSettingsRecoverConfirmTitle": {
+    "description": "Title for the confirmation dialog before manually recovering reserved Get Paid wallets"
+  },
+  "getPaidSettingsRecoverConfirmDescription": "This checks Lightning Address, Payment Page, and BTCPay receive wallets for this seed and recreates missing local wallets. Recreated wallets are kept even if they are empty, which can make future wallet syncs slower. Recreated or repaired wallets may also update the encrypted wallet manifest on Nostr.",
+  "@getPaidSettingsRecoverConfirmDescription": {
+    "description": "Description for the confirmation dialog before manually recovering reserved Get Paid wallets"
+  },
+  "getPaidSettingsRecoverConfirmCancel": "Cancel",
+  "@getPaidSettingsRecoverConfirmCancel": {
+    "description": "Cancel action for the Get Paid wallet recovery confirmation dialog"
+  },
+  "getPaidSettingsRecoverConfirmAction": "Recover wallets",
+  "@getPaidSettingsRecoverConfirmAction": {
+    "description": "Confirmation action for manually recovering reserved Get Paid wallets"
+  },
+  "getPaidSettingsRecoverOperationInProgress": "Wait for Get Paid wallet recovery to finish before leaving.",
+  "@getPaidSettingsRecoverOperationInProgress": {
+    "description": "Message shown when leaving Get Paid settings is blocked during wallet recovery"
+  },
+  "getPaidSettingsOperationInProgress": "Wait for the Get Paid settings update to finish before leaving.",
+  "@getPaidSettingsOperationInProgress": {
+    "description": "Message shown when leaving Get Paid settings is blocked during a settings operation"
+  },
+  "getPaidSettingsSaveError": "Could not update Get Paid settings. Please try again.",
+  "@getPaidSettingsSaveError": {
+    "description": "Generic error shown when a Get Paid settings change fails"
+  },
+  "getPaidSettingsLoadError": "Could not load Get Paid settings. Please try again.",
+  "@getPaidSettingsLoadError": {
+    "description": "Generic error shown when Get Paid settings cannot be loaded"
+  },
+  "getPaidSettingsRetry": "Retry",
+  "@getPaidSettingsRetry": {
+    "description": "Button text to retry loading Get Paid settings"
+  },
+  "getPaidSettingsRecoverError": "Could not recover Get Paid wallets. Please try again.",
+  "@getPaidSettingsRecoverError": {
+    "description": "Generic error shown when manual Get Paid wallet recovery fails"
+  },
+  "getPaidSettingsWalletRecoveryComplete": "Wallet recovery complete",
+  "@getPaidSettingsWalletRecoveryComplete": {
+    "description": "Title shown after the manual Get Paid wallet recovery finishes"
+  },
+  "getPaidSettingsWalletRecoveryNeedsAttention": "Wallet recovery needs attention",
+  "@getPaidSettingsWalletRecoveryNeedsAttention": {
+    "description": "Title shown after the manual Get Paid wallet recovery finishes with failures or warnings"
+  },
+  "getPaidSettingsPaymentPage": "Payment Page",
+  "@getPaidSettingsPaymentPage": {
+    "description": "Display name for the Payment Page Get Paid wallet"
+  },
+  "getPaidSettingsBTCPay": "BTCPay",
+  "@getPaidSettingsBTCPay": {
+    "description": "Display name for the BTCPay Get Paid wallet"
+  },
+  "getPaidSettingsStatusAlreadyPresent": "Already present",
+  "@getPaidSettingsStatusAlreadyPresent": {
+    "description": "Per-wallet status when the Get Paid wallet already exists"
+  },
+  "getPaidSettingsStatusRefreshed": "Wallet details refreshed",
+  "@getPaidSettingsStatusRefreshed": {
+    "description": "Per-wallet status when Get Paid wallet metadata was repaired"
+  },
+  "getPaidSettingsStatusAdded": "Added to this device",
+  "@getPaidSettingsStatusAdded": {
+    "description": "Per-wallet status when the Get Paid wallet was recreated on this device"
+  },
+  "getPaidSettingsStatusAddedWithMetadataFailure": "Added to this device; details need another recovery attempt",
+  "@getPaidSettingsStatusAddedWithMetadataFailure": {
+    "description": "Per-wallet status when the wallet was created but metadata repair failed"
+  },
+  "getPaidSettingsFailureNoDefaultWallet": "Default wallet is unavailable",
+  "@getPaidSettingsFailureNoDefaultWallet": {
+    "description": "Per-wallet failure when the corresponding default wallet is unavailable"
+  },
+  "getPaidSettingsFailureAlreadyExistsRace": "Wallet already exists; recover again to refresh details",
+  "@getPaidSettingsFailureAlreadyExistsRace": {
+    "description": "Per-wallet failure when a concurrent operation created the wallet first"
+  },
+  "getPaidSettingsFailureMetadataUpdateFailed": "Wallet details could not be refreshed; try recovery later",
+  "@getPaidSettingsFailureMetadataUpdateFailed": {
+    "description": "Per-wallet failure when metadata could not be repaired"
+  },
+  "getPaidSettingsFailureWalletCreationFailed": "Wallet could not be added to this device",
+  "@getPaidSettingsFailureWalletCreationFailed": {
+    "description": "Per-wallet failure when wallet creation failed"
+  },
+  "getPaidSettingsFailureUnknown": "Wallet could not be checked",
+  "@getPaidSettingsFailureUnknown": {
+    "description": "Fallback per-wallet failure when no specific reason is available"
+  },
+  "btcpayPairingTitle": "BTCPay",
+  "@btcpayPairingTitle": {
+    "description": "Title for the BTCPay pairing screen"
+  },
+  "btcpayPairingUrlLabel": "SamRock pairing URL",
+  "@btcpayPairingUrlLabel": {
+    "description": "Label for the SamRock pairing URL input"
+  },
+  "btcpayPairingUrlRequired": "Enter a pairing URL",
+  "@btcpayPairingUrlRequired": {
+    "description": "Validation message when the BTCPay pairing URL is missing"
+  },
+  "btcpayPairingSubmit": "Pair BTCPay",
+  "@btcpayPairingSubmit": {
+    "description": "Submit button text for BTCPay pairing"
+  },
+  "btcpayPairingSubmitting": "Pairing...",
+  "@btcpayPairingSubmitting": {
+    "description": "Submit button text while BTCPay pairing is in progress"
+  },
+  "btcpayPairingOperationInProgress": "Wait for BTCPay pairing to finish before leaving.",
+  "@btcpayPairingOperationInProgress": {
+    "description": "Message shown when leaving BTCPay pairing is blocked during pairing"
+  },
+  "btcpayPairingSuccess": "BTCPay paired successfully.",
+  "@btcpayPairingSuccess": {
+    "description": "Success message after BTCPay pairing completes"
+  },
+  "btcpayPairingGenericError": "Could not pair BTCPay Server.",
+  "@btcpayPairingGenericError": {
+    "description": "Generic error message when BTCPay pairing fails"
+  },
+  "btcpayPairingInvalidRequestError": "The SamRock pairing URL is invalid.",
+  "@btcpayPairingInvalidRequestError": {
+    "description": "Error shown when the BTCPay pairing URL cannot be parsed or is unsupported"
+  },
+  "btcpayPairingRejectedError": "BTCPay Server rejected the pairing request.",
+  "@btcpayPairingRejectedError": {
+    "description": "Error shown when BTCPay Server rejects the SamRock pairing setup"
+  },
+  "backupSettingsWalletManifestButton": "Wallet Manifest",
+  "@backupSettingsWalletManifestButton": {
+    "description": "Button text to open the Wallet Manifest settings screen from Backup Settings"
+  },
+  "walletManifestSettingsScreenTitle": "Wallet Manifest",
+  "@walletManifestSettingsScreenTitle": {
+    "description": "Title for the Wallet Manifest settings screen"
+  },
+  "walletManifestSettingsDescription": "Wallet manifest backup settings.",
+  "@walletManifestSettingsDescription": {
+    "description": "Description shown on the Wallet Manifest settings screen"
+  },
+  "walletManifestSettingsNpubLabel": "Manifest npub",
+  "@walletManifestSettingsNpubLabel": {
+    "description": "Label for the Nostr public key used for wallet manifest metadata"
+  },
+  "walletManifestSettingsNpubDescription": "This key is used to find encrypted wallet manifests. Sharing it can link your wallet manifest metadata.",
+  "@walletManifestSettingsNpubDescription": {
+    "description": "Description for the wallet manifest Nostr public key"
+  },
+  "walletManifestSettingsNpubError": "Unable to derive the wallet manifest npub.",
+  "@walletManifestSettingsNpubError": {
+    "description": "Error shown when the wallet manifest npub cannot be derived"
+  },
+  "walletManifestSettingsCheckRemote": "Check wallet manifest",
+  "@walletManifestSettingsCheckRemote": {
+    "description": "Button text to fetch the latest remote wallet manifest from Nostr"
+  },
+  "walletManifestSettingsCheckRemoteDescription": "Fetches the latest wallet manifest from Nostr and displays it only. This does not restore wallets or publish changes.",
+  "@walletManifestSettingsCheckRemoteDescription": {
+    "description": "Description for the remote wallet manifest check action"
+  },
+  "walletManifestSettingsCheckFailed": "Unable to fetch the wallet manifest from Nostr.",
+  "@walletManifestSettingsCheckFailed": {
+    "description": "Error shown when fetching the remote wallet manifest fails"
+  },
+  "walletManifestSettingsCheckMissing": "No readable wallet manifest was found on Nostr.",
+  "@walletManifestSettingsCheckMissing": {
+    "description": "Message shown when no readable remote wallet manifest is available"
+  },
+  "walletManifestSettingsPublishLocal": "Replace wallet manifest",
+  "@walletManifestSettingsPublishLocal": {
+    "description": "Button text to publish a replacement wallet manifest"
+  },
+  "walletManifestSettingsPublishLocalDescription": "Publishes a full replacement wallet manifest for the wallets recorded on this device. This does not restore wallets. Use only from a device that has the wallets you want recoverable.",
+  "@walletManifestSettingsPublishLocalDescription": {
+    "description": "Description for the local wallet manifest publish action"
+  },
+  "walletManifestSettingsPublishConfirmTitle": "Replace wallet manifest?",
+  "@walletManifestSettingsPublishConfirmTitle": {
+    "description": "Title for the confirmation dialog before publishing a replacement wallet manifest"
+  },
+  "walletManifestSettingsPublishConfirmDescription": "This will replace the latest wallet manifest on Nostr with the wallets recorded on this device. It does not restore wallets. Only use this if this device has the wallets you want recoverable from the manifest.",
+  "@walletManifestSettingsPublishConfirmDescription": {
+    "description": "Description for the confirmation dialog before publishing a replacement wallet manifest"
+  },
+  "walletManifestSettingsPublishConfirmAction": "Replace manifest",
+  "@walletManifestSettingsPublishConfirmAction": {
+    "description": "Confirmation action text for publishing a replacement wallet manifest"
+  },
+  "walletManifestSettingsCancel": "Cancel",
+  "@walletManifestSettingsCancel": {
+    "description": "Cancel button text on Wallet Manifest settings dialogs"
+  },
+  "walletManifestSettingsOperationInProgress": "Wait for wallet manifest publishing or recovery to finish before leaving.",
+  "@walletManifestSettingsOperationInProgress": {
+    "description": "Message shown when leaving Wallet Manifest settings is blocked during a publish or recovery operation"
+  },
+  "walletManifestSettingsPublishFailed": "Unable to publish the wallet manifest to Nostr.",
+  "@walletManifestSettingsPublishFailed": {
+    "description": "Error shown when publishing the local wallet manifest fails"
+  },
+  "walletManifestSettingsPublishSucceeded": "{count, plural, =0{Published a wallet manifest with no wallets.} =1{Published a wallet manifest with 1 wallet.} other{Published a wallet manifest with {count} wallets.}}",
+  "@walletManifestSettingsPublishSucceeded": {
+    "description": "Success message after publishing the local wallet manifest",
     "placeholders": {
-      "current": {
-        "type": "int"
-      },
-      "total": {
+      "count": {
         "type": "int"
       }
     }
   },
-  "wizardNextButton": "Next",
-  "@wizardNextButton": {
-    "description": "Primary action that advances the wizard to the next page"
+  "walletManifestSettingsRestoreRemote": "Recover from wallet manifest",
+  "@walletManifestSettingsRestoreRemote": {
+    "description": "Button text to recover wallets from the latest remote wallet manifest"
   },
-  "wizardCustomizeTitle": "Customize your experience",
-  "@wizardCustomizeTitle": {
-    "description": "Title of the wizard's settings/customize page"
+  "walletManifestSettingsRestoreRemoteDescription": "Fetches the latest readable wallet manifest from Nostr and recreates listed wallets on this device. This does not publish changes.",
+  "@walletManifestSettingsRestoreRemoteDescription": {
+    "description": "Description for the manual wallet manifest recovery action"
   },
-  "wizardCustomizeBody": "Use BULL on your own terms with these settings.",
-  "@wizardCustomizeBody": {
-    "description": "Subtitle on the wizard's settings/customize page"
+  "walletManifestSettingsRestoreConfirmTitle": "Recover wallets from manifest?",
+  "@walletManifestSettingsRestoreConfirmTitle": {
+    "description": "Title for the confirmation dialog before recovering wallets from a wallet manifest"
   },
-  "wizardCustomizeDefaultCurrency": "Default currency",
-  "@wizardCustomizeDefaultCurrency": {
-    "description": "Label for the default fiat currency row on the wizard customize page"
+  "walletManifestSettingsRestoreConfirmDescription": "This will fetch the latest readable wallet manifest from Nostr and recreate listed wallets on this device. It does not publish changes.",
+  "@walletManifestSettingsRestoreConfirmDescription": {
+    "description": "Description for the confirmation dialog before recovering wallets from a wallet manifest"
   },
-  "wizardMissionTitle": "Help the Bull mission",
-  "@wizardMissionTitle": {
-    "description": "Title of the wizard's error-reporting consent page"
+  "walletManifestSettingsRestoreConfirmAction": "Recover wallets",
+  "@walletManifestSettingsRestoreConfirmAction": {
+    "description": "Confirmation action text for recovering wallets from a wallet manifest"
   },
-  "wizardMissionBody1": "To help us improve our software and make sure we offer the highest level of security, privacy and usability, your app can send us error logs that allow us to detect issues and fix them quickly in our next updates.",
-  "@wizardMissionBody1": {
-    "description": "First explanatory paragraph on the wizard error-reporting page"
+  "walletManifestSettingsRestoreFailed": "Unable to recover wallets from the wallet manifest.",
+  "@walletManifestSettingsRestoreFailed": {
+    "description": "Error shown when wallet manifest recovery fails"
   },
-  "wizardMissionBody2": "These logs are anonymized, are not linked to your IP address, and never share any information about your transactions or your identity. They are purely technical and do not put you at any risk. It's very helpful for us, and doesn't cost anything to you.",
-  "@wizardMissionBody2": {
-    "description": "Second explanatory paragraph on the wizard error-reporting page"
+  "walletManifestSettingsRestoreMissing": "No readable wallet manifest was found on Nostr.",
+  "@walletManifestSettingsRestoreMissing": {
+    "description": "Message shown when manual wallet manifest recovery cannot find a readable manifest"
   },
-  "wizardMissionQuestion": "Do you accept to be part of our automated issue reporting program?",
-  "@wizardMissionQuestion": {
-    "description": "Yes/No question on the wizard error-reporting page"
+  "walletManifestSettingsRestoreComplete": "{restored, plural, =0{No wallets recreated} =1{1 wallet recreated} other{{restored} wallets recreated}}. {alreadyPresent, plural, =0{No wallets were already on this device.} =1{1 wallet was already on this device.} other{{alreadyPresent} wallets were already on this device.}}",
+  "@walletManifestSettingsRestoreComplete": {
+    "description": "Success message after complete wallet manifest recovery",
+    "placeholders": {
+      "restored": {
+        "type": "int"
+      },
+      "alreadyPresent": {
+        "type": "int"
+      }
+    }
   },
-  "wizardMissionYes": "Yes",
-  "@wizardMissionYes": {
-    "description": "Affirmative response button on the wizard error-reporting page"
+  "walletManifestSettingsRestorePartial": "{restored, plural, =0{No wallets recreated} =1{1 wallet recreated} other{{restored} wallets recreated}}. {alreadyPresent, plural, =0{No wallets were already present} =1{1 wallet was already present} other{{alreadyPresent} wallets were already present}}. {skipped, plural, =0{No wallets skipped} =1{1 wallet skipped} other{{skipped} wallets skipped}}. {failed, plural, =0{No wallets failed} =1{1 wallet failed} other{{failed} wallets failed}}.",
+  "@walletManifestSettingsRestorePartial": {
+    "description": "Partial success message after wallet manifest recovery with skipped or failed accounts",
+    "placeholders": {
+      "restored": {
+        "type": "int"
+      },
+      "alreadyPresent": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
   },
-  "wizardMissionNo": "No",
-  "@wizardMissionNo": {
-    "description": "Negative response button on the wizard error-reporting page"
+  "walletManifestSettingsRemoteManifestLabel": "Remote wallet manifest",
+  "@walletManifestSettingsRemoteManifestLabel": {
+    "description": "Label for the fetched remote wallet manifest payload"
   },
-  "wizardMissionRequired": "Please choose Yes or No before continuing.",
-  "@wizardMissionRequired": {
-    "description": "Snackbar shown when the user tries to leave the wizard without answering the error-reporting question"
+  "walletManifestSettingsRemoteManifestSummary": "{count, plural, =0{No wallets in this manifest} =1{1 wallet in this manifest} other{{count} wallets in this manifest}}",
+  "@walletManifestSettingsRemoteManifestSummary": {
+    "description": "Summary of the number of accounts in the fetched remote wallet manifest",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-  "wizardJourneyTitle": "Progress on your journey",
-  "@wizardJourneyTitle": {
-    "description": "Title of the wizard's final tips page"
+  "walletManifestSettingsRemoteManifestPrivacy": "This manifest may contain wallet metadata. Keep it private.",
+  "@walletManifestSettingsRemoteManifestPrivacy": {
+    "description": "Privacy warning shown above the fetched remote wallet manifest payload"
   },
-  "wizardJourneyBody": "If you are new to BULL wallet, here are a few features you can take advantage of to improve your privacy, security and user experience.",
-  "@wizardJourneyBody": {
-    "description": "Intro paragraph on the wizard journey/tips page"
+  "walletManifestSettingsSaveRemoteManifest": "Save wallet manifest",
+  "@walletManifestSettingsSaveRemoteManifest": {
+    "description": "Button text to save the fetched wallet manifest payload to a file"
   },
-  "wizardJourneyTip1": "Add a security PIN to unlock your wallet",
-  "@wizardJourneyTip1": {
-    "description": "Tip 1 on the wizard journey page"
+  "walletManifestSettingsSaveRemoteManifestDescription": "Saves the fetched manifest to a file you choose. It may contain wallet metadata; store it privately.",
+  "@walletManifestSettingsSaveRemoteManifestDescription": {
+    "description": "Description for the save fetched wallet manifest action"
   },
-  "wizardJourneyTip2": "Try the encrypted vault backup",
-  "@wizardJourneyTip2": {
-    "description": "Tip 2 on the wizard journey page"
+  "walletManifestSettingsSaveSucceeded": "Wallet manifest saved.",
+  "@walletManifestSettingsSaveSucceeded": {
+    "description": "Success message after saving the fetched wallet manifest"
   },
-  "wizardJourneyTip3": "Connect to your own Bitcoin node",
-  "@wizardJourneyTip3": {
-    "description": "Tip 3 on the wizard journey page"
+  "walletManifestSettingsSaveCancelled": "Wallet manifest save cancelled.",
+  "@walletManifestSettingsSaveCancelled": {
+    "description": "Message shown when the wallet manifest save picker is cancelled"
   },
-  "wizardJourneyTip4": "Connect to your own Mempool explorer",
-  "@wizardJourneyTip4": {
-    "description": "Tip 4 on the wizard journey page"
+  "walletManifestSettingsSaveFailed": "Unable to save the wallet manifest.",
+  "@walletManifestSettingsSaveFailed": {
+    "description": "Error shown when saving the fetched wallet manifest fails"
   },
-  "wizardJourneyTip5": "Transfer between Bitcoin and Liquid with no KYC",
-  "@wizardJourneyTip5": {
-    "description": "Tip 5 on the wizard journey page"
+  "walletManifestSettingsAuditRemote": "Audit wallet manifest",
+  "@walletManifestSettingsAuditRemote": {
+    "description": "Button text to audit the latest remote wallet manifest against manifest-recorded wallet identities for this seed"
   },
-  "wizardJourneyTip6": "Customize your autoswap settings",
-  "@wizardJourneyTip6": {
-    "description": "Tip 6 on the wizard journey page"
+  "walletManifestSettingsAuditRemoteDescription": "Fetches the latest wallet manifest from Nostr and compares its wallet identity list with manifest-recorded wallet identities for this seed. This does not restore wallets or publish changes.",
+  "@walletManifestSettingsAuditRemoteDescription": {
+    "description": "Description for the remote wallet manifest audit action"
   },
-  "wizardJourneyTip7": "Switch between Bitcoin (BTC) and Satoshis (sats)",
-  "@wizardJourneyTip7": {
-    "description": "Tip 7 on the wizard journey page"
+  "walletManifestSettingsAuditFailed": "Unable to audit the wallet manifest.",
+  "@walletManifestSettingsAuditFailed": {
+    "description": "Error shown when wallet manifest audit fails"
   },
-  "wizardJourneyTip8": "Create air-gapped transactions for your hardware wallet",
-  "@wizardJourneyTip8": {
-    "description": "Tip 8 on the wizard journey page"
+  "walletManifestSettingsAuditMissing": "No readable wallet manifest was found on Nostr. {missingRemote, plural, =0{No local manifest-recorded wallet identities were found on this device.} =1{1 local manifest-recorded wallet identity is missing from the remote manifest.} other{{missingRemote} local manifest-recorded wallet identities are missing from the remote manifest.}}",
+  "@walletManifestSettingsAuditMissing": {
+    "description": "Message shown when no readable remote wallet manifest is available for audit",
+    "placeholders": {
+      "missingRemote": {
+        "type": "int"
+      }
+    }
   },
-  "legacyStorageHasBackupImportantBody": "Please do not skip this process unless you absolutely need to use the wallet urgently or waiting for a swap to complete.",
-  "@legacyStorageHasBackupImportantBody": {
-    "description": "Important callout body shown only on the reinstall variant of the legacy storage warning (when the user already has a verified backup)."
+  "walletManifestSettingsAuditMatches": "Manifest wallet list matches this device. {matching, plural, =0{No wallet identities compared.} =1{1 wallet identity matched.} other{{matching} wallet identities matched.}}",
+  "@walletManifestSettingsAuditMatches": {
+    "description": "Message shown when remote wallet manifest audit matches manifest-recorded wallet identities for this seed",
+    "placeholders": {
+      "matching": {
+        "type": "int"
+      }
+    }
   },
-  "legacyStorageRiskAckButtonHasBackup": "I understand the risk",
-  "@legacyStorageRiskAckButtonHasBackup": {
-    "description": "Risk-acknowledge button label on the reinstall variant of the legacy storage warning (no leading \"No,\" because there is no Backup Now alternative on this page)."
+  "walletManifestSettingsAuditDiffers": "Manifest wallet list differs from this device. {matching, plural, =0{No wallet identities matched} =1{1 wallet identity matched} other{{matching} wallet identities matched}}. {missingLocal, plural, =0{No manifest wallet identities missing from this device} =1{1 manifest wallet identity missing from this device} other{{missingLocal} manifest wallet identities missing from this device}}. {missingRemote, plural, =0{No local manifest-recorded wallet identities missing from the remote manifest} =1{1 local manifest-recorded wallet identity missing from the remote manifest} other{{missingRemote} local manifest-recorded wallet identities missing from the remote manifest}}. Recover if manifest wallets are missing from this device. Replace only if this device has the wallets that should be recoverable.",
+  "@walletManifestSettingsAuditDiffers": {
+    "description": "Message shown when remote wallet manifest audit differs from manifest-recorded wallet identities for this seed",
+    "placeholders": {
+      "matching": {
+        "type": "int"
+      },
+      "missingLocal": {
+        "type": "int"
+      },
+      "missingRemote": {
+        "type": "int"
+      }
+    }
   },
-  "walletSetupErrorTryAgain": "Something went wrong setting up your wallet. Please try again.",
-  "@walletSetupErrorTryAgain": {
-    "description": "Generic error shown when default-wallet creation or recovery fails."
+  "walletManifestSettingsRetry": "Retry",
+  "@walletManifestSettingsRetry": {
+    "description": "Button text to retry loading wallet manifest settings data"
+  },
+  "sendNetworkLabel": "Network",
+  "sendNetworkLiquid": "Liquid",
+  "@lightningAddressPreviousBody": {
+    "placeholders": { "nym": { "type": "String" }, "domain": { "type": "String" } }
   }
 }
