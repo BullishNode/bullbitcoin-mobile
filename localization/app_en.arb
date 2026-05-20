@@ -13052,12 +13052,6 @@
   "lightningAddressCreating": "Your nym is being created",
   "lightningAddressCreatingDesc": "Registering your Lightning Address...",
   "lightningAddressNymRequired": "Enter a nym",
-  "lightningAddressAutoSweep": "Auto-sweep to default wallet",
-  "lightningAddressAutoSweepSub": "Automatically move received funds",
-  "lightningAddressAutoSweepInfo": "Funds received in this dedicated wallet are automatically sent to the default wallet on the same network.\n\nWhy? This wallet descriptor may be shared with an external receiving service. Sweeping funds back keeps the dedicated receive wallet empty during normal use.\n\nDownside: You pay a network fee each time funds are swept. Bitcoin sweeps are skipped when the fee is above your autoswap fee threshold.",
-  "lightningAddressHideWallet": "Hide wallet on home",
-  "lightningAddressHideWalletSub": "Keep home screen clean",
-  "lightningAddressHideWalletInfo": "This is a dedicated receive wallet for Get Paid features. Hiding it keeps your home screen focused on your regular wallets.\n\nHidden wallets still count toward your total balance. You can always find this wallet in Settings > Wallets.",
   "lightningAddressDeactivateTitle": "Deactivate Lightning Address?",
   "lightningAddressDeactivateBody": "People will no longer be able to send funds to {address} until you reactivate it. No one else can claim this address — it stays reserved for you.",
   "@lightningAddressDeactivateBody": {
