@@ -22,6 +22,13 @@ enum WalletManifestManualRestoreStatus {
   needsAttention,
 }
 
+enum WalletManifestLatestOperation {
+  checkRemote,
+  publishLocal,
+  restoreRemote,
+  auditRemote,
+}
+
 class WalletManifestSettingsState {
   final bool loading;
   final bool failed;
@@ -44,6 +51,8 @@ class WalletManifestSettingsState {
   final int? auditMatchingCount;
   final int? auditMissingLocalCount;
   final int? auditMissingRemoteCount;
+  final WalletManifestLatestOperation? latestOperation;
+  final int? latestOperationCompletedAt;
 
   const WalletManifestSettingsState({
     this.loading = false,
@@ -67,6 +76,8 @@ class WalletManifestSettingsState {
     this.auditMatchingCount,
     this.auditMissingLocalCount,
     this.auditMissingRemoteCount,
+    this.latestOperation,
+    this.latestOperationCompletedAt,
   });
 
   bool get checkingRemote =>
@@ -111,6 +122,8 @@ class WalletManifestSettingsState {
     int? auditMissingLocalCount,
     int? auditMissingRemoteCount,
     bool clearAudit = false,
+    WalletManifestLatestOperation? latestOperation,
+    int? latestOperationCompletedAt,
   }) {
     return WalletManifestSettingsState(
       loading: loading ?? this.loading,
@@ -162,6 +175,9 @@ class WalletManifestSettingsState {
       auditMissingRemoteCount: clearAudit
           ? null
           : auditMissingRemoteCount ?? this.auditMissingRemoteCount,
+      latestOperation: latestOperation ?? this.latestOperation,
+      latestOperationCompletedAt:
+          latestOperationCompletedAt ?? this.latestOperationCompletedAt,
     );
   }
 }

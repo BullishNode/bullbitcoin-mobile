@@ -13326,6 +13326,50 @@
   "@walletManifestSettingsDescription": {
     "description": "Description shown on the Wallet Manifest settings screen"
   },
+  "walletManifestSettingsLatestOperationTitle": "Latest operation",
+  "@walletManifestSettingsLatestOperationTitle": {
+    "description": "Title for the latest wallet manifest operation status"
+  },
+  "walletManifestSettingsLatestOperationNone": "No wallet manifest operation has run on this screen yet.",
+  "@walletManifestSettingsLatestOperationNone": {
+    "description": "Status shown before the user manually runs a wallet manifest operation"
+  },
+  "walletManifestSettingsLatestOperationCheckRemote": "Checked the wallet manifest on Nostr at {timestamp}.",
+  "@walletManifestSettingsLatestOperationCheckRemote": {
+    "description": "Latest wallet manifest operation text after checking the remote manifest",
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
+  "walletManifestSettingsLatestOperationPublishLocal": "Replaced the wallet manifest on Nostr at {timestamp}.",
+  "@walletManifestSettingsLatestOperationPublishLocal": {
+    "description": "Latest wallet manifest operation text after publishing the local manifest",
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
+  "walletManifestSettingsLatestOperationRestoreRemote": "Recovered wallets from the wallet manifest at {timestamp}.",
+  "@walletManifestSettingsLatestOperationRestoreRemote": {
+    "description": "Latest wallet manifest operation text after recovering wallets from the remote manifest",
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
+  "walletManifestSettingsLatestOperationAuditRemote": "Audited the wallet manifest on Nostr at {timestamp}.",
+  "@walletManifestSettingsLatestOperationAuditRemote": {
+    "description": "Latest wallet manifest operation text after auditing the remote manifest",
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
   "walletManifestSettingsNpubLabel": "Manifest npub",
   "@walletManifestSettingsNpubLabel": {
     "description": "Label for the Nostr public key used for wallet manifest metadata"
