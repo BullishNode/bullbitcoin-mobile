@@ -114,6 +114,26 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     emit(state.copyWith(registering: true, error: null));
 
     try {
+      if (!publishOnNostr) {
+        try {
+          await _settings.setNostrPublishOutcome(NostrPublishStatus.none);
+        } on Exception catch (e, stack) {
+          log.warning(
+            'LA nostr opt-out persistence failed',
+            error: e,
+            trace: stack,
+          );
+          if (isClosed) return;
+          emit(
+            state.copyWith(
+              registering: false,
+              error: 'Could not save Nostr preference. Please try again.',
+            ),
+          );
+          return;
+        }
+      }
+      if (isClosed) return;
       final result = await _register.execute(
         nym: nym,
         environment: environment,
@@ -133,8 +153,6 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       );
       if (publishOnNostr) {
         unawaited(_publishNostrInBackground(nym));
-      } else {
-        unawaited(_settings.clearNostrPublishOutcome());
       }
     } on Exception catch (e, stack) {
       log.severe(message: 'register failed', error: e, trace: stack);
@@ -173,7 +191,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
           quotaStale: false,
         ),
       );
-      unawaited(_settings.clearNostrPublishOutcome());
+      unawaited(_clearNostrOutcomeBestEffort());
       unawaited(_clearNostrInBackground());
     } on Exception catch (e, stack) {
       log.warning('delete LA failed', error: e, trace: stack);
@@ -191,8 +209,9 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     unawaited(_publishNostrInBackground(nym));
   }
 
-  // Hydrates the publish-status row from persisted outcome. On cold start
-  // (outcome is null) seeds it with one publish; otherwise no relay traffic.
+  // Hydrates the publish-status row from persisted outcome. Unknown state
+  // fails closed as no-publish; publishing only starts from explicit register
+  // or republish actions.
   Future<void> _emitActivated({
     required String address,
     required bool walletExists,
@@ -201,7 +220,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
   }) async {
     final persisted = await _settings.getNostrPublishOutcome();
     if (isClosed) return;
-    final status = persisted ?? NostrPublishStatus.pending;
+    final status = persisted ?? NostrPublishStatus.none;
     emit(
       state.copyWith(
         loading: false,
@@ -213,10 +232,6 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         nostrPublishStatus: status,
       ),
     );
-    if (persisted == null) {
-      final nym = address.split('@').first;
-      unawaited(_publishNostrInBackground(nym));
-    }
   }
 
   Future<void> _publishNostrInBackground(String nym) async {
@@ -224,12 +239,12 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     try {
       await _publishProfile.execute(nym: nym);
       outcome = NostrPublishStatus.success;
-    } on LightningAddressNostrPublishFailedException catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning('LA nostr publish failed', error: e, trace: stack);
       outcome = NostrPublishStatus.failed;
     }
     if (!_isStillActiveAs(nym)) return;
-    await _settings.setNostrPublishOutcome(outcome);
+    await _persistNostrOutcomeBestEffort(outcome);
     if (!_isStillActiveAs(nym)) return;
     if (isClosed) return;
     emit(state.copyWith(nostrPublishStatus: outcome));
@@ -246,6 +261,32 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       await _clearProfile.execute();
     } on LightningAddressNostrPublishFailedException catch (e, stack) {
       log.warning('LA nostr clear failed', error: e, trace: stack);
+    }
+  }
+
+  Future<void> _persistNostrOutcomeBestEffort(
+    NostrPublishStatus outcome,
+  ) async {
+    try {
+      await _settings.setNostrPublishOutcome(outcome);
+    } on Exception catch (e, stack) {
+      log.warning(
+        'LA nostr publish outcome persistence failed',
+        error: e,
+        trace: stack,
+      );
+    }
+  }
+
+  Future<void> _clearNostrOutcomeBestEffort() async {
+    try {
+      await _settings.clearNostrPublishOutcome();
+    } on Exception catch (e, stack) {
+      log.warning(
+        'LA nostr publish outcome clear failed',
+        error: e,
+        trace: stack,
+      );
     }
   }
 

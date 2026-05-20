@@ -306,9 +306,97 @@ void main() {
 
     expect(cubit.state.nostrPublishStatus, NostrPublishStatus.none);
     verifyNever(() => publishProfile.execute(nym: any(named: 'nym')));
-    verify(() => settings.clearNostrPublishOutcome()).called(1);
+    verify(
+      () => settings.setNostrPublishOutcome(NostrPublishStatus.none),
+    ).called(1);
     await cubit.close();
   });
+
+  test(
+    'persisted Nostr opt-out does not auto-publish on cold status check',
+    () async {
+      when(
+        () => externalReceiveWallets.get(
+          environment: any(named: 'environment'),
+          purpose: any(named: 'purpose'),
+        ),
+      ).thenAnswer((_) async => null);
+      when(
+        () => payService.getStoredAddress(),
+      ).thenAnswer((_) async => 'alice@bullpay.ca');
+      when(
+        () => settings.getNostrPublishOutcome(),
+      ).thenAnswer((_) async => NostrPublishStatus.none);
+
+      final cubit = build();
+      await cubit.checkStatus(Environment.mainnet);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
+      expect(cubit.state.nostrPublishStatus, NostrPublishStatus.none);
+      verifyNever(() => publishProfile.execute(nym: any(named: 'nym')));
+      await cubit.close();
+    },
+  );
+
+  test(
+    'unknown persisted Nostr state does not auto-publish on cold status check',
+    () async {
+      when(
+        () => externalReceiveWallets.get(
+          environment: any(named: 'environment'),
+          purpose: any(named: 'purpose'),
+        ),
+      ).thenAnswer((_) async => null);
+      when(
+        () => payService.getStoredAddress(),
+      ).thenAnswer((_) async => 'alice@bullpay.ca');
+      when(
+        () => settings.getNostrPublishOutcome(),
+      ).thenAnswer((_) async => null);
+
+      final cubit = build();
+      await cubit.checkStatus(Environment.mainnet);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
+      expect(cubit.state.nostrPublishStatus, NostrPublishStatus.none);
+      verifyNever(() => publishProfile.execute(nym: any(named: 'nym')));
+      await cubit.close();
+    },
+  );
+
+  test(
+    'opt-out registration fails closed when preference cannot persist',
+    () async {
+      stubRegisterOk();
+      when(
+        () => settings.setNostrPublishOutcome(NostrPublishStatus.none),
+      ).thenThrow(Exception('hive closed'));
+
+      final cubit = build();
+      await cubit.registerNym(
+        'alice',
+        Environment.mainnet,
+        publishOnNostr: false,
+      );
+
+      expect(cubit.state.registering, isFalse);
+      expect(
+        cubit.state.error,
+        'Could not save Nostr preference. Please try again.',
+      );
+      expect(cubit.state.lightningAddress, isNull);
+      verifyNever(
+        () => register.execute(
+          nym: any(named: 'nym'),
+          environment: any(named: 'environment'),
+        ),
+      );
+      verifyNever(() => publishProfile.execute(nym: any(named: 'nym')));
+      await cubit.close();
+    },
+  );
 
   test(
     'successful delete prepends deactivated nym to previousNyms + clears persisted outcome',

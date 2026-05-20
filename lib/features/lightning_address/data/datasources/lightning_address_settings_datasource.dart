@@ -12,6 +12,7 @@ class LightningAddressSettingsDatasource {
     final raw = box.get(_nostrPublishOutcomeKey) as String?;
     if (raw == null) return null;
     return switch (raw) {
+      'none' => NostrPublishStatus.none,
       'success' => NostrPublishStatus.success,
       'failed' => NostrPublishStatus.failed,
       _ => null,
@@ -20,9 +21,10 @@ class LightningAddressSettingsDatasource {
 
   Future<void> setNostrPublishOutcome(NostrPublishStatus outcome) async {
     assert(
-      outcome == NostrPublishStatus.success ||
+      outcome == NostrPublishStatus.none ||
+          outcome == NostrPublishStatus.success ||
           outcome == NostrPublishStatus.failed,
-      'only success/failed are persistable; none/pending are transient',
+      'only none/success/failed are persistable; pending is transient',
     );
     final box = await _openBox();
     await box.put(_nostrPublishOutcomeKey, outcome.name);
