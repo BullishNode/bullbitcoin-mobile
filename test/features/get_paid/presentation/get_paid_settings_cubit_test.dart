@@ -78,8 +78,8 @@ void main() {
     await cubit.load();
 
     expect(cubit.state.isLoadingSettings, isFalse);
-    expect(cubit.state.lightningAddressAutoSweep, isFalse);
-    expect(cubit.state.lightningAddressHideWallet, isTrue);
+    expect(cubit.state.lightningAddressLiquidAutoSweep, isFalse);
+    expect(cubit.state.lightningAddressLiquidHideWallet, isTrue);
     expect(cubit.state.paymentPageAutoSweep, isTrue);
     expect(cubit.state.btcpayLiquidHideWallet, isTrue);
     expect(cubit.state.btcpayBitcoinAutoSweep, isFalse);
@@ -141,8 +141,8 @@ void main() {
     await cubit.setLightningAddressAutoSweep(false);
     await cubit.setLightningAddressHideWallet(false);
 
-    expect(cubit.state.lightningAddressAutoSweep, isFalse);
-    expect(cubit.state.lightningAddressHideWallet, isFalse);
+    expect(cubit.state.lightningAddressLiquidAutoSweep, isFalse);
+    expect(cubit.state.lightningAddressLiquidHideWallet, isFalse);
     expect(cubit.state.isSavingSettings, isFalse);
     verify(
       () => externalReceiveWallets.setAutoSweepForAccount(

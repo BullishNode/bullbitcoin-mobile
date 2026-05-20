@@ -59,8 +59,8 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
         state.copyWith(
           isLoadingSettings: false,
           loadFailed: false,
-          lightningAddressAutoSweep: autoSweep,
-          lightningAddressHideWallet: hideWallet,
+          lightningAddressLiquidAutoSweep: autoSweep,
+          lightningAddressLiquidHideWallet: hideWallet,
           paymentPageAutoSweep: paymentPageAutoSweep,
           paymentPageHideWallet: paymentPageHideWallet,
           btcpayLiquidAutoSweep: btcpayAutoSweep,
@@ -306,7 +306,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
       ExternalReceiveWalletPurpose.paymentPage => state.paymentPageAutoSweep,
       ExternalReceiveWalletPurpose.btcpay => state.btcpayLiquidAutoSweep,
       ExternalReceiveWalletPurpose.lightningAddress =>
-        state.lightningAddressAutoSweep,
+        state.lightningAddressLiquidAutoSweep,
     };
   }
 
@@ -323,7 +323,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
       ExternalReceiveWalletPurpose.paymentPage => state.paymentPageHideWallet,
       ExternalReceiveWalletPurpose.btcpay => state.btcpayLiquidHideWallet,
       ExternalReceiveWalletPurpose.lightningAddress =>
-        state.lightningAddressHideWallet,
+        state.lightningAddressLiquidHideWallet,
     };
   }
 
@@ -348,7 +348,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
         btcpayLiquidAutoSweep: value,
       ),
       ExternalReceiveWalletPurpose.lightningAddress => state.copyWith(
-        lightningAddressAutoSweep: value,
+        lightningAddressLiquidAutoSweep: value,
       ),
     };
   }
@@ -378,7 +378,7 @@ class GetPaidSettingsCubit extends Cubit<GetPaidSettingsState> {
         btcpayLiquidHideWallet: value,
       ),
       ExternalReceiveWalletPurpose.lightningAddress => state.copyWith(
-        lightningAddressHideWallet: value,
+        lightningAddressLiquidHideWallet: value,
       ),
     };
   }

@@ -85,8 +85,9 @@ class GetPaidSettingsScreen extends StatelessWidget {
                       if (!state.isLoadingSettings && !state.loadFailed) ...[
                         _WalletSettingsSection(
                           title: context.loc.lightningAddressTitle,
-                          autoSweepValue: state.lightningAddressAutoSweep,
-                          hideWalletValue: state.lightningAddressHideWallet,
+                          autoSweepValue: state.lightningAddressLiquidAutoSweep,
+                          hideWalletValue:
+                              state.lightningAddressLiquidHideWallet,
                           enabled: !state.operationInProgress,
                           onAutoSweepChanged: context
                               .read<GetPaidSettingsCubit>()

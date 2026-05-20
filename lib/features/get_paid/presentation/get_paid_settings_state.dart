@@ -5,8 +5,8 @@ class GetPaidSettingsState {
   final bool loadFailed;
   final bool saveFailed;
   final bool isSavingSettings;
-  final bool lightningAddressAutoSweep;
-  final bool lightningAddressHideWallet;
+  final bool lightningAddressLiquidAutoSweep;
+  final bool lightningAddressLiquidHideWallet;
   final bool paymentPageAutoSweep;
   final bool paymentPageHideWallet;
   final bool btcpayLiquidAutoSweep;
@@ -22,8 +22,8 @@ class GetPaidSettingsState {
     this.loadFailed = false,
     this.saveFailed = false,
     this.isSavingSettings = false,
-    this.lightningAddressAutoSweep = true,
-    this.lightningAddressHideWallet = true,
+    this.lightningAddressLiquidAutoSweep = true,
+    this.lightningAddressLiquidHideWallet = true,
     this.paymentPageAutoSweep = true,
     this.paymentPageHideWallet = true,
     this.btcpayLiquidAutoSweep = true,
@@ -44,8 +44,8 @@ class GetPaidSettingsState {
     bool? loadFailed,
     bool? saveFailed,
     bool? isSavingSettings,
-    bool? lightningAddressAutoSweep,
-    bool? lightningAddressHideWallet,
+    bool? lightningAddressLiquidAutoSweep,
+    bool? lightningAddressLiquidHideWallet,
     bool? paymentPageAutoSweep,
     bool? paymentPageHideWallet,
     bool? btcpayLiquidAutoSweep,
@@ -62,10 +62,12 @@ class GetPaidSettingsState {
       loadFailed: loadFailed ?? this.loadFailed,
       saveFailed: saveFailed ?? this.saveFailed,
       isSavingSettings: isSavingSettings ?? this.isSavingSettings,
-      lightningAddressAutoSweep:
-          lightningAddressAutoSweep ?? this.lightningAddressAutoSweep,
-      lightningAddressHideWallet:
-          lightningAddressHideWallet ?? this.lightningAddressHideWallet,
+      lightningAddressLiquidAutoSweep:
+          lightningAddressLiquidAutoSweep ??
+          this.lightningAddressLiquidAutoSweep,
+      lightningAddressLiquidHideWallet:
+          lightningAddressLiquidHideWallet ??
+          this.lightningAddressLiquidHideWallet,
       paymentPageAutoSweep: paymentPageAutoSweep ?? this.paymentPageAutoSweep,
       paymentPageHideWallet:
           paymentPageHideWallet ?? this.paymentPageHideWallet,
