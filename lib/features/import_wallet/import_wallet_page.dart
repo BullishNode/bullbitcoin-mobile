@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/import_coldcard_q/router.dart';
 import 'package:bb_mobile/features/import_mnemonic/router.dart';
 import 'package:bb_mobile/features/import_qr_device/router.dart';
 import 'package:bb_mobile/features/import_watch_only_wallet/import_watch_only_router.dart';
+import 'package:bb_mobile/features/import_wallet/router.dart';
 import 'package:bb_mobile/features/ledger/ui/ledger_router.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,9 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 class ImportWalletPage extends StatelessWidget {
-  const ImportWalletPage({super.key});
+  final VoidCallback? onWalletsChanged;
+
+  const ImportWalletPage({super.key, this.onWalletsChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +41,11 @@ class ImportWalletPage extends StatelessWidget {
                 style: context.font.titleMedium,
               ),
               const Gap(12),
+              TabMenuVerticalButton(
+                title: context.loc.importWalletCreateManualBip85Title,
+                onTap: () => _openCreateBip85Wallet(context),
+              ),
+              const Gap(16),
               TabMenuVerticalButton(
                 title: context.loc.importWalletImportMnemonic,
                 onTap: () => context.pushNamed(
@@ -126,5 +134,13 @@ class ImportWalletPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _openCreateBip85Wallet(BuildContext context) async {
+    final changed = await context.pushNamed<bool>(
+      ImportWalletRoute.createBip85Wallet.name,
+    );
+    if (changed != true || !context.mounted) return;
+    onWalletsChanged?.call();
   }
 }
