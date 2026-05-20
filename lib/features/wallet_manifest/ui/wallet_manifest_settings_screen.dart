@@ -300,12 +300,28 @@ class WalletManifestSettingsScreen extends StatelessWidget {
                             ),
                           if (state.publishStatus ==
                               WalletManifestPublishStatus.succeeded)
-                            _InlineMessage(
-                              text: context.loc
-                                  .walletManifestSettingsPublishSucceeded(
-                                    state.publishedManifestAccountCount ?? 0,
+                            Column(
+                              crossAxisAlignment: .start,
+                              children: [
+                                _InlineMessage(
+                                  text: context.loc
+                                      .walletManifestSettingsPublishSucceeded(
+                                        state.publishedManifestAccountCount ??
+                                            0,
+                                      ),
+                                  color: context.appColors.textMuted,
+                                ),
+                                if (state.publishedManifestCreatedAt != null)
+                                  _InlineMessage(
+                                    text: context.loc
+                                        .walletManifestSettingsLatestPublishStatus(
+                                          _formatTimestamp(
+                                            state.publishedManifestCreatedAt!,
+                                          ),
+                                        ),
+                                    color: context.appColors.textMuted,
                                   ),
-                              color: context.appColors.textMuted,
+                              ],
                             ),
                           SettingsEntryItem(
                             icon: Icons.restore,
@@ -516,6 +532,17 @@ class _RemoteManifestSection extends StatelessWidget {
             color: context.appColors.textMuted,
           ),
         ),
+        if (state.remoteManifestCreatedAt != null) ...[
+          const Gap(4),
+          BBText(
+            context.loc.walletManifestSettingsRemoteManifestCreatedAt(
+              _formatTimestamp(state.remoteManifestCreatedAt!),
+            ),
+            style: context.font.bodySmall?.copyWith(
+              color: context.appColors.textMuted,
+            ),
+          ),
+        ],
         const Gap(8),
         BBText(
           context.loc.walletManifestSettingsRemoteManifestPrivacy,
@@ -573,6 +600,20 @@ class _RemoteManifestSection extends StatelessWidget {
       ],
     );
   }
+}
+
+String _formatTimestamp(int timestamp) {
+  final dateTime = DateTime.fromMillisecondsSinceEpoch(
+    timestamp * 1000,
+    isUtc: true,
+  ).toLocal();
+  String twoDigits(int value) => value.toString().padLeft(2, '0');
+  final year = dateTime.year.toString().padLeft(4, '0');
+  final month = twoDigits(dateTime.month);
+  final day = twoDigits(dateTime.day);
+  final hour = twoDigits(dateTime.hour);
+  final minute = twoDigits(dateTime.minute);
+  return '$year-$month-$day $hour:$minute';
 }
 
 class _InlineMessage extends StatelessWidget {

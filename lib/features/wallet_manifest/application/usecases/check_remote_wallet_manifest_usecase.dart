@@ -6,10 +6,12 @@ import 'package:bb_mobile/features/wallet_manifest/application/usecases/fetch_re
 class CheckRemoteWalletManifestResult {
   final String manifestJson;
   final int accountCount;
+  final int createdAt;
 
   const CheckRemoteWalletManifestResult({
     required this.manifestJson,
     required this.accountCount,
+    required this.createdAt,
   });
 }
 
@@ -32,6 +34,7 @@ class CheckRemoteWalletManifestUsecase {
         '  ',
       ).convert(_codec.toJson(snapshot)),
       accountCount: snapshot.accounts.length,
+      createdAt: snapshot.createdAt,
     );
   }
 }

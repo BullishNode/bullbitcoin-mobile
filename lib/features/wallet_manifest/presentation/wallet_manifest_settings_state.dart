@@ -29,8 +29,10 @@ class WalletManifestSettingsState {
   final WalletManifestRemoteCheckStatus remoteCheckStatus;
   final String? remoteManifestJson;
   final int? remoteManifestAccountCount;
+  final int? remoteManifestCreatedAt;
   final WalletManifestPublishStatus publishStatus;
   final int? publishedManifestAccountCount;
+  final int? publishedManifestCreatedAt;
   final WalletManifestSaveStatus saveStatus;
   final WalletManifestManualRestoreStatus manualRestoreStatus;
   final int? manualRestoreRestoredCount;
@@ -50,8 +52,10 @@ class WalletManifestSettingsState {
     this.remoteCheckStatus = WalletManifestRemoteCheckStatus.idle,
     this.remoteManifestJson,
     this.remoteManifestAccountCount,
+    this.remoteManifestCreatedAt,
     this.publishStatus = WalletManifestPublishStatus.idle,
     this.publishedManifestAccountCount,
+    this.publishedManifestCreatedAt,
     this.saveStatus = WalletManifestSaveStatus.idle,
     this.manualRestoreStatus = WalletManifestManualRestoreStatus.idle,
     this.manualRestoreRestoredCount,
@@ -88,9 +92,11 @@ class WalletManifestSettingsState {
     WalletManifestRemoteCheckStatus? remoteCheckStatus,
     String? remoteManifestJson,
     int? remoteManifestAccountCount,
+    int? remoteManifestCreatedAt,
     bool clearRemoteManifest = false,
     WalletManifestPublishStatus? publishStatus,
     int? publishedManifestAccountCount,
+    int? publishedManifestCreatedAt,
     bool clearPublishedManifest = false,
     WalletManifestSaveStatus? saveStatus,
     WalletManifestManualRestoreStatus? manualRestoreStatus,
@@ -117,10 +123,16 @@ class WalletManifestSettingsState {
       remoteManifestAccountCount: clearRemoteManifest
           ? null
           : remoteManifestAccountCount ?? this.remoteManifestAccountCount,
+      remoteManifestCreatedAt: clearRemoteManifest
+          ? null
+          : remoteManifestCreatedAt ?? this.remoteManifestCreatedAt,
       publishStatus: publishStatus ?? this.publishStatus,
       publishedManifestAccountCount: clearPublishedManifest
           ? null
           : publishedManifestAccountCount ?? this.publishedManifestAccountCount,
+      publishedManifestCreatedAt: clearPublishedManifest
+          ? null
+          : publishedManifestCreatedAt ?? this.publishedManifestCreatedAt,
       saveStatus: saveStatus ?? this.saveStatus,
       manualRestoreStatus: manualRestoreStatus ?? this.manualRestoreStatus,
       manualRestoreRestoredCount: clearManualRestore

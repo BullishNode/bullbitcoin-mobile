@@ -126,6 +126,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{\n  "accounts": []\n}',
         accountCount: 0,
+        createdAt: 1710000000,
       ),
     );
     final cubit = _cubit(getPublicKey, checkRemoteManifest);
@@ -142,6 +143,7 @@ void main() {
 
     expect(find.text('Remote wallet manifest'), findsOneWidget);
     expect(find.text('No wallets in this manifest'), findsOneWidget);
+    expect(find.textContaining('Created: '), findsOneWidget);
     expect(
       find.text('This manifest may contain wallet metadata. Keep it private.'),
       findsOneWidget,
@@ -169,6 +171,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{\n  "accounts": []\n}',
         accountCount: 0,
+        createdAt: 1710000000,
       ),
     );
     when(
@@ -216,6 +219,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{"accounts":[]}',
         accountCount: 0,
+        createdAt: 1710000000,
       ),
     );
     when(
@@ -468,6 +472,10 @@ void main() {
 
     expect(
       find.text('Published a wallet manifest with 2 wallets.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Latest replacement from this device: '),
       findsOneWidget,
     );
     verify(() => publishLocalManifest.execute()).called(1);

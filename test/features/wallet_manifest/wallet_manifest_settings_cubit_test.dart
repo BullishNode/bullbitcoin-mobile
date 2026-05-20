@@ -99,6 +99,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{"accounts":[]}',
         accountCount: 0,
+        createdAt: 1710000000,
       ),
     );
     final cubit = _cubit(
@@ -117,6 +118,7 @@ void main() {
     );
     expect(cubit.state.remoteManifestJson, '{"accounts":[]}');
     expect(cubit.state.remoteManifestAccountCount, 0);
+    expect(cubit.state.remoteManifestCreatedAt, 1710000000);
   });
 
   test('reports when no remote wallet manifest exists', () async {
@@ -182,6 +184,7 @@ void main() {
     expect(cubit.state.publishing, isFalse);
     expect(cubit.state.publishStatus, WalletManifestPublishStatus.succeeded);
     expect(cubit.state.publishedManifestAccountCount, 2);
+    expect(cubit.state.publishedManifestCreatedAt, isNotNull);
     verify(() => publishLocalManifest.execute()).called(1);
   });
 
@@ -289,6 +292,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{"old":true}',
         accountCount: 1,
+        createdAt: 1710000000,
       ),
     );
     when(() => publishLocalManifest.execute()).thenAnswer((_) async => 2);
@@ -325,6 +329,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{"latest":true}',
         accountCount: 1,
+        createdAt: 1710000000,
       ),
     );
     final cubit = _cubit(
@@ -395,6 +400,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{"accounts":[]}',
         accountCount: 0,
+        createdAt: 1710000000,
       ),
     );
     when(
@@ -428,6 +434,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{"accounts":[]}',
         accountCount: 0,
+        createdAt: 1710000000,
       ),
     );
     when(
@@ -491,6 +498,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{"accounts":[]}',
         accountCount: 0,
+        createdAt: 1710000000,
       ),
     );
     when(
@@ -529,6 +537,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{"accounts":[]}',
         accountCount: 0,
+        createdAt: 1710000000,
       ),
     );
     when(
@@ -790,6 +799,7 @@ void main() {
         (_) async => const CheckRemoteWalletManifestResult(
           manifestJson: '{"accounts":[]}',
           accountCount: 0,
+          createdAt: 1710000000,
         ),
       );
       when(
@@ -938,6 +948,7 @@ void main() {
       (_) async => const CheckRemoteWalletManifestResult(
         manifestJson: '{"old":true}',
         accountCount: 1,
+        createdAt: 1710000000,
       ),
     );
     when(() => publishLocalManifest.execute()).thenAnswer((_) async => 1);

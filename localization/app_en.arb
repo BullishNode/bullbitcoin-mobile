@@ -13319,6 +13319,15 @@
   "@walletManifestSettingsCheckMissing": {
     "description": "Message shown when no readable remote wallet manifest is available"
   },
+  "walletManifestSettingsLatestPublishStatus": "Latest replacement from this device: {timestamp}",
+  "@walletManifestSettingsLatestPublishStatus": {
+    "description": "Latest successful wallet manifest replacement time from this device",
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
   "walletManifestSettingsPublishLocal": "Replace wallet manifest",
   "@walletManifestSettingsPublishLocal": {
     "description": "Button text to publish a replacement wallet manifest"
@@ -13428,6 +13437,15 @@
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "walletManifestSettingsRemoteManifestCreatedAt": "Created: {timestamp}",
+  "@walletManifestSettingsRemoteManifestCreatedAt": {
+    "description": "Creation time shown for the fetched remote wallet manifest",
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
       }
     }
   },

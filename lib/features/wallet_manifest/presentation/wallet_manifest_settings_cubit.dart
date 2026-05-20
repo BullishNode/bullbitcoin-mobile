@@ -75,6 +75,7 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
           remoteCheckStatus: WalletManifestRemoteCheckStatus.loaded,
           remoteManifestJson: result.manifestJson,
           remoteManifestAccountCount: result.accountCount,
+          remoteManifestCreatedAt: result.createdAt,
         ),
       );
     } catch (_) {
@@ -110,6 +111,8 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
         state.copyWith(
           publishStatus: WalletManifestPublishStatus.succeeded,
           publishedManifestAccountCount: accountCount,
+          publishedManifestCreatedAt:
+              DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000,
         ),
       );
     } catch (_) {
