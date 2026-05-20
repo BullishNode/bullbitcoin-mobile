@@ -65,8 +65,6 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
         emit(
           state.copyWith(
             remoteCheckStatus: WalletManifestRemoteCheckStatus.missing,
-            latestOperation: WalletManifestLatestOperation.checkRemote,
-            latestOperationCompletedAt: _nowEpochSeconds(),
           ),
         );
         return;
@@ -78,8 +76,6 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
           remoteManifestJson: result.manifestJson,
           remoteManifestAccountCount: result.accountCount,
           remoteManifestCreatedAt: result.createdAt,
-          latestOperation: WalletManifestLatestOperation.checkRemote,
-          latestOperationCompletedAt: _nowEpochSeconds(),
         ),
       );
     } catch (_) {
@@ -87,8 +83,6 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
       emit(
         state.copyWith(
           remoteCheckStatus: WalletManifestRemoteCheckStatus.failed,
-          latestOperation: WalletManifestLatestOperation.checkRemote,
-          latestOperationCompletedAt: _nowEpochSeconds(),
         ),
       );
     }
@@ -113,25 +107,16 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
     try {
       final accountCount = await _publishLocalManifest.execute();
       if (isClosed) return;
-      final completedAt = _nowEpochSeconds();
       emit(
         state.copyWith(
           publishStatus: WalletManifestPublishStatus.succeeded,
           publishedManifestAccountCount: accountCount,
-          publishedManifestCreatedAt: completedAt,
-          latestOperation: WalletManifestLatestOperation.publishLocal,
-          latestOperationCompletedAt: completedAt,
+          publishedManifestCreatedAt: _nowEpochSeconds(),
         ),
       );
     } catch (_) {
       if (isClosed) return;
-      emit(
-        state.copyWith(
-          publishStatus: WalletManifestPublishStatus.failed,
-          latestOperation: WalletManifestLatestOperation.publishLocal,
-          latestOperationCompletedAt: _nowEpochSeconds(),
-        ),
-      );
+      emit(state.copyWith(publishStatus: WalletManifestPublishStatus.failed));
     }
   }
 
@@ -158,8 +143,6 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
         emit(
           state.copyWith(
             manualRestoreStatus: WalletManifestManualRestoreStatus.missing,
-            latestOperation: WalletManifestLatestOperation.restoreRemote,
-            latestOperationCompletedAt: _nowEpochSeconds(),
           ),
         );
         return;
@@ -176,8 +159,6 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
           manualRestoreFailedCount: result.failedCount,
           manualRestoreWalletStateMayHaveChanged:
               result.walletStateMayHaveChanged,
-          latestOperation: WalletManifestLatestOperation.restoreRemote,
-          latestOperationCompletedAt: _nowEpochSeconds(),
         ),
       );
     } catch (_) {
@@ -185,8 +166,6 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
       emit(
         state.copyWith(
           manualRestoreStatus: WalletManifestManualRestoreStatus.failed,
-          latestOperation: WalletManifestLatestOperation.restoreRemote,
-          latestOperationCompletedAt: _nowEpochSeconds(),
         ),
       );
     }
@@ -242,8 +221,6 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
             auditMatchingCount: result.matchingCount,
             auditMissingLocalCount: result.missingLocalCount,
             auditMissingRemoteCount: result.missingRemoteCount,
-            latestOperation: WalletManifestLatestOperation.auditRemote,
-            latestOperationCompletedAt: _nowEpochSeconds(),
           ),
         );
         return;
@@ -257,19 +234,11 @@ class WalletManifestSettingsCubit extends Cubit<WalletManifestSettingsState> {
           auditMatchingCount: result.matchingCount,
           auditMissingLocalCount: result.missingLocalCount,
           auditMissingRemoteCount: result.missingRemoteCount,
-          latestOperation: WalletManifestLatestOperation.auditRemote,
-          latestOperationCompletedAt: _nowEpochSeconds(),
         ),
       );
     } catch (_) {
       if (isClosed) return;
-      emit(
-        state.copyWith(
-          auditStatus: WalletManifestAuditStatus.failed,
-          latestOperation: WalletManifestLatestOperation.auditRemote,
-          latestOperationCompletedAt: _nowEpochSeconds(),
-        ),
-      );
+      emit(state.copyWith(auditStatus: WalletManifestAuditStatus.failed));
     }
   }
 

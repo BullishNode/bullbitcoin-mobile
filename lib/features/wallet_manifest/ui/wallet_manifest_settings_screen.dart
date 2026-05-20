@@ -86,8 +86,6 @@ class WalletManifestSettingsScreen extends StatelessWidget {
                               color: context.appColors.textMuted,
                             ),
                           ),
-                          const Gap(16),
-                          _LatestOperationStatus(state: state),
                           const Gap(24),
                           BBText(
                             context.loc.walletManifestSettingsNpubLabel,
@@ -506,71 +504,6 @@ class WalletManifestSettingsScreen extends StatelessWidget {
     if (cubit.state.manualRestoreWalletStateMayHaveChanged) {
       onWalletsRestored?.call();
     }
-  }
-}
-
-class _LatestOperationStatus extends StatelessWidget {
-  final WalletManifestSettingsState state;
-
-  const _LatestOperationStatus({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final timestamp = state.latestOperationCompletedAt;
-    final operation = state.latestOperation;
-    final statusText = timestamp == null || operation == null
-        ? context.loc.walletManifestSettingsLatestOperationNone
-        : _operationText(context, operation, _formatTimestamp(timestamp));
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.appColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: context.appColors.outline),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: .start,
-          children: [
-            BBText(
-              context.loc.walletManifestSettingsLatestOperationTitle,
-              style: context.font.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const Gap(4),
-            BBText(
-              statusText,
-              style: context.font.bodySmall?.copyWith(
-                color: context.appColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _operationText(
-    BuildContext context,
-    WalletManifestLatestOperation operation,
-    String timestamp,
-  ) {
-    return switch (operation) {
-      WalletManifestLatestOperation.checkRemote =>
-        context.loc.walletManifestSettingsLatestOperationCheckRemote(timestamp),
-      WalletManifestLatestOperation.publishLocal =>
-        context.loc.walletManifestSettingsLatestOperationPublishLocal(
-          timestamp,
-        ),
-      WalletManifestLatestOperation.restoreRemote =>
-        context.loc.walletManifestSettingsLatestOperationRestoreRemote(
-          timestamp,
-        ),
-      WalletManifestLatestOperation.auditRemote =>
-        context.loc.walletManifestSettingsLatestOperationAuditRemote(timestamp),
-    };
   }
 }
 

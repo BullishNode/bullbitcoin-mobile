@@ -14,36 +14,6 @@ class _MockCompleteBtcpaySamRockPairingUsecase extends Mock
     implements CompleteBtcpaySamRockPairingUsecase {}
 
 void main() {
-  testWidgets('shows BTCPay status and parsed pairing details', (tester) async {
-    final completePairing = _MockCompleteBtcpaySamRockPairingUsecase();
-    when(
-      () => completePairing.execute(pairingUrl: any(named: 'pairingUrl')),
-    ).thenAnswer((_) async {});
-
-    await tester.pumpWidget(_harness(completePairing));
-
-    expect(find.text('Status'), findsOneWidget);
-    expect(find.text('Not connected'), findsOneWidget);
-    expect(
-      find.text(
-        'Paste a SamRock pairing URL from BTCPay Server. Pairing creates dedicated BTCPay wallets and shares public wallet details with that server.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('BTCPay Server'), findsNothing);
-
-    await tester.enterText(
-      find.byType(TextFormField),
-      'https://btcpay.example:8443/plugins/samrock/protocol?setup=btc-chain%2Cliquid-chain%2Cbtc-ln&otp=123',
-    );
-    await tester.pump();
-
-    expect(find.text('BTCPay Server'), findsOneWidget);
-    expect(find.text('https://btcpay.example:8443'), findsOneWidget);
-    expect(find.text('Wallets'), findsOneWidget);
-    expect(find.text('Bitcoin wallet, Liquid wallet'), findsOneWidget);
-  });
-
   testWidgets('blocks duplicate submit and back while pairing is in flight', (
     tester,
   ) async {
@@ -64,12 +34,18 @@ void main() {
     expect(find.text('Create BTCPay wallets?'), findsOneWidget);
     expect(
       find.textContaining(
-        'You are about to create or use dedicated Bitcoin wallet and share public wallet details with a BTCPay Server at https://btcpay.example.',
+        'You are about to create or use dedicated Bitcoin wallet and share watch-only wallet descriptors with a BTCPay Server at https://btcpay.example.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'That server can monitor payments received by these dedicated wallets. No private keys are shared.',
       ),
       findsOneWidget,
     );
     expect(find.text('Requested rails: Bitcoin'), findsOneWidget);
-    await tester.tap(find.text('Proceed'));
+    await tester.tap(find.text('Create wallets and share details'));
     await tester.pump();
     await tester.tap(find.text('Pairing...'), warnIfMissed: false);
     await tester.pump();
@@ -104,7 +80,7 @@ void main() {
 
     await tester.tap(find.text('Pair BTCPay'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Proceed'));
+    await tester.tap(find.text('Create wallets and share details'));
     await tester.pump();
 
     verify(
@@ -147,7 +123,7 @@ void main() {
     );
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Proceed'));
+    await tester.tap(find.text('Create wallets and share details'));
     await tester.pump();
 
     verify(

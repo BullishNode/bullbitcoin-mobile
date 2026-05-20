@@ -49,11 +49,6 @@ void main() {
       await tester.pumpWidget(_harness(cubit));
 
       expect(find.text('Wallet Manifest'), findsOneWidget);
-      expect(find.text('Latest operation'), findsOneWidget);
-      expect(
-        find.text('No wallet manifest operation has run on this screen yet.'),
-        findsOneWidget,
-      );
       expect(find.text('Manifest npub'), findsOneWidget);
       expect(
         find.text(
@@ -147,13 +142,6 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Remote wallet manifest'), findsOneWidget);
-    expect(
-      find.textContaining(
-        'Checked the wallet manifest on Nostr at ',
-        skipOffstage: false,
-      ),
-      findsOneWidget,
-    );
     expect(find.text('No wallets in this manifest'), findsOneWidget);
     expect(find.textContaining('Created: '), findsOneWidget);
     expect(
@@ -307,13 +295,6 @@ void main() {
     expect(
       find.text(
         'Manifest wallet list matches this device. 2 wallet identities matched.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-        'Audited the wallet manifest on Nostr at ',
-        skipOffstage: false,
       ),
       findsOneWidget,
     );
@@ -491,13 +472,6 @@ void main() {
 
     expect(
       find.text('Published a wallet manifest with 2 wallets.'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-        'Replaced the wallet manifest on Nostr at ',
-        skipOffstage: false,
-      ),
       findsOneWidget,
     );
     expect(
@@ -692,13 +666,6 @@ void main() {
       );
       expect(
         find.text('2 wallets recreated. 1 wallet was already on this device.'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining(
-          'Recovered wallets from the wallet manifest at ',
-          skipOffstage: false,
-        ),
         findsOneWidget,
       );
       verify(() => restoreRemoteManifest.execute()).called(1);

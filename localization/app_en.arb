@@ -13237,26 +13237,6 @@
   "@btcpayPairingUrlRequired": {
     "description": "Validation message when the BTCPay pairing URL is missing"
   },
-  "btcpayPairingStatusTitle": "Status",
-  "@btcpayPairingStatusTitle": {
-    "description": "Status section title on the BTCPay pairing page"
-  },
-  "btcpayPairingStatusNotConnected": "Not connected",
-  "@btcpayPairingStatusNotConnected": {
-    "description": "BTCPay pairing status before a server connection is completed"
-  },
-  "btcpayPairingStatusDescription": "Paste a SamRock pairing URL from BTCPay Server. Pairing creates dedicated BTCPay wallets and shares public wallet details with that server.",
-  "@btcpayPairingStatusDescription": {
-    "description": "Description shown on the BTCPay pairing page before pairing"
-  },
-  "btcpayPairingServerLabel": "BTCPay Server",
-  "@btcpayPairingServerLabel": {
-    "description": "Label for the parsed BTCPay Server URL on the BTCPay pairing page"
-  },
-  "btcpayPairingWalletsLabel": "Wallets",
-  "@btcpayPairingWalletsLabel": {
-    "description": "Label for the wallets that will be created or used during BTCPay pairing"
-  },
   "btcpayPairingWalletsBitcoin": "Bitcoin wallet",
   "@btcpayPairingWalletsBitcoin": {
     "description": "Bitcoin wallet summary for BTCPay pairing"
@@ -13298,7 +13278,7 @@
     "description": "Error shown when BTCPay Server rejects the SamRock pairing setup"
   },
   "btcpayPairingConfirmTitle": "Create BTCPay wallets?",
-  "btcpayPairingConfirmBody": "You are about to create or use dedicated {wallets} and share public wallet details with a BTCPay Server at {serverUrl}. These wallets can be recovered automatically from the same backup as your default Bitcoin wallets. Do you wish to proceed?",
+  "btcpayPairingConfirmBody": "You are about to create or use dedicated {wallets} and share watch-only wallet descriptors with a BTCPay Server at {serverUrl}. That server can monitor payments received by these dedicated wallets. No private keys are shared. These wallets are derived from the same backup as your default wallets. Do you wish to proceed?",
   "@btcpayPairingConfirmBody": {
     "placeholders": {
       "wallets": {
@@ -13318,7 +13298,7 @@
     }
   },
   "btcpayPairingConfirmCancel": "Cancel",
-  "btcpayPairingConfirmSubmit": "Proceed",
+  "btcpayPairingConfirmSubmit": "Create wallets and share details",
   "btcpayPairingRailBitcoin": "Bitcoin",
   "btcpayPairingRailLiquid": "Liquid",
   "btcpayPairingRailLightning": "Lightning",
@@ -13333,50 +13313,6 @@
   "walletManifestSettingsDescription": "Wallet manifest backup settings.",
   "@walletManifestSettingsDescription": {
     "description": "Description shown on the Wallet Manifest settings screen"
-  },
-  "walletManifestSettingsLatestOperationTitle": "Latest operation",
-  "@walletManifestSettingsLatestOperationTitle": {
-    "description": "Title for the latest wallet manifest operation status"
-  },
-  "walletManifestSettingsLatestOperationNone": "No wallet manifest operation has run on this screen yet.",
-  "@walletManifestSettingsLatestOperationNone": {
-    "description": "Status shown before the user manually runs a wallet manifest operation"
-  },
-  "walletManifestSettingsLatestOperationCheckRemote": "Checked the wallet manifest on Nostr at {timestamp}.",
-  "@walletManifestSettingsLatestOperationCheckRemote": {
-    "description": "Latest wallet manifest operation text after checking the remote manifest",
-    "placeholders": {
-      "timestamp": {
-        "type": "String"
-      }
-    }
-  },
-  "walletManifestSettingsLatestOperationPublishLocal": "Replaced the wallet manifest on Nostr at {timestamp}.",
-  "@walletManifestSettingsLatestOperationPublishLocal": {
-    "description": "Latest wallet manifest operation text after publishing the local manifest",
-    "placeholders": {
-      "timestamp": {
-        "type": "String"
-      }
-    }
-  },
-  "walletManifestSettingsLatestOperationRestoreRemote": "Recovered wallets from the wallet manifest at {timestamp}.",
-  "@walletManifestSettingsLatestOperationRestoreRemote": {
-    "description": "Latest wallet manifest operation text after recovering wallets from the remote manifest",
-    "placeholders": {
-      "timestamp": {
-        "type": "String"
-      }
-    }
-  },
-  "walletManifestSettingsLatestOperationAuditRemote": "Audited the wallet manifest on Nostr at {timestamp}.",
-  "@walletManifestSettingsLatestOperationAuditRemote": {
-    "description": "Latest wallet manifest operation text after auditing the remote manifest",
-    "placeholders": {
-      "timestamp": {
-        "type": "String"
-      }
-    }
   },
   "walletManifestSettingsNpubLabel": "Manifest npub",
   "@walletManifestSettingsNpubLabel": {

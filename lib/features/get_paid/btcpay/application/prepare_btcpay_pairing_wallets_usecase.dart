@@ -27,6 +27,16 @@ class PrepareBtcpayPairingWalletResult {
 
 enum BtcpayPairingWalletNetwork { bitcoin, liquid }
 
+List<BtcpayPairingWalletNetwork> requestedBtcpayPairingWalletNetworks(
+  SamRockPairingRequest request,
+) {
+  return [
+    if (request.supportsBitcoinChain) BtcpayPairingWalletNetwork.bitcoin,
+    if (request.supportsLiquidChain || request.supportsLightning)
+      BtcpayPairingWalletNetwork.liquid,
+  ];
+}
+
 class PrepareBtcpayPairingWalletsUsecase {
   final GetSettingsUsecase _getSettings;
   final ExternalReceiveWalletsFacade _externalReceiveWallets;
@@ -42,11 +52,7 @@ class PrepareBtcpayPairingWalletsUsecase {
   }) async {
     final settings = await _getSettings.execute();
     final isTestnet = settings.environment.isTestnet;
-    final requested = <BtcpayPairingWalletNetwork>[
-      if (request.supportsBitcoinChain) BtcpayPairingWalletNetwork.bitcoin,
-      if (request.supportsLiquidChain || request.supportsLightning)
-        BtcpayPairingWalletNetwork.liquid,
-    ];
+    final requested = requestedBtcpayPairingWalletNetworks(request);
     if (requested.isEmpty) {
       throw ArgumentError.value(
         request,
