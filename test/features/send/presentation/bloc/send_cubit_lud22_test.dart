@@ -86,7 +86,7 @@ void main() {
   );
 
   test(
-    'LUD-22 mainnet success builds Liquid payment for returned address',
+    'LUD-22 mainnet success builds Liquid payment only after confirm',
     () async {
       final harness = SendCubitHarness();
       final wallet = sendCubitWallet(
@@ -131,6 +131,17 @@ void main() {
 
       await cubit.onAmountConfirmed();
 
+      verifyNever(
+        () => harness.tryLiquidDirectPay.execute(
+          lnAddress: any(named: 'lnAddress'),
+          amountSat: any(named: 'amountSat'),
+          walletId: any(named: 'walletId'),
+        ),
+      );
+      expect(cubit.state.step, SendStep.confirm);
+
+      await cubit.onConfirmTransactionClicked();
+
       verify(
         () => harness.tryLiquidDirectPay.execute(
           lnAddress: 'alice@bullpay.ca',
@@ -155,14 +166,13 @@ void main() {
           drain: false,
         ),
       ).called(1);
-      expect(cubit.state.step, SendStep.confirm);
       expect(cubit.state.amountConfirmedClicked, false);
       expect(cubit.state.buildTransactionException, isNull);
     },
   );
 
   test(
-    'LUD-22 direct pay is attempted before Lightning swap fee balance check',
+    'LUD-22 direct pay confirm bypasses Lightning swap fee balance check',
     () async {
       final harness = SendCubitHarness();
       final wallet = sendCubitWallet(
@@ -207,6 +217,26 @@ void main() {
 
       await cubit.onAmountConfirmed();
 
+      verifyNever(
+        () => harness.tryLiquidDirectPay.execute(
+          lnAddress: any(named: 'lnAddress'),
+          amountSat: any(named: 'amountSat'),
+          walletId: any(named: 'walletId'),
+        ),
+      );
+      verifyNever(
+        () => harness.createSendSwap.execute(
+          walletId: any(named: 'walletId'),
+          type: any(named: 'type'),
+          lnAddress: any(named: 'lnAddress'),
+          amountSat: any(named: 'amountSat'),
+        ),
+      );
+      expect(cubit.state.step, SendStep.confirm);
+      expect(cubit.state.insufficientBalanceException, isNull);
+
+      await cubit.onConfirmTransactionClicked();
+
       verify(
         () => harness.tryLiquidDirectPay.execute(
           lnAddress: 'alice@bullpay.ca',
@@ -222,12 +252,10 @@ void main() {
           amountSat: any(named: 'amountSat'),
         ),
       );
-      expect(cubit.state.step, SendStep.confirm);
-      expect(cubit.state.insufficientBalanceException, isNull);
     },
   );
 
-  test('LUD-22 direct pay is attempted below fallback swap minimum', () async {
+  test('LUD-22 direct pay is deferred below fallback swap minimum', () async {
     final harness = SendCubitHarness();
     final wallet = sendCubitWallet(
       id: 'mainnet-wallet',
@@ -270,6 +298,18 @@ void main() {
 
     await cubit.onAmountConfirmed();
 
+    verifyNever(
+      () => harness.tryLiquidDirectPay.execute(
+        lnAddress: any(named: 'lnAddress'),
+        amountSat: any(named: 'amountSat'),
+        walletId: any(named: 'walletId'),
+      ),
+    );
+    expect(cubit.state.step, SendStep.confirm);
+    expect(cubit.state.swapLimitsException, isNull);
+
+    await cubit.onConfirmTransactionClicked();
+
     verify(
       () => harness.tryLiquidDirectPay.execute(
         lnAddress: 'alice@bullpay.ca',
@@ -277,11 +317,9 @@ void main() {
         walletId: wallet.id,
       ),
     ).called(1);
-    expect(cubit.state.step, SendStep.confirm);
-    expect(cubit.state.swapLimitsException, isNull);
   });
 
-  test('LUD-22 direct pay is attempted above fallback swap maximum', () async {
+  test('LUD-22 direct pay is deferred above fallback swap maximum', () async {
     final harness = SendCubitHarness();
     final wallet = sendCubitWallet(
       id: 'mainnet-wallet',
@@ -324,6 +362,18 @@ void main() {
 
     await cubit.onAmountConfirmed();
 
+    verifyNever(
+      () => harness.tryLiquidDirectPay.execute(
+        lnAddress: any(named: 'lnAddress'),
+        amountSat: any(named: 'amountSat'),
+        walletId: any(named: 'walletId'),
+      ),
+    );
+    expect(cubit.state.step, SendStep.confirm);
+    expect(cubit.state.swapLimitsException, isNull);
+
+    await cubit.onConfirmTransactionClicked();
+
     verify(
       () => harness.tryLiquidDirectPay.execute(
         lnAddress: 'alice@bullpay.ca',
@@ -331,59 +381,72 @@ void main() {
         walletId: wallet.id,
       ),
     ).called(1);
-    expect(cubit.state.step, SendStep.confirm);
-    expect(cubit.state.swapLimitsException, isNull);
   });
 
-  test(
-    'LUD-22 direct pay stays on amount step when transaction build fails',
-    () async {
-      final harness = SendCubitHarness();
-      final wallet = sendCubitWallet(
-        id: 'mainnet-wallet',
-        label: 'Instant Payments',
-        network: Network.liquidMainnet,
-        balanceSat: BigInt.from(100000),
-      );
-      stubSuccessfulDirectPayment(harness);
-      when(
-        () => harness.prepareLiquidSend.execute(
-          walletId: any(named: 'walletId'),
-          address: any(named: 'address'),
-          networkFee: any(named: 'networkFee'),
-          amountSat: any(named: 'amountSat'),
-          drain: any(named: 'drain'),
+  test('LUD-22 direct pay build failure happens after confirm', () async {
+    final harness = SendCubitHarness();
+    final wallet = sendCubitWallet(
+      id: 'mainnet-wallet',
+      label: 'Instant Payments',
+      network: Network.liquidMainnet,
+      balanceSat: BigInt.from(100000),
+    );
+    stubSuccessfulDirectPayment(harness);
+    when(
+      () => harness.prepareLiquidSend.execute(
+        walletId: any(named: 'walletId'),
+        address: any(named: 'address'),
+        networkFee: any(named: 'networkFee'),
+        amountSat: any(named: 'amountSat'),
+        drain: any(named: 'drain'),
+      ),
+    ).thenThrow(Exception('build failed'));
+
+    final cubit = harness.createCubit();
+    addTearDown(cubit.close);
+    harness.seed(
+      cubit,
+      SendState(
+        step: SendStep.amount,
+        sendType: SendType.lightning,
+        paymentRequest: const PaymentRequest.lnAddress(
+          address: 'alice@bullpay.ca',
         ),
-      ).thenThrow(Exception('build failed'));
+        selectedWallet: wallet,
+        amount: '1000',
+        inputAmountCurrencyCode: BitcoinUnit.sats.code,
+        selectedSwapLimits: const SwapLimits(min: 100, max: 1000000),
+        selectedSwapFees: const SwapFees(),
+      ),
+    );
 
-      final cubit = harness.createCubit();
-      addTearDown(cubit.close);
-      harness.seed(
-        cubit,
-        SendState(
-          step: SendStep.amount,
-          sendType: SendType.lightning,
-          paymentRequest: const PaymentRequest.lnAddress(
-            address: 'alice@bullpay.ca',
-          ),
-          selectedWallet: wallet,
-          amount: '1000',
-          inputAmountCurrencyCode: BitcoinUnit.sats.code,
-          selectedSwapLimits: const SwapLimits(min: 100, max: 1000000),
-          selectedSwapFees: const SwapFees(),
-        ),
-      );
+    await cubit.onAmountConfirmed();
 
-      await cubit.onAmountConfirmed();
+    verifyNever(
+      () => harness.tryLiquidDirectPay.execute(
+        lnAddress: any(named: 'lnAddress'),
+        amountSat: any(named: 'amountSat'),
+        walletId: any(named: 'walletId'),
+      ),
+    );
+    expect(cubit.state.step, SendStep.confirm);
 
-      expect(cubit.state.step, SendStep.amount);
-      expect(cubit.state.amountConfirmedClicked, false);
-      expect(cubit.state.sendType, SendType.lightning);
-      expect(cubit.state.paymentRequestAddress, 'alice@bullpay.ca');
-      expect(cubit.state.lud22OriginalAddress, isNull);
-      expect(cubit.state.buildTransactionException, isNotNull);
-    },
-  );
+    await cubit.onConfirmTransactionClicked();
+
+    verify(
+      () => harness.tryLiquidDirectPay.execute(
+        lnAddress: 'alice@bullpay.ca',
+        amountSat: 1000,
+        walletId: wallet.id,
+      ),
+    ).called(1);
+    expect(cubit.state.step, SendStep.confirm);
+    expect(cubit.state.amountConfirmedClicked, false);
+    expect(cubit.state.sendType, SendType.lightning);
+    expect(cubit.state.paymentRequestAddress, 'alice@bullpay.ca');
+    expect(cubit.state.lud22OriginalAddress, isNull);
+    expect(cubit.state.buildTransactionException, isNotNull);
+  });
 
   test('LUD-22 direct pay is skipped for send max', () async {
     final harness = SendCubitHarness();
