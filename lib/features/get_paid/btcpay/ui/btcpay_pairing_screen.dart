@@ -20,6 +20,7 @@ class BtcpayPairingScreen extends StatefulWidget {
 class _BtcpayPairingScreenState extends State<BtcpayPairingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _urlController = TextEditingController();
+  SamRockPairingRequest? _parsedRequest;
 
   @override
   void dispose() {
@@ -58,6 +59,8 @@ class _BtcpayPairingScreenState extends State<BtcpayPairingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      _BtcpayStatusPanel(request: _parsedRequest),
+                      const Gap(24),
                       TextFormField(
                         controller: _urlController,
                         enabled: !state.isSubmitting,
@@ -67,6 +70,7 @@ class _BtcpayPairingScreenState extends State<BtcpayPairingScreen> {
                         enableSuggestions: false,
                         minLines: 3,
                         maxLines: 5,
+                        onChanged: _onPairingUrlChanged,
                         onFieldSubmitted: (_) =>
                             state.isSubmitting ? null : _submit(),
                         decoration: InputDecoration(
@@ -121,7 +125,10 @@ class _BtcpayPairingScreenState extends State<BtcpayPairingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              context.loc.btcpayPairingConfirmBody(request.protocolUri.host),
+              context.loc.btcpayPairingConfirmBody(
+                _walletSummary(context, request),
+                _serverUrl(request),
+              ),
             ),
             const Gap(12),
             Text(
@@ -148,6 +155,24 @@ class _BtcpayPairingScreenState extends State<BtcpayPairingScreen> {
     context.read<BtcpayPairingCubit>().submit(pairingUrl);
   }
 
+  void _onPairingUrlChanged(String value) {
+    final parsed = _tryParseRequest(value);
+    if (parsed?.protocolUri == _parsedRequest?.protocolUri &&
+        parsed?.setup.length == _parsedRequest?.setup.length &&
+        parsed?.setup.containsAll(_parsedRequest?.setup ?? const {}) == true) {
+      return;
+    }
+    setState(() => _parsedRequest = parsed);
+  }
+
+  SamRockPairingRequest? _tryParseRequest(String pairingUrl) {
+    try {
+      return const SamRockPairingRequestParser().parse(pairingUrl);
+    } on SamRockPairingRequestException {
+      return null;
+    }
+  }
+
   String _capabilitySummary(
     BuildContext context,
     SamRockPairingRequest request,
@@ -160,6 +185,19 @@ class _BtcpayPairingScreenState extends State<BtcpayPairingScreen> {
     return context.loc.btcpayPairingConfirmRails(capabilities.join(', '));
   }
 
+  String _walletSummary(BuildContext context, SamRockPairingRequest request) {
+    final createsBitcoin = request.supportsBitcoinChain;
+    final createsLiquid =
+        request.supportsLiquidChain || request.supportsLightning;
+    if (createsBitcoin && createsLiquid) {
+      return context.loc.btcpayPairingWalletsBitcoinAndLiquid;
+    }
+    if (createsBitcoin) return context.loc.btcpayPairingWalletsBitcoin;
+    return context.loc.btcpayPairingWalletsLiquid;
+  }
+
+  String _serverUrl(SamRockPairingRequest request) => _serverUrlFor(request);
+
   String _errorMessage(BuildContext context, BtcpayPairingState state) {
     return switch (state.failure) {
       BtcpayPairingFailure.invalidRequest =>
@@ -169,4 +207,93 @@ class _BtcpayPairingScreenState extends State<BtcpayPairingScreen> {
       _ => context.loc.btcpayPairingGenericError,
     };
   }
+}
+
+class _BtcpayStatusPanel extends StatelessWidget {
+  final SamRockPairingRequest? request;
+
+  const _BtcpayStatusPanel({required this.request});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.appColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.appColors.outline),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.loc.btcpayPairingStatusTitle,
+              style: context.font.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Gap(8),
+            Text(
+              context.loc.btcpayPairingStatusNotConnected,
+              style: context.font.bodyMedium?.copyWith(
+                color: context.appColors.textMuted,
+              ),
+            ),
+            const Gap(8),
+            Text(
+              context.loc.btcpayPairingStatusDescription,
+              style: context.font.bodySmall?.copyWith(
+                color: context.appColors.textMuted,
+              ),
+            ),
+            if (request != null) ...[
+              const Gap(16),
+              Text(
+                context.loc.btcpayPairingServerLabel,
+                style: context.font.bodySmall?.copyWith(
+                  color: context.appColors.textMuted,
+                ),
+              ),
+              const Gap(4),
+              SelectableText(
+                _serverUrlFor(request!),
+                style: context.font.bodyMedium,
+              ),
+              const Gap(12),
+              Text(
+                context.loc.btcpayPairingWalletsLabel,
+                style: context.font.bodySmall?.copyWith(
+                  color: context.appColors.textMuted,
+                ),
+              ),
+              const Gap(4),
+              Text(
+                _walletSummaryForDisplay(context, request!),
+                style: context.font.bodyMedium,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _walletSummaryForDisplay(
+    BuildContext context,
+    SamRockPairingRequest request,
+  ) {
+    final wallets = <String>[
+      if (request.supportsBitcoinChain) context.loc.btcpayPairingWalletsBitcoin,
+      if (request.supportsLiquidChain || request.supportsLightning)
+        context.loc.btcpayPairingWalletsLiquid,
+    ];
+    return wallets.join(', ');
+  }
+}
+
+String _serverUrlFor(SamRockPairingRequest request) {
+  final uri = request.protocolUri;
+  final port = uri.hasPort ? ':${uri.port}' : '';
+  return '${uri.scheme}://${uri.host}$port';
 }

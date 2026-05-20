@@ -13229,6 +13229,38 @@
   "@btcpayPairingUrlRequired": {
     "description": "Validation message when the BTCPay pairing URL is missing"
   },
+  "btcpayPairingStatusTitle": "Status",
+  "@btcpayPairingStatusTitle": {
+    "description": "Status section title on the BTCPay pairing page"
+  },
+  "btcpayPairingStatusNotConnected": "Not connected",
+  "@btcpayPairingStatusNotConnected": {
+    "description": "BTCPay pairing status before a server connection is completed"
+  },
+  "btcpayPairingStatusDescription": "Paste a SamRock pairing URL from BTCPay Server. Pairing creates dedicated BTCPay wallets and shares public wallet details with that server.",
+  "@btcpayPairingStatusDescription": {
+    "description": "Description shown on the BTCPay pairing page before pairing"
+  },
+  "btcpayPairingServerLabel": "BTCPay Server",
+  "@btcpayPairingServerLabel": {
+    "description": "Label for the parsed BTCPay Server URL on the BTCPay pairing page"
+  },
+  "btcpayPairingWalletsLabel": "Wallets",
+  "@btcpayPairingWalletsLabel": {
+    "description": "Label for the wallets that will be created or used during BTCPay pairing"
+  },
+  "btcpayPairingWalletsBitcoin": "Bitcoin wallet",
+  "@btcpayPairingWalletsBitcoin": {
+    "description": "Bitcoin wallet summary for BTCPay pairing"
+  },
+  "btcpayPairingWalletsLiquid": "Liquid wallet",
+  "@btcpayPairingWalletsLiquid": {
+    "description": "Liquid wallet summary for BTCPay pairing"
+  },
+  "btcpayPairingWalletsBitcoinAndLiquid": "Liquid and Bitcoin wallets",
+  "@btcpayPairingWalletsBitcoinAndLiquid": {
+    "description": "Bitcoin and Liquid wallet summary for BTCPay pairing"
+  },
   "btcpayPairingSubmit": "Pair BTCPay",
   "@btcpayPairingSubmit": {
     "description": "Submit button text for BTCPay pairing"
@@ -13257,11 +13289,14 @@
   "@btcpayPairingRejectedError": {
     "description": "Error shown when BTCPay Server rejects the SamRock pairing setup"
   },
-  "btcpayPairingConfirmTitle": "Share wallet descriptors?",
-  "btcpayPairingConfirmBody": "This will share dedicated wallet descriptors with {host}. The server will be able to monitor payments received through those descriptors.",
+  "btcpayPairingConfirmTitle": "Create BTCPay wallets?",
+  "btcpayPairingConfirmBody": "You are about to create or use dedicated {wallets} and share public wallet details with a BTCPay Server at {serverUrl}. These wallets can be recovered automatically from the same backup as your default Bitcoin wallets. Do you wish to proceed?",
   "@btcpayPairingConfirmBody": {
     "placeholders": {
-      "host": {
+      "wallets": {
+        "type": "String"
+      },
+      "serverUrl": {
         "type": "String"
       }
     }
@@ -13275,7 +13310,7 @@
     }
   },
   "btcpayPairingConfirmCancel": "Cancel",
-  "btcpayPairingConfirmSubmit": "Share descriptors",
+  "btcpayPairingConfirmSubmit": "Proceed",
   "btcpayPairingRailBitcoin": "Bitcoin",
   "btcpayPairingRailLiquid": "Liquid",
   "btcpayPairingRailLightning": "Lightning",
