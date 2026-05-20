@@ -159,6 +159,7 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
       pathParameters: {'nym': nym},
     );
     if (changed != true || !mounted) return;
+    widget.onExternalReceiveWalletsCreated?.call();
     await context.read<GetPaidDashboardCubit>().refresh();
   }
 

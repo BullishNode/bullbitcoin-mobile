@@ -87,6 +87,7 @@ void main() {
       refreshCount += 1;
       return refreshCount == 1 ? null : _page();
     });
+    var walletRefreshCount = 0;
 
     final router = GoRouter(
       initialLocation: '/get-paid',
@@ -98,7 +99,9 @@ void main() {
               lightningAddressFacade: lightningAddressFacade,
               findPaymentPage: findPaymentPage,
             ),
-            child: const GetPaidDashboardScreen(),
+            child: GetPaidDashboardScreen(
+              onExternalReceiveWalletsCreated: () => walletRefreshCount += 1,
+            ),
           ),
           routes: [
             GoRoute(
@@ -126,6 +129,7 @@ void main() {
     await tester.pumpAndSettle();
 
     verify(() => findPaymentPage.execute(nym: 'alice')).called(2);
+    expect(walletRefreshCount, 1);
     expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
   });
 
