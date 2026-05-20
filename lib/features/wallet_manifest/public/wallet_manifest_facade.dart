@@ -1,6 +1,5 @@
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/fetch_wallet_manifest_origins_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/publish_local_wallet_manifest_usecase.dart';
-import 'package:bb_mobile/features/wallet_manifest/application/usecases/delete_wallet_manifest_origin_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/record_wallet_manifest_origin_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/create_manual_bip85_wallets_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/domain/wallet_manifest_network.dart';
@@ -13,7 +12,6 @@ typedef WalletManifestSeedRecoveryStarter =
 
 class WalletManifestFacade {
   final RecordWalletManifestOriginUsecase _recordOrigin;
-  final DeleteWalletManifestOriginUsecase _deleteOrigin;
   final FetchWalletManifestOriginsUsecase _fetchOrigins;
   final PublishLocalWalletManifestUsecase _publishLocalManifest;
   final WalletManifestSeedRecoveryStarter _startRestoreAfterSeedRecovery;
@@ -21,13 +19,11 @@ class WalletManifestFacade {
 
   WalletManifestFacade({
     required RecordWalletManifestOriginUsecase recordOrigin,
-    required DeleteWalletManifestOriginUsecase deleteOrigin,
     required FetchWalletManifestOriginsUsecase fetchOrigins,
     required PublishLocalWalletManifestUsecase publishLocalManifest,
     required WalletManifestSeedRecoveryStarter startRestoreAfterSeedRecovery,
     required CreateManualBip85WalletsUsecase createManualBip85Wallets,
   }) : _recordOrigin = recordOrigin,
-       _deleteOrigin = deleteOrigin,
        _fetchOrigins = fetchOrigins,
        _publishLocalManifest = publishLocalManifest,
        _startRestoreAfterSeedRecovery = startRestoreAfterSeedRecovery,
@@ -45,10 +41,6 @@ class WalletManifestFacade {
       rootFingerprint: rootFingerprint,
       bip85DerivationPath: bip85DerivationPath,
     );
-  }
-
-  Future<void> deleteOrigin({required String walletId}) {
-    return _deleteOrigin.execute(walletId: walletId);
   }
 
   Future<List<WalletManifestOrigin>> fetchOrigins() => _fetchOrigins.execute();

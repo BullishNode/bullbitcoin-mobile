@@ -74,9 +74,6 @@ class ExternalReceiveWalletLocator {
         () => DeleteCreatedExternalReceiveWalletUsecase(
           getWallet: locator<GetExternalReceiveWalletUsecase>(),
           walletRepository: locator<WalletRepository>(),
-          seedRepository: locator<SeedRepository>(),
-          bip85Repository: locator<Bip85Repository>(),
-          walletManifest: locator<WalletManifestFacade>(),
         ),
       );
     }

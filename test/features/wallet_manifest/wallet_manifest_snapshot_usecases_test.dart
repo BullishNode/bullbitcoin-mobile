@@ -182,6 +182,80 @@ void main() {
 
       await expectLater(usecase.execute(), throwsA(same(error)));
     });
+
+    test(
+      'carries remote accounts forward when publishing local snapshot',
+      () async {
+        final localSnapshot = _snapshot();
+        final remoteAccount = _account(
+          index: 77,
+          network: WalletManifestNetwork.bitcoin,
+          name: 'Deleted BTCPay-BTC',
+        );
+        final buildSnapshot = _MockBuildSnapshot();
+        final deriveHandle = _MockDeriveHandle();
+        final store = _FakeNostrSnapshotStore()
+          ..fetchedSnapshot = WalletManifestSnapshot(
+            createdAt: 100,
+            accounts: [remoteAccount],
+          );
+        final usecase = PublishLocalWalletManifestUsecase(
+          buildSnapshot: buildSnapshot,
+          deriveHandle: deriveHandle,
+          nostrSnapshotStore: store,
+        );
+        final handle = deriveWalletManifestHandleFromXprv(_zeroMnemonicXprv());
+        when(() => deriveHandle.execute()).thenAnswer(
+          (_) async => WalletManifestNostrHandleContext(
+            handle: handle,
+            rootFingerprint: '73c5da0a',
+          ),
+        );
+        when(
+          () => buildSnapshot.execute(
+            rootFingerprint: any(named: 'rootFingerprint'),
+          ),
+        ).thenAnswer((_) async => localSnapshot);
+
+        final accountCount = await usecase.execute();
+
+        expect(accountCount, 2);
+        expect(store.publishedSnapshot!.accounts, hasLength(2));
+        expect(store.publishedSnapshot!.accounts, contains(remoteAccount));
+        expect(
+          store.publishedSnapshot!.accounts,
+          contains(localSnapshot.accounts.single),
+        );
+      },
+    );
+
+    test('does not publish when remote preservation fetch fails', () async {
+      final buildSnapshot = _MockBuildSnapshot();
+      final deriveHandle = _MockDeriveHandle();
+      final store = _FakeNostrSnapshotStore()..fetchError = Exception('relay');
+      final usecase = PublishLocalWalletManifestUsecase(
+        buildSnapshot: buildSnapshot,
+        deriveHandle: deriveHandle,
+        nostrSnapshotStore: store,
+      );
+      when(() => deriveHandle.execute()).thenAnswer(
+        (_) async => WalletManifestNostrHandleContext(
+          handle: deriveWalletManifestHandleFromXprv(_zeroMnemonicXprv()),
+          rootFingerprint: '73c5da0a',
+        ),
+      );
+      when(
+        () => buildSnapshot.execute(
+          rootFingerprint: any(named: 'rootFingerprint'),
+        ),
+      ).thenAnswer((_) async => _snapshot());
+
+      await expectLater(
+        usecase.execute(),
+        throwsA(isA<WalletManifestSnapshotPublishException>()),
+      );
+      expect(store.publishedSnapshot, isNull);
+    });
   });
 
   group('FetchRemoteWalletManifestUsecase', () {
@@ -634,11 +708,13 @@ void main() {
 WalletManifestAccount _account({
   required int index,
   required WalletManifestNetwork network,
+  String? name,
 }) {
   return WalletManifestAccount(
     rootFingerprint: '73c5da0a',
     bip85DerivationPath: Bip85DerivationPath.mnemonic12(index: index),
     network: network,
+    name: name,
     timestamp: 123,
   );
 }

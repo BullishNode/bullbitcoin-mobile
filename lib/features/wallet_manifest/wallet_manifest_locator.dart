@@ -16,7 +16,6 @@ import 'package:bb_mobile/features/wallet_manifest/application/usecases/audit_re
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/build_wallet_manifest_snapshot_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/check_remote_wallet_manifest_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/create_manual_bip85_wallets_usecase.dart';
-import 'package:bb_mobile/features/wallet_manifest/application/usecases/delete_wallet_manifest_origin_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/derive_wallet_manifest_nostr_handle_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/derive_wallet_manifest_root_key_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/fetch_remote_wallet_manifest_usecase.dart';
@@ -80,14 +79,6 @@ class WalletManifestLocator {
     if (!locator.isRegistered<FetchWalletManifestOriginsUsecase>()) {
       locator.registerFactory<FetchWalletManifestOriginsUsecase>(
         () => FetchWalletManifestOriginsUsecase(
-          originStore: locator<WalletManifestOriginStore>(),
-        ),
-      );
-    }
-
-    if (!locator.isRegistered<DeleteWalletManifestOriginUsecase>()) {
-      locator.registerFactory<DeleteWalletManifestOriginUsecase>(
-        () => DeleteWalletManifestOriginUsecase(
           originStore: locator<WalletManifestOriginStore>(),
         ),
       );
@@ -220,7 +211,6 @@ class WalletManifestLocator {
       locator.registerFactory<WalletManifestFacade>(
         () => WalletManifestFacade(
           recordOrigin: locator<RecordWalletManifestOriginUsecase>(),
-          deleteOrigin: locator<DeleteWalletManifestOriginUsecase>(),
           fetchOrigins: locator<FetchWalletManifestOriginsUsecase>(),
           publishLocalManifest: locator<PublishLocalWalletManifestUsecase>(),
           startRestoreAfterSeedRecovery:

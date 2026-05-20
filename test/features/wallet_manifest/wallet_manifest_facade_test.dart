@@ -1,5 +1,4 @@
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/create_manual_bip85_wallets_usecase.dart';
-import 'package:bb_mobile/features/wallet_manifest/application/usecases/delete_wallet_manifest_origin_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/fetch_wallet_manifest_origins_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/publish_local_wallet_manifest_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/application/usecases/record_wallet_manifest_origin_usecase.dart';
@@ -12,9 +11,6 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockRecordOrigin extends Mock
     implements RecordWalletManifestOriginUsecase {}
-
-class _MockDeleteOrigin extends Mock
-    implements DeleteWalletManifestOriginUsecase {}
 
 class _MockFetchOrigins extends Mock
     implements FetchWalletManifestOriginsUsecase {}
@@ -81,7 +77,6 @@ WalletManifestFacade _facade({
 }) {
   return WalletManifestFacade(
     recordOrigin: recordOrigin ?? _MockRecordOrigin(),
-    deleteOrigin: _MockDeleteOrigin(),
     fetchOrigins: fetchOrigins ?? _MockFetchOrigins(),
     publishLocalManifest: publishSnapshot ?? _MockPublishSnapshot(),
     startRestoreAfterSeedRecovery:
