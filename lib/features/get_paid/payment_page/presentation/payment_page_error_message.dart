@@ -19,8 +19,8 @@ String _paymentPageValidationMessage(String message) {
     return 'Choose a JPEG, PNG, or WebP image under 2 MB.';
   }
   return switch (message) {
-    'nym must be 3-32 lowercase letters, numbers, or hyphens' =>
-      'Choose a 3-32 character Bullnym name using lowercase letters, numbers, or hyphens.',
+    'nym must be 1-32 lowercase letters, numbers, or hyphens' =>
+      'Choose a 1-32 character Bullnym name using lowercase letters, numbers, or hyphens.',
     'must be between 1 and 80 bytes' ||
     'header must be 1..=80 chars' => 'Add a title.',
     'must be between 1 and 280 bytes' ||

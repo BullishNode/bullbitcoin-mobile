@@ -31,7 +31,7 @@ class SavePaymentPageCommand {
   void _validate() {
     if (!bullnymNymRegex.hasMatch(nym)) {
       throw const PaymentPageValidationError(
-        'nym must be 3-32 lowercase letters, numbers, or hyphens',
+        'nym must be 1-32 lowercase letters, numbers, or hyphens',
       );
     }
     if (header.isEmpty ||

@@ -57,6 +57,7 @@ class GetPaidRouter {
           child: const BtcpayPairingScreen(),
         ),
       ),
+      PaymentPageRouter.createRoute,
       PaymentPageRouter.editorRoute,
       ...InvoicesRouter.routes,
     ],

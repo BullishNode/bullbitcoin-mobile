@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 enum PaymentPageRoute {
+  createPaymentPage('payment-page'),
   editor('payment-page/:nym');
 
   final String path;
@@ -13,6 +14,17 @@ enum PaymentPageRoute {
 }
 
 class PaymentPageRouter {
+  static final createRoute = GoRoute(
+    name: PaymentPageRoute.createPaymentPage.name,
+    path: PaymentPageRoute.createPaymentPage.path,
+    builder: (context, state) {
+      return BlocProvider(
+        create: (_) => locator<PaymentPageCubit>(),
+        child: const PaymentPageEditorScreen(nym: ''),
+      );
+    },
+  );
+
   static final editorRoute = GoRoute(
     name: PaymentPageRoute.editor.name,
     path: PaymentPageRoute.editor.path,

@@ -7,6 +7,8 @@ import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/sa
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/upload_payment_page_image_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_error_message.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_state.dart';
+import 'package:bb_mobile/features/get_paid/shared/register_get_paid_nym_usecase.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -15,16 +17,19 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
   final SavePaymentPageUsecase _savePaymentPage;
   final ArchivePaymentPageUsecase _archivePaymentPage;
   final UploadPaymentPageImageUsecase _uploadImage;
+  final RegisterGetPaidNymUsecase _registerNym;
 
   PaymentPageCubit({
     required FindPaymentPageUsecase findPaymentPage,
     required SavePaymentPageUsecase savePaymentPage,
     required ArchivePaymentPageUsecase archivePaymentPage,
     required UploadPaymentPageImageUsecase uploadImage,
+    required RegisterGetPaidNymUsecase registerNym,
   }) : _findPaymentPage = findPaymentPage,
        _savePaymentPage = savePaymentPage,
        _archivePaymentPage = archivePaymentPage,
        _uploadImage = uploadImage,
+       _registerNym = registerNym,
        super(const PaymentPageState());
 
   Future<void> load({required String nym}) async {
@@ -33,7 +38,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
         state.copyWith(
           nym: '',
           clearPage: true,
-          error: 'Choose a Bullnym name before creating a payment page',
+          clearError: true,
           isLoading: false,
           loadFailed: false,
         ),
@@ -130,6 +135,50 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
 
   Future<void> publish() async {
     await save(enabled: true);
+  }
+
+  Future<void> createNym(String rawNym) async {
+    if (state.isBusy) return;
+    final nym = rawNym.trim().toLowerCase();
+    if (!bullnymNymRegex.hasMatch(nym)) {
+      emit(
+        state.copyWith(
+          error:
+              'Choose a 1-32 character Bullnym name using lowercase letters, numbers, or hyphens.',
+        ),
+      );
+      return;
+    }
+    emit(state.copyWith(isCreatingNym: true, clearError: true));
+    try {
+      final registeredNym = await _registerNym.execute(nym);
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          nym: registeredNym,
+          isCreatingNym: false,
+          clearError: true,
+        ),
+      );
+      await load(nym: registeredNym);
+    } on RegisterGetPaidNymException catch (e) {
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          isCreatingNym: false,
+          error: _mapNymRegistrationError(e.message),
+        ),
+      );
+    } on Exception catch (e) {
+      if (isClosed) return;
+      log.warning('Payment Page nym registration failed', error: e);
+      emit(
+        state.copyWith(
+          isCreatingNym: false,
+          error: 'Could not set up this Bullnym name. Please try again.',
+        ),
+      );
+    }
   }
 
   Future<void> save({List<int>? imageBytes, bool? enabled}) async {
@@ -270,5 +319,19 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
   String? _blankToNull(String value) {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String _mapNymRegistrationError(String message) {
+    return switch (message) {
+      'This nym is not available' => message,
+      String value
+          when value.startsWith(
+            'This name contains characters that are not allowed.',
+          ) =>
+        value,
+      'Too many distinct wallets have used this service from this network. Retry later, or switch networks.' =>
+        message,
+      _ => 'Could not set up this Bullnym name. Please try again.',
+    };
   }
 }

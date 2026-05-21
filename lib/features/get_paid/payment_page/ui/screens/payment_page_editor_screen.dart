@@ -560,20 +560,69 @@ class _StoreUrlSection extends StatelessWidget {
   }
 }
 
-class _EmptyNymView extends StatelessWidget {
+class _EmptyNymView extends StatefulWidget {
   const _EmptyNymView();
 
   @override
+  State<_EmptyNymView> createState() => _EmptyNymViewState();
+}
+
+class _EmptyNymViewState extends State<_EmptyNymView> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Text(
-          'Choose a Bullnym name before creating a payment page',
-          textAlign: TextAlign.center,
+    final state = context.watch<PaymentPageCubit>().state;
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Text(
+          'Choose a Bullnym name',
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+          'This name will be used for your Payment Page.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _controller,
+          decoration: const InputDecoration(
+            labelText: 'Bullnym name',
+            suffixText: '@bullpay.ca',
+          ),
+          enabled: !state.isCreatingNym,
+          textInputAction: TextInputAction.done,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp('[a-zA-Z0-9-]')),
+          ],
+          onSubmitted: (_) => _submit(context),
+        ),
+        if (state.error != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            state.error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+        const SizedBox(height: 24),
+        FilledButton(
+          onPressed: state.isCreatingNym ? null : () => _submit(context),
+          child: Text(state.isCreatingNym ? 'Setting up...' : 'Continue'),
+        ),
+      ],
     );
+  }
+
+  void _submit(BuildContext context) {
+    context.read<PaymentPageCubit>().createNym(_controller.text);
   }
 }
 

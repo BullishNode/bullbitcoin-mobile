@@ -307,6 +307,11 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     if (e is LightningAddressRegistrationException) {
       return switch (e.message) {
         'This nym is not available' => e.message,
+        String message
+            when message.startsWith(
+              'This name contains characters that are not allowed.',
+            ) =>
+          e.message,
         'Too many distinct wallets have used this service from this network. Retry later, or switch networks.' =>
           e.message,
         _ =>

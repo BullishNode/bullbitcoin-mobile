@@ -37,9 +37,11 @@ import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubi
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_settings_cubit.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
 import 'package:bb_mobile/features/get_paid/shared/get_paid_identity_derivation.dart';
+import 'package:bb_mobile/features/get_paid/shared/register_get_paid_nym_usecase.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/external_receive_wallets/public/external_receive_wallets.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/wallet_manifest/public/wallet_manifest_facade.dart';
 import 'package:get_it/get_it.dart';
 
@@ -121,6 +123,12 @@ class GetPaidLocator {
         paymentPageIdentity: locator<PaymentPageIdentityPort>(),
       ),
     );
+    locator.registerFactory<RegisterGetPaidNymUsecase>(
+      () => RegisterGetPaidNymUsecase(
+        register: locator<RegisterLightningAddressUsecase>(),
+        getSettings: locator<GetSettingsUsecase>(),
+      ),
+    );
     locator.registerFactory<CreateInvoiceUsecase>(
       () => CreateInvoiceUsecase(
         walletRepository: locator<WalletRepository>(),
@@ -163,8 +171,7 @@ class GetPaidLocator {
       ),
     );
     locator.registerFactory<GetBtcpayConnectionUsecase>(
-      () =>
-          GetBtcpayConnectionUsecase(store: locator<BtcpayConnectionStore>()),
+      () => GetBtcpayConnectionUsecase(store: locator<BtcpayConnectionStore>()),
     );
     locator.registerFactory<BtcpayPairingCubit>(
       () => BtcpayPairingCubit(
@@ -190,6 +197,7 @@ class GetPaidLocator {
         savePaymentPage: locator<SavePaymentPageUsecase>(),
         archivePaymentPage: locator<ArchivePaymentPageUsecase>(),
         uploadImage: locator<UploadPaymentPageImageUsecase>(),
+        registerNym: locator<RegisterGetPaidNymUsecase>(),
       ),
     );
     locator.registerFactory<GetPaidDashboardCubit>(

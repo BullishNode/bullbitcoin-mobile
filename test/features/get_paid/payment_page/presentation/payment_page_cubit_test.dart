@@ -17,6 +17,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_con
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_error_message.dart';
+import 'package:bb_mobile/features/get_paid/shared/register_get_paid_nym_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -30,11 +31,15 @@ class _MockGetSettings extends Mock implements GetSettingsUsecase {}
 class _MockExternalReceiveWallets extends Mock
     implements ExternalReceiveWalletsFacade {}
 
+class _MockRegisterGetPaidNym extends Mock
+    implements RegisterGetPaidNymUsecase {}
+
 void main() {
   late _MockPaymentPageService paymentPageService;
   late _MockPaymentPageIdentity paymentPageIdentity;
   late _MockGetSettings getSettings;
   late _MockExternalReceiveWallets externalReceiveWallets;
+  late _MockRegisterGetPaidNym registerNym;
   late PaymentPageCubit cubit;
   late NostrKeychainHandle handle;
 
@@ -57,6 +62,7 @@ void main() {
     paymentPageIdentity = _MockPaymentPageIdentity();
     getSettings = _MockGetSettings();
     externalReceiveWallets = _MockExternalReceiveWallets();
+    registerNym = _MockRegisterGetPaidNym();
     handle = NostrKeychainHandle.fromSecretKeyHex('01' * 32);
     final paymentPageKey = ExternalReceiveWalletPurpose.paymentPage
         .liquidAccountKey(isTestnet: false);
@@ -100,6 +106,7 @@ void main() {
         paymentPageService: paymentPageService,
         paymentPageIdentity: paymentPageIdentity,
       ),
+      registerNym: registerNym,
     );
   });
 
@@ -110,10 +117,7 @@ void main() {
 
     expect(cubit.state.nym, isEmpty);
     expect(cubit.state.page, isNull);
-    expect(
-      cubit.state.error,
-      'Choose a Bullnym name before creating a payment page',
-    );
+    expect(cubit.state.error, isNull);
     verifyNever(
       () => paymentPageService.getPaymentPage(nym: any(named: 'nym')),
     );

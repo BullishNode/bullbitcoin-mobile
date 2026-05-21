@@ -54,7 +54,7 @@ class GetPaidSettingsScreen extends StatelessWidget {
                         context,
                         isRecovering: blockedBackState.isRecovering,
                       )
-                    : context.pop,
+                    : () => context.pop(),
               ),
             ),
             body: SafeArea(

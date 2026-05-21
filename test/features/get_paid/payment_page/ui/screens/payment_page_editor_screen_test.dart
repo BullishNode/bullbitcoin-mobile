@@ -19,6 +19,7 @@ import 'package:bb_mobile/features/get_paid/payment_page/domain/payment_page_con
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/ui/screens/payment_page_editor_screen.dart';
+import 'package:bb_mobile/features/get_paid/shared/register_get_paid_nym_usecase.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
@@ -34,6 +35,11 @@ class _MockGetSettings extends Mock implements GetSettingsUsecase {}
 
 class _MockExternalReceiveWallets extends Mock
     implements ExternalReceiveWalletsFacade {}
+
+class _FakeRegisterGetPaidNymUsecase implements RegisterGetPaidNymUsecase {
+  @override
+  Future<String> execute(String nym) async => nym;
+}
 
 void main() {
   late _MockPaymentPageService paymentPageService;
@@ -76,10 +82,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(
-      find.text('Choose a Bullnym name before creating a payment page'),
-      findsOneWidget,
-    );
+    expect(find.text('Choose a Bullnym name'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
     verifyNever(
       () => paymentPageService.getPaymentPage(nym: any(named: 'nym')),
     );
@@ -734,6 +738,7 @@ Widget _harness({
           paymentPageService: paymentPageService,
           paymentPageIdentity: paymentPageIdentity,
         ),
+        registerNym: _FakeRegisterGetPaidNymUsecase(),
       ),
       child: PaymentPageEditorScreen(nym: nym, pickImageBytes: pickImageBytes),
     ),
@@ -797,6 +802,7 @@ class _RouteHarnessState extends State<_RouteHarness> {
                         paymentPageService: widget.paymentPageService,
                         paymentPageIdentity: widget.paymentPageIdentity,
                       ),
+                      registerNym: _FakeRegisterGetPaidNymUsecase(),
                     ),
                     child: const PaymentPageEditorScreen(nym: 'alice'),
                   ),

@@ -154,16 +154,19 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
   Future<void> _openLightningAddress(BuildContext context) async {
     await context.pushNamed(LightningAddressFacade.manageRouteName);
     if (!mounted) return;
+    widget.onExternalReceiveWalletsCreated?.call();
     await context.read<GetPaidDashboardCubit>().refresh();
   }
 
   Future<void> _openPaymentPage(BuildContext context, String? nym) async {
     if (nym == null || nym.isEmpty) {
-      await _openLightningAddress(context);
+      final changed = await context.pushNamed<bool>(
+        PaymentPageRoute.createPaymentPage.name,
+      );
       if (!mounted) return;
-      final refreshedNym = context.read<GetPaidDashboardCubit>().state.nym;
-      if (refreshedNym == null || refreshedNym.isEmpty) return;
-      await _openPaymentPage(context, refreshedNym);
+      widget.onExternalReceiveWalletsCreated?.call();
+      if (changed != true) return;
+      await context.read<GetPaidDashboardCubit>().refresh();
       return;
     }
     final changed = await context.pushNamed<bool>(
