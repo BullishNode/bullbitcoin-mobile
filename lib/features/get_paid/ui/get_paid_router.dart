@@ -24,6 +24,20 @@ enum GetPaidRoute {
 }
 
 class GetPaidRouter {
+  static final settingsRoute = GoRoute(
+    name: GetPaidRoute.getPaidSettings.name,
+    path: '/get-paid/${GetPaidRoute.getPaidSettings.path}',
+    builder: (context, state) => BlocProvider(
+      create: (_) => locator<GetPaidSettingsCubit>()..load(),
+      child: GetPaidSettingsScreen(
+        onExternalReceiveSettingsChanged: () =>
+            _notifyExternalReceiveSettingsChanged(context),
+        onExternalReceiveWalletsCreated: () =>
+            _notifyExternalReceiveWalletsCreated(context),
+      ),
+    ),
+  );
+
   static final route = GoRoute(
     name: GetPaidRoute.dashboard.name,
     path: GetPaidRoute.dashboard.path,
@@ -35,19 +49,6 @@ class GetPaidRouter {
       ),
     ),
     routes: [
-      GoRoute(
-        name: GetPaidRoute.getPaidSettings.name,
-        path: GetPaidRoute.getPaidSettings.path,
-        builder: (context, state) => BlocProvider(
-          create: (_) => locator<GetPaidSettingsCubit>()..load(),
-          child: GetPaidSettingsScreen(
-            onExternalReceiveSettingsChanged: () =>
-                _notifyExternalReceiveSettingsChanged(context),
-            onExternalReceiveWalletsCreated: () =>
-                _notifyExternalReceiveWalletsCreated(context),
-          ),
-        ),
-      ),
       LightningAddressRoutes.manageRoute,
       GoRoute(
         name: GetPaidRoute.btcpayPairing.name,

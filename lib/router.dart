@@ -158,6 +158,7 @@ class AppRouter {
       OnboardingRouter.route,
       AppUnlockRouter.route,
       WalletRouter.walletDetailRoute,
+      GetPaidRouter.settingsRoute,
       SettingsRouter.route,
       TransactionsRouter.transactionsRoute,
       ...TransactionsRouter.transactionDetailsRoutes,
