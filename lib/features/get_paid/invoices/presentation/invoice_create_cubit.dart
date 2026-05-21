@@ -123,7 +123,7 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
       emit(state.copyWith(isSubmitting: false, result: result, error: null));
     } on InvoicesApplicationError catch (e) {
       if (isClosed) return;
-      log.warning('Invoice create application error', error: e);
+      log.warning('Invoice create application error: ${e.message}', error: e);
       emit(state.copyWith(isSubmitting: false, error: invoiceErrorMessage(e)));
     } on Exception catch (e) {
       if (isClosed) return;

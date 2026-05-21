@@ -102,6 +102,14 @@ sealed class AllServicesStatus with _$AllServicesStatus {
       ),
     )
     ServiceStatusInfo ark,
+    @Default(
+      ServiceStatusInfo(
+        status: ServiceStatus.unknown,
+        name: 'Bullnym',
+        lastChecked: null,
+      ),
+    )
+    ServiceStatusInfo lightningAddress,
     @Default(null) DateTime? lastChecked,
   }) = _AllServicesStatus;
 
@@ -115,6 +123,7 @@ sealed class AllServicesStatus with _$AllServicesStatus {
       payjoin.isOnline &&
       pricer.isOnline &&
       mempool.isOnline &&
+      lightningAddress.isOnline &&
       (tor.isOnline || tor.isUnknown) &&
       (recoverbull.isOnline || recoverbull.isUnknown) &&
       (ark.isOnline || ark.isUnknown);

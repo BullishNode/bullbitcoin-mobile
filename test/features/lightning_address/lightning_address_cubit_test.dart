@@ -198,7 +198,7 @@ void main() {
     expect(cubit.state.error, isNot(contains('bad signature')));
     expect(
       cubit.state.error,
-      'Could not update Lightning Address. Please try again.',
+      'Could not create Lightning Address. Please try again.',
     );
     await cubit.close();
   });

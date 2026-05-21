@@ -37,6 +37,10 @@ sealed class WalletState with _$WalletState {
     return externalReceiveWalletIds.isExternalReceiveWallet(wallet.id);
   }
 
+  bool isSendDisabledForWallet(Wallet wallet) {
+    return !externalReceiveWalletIds.canSendFromWallet(wallet);
+  }
+
   Wallet? defaultLiquidWallet() => wallets.isEmpty
       ? null
       : wallets

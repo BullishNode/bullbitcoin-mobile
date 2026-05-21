@@ -227,6 +227,9 @@ void main() {
       expect(command.publicDescription, 'Coffee');
       expect(command.recipientName, 'Alice');
       expect(command.invoiceNumber, 'INV-1');
+      expect(command.acceptBtc, isTrue);
+      expect(command.acceptLn, isTrue);
+      expect(command.acceptLiquid, isTrue);
       expect(command.linkToPageNym, 'alice');
       expect(command.privateMemo, 'local memo');
       expect(command.expiresAt, now.add(const Duration(days: 1)));

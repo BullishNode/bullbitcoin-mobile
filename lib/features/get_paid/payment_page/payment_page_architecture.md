@@ -21,7 +21,7 @@ Signed write actions use the deployed `bullpay-la-v2` wire domain:
 
 - `donation-page-save` signs payload fields in this exact order:
   `header`, `description`, `display_currency`, `website`, `twitter`,
-  `instagram`, `enabled`.
+  `instagram`, `enabled`, `ct_descriptor`.
 - `donation-page-archive` signs no payload fields.
 - `donation-page-image` signs `kind` and `sha256`. Mobile uploads the social
   preview image as `kind=og`.
@@ -47,9 +47,10 @@ stored inside commands, DTOs, generated state, equality, `copyWith`, or JSON.
   `ArchivePaymentPageUsecase` are application entry points.
 - `SavePaymentPageUsecase` provisions or repairs the local `Payment Page-LBTC`
   wallet before saving an enabled page. Saving a disabled page does not create
-  the wallet. The current server API does not yet bind Payment Page to that
-  descriptor, so this local provisioning only prepares deterministic recovery
-  and settings behavior.
+  the wallet. Enabled saves send the path-76 Liquid descriptor to Bullnym so
+  public Payment Page checkout uses a descriptor isolated from Lightning
+  Address. Disabled saves may send an empty descriptor; Bullnym preserves any
+  existing descriptor instead of erasing it.
 - `UploadPaymentPageImageUsecase` validates the file size and magic bytes before
   deriving a signing handle and uploading.
 - `FindPaymentPageUsecase` maps not-found into `null` for dashboard/status

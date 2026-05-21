@@ -2,7 +2,8 @@ import 'package:bb_mobile/features/get_paid/invoices/application/invoices_applic
 
 String invoiceErrorMessage(InvoicesApplicationError error) {
   return switch (error) {
-    InvoicesValidationError() => 'Check the invoice details and try again.',
+    InvoicesValidationError(:final message) =>
+      message.isEmpty ? 'Check the invoice details and try again.' : message,
     InvoicesNotFoundError() => 'Invoice not found.',
     InvoicesAuthorizationError() => 'Invoice authorization failed.',
     InvoicesRateLimitedError() => 'Too many attempts. Try again later.',

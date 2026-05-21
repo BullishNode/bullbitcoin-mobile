@@ -6,6 +6,7 @@ import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_stat
 import 'package:bb_mobile/features/get_paid/ui/get_paid_router.dart';
 import 'package:bb_mobile/features/get_paid/ui/widgets/get_paid_slot_card.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -48,6 +49,10 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.goNamed(WalletRoute.walletHome.name),
+        ),
         title: Text(context.loc.getPaidDashboardTitle),
         actions: [
           IconButton(
@@ -82,8 +87,7 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                     icon: Icons.alternate_email,
                     title: context.loc.getPaidDashboardLightningAddressTitle,
                     subtitle:
-                        state.lightningAddress ??
-                        context.loc.getPaidDashboardNotSetUp,
+                        context.loc.getPaidDashboardLightningAddressSubtitle,
                     statusLabel: state.hasLightningAddress
                         ? context.loc.getPaidDashboardActive
                         : null,
@@ -97,9 +101,7 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                     subtitle: _paymentPageSubtitle(context, state),
                     statusLabel: _paymentPageStatusLabel(context, state),
                     statusActive: state.paymentPage?.enabled ?? false,
-                    onPressed: state.nym == null
-                        ? null
-                        : () => _openPaymentPage(context, state.nym!),
+                    onPressed: () => _openPaymentPage(context, state.nym),
                   ),
                   const SizedBox(height: 12),
                   GetPaidSlotCard(
@@ -113,6 +115,10 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
                     icon: Icons.point_of_sale,
                     title: context.loc.getPaidDashboardBtcpayTitle,
                     subtitle: context.loc.getPaidDashboardBtcpaySubtitle,
+                    statusLabel: state.hasBtcpayConnection
+                        ? context.loc.getPaidDashboardActive
+                        : null,
+                    statusActive: state.hasBtcpayConnection,
                     onPressed: () => _openBtcpay(context),
                   ),
                 ],
@@ -128,11 +134,8 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
     BuildContext context,
     GetPaidDashboardState state,
   ) {
-    if (state.nym == null) {
-      return context.loc.getPaidDashboardChooseNymFirst;
-    }
     final page = state.paymentPage;
-    if (page == null) return context.loc.getPaidDashboardNotSetUp;
+    if (page == null) return context.loc.getPaidDashboardPaymentPageSubtitle;
     return page.publicUrl;
   }
 
@@ -153,7 +156,15 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
     await context.read<GetPaidDashboardCubit>().refresh();
   }
 
-  Future<void> _openPaymentPage(BuildContext context, String nym) async {
+  Future<void> _openPaymentPage(BuildContext context, String? nym) async {
+    if (nym == null || nym.isEmpty) {
+      await _openLightningAddress(context);
+      if (!mounted) return;
+      final refreshedNym = context.read<GetPaidDashboardCubit>().state.nym;
+      if (refreshedNym == null || refreshedNym.isEmpty) return;
+      await _openPaymentPage(context, refreshedNym);
+      return;
+    }
     final changed = await context.pushNamed<bool>(
       PaymentPageRoute.editor.name,
       pathParameters: {'nym': nym},

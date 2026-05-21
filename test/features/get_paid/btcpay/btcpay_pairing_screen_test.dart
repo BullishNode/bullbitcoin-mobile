@@ -2,6 +2,10 @@ import 'dart:async';
 
 import 'package:bb_mobile/features/get_paid/btcpay/application/btcpay_pairing_exception.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/application/complete_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/features/get_paid/btcpay/application/get_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/get_paid/btcpay/application/prepare_btcpay_pairing_wallets_usecase.dart';
+import 'package:bb_mobile/features/get_paid/btcpay/domain/btcpay_connection.dart';
+import 'package:bb_mobile/features/get_paid/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/presentation/btcpay_pairing_cubit.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/ui/btcpay_pairing_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
@@ -13,12 +17,15 @@ import 'package:mocktail/mocktail.dart';
 class _MockCompleteBtcpaySamRockPairingUsecase extends Mock
     implements CompleteBtcpaySamRockPairingUsecase {}
 
+class _MockGetBtcpayConnectionUsecase extends Mock
+    implements GetBtcpayConnectionUsecase {}
+
 void main() {
   testWidgets('blocks duplicate submit and back while pairing is in flight', (
     tester,
   ) async {
     final completePairing = _MockCompleteBtcpaySamRockPairingUsecase();
-    final completer = Completer<void>();
+    final completer = Completer<BtcpayConnection>();
     when(
       () => completePairing.execute(pairingUrl: any(named: 'pairingUrl')),
     ).thenAnswer((_) => completer.future);
@@ -67,7 +74,7 @@ void main() {
 
   testWidgets('trims pairing URL before submitting', (tester) async {
     final completePairing = _MockCompleteBtcpaySamRockPairingUsecase();
-    final completer = Completer<void>();
+    final completer = Completer<BtcpayConnection>();
     when(
       () => completePairing.execute(pairingUrl: any(named: 'pairingUrl')),
     ).thenAnswer((_) => completer.future);
@@ -111,7 +118,7 @@ void main() {
 
   testWidgets('submits from the keyboard done action', (tester) async {
     final completePairing = _MockCompleteBtcpaySamRockPairingUsecase();
-    final completer = Completer<void>();
+    final completer = Completer<BtcpayConnection>();
     when(
       () => completePairing.execute(pairingUrl: any(named: 'pairingUrl')),
     ).thenAnswer((_) => completer.future);
@@ -138,7 +145,7 @@ void main() {
     final completePairing = _MockCompleteBtcpaySamRockPairingUsecase();
     when(
       () => completePairing.execute(pairingUrl: any(named: 'pairingUrl')),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((_) async => _connection());
 
     await tester.pumpWidget(_harness(completePairing));
 
@@ -147,16 +154,75 @@ void main() {
     expect(field.textInputAction, TextInputAction.done);
     expect(field.autocorrect, isFalse);
     expect(field.enableSuggestions, isFalse);
+    expect(find.text('Scan pairing QR'), findsOneWidget);
+    expect(find.byIcon(Icons.qr_code_scanner), findsOneWidget);
+  });
+
+  testWidgets('shows paired BTCPay details before the pairing form', (
+    tester,
+  ) async {
+    final completePairing = _MockCompleteBtcpaySamRockPairingUsecase();
+    final getConnection = _MockGetBtcpayConnectionUsecase();
+    when(() => getConnection.execute()).thenAnswer((_) async => _connection());
+
+    await tester.pumpWidget(
+      _harness(completePairing, getConnection: getConnection, load: true),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Connected BTCPay Server'), findsOneWidget);
+    expect(find.text('https://btcpay.example'), findsOneWidget);
+    expect(find.text('Pair new BTCPay'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+
+    await tester.tap(find.text('Pair new BTCPay'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.text('Pair BTCPay'), findsOneWidget);
   });
 }
 
-Widget _harness(CompleteBtcpaySamRockPairingUsecase completePairing) {
+Widget _harness(
+  CompleteBtcpaySamRockPairingUsecase completePairing, {
+  GetBtcpayConnectionUsecase? getConnection,
+  bool load = false,
+}) {
+  final connectionUsecase = getConnection ?? _MockGetBtcpayConnectionUsecase();
+  if (getConnection == null) {
+    when(
+      () => (connectionUsecase as _MockGetBtcpayConnectionUsecase).execute(),
+    ).thenAnswer((_) async => null);
+  }
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: BlocProvider(
-      create: (_) => BtcpayPairingCubit(completePairing: completePairing),
+      create: (_) {
+        final cubit = BtcpayPairingCubit(
+          completePairing: completePairing,
+          getConnection: connectionUsecase,
+        );
+        if (load) cubit.load();
+        return cubit;
+      },
       child: const BtcpayPairingScreen(),
     ),
+  );
+}
+
+BtcpayConnection _connection() {
+  return BtcpayConnection(
+    serverUrl: 'https://btcpay.example',
+    capabilities: const [
+      SamRockSetupCapability.bitcoinChain,
+      SamRockSetupCapability.liquidChain,
+      SamRockSetupCapability.bitcoinLightning,
+    ],
+    walletNetworks: const [
+      BtcpayPairingWalletNetwork.bitcoin,
+      BtcpayPairingWalletNetwork.liquid,
+    ],
+    pairedAt: DateTime.utc(2026, 5, 20, 12),
   );
 }

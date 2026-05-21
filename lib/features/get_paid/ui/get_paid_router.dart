@@ -53,7 +53,7 @@ class GetPaidRouter {
         name: GetPaidRoute.btcpayPairing.name,
         path: GetPaidRoute.btcpayPairing.path,
         builder: (context, state) => BlocProvider(
-          create: (_) => locator<BtcpayPairingCubit>(),
+          create: (_) => locator<BtcpayPairingCubit>()..load(),
           child: const BtcpayPairingScreen(),
         ),
       ),

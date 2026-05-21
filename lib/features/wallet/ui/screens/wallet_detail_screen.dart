@@ -79,7 +79,7 @@ class WalletDetailScreen extends StatelessWidget {
                   ),
                   child: WalletBottomButtons(
                     wallet: wallet,
-                    sendDisabled: walletState.isExternalReceiveWallet(wallet),
+                    sendDisabled: walletState.isSendDisabledForWallet(wallet),
                   ),
                 ),
               ),

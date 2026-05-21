@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/external_receive_wallets/external_receive_wallet_purpose.dart';
 
 class ExternalReceiveWalletIds {
@@ -39,6 +40,13 @@ class ExternalReceiveWalletIds {
 
   bool isHiddenOnHome(String walletId) =>
       hiddenOnHomeWalletIds.contains(walletId);
+
+  bool canSendFromWallet(Wallet wallet) {
+    final purpose = purposeForWalletId(wallet.id);
+    if (purpose == null) return true;
+    return purpose == ExternalReceiveWalletPurpose.btcpay &&
+        wallet.network.isBitcoin;
+  }
 
   @override
   bool operator ==(Object other) =>

@@ -13087,9 +13087,17 @@
   "@getPaidDashboardLightningAddressTitle": {
     "description": "Lightning Address slot title on the Get Paid dashboard"
   },
+  "getPaidDashboardLightningAddressSubtitle": "Reusable payment nym",
+  "@getPaidDashboardLightningAddressSubtitle": {
+    "description": "Lightning Address slot subtitle on the Get Paid dashboard"
+  },
   "getPaidDashboardPaymentPageTitle": "Payment Page",
   "@getPaidDashboardPaymentPageTitle": {
     "description": "Payment Page slot title on the Get Paid dashboard"
+  },
+  "getPaidDashboardPaymentPageSubtitle": "Website to receive payments",
+  "@getPaidDashboardPaymentPageSubtitle": {
+    "description": "Payment Page slot subtitle on the Get Paid dashboard"
   },
   "getPaidDashboardInvoicesTitle": "Invoices",
   "@getPaidDashboardInvoicesTitle": {
@@ -13099,11 +13107,11 @@
   "@getPaidDashboardInvoicesSubtitle": {
     "description": "Invoices slot subtitle on the Get Paid dashboard"
   },
-  "getPaidDashboardBtcpayTitle": "BTCPay",
+  "getPaidDashboardBtcpayTitle": "BTCPay Server",
   "@getPaidDashboardBtcpayTitle": {
     "description": "BTCPay slot title on the Get Paid dashboard"
   },
-  "getPaidDashboardBtcpaySubtitle": "Connect BTCPay Server",
+  "getPaidDashboardBtcpaySubtitle": "Connect via SamRock protocol",
   "@getPaidDashboardBtcpaySubtitle": {
     "description": "BTCPay slot subtitle on the Get Paid dashboard"
   },
@@ -13271,6 +13279,10 @@
   "@btcpayPairingSubmit": {
     "description": "Submit button text for BTCPay pairing"
   },
+  "btcpayPairingScanQr": "Scan pairing QR",
+  "@btcpayPairingScanQr": {
+    "description": "Button text for scanning a BTCPay SamRock pairing QR code"
+  },
   "btcpayPairingSubmitting": "Pairing...",
   "@btcpayPairingSubmitting": {
     "description": "Submit button text while BTCPay pairing is in progress"
@@ -13282,6 +13294,10 @@
   "btcpayPairingSuccess": "BTCPay paired successfully.",
   "@btcpayPairingSuccess": {
     "description": "Success message after BTCPay pairing completes"
+  },
+  "btcpayPairingSuccessTitle": "BTCPay Server connected",
+  "@btcpayPairingSuccessTitle": {
+    "description": "Success screen title after BTCPay pairing completes"
   },
   "btcpayPairingGenericError": "Could not pair BTCPay Server.",
   "@btcpayPairingGenericError": {
@@ -13320,6 +13336,30 @@
   "btcpayPairingRailBitcoin": "Bitcoin",
   "btcpayPairingRailLiquid": "Liquid",
   "btcpayPairingRailLightning": "Lightning",
+  "btcpayConnectionTitle": "Connected BTCPay Server",
+  "@btcpayConnectionTitle": {
+    "description": "Title shown when a BTCPay Server is already paired"
+  },
+  "btcpayConnectionServer": "Server",
+  "@btcpayConnectionServer": {
+    "description": "Label for the paired BTCPay Server URL"
+  },
+  "btcpayConnectionRails": "Rails",
+  "@btcpayConnectionRails": {
+    "description": "Label for the paired BTCPay payment rails"
+  },
+  "btcpayConnectionWallets": "Wallets",
+  "@btcpayConnectionWallets": {
+    "description": "Label for the wallets shared with a paired BTCPay Server"
+  },
+  "btcpayConnectionPairedAt": "Paired",
+  "@btcpayConnectionPairedAt": {
+    "description": "Label for when the BTCPay Server was paired"
+  },
+  "btcpayPairNew": "Pair new BTCPay",
+  "@btcpayPairNew": {
+    "description": "Button text to pair another BTCPay Server"
+  },
   "backupSettingsWalletManifestButton": "Wallet Manifest",
   "@backupSettingsWalletManifestButton": {
     "description": "Button text to open the Wallet Manifest settings screen from Backup Settings"

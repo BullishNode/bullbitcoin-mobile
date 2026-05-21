@@ -9,6 +9,7 @@ abstract class PaymentPageServicePort {
   Future<PaymentPage> savePaymentPage({
     required SavePaymentPageCommand command,
     required NostrKeychainHandle handle,
+    required String ctDescriptor,
   });
 
   Future<PaymentPage> archivePaymentPage({

@@ -228,8 +228,9 @@ class SendCubit extends Cubit<SendState> {
       final preselectedWallet = _wallet;
       _preselectedExternalReceiveWalletBlocked =
           preselectedWallet != null &&
-          externalReceiveWalletIds.isExternalReceiveWallet(
-            preselectedWallet.id,
+          _isSendBlockedExternalReceiveWallet(
+            preselectedWallet,
+            externalReceiveWalletIds,
           );
       emit(
         state.copyWith(
@@ -237,7 +238,10 @@ class SendCubit extends Cubit<SendState> {
               .where(
                 (w) =>
                     !w.isWatchOnly &&
-                    !externalReceiveWalletIds.isExternalReceiveWallet(w.id),
+                    !_isSendBlockedExternalReceiveWallet(
+                      w,
+                      externalReceiveWalletIds,
+                    ),
               )
               .toList(),
           error: _preselectedExternalReceiveWalletBlocked
@@ -268,6 +272,13 @@ class SendCubit extends Cubit<SendState> {
       if (lastKnownIds != null) return lastKnownIds;
       rethrow;
     }
+  }
+
+  bool _isSendBlockedExternalReceiveWallet(
+    Wallet wallet,
+    ExternalReceiveWalletIds externalReceiveWalletIds,
+  ) {
+    return !externalReceiveWalletIds.canSendFromWallet(wallet);
   }
 
   /// Called when a payment request is detected directly from the scanner

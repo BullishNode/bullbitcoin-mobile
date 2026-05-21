@@ -5,9 +5,12 @@ import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_identity_port.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/ports/payment_page_service_port.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/application/complete_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/features/get_paid/btcpay/application/get_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/get_paid/btcpay/application/ports/btcpay_connection_store.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/application/ports/samrock_pairing_service_port.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/application/prepare_btcpay_pairing_wallets_usecase.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/application/samrock_setup_payload_builder.dart';
+import 'package:bb_mobile/features/get_paid/btcpay/data/btcpay_connection_datasource.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/data/samrock_pairing_datasource.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/get_paid/btcpay/presentation/btcpay_pairing_cubit.dart';
@@ -84,6 +87,9 @@ class GetPaidLocator {
     locator.registerLazySingleton<SamRockPairingServicePort>(
       () => SamRockPairingDatasource(),
     );
+    locator.registerLazySingleton<BtcpayConnectionStore>(
+      () => BtcpayConnectionDatasource(),
+    );
 
     locator.registerFactory<GetPaymentPageUsecase>(
       () => GetPaymentPageUsecase(
@@ -153,11 +159,17 @@ class GetPaidLocator {
         payloadBuilder: const SamRockSetupPayloadBuilder(),
         pairingService: locator<SamRockPairingServicePort>(),
         walletManifest: locator<WalletManifestFacade>(),
+        connectionStore: locator<BtcpayConnectionStore>(),
       ),
+    );
+    locator.registerFactory<GetBtcpayConnectionUsecase>(
+      () =>
+          GetBtcpayConnectionUsecase(store: locator<BtcpayConnectionStore>()),
     );
     locator.registerFactory<BtcpayPairingCubit>(
       () => BtcpayPairingCubit(
         completePairing: locator<CompleteBtcpaySamRockPairingUsecase>(),
+        getConnection: locator<GetBtcpayConnectionUsecase>(),
       ),
     );
     locator.registerFactory<InvoicesListCubit>(
@@ -184,6 +196,7 @@ class GetPaidLocator {
       () => GetPaidDashboardCubit(
         lightningAddressFacade: locator<LightningAddressFacade>(),
         findPaymentPage: locator<FindPaymentPageUsecase>(),
+        getBtcpayConnection: locator<GetBtcpayConnectionUsecase>(),
       ),
     );
     locator.registerFactory<GetPaidSettingsCubit>(

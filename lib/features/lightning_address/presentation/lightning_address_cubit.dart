@@ -157,7 +157,9 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     } on Exception catch (e, stack) {
       log.severe(message: 'register failed', error: e, trace: stack);
       if (isClosed) return;
-      emit(state.copyWith(registering: false, error: _mapError(e)));
+      emit(
+        state.copyWith(registering: false, error: _mapError(e, creating: true)),
+      );
     }
   }
 
@@ -290,13 +292,16 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     }
   }
 
-  String _mapError(Exception e) {
+  String _mapError(Exception e, {bool creating = false}) {
     if (e is LightningAddressRegistrationException) {
       return switch (e.message) {
         'This nym is not available' => e.message,
         'Too many distinct wallets have used this service from this network. Retry later, or switch networks.' =>
           e.message,
-        _ => 'Could not update Lightning Address. Please try again.',
+        _ =>
+          creating
+              ? 'Could not create Lightning Address. Please try again.'
+              : 'Could not update Lightning Address. Please try again.',
       };
     }
     if (e is ExternalReceiveWalletAlreadyExistsException) {

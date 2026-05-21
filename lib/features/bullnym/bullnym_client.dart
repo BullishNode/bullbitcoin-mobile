@@ -97,6 +97,7 @@ class BullnymClient {
   Future<BullnymDonationPageDto> savePaymentPage({
     required NostrKeychainHandle handle,
     required String nym,
+    required String ctDescriptor,
     required String header,
     required String description,
     required String displayCurrency,
@@ -115,6 +116,7 @@ class BullnymClient {
       '/donation-page',
       data: {
         'nym': nym,
+        'ct_descriptor': ctDescriptor,
         'header': header,
         'description': description,
         'display_currency': displayCurrency,
@@ -134,6 +136,7 @@ class BullnymClient {
             twitterValue,
             instagramValue,
             enabledValue,
+            ctDescriptor,
           ],
           timestampSecs: ts,
         ),

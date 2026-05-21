@@ -1,4 +1,5 @@
 import 'package:bb_mobile/generated/l10n/localization.dart';
+import 'package:bb_mobile/features/get_paid/btcpay/application/get_btcpay_connection_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/ui/payment_page_router.dart';
@@ -19,13 +20,19 @@ class _MockLightningAddressFacade extends Mock
 class _MockFindPaymentPageUsecase extends Mock
     implements FindPaymentPageUsecase {}
 
+class _MockGetBtcpayConnectionUsecase extends Mock
+    implements GetBtcpayConnectionUsecase {}
+
 void main() {
   late _MockLightningAddressFacade lightningAddressFacade;
   late _MockFindPaymentPageUsecase findPaymentPage;
+  late _MockGetBtcpayConnectionUsecase getBtcpayConnection;
 
   setUp(() {
     lightningAddressFacade = _MockLightningAddressFacade();
     findPaymentPage = _MockFindPaymentPageUsecase();
+    getBtcpayConnection = _MockGetBtcpayConnectionUsecase();
+    when(() => getBtcpayConnection.execute()).thenAnswer((_) async => null);
   });
 
   testWidgets('keeps invoices available when Lightning Address is absent', (
@@ -38,18 +45,19 @@ void main() {
       _harness(
         lightningAddressFacade: lightningAddressFacade,
         findPaymentPage: findPaymentPage,
+        getBtcpayConnection: getBtcpayConnection,
       ),
     );
     await tester.pump();
     await tester.pump();
 
     expect(find.text('Lightning Address'), findsOneWidget);
-    expect(find.text('Not set up'), findsWidgets);
+    expect(find.text('Reusable payment nym'), findsOneWidget);
     expect(find.text('Payment Page'), findsOneWidget);
-    expect(find.text('Choose a Bullnym name first'), findsOneWidget);
+    expect(find.text('Website to receive payments'), findsOneWidget);
     expect(find.text('Create and manage invoices'), findsOneWidget);
-    expect(find.text('BTCPay'), findsOneWidget);
-    expect(find.text('Connect BTCPay Server'), findsOneWidget);
+    expect(find.text('BTCPay Server'), findsOneWidget);
+    expect(find.text('Connect via SamRock protocol'), findsOneWidget);
     verifyNever(() => findPaymentPage.execute(nym: any(named: 'nym')));
   });
 
@@ -65,12 +73,13 @@ void main() {
       _harness(
         lightningAddressFacade: lightningAddressFacade,
         findPaymentPage: findPaymentPage,
+        getBtcpayConnection: getBtcpayConnection,
       ),
     );
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('alice@bullpay.ca'), findsOneWidget);
+    expect(find.text('Reusable payment nym'), findsOneWidget);
     expect(find.text('https://bullpay.ca/alice'), findsOneWidget);
     expect(find.text('Active'), findsNWidgets(2));
     expect(find.text('Edit'), findsNothing);
@@ -98,6 +107,7 @@ void main() {
             create: (_) => GetPaidDashboardCubit(
               lightningAddressFacade: lightningAddressFacade,
               findPaymentPage: findPaymentPage,
+              getBtcpayConnection: getBtcpayConnection,
             ),
             child: GetPaidDashboardScreen(
               onExternalReceiveWalletsCreated: () => walletRefreshCount += 1,
@@ -148,6 +158,7 @@ void main() {
             create: (_) => GetPaidDashboardCubit(
               lightningAddressFacade: lightningAddressFacade,
               findPaymentPage: findPaymentPage,
+              getBtcpayConnection: getBtcpayConnection,
             ),
             child: const GetPaidDashboardScreen(),
           ),
@@ -187,6 +198,7 @@ void main() {
             create: (_) => GetPaidDashboardCubit(
               lightningAddressFacade: lightningAddressFacade,
               findPaymentPage: findPaymentPage,
+              getBtcpayConnection: getBtcpayConnection,
             ),
             child: const GetPaidDashboardScreen(),
           ),
@@ -231,6 +243,7 @@ void main() {
             create: (_) => GetPaidDashboardCubit(
               lightningAddressFacade: lightningAddressFacade,
               findPaymentPage: findPaymentPage,
+              getBtcpayConnection: getBtcpayConnection,
             ),
             child: const GetPaidDashboardScreen(),
           ),
@@ -285,6 +298,7 @@ void main() {
             create: (_) => GetPaidDashboardCubit(
               lightningAddressFacade: lightningAddressFacade,
               findPaymentPage: findPaymentPage,
+              getBtcpayConnection: getBtcpayConnection,
             ),
             child: GetPaidDashboardScreen(
               onExternalReceiveWalletsCreated: () => walletRefreshCount += 1,
@@ -310,7 +324,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('BTCPay'));
+    await tester.tap(find.text('BTCPay Server'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Close BTCPay changed'));
     await tester.pumpAndSettle();
@@ -324,6 +338,7 @@ void main() {
 Widget _harness({
   required LightningAddressFacade lightningAddressFacade,
   required FindPaymentPageUsecase findPaymentPage,
+  required GetBtcpayConnectionUsecase getBtcpayConnection,
 }) {
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -332,6 +347,7 @@ Widget _harness({
       create: (_) => GetPaidDashboardCubit(
         lightningAddressFacade: lightningAddressFacade,
         findPaymentPage: findPaymentPage,
+        getBtcpayConnection: getBtcpayConnection,
       ),
       child: const GetPaidDashboardScreen(),
     ),

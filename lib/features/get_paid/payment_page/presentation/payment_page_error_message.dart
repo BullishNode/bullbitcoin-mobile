@@ -9,7 +9,7 @@ String paymentPageErrorMessage(PaymentPageApplicationError error) {
     PaymentPageAuthorizationError() => 'Payment page authorization failed.',
     PaymentPageNetworkError() => 'Network error. Check your connection.',
     PaymentPageIdentityUnavailableError() =>
-      'Set up a Bitcoin wallet before editing your payment page.',
+      'Set up a Liquid wallet before editing your payment page.',
     PaymentPageUnexpectedError() => 'Something went wrong. Please try again.',
   };
 }
@@ -21,12 +21,19 @@ String _paymentPageValidationMessage(String message) {
   return switch (message) {
     'nym must be 3-32 lowercase letters, numbers, or hyphens' =>
       'Choose a 3-32 character Bullnym name using lowercase letters, numbers, or hyphens.',
-    'must be between 1 and 80 bytes' => 'Add a title.',
-    'must be between 1 and 280 bytes' => 'Add a description.',
+    'must be between 1 and 80 bytes' ||
+    'header must be 1..=80 chars' => 'Add a title.',
+    'must be between 1 and 280 bytes' ||
+    'description must be 1..=280 chars' => 'Add a description.',
     'display currency must be one of USD, EUR, CAD, COP, CRC, MXN, ARS' =>
+      'Choose a supported display currency.',
+    'display_currency is not supported; fetch /api/v1/supported-currencies' =>
+      'Choose a supported display currency.',
+    'display_currency must be a canonical uppercase ISO 4217 code' =>
       'Choose a supported display currency.',
     'must start with https:// and be at most 200 bytes' =>
       'Website must start with https://.',
+    'website must start with https://' => 'Website must start with https://.',
     'image file is empty' => 'Choose a JPEG, PNG, or WebP image under 2 MB.',
     'image file is larger than 2 MB' =>
       'Choose a JPEG, PNG, or WebP image under 2 MB.',

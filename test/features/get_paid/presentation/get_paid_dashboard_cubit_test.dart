@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:bb_mobile/features/get_paid/btcpay/application/get_btcpay_connection_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/domain/entities/payment_page.dart';
@@ -14,17 +15,24 @@ class _MockLightningAddressFacade extends Mock
 class _MockFindPaymentPageUsecase extends Mock
     implements FindPaymentPageUsecase {}
 
+class _MockGetBtcpayConnectionUsecase extends Mock
+    implements GetBtcpayConnectionUsecase {}
+
 void main() {
   late _MockLightningAddressFacade lightningAddressFacade;
   late _MockFindPaymentPageUsecase findPaymentPage;
+  late _MockGetBtcpayConnectionUsecase getBtcpayConnection;
   late GetPaidDashboardCubit cubit;
 
   setUp(() {
     lightningAddressFacade = _MockLightningAddressFacade();
     findPaymentPage = _MockFindPaymentPageUsecase();
+    getBtcpayConnection = _MockGetBtcpayConnectionUsecase();
+    when(() => getBtcpayConnection.execute()).thenAnswer((_) async => null);
     cubit = GetPaidDashboardCubit(
       lightningAddressFacade: lightningAddressFacade,
       findPaymentPage: findPaymentPage,
+      getBtcpayConnection: getBtcpayConnection,
     );
   });
 

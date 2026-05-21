@@ -111,8 +111,11 @@ void main() {
       return _wallet('payment-page-wallet');
     });
     when(
-      () =>
-          paymentPageService.savePaymentPage(command: command, handle: handle),
+      () => paymentPageService.savePaymentPage(
+        command: command,
+        handle: handle,
+        ctDescriptor: any(named: 'ctDescriptor'),
+      ),
     ).thenAnswer((_) async {
       calls.add('save-page');
       return _page();
@@ -139,8 +142,11 @@ void main() {
     ).called(1);
     verify(() => paymentPageIdentity.getSigningHandle()).called(1);
     verify(
-      () =>
-          paymentPageService.savePaymentPage(command: command, handle: handle),
+      () => paymentPageService.savePaymentPage(
+        command: command,
+        handle: handle,
+        ctDescriptor: any(named: 'ctDescriptor'),
+      ),
     ).called(1);
   });
 
@@ -158,6 +164,7 @@ void main() {
         () => paymentPageService.savePaymentPage(
           command: command,
           handle: handle,
+          ctDescriptor: any(named: 'ctDescriptor'),
         ),
       ).thenAnswer((_) async => _page(enabled: false));
 
@@ -170,6 +177,7 @@ void main() {
         () => paymentPageService.savePaymentPage(
           command: command,
           handle: handle,
+          ctDescriptor: any(named: 'ctDescriptor'),
         ),
       ).called(1);
     },
@@ -200,6 +208,7 @@ void main() {
         () => paymentPageService.savePaymentPage(
           command: command,
           handle: handle,
+          ctDescriptor: any(named: 'ctDescriptor'),
         ),
       ).thenAnswer((_) async => _page());
 
@@ -224,6 +233,7 @@ void main() {
         () => paymentPageService.savePaymentPage(
           command: command,
           handle: handle,
+          ctDescriptor: any(named: 'ctDescriptor'),
         ),
       ).called(1);
     },
@@ -261,6 +271,7 @@ void main() {
         () => paymentPageService.savePaymentPage(
           command: command,
           handle: handle,
+          ctDescriptor: any(named: 'ctDescriptor'),
         ),
       ).thenAnswer((_) async => _page());
 
@@ -315,6 +326,7 @@ void main() {
         () => paymentPageService.savePaymentPage(
           command: command,
           handle: handle,
+          ctDescriptor: any(named: 'ctDescriptor'),
         ),
       );
     },
@@ -359,6 +371,7 @@ void main() {
         () => paymentPageService.savePaymentPage(
           command: command,
           handle: handle,
+          ctDescriptor: any(named: 'ctDescriptor'),
         ),
       );
     },

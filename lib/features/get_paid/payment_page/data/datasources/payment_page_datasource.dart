@@ -26,11 +26,13 @@ class PaymentPageDatasource implements PaymentPageServicePort {
   Future<PaymentPage> savePaymentPage({
     required SavePaymentPageCommand command,
     required NostrKeychainHandle handle,
+    required String ctDescriptor,
   }) async {
     try {
       final dto = await _bullnymClient.savePaymentPage(
         handle: handle,
         nym: command.nym,
+        ctDescriptor: ctDescriptor,
         header: command.header,
         description: command.description,
         displayCurrency: command.displayCurrency,

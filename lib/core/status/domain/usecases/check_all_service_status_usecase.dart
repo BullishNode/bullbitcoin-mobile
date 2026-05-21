@@ -16,6 +16,8 @@ import 'package:bb_mobile/core/tor/tor_status.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym.dart';
+import 'package:dio/dio.dart';
 
 class CheckAllServiceStatusUsecase {
   final ElectrumConnectivityPort _electrumConnectivityPort;
@@ -63,6 +65,7 @@ class CheckAllServiceStatusUsecase {
         _checkPayjoinService(),
         _checkPricerService(network),
         _checkMempoolService(network),
+        _checkBullnymService(),
         _checkTorConnection(),
         _checkRecoverbullConnection(),
         _checkArkConnection(),
@@ -76,9 +79,10 @@ class CheckAllServiceStatusUsecase {
         payjoin: results[4],
         pricer: results[5],
         mempool: results[6],
-        tor: results[7],
-        recoverbull: results[8],
-        ark: results[9],
+        lightningAddress: results[7],
+        tor: results[8],
+        recoverbull: results[9],
+        ark: results[10],
         lastChecked: now,
       );
     } catch (e) {
@@ -234,6 +238,33 @@ class CheckAllServiceStatusUsecase {
     }
   }
 
+  Future<ServiceStatusInfo> _checkBullnymService() async {
+    try {
+      final response = await Dio(
+        BaseOptions(
+          baseUrl: bullnymDefaultBaseUrl,
+          connectTimeout: bullnymConnectTimeout,
+          receiveTimeout: bullnymReceiveTimeout,
+          validateStatus: (status) => status != null && status < 600,
+        ),
+      ).get<String>('/health');
+
+      return ServiceStatusInfo(
+        status: response.statusCode == 200 && response.data?.trim() == 'ok'
+            ? ServiceStatus.online
+            : ServiceStatus.offline,
+        name: 'Bullnym',
+        lastChecked: DateTime.now(),
+      );
+    } catch (e) {
+      return ServiceStatusInfo(
+        status: ServiceStatus.offline,
+        name: 'Bullnym',
+        lastChecked: DateTime.now(),
+      );
+    }
+  }
+
   Future<ServiceStatusInfo> _checkTorConnection() async {
     var status = ServiceStatusInfo(
       status: ServiceStatus.unknown,
@@ -333,6 +364,11 @@ class CheckAllServiceStatusUsecase {
       mempool: ServiceStatusInfo(
         status: ServiceStatus.unknown,
         name: 'Mempool',
+        lastChecked: now,
+      ),
+      lightningAddress: ServiceStatusInfo(
+        status: ServiceStatus.unknown,
+        name: 'Bullnym',
         lastChecked: now,
       ),
       lastChecked: now,

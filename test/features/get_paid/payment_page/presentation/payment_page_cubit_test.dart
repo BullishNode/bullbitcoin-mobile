@@ -178,6 +178,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: any(named: 'handle'),
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     );
   });
@@ -266,7 +267,7 @@ void main() {
       paymentPageErrorMessage(
         const PaymentPageIdentityUnavailableError('raw identity'),
       ),
-      'Set up a Bitcoin wallet before editing your payment page.',
+      'Set up a Liquid wallet before editing your payment page.',
     );
     expect(
       paymentPageErrorMessage(const PaymentPageUnexpectedError('raw surprise')),
@@ -281,6 +282,7 @@ void main() {
         () => paymentPageService.savePaymentPage(
           command: any(named: 'command'),
           handle: handle,
+          ctDescriptor: any(named: 'ctDescriptor'),
         ),
       ).thenAnswer((_) async => _page(website: 'https://alice.example'));
 
@@ -299,6 +301,7 @@ void main() {
                 () => paymentPageService.savePaymentPage(
                   command: captureAny(named: 'command'),
                   handle: handle,
+                  ctDescriptor: any(named: 'ctDescriptor'),
                 ),
               ).captured.single
               as SavePaymentPageCommand;
@@ -327,6 +330,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: any(named: 'handle'),
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     );
   });
@@ -336,6 +340,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: handle,
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     ).thenThrow(const PaymentPageAuthorizationError('bad signature'));
 
@@ -355,6 +360,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: handle,
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     ).thenThrow(Exception('connection refused'));
 
@@ -392,13 +398,14 @@ void main() {
 
       expect(
         cubit.state.error,
-        'Set up a Bitcoin wallet before editing your payment page.',
+        'Set up a Liquid wallet before editing your payment page.',
       );
       expect(cubit.state.isSaving, isFalse);
       verifyNever(
         () => paymentPageService.savePaymentPage(
           command: any(named: 'command'),
           handle: any(named: 'handle'),
+          ctDescriptor: any(named: 'ctDescriptor'),
         ),
       );
     },
@@ -419,6 +426,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: any(named: 'handle'),
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     );
   });
@@ -446,6 +454,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: handle,
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     ).thenAnswer((_) async => _page());
     when(
@@ -469,6 +478,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: handle,
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     ).called(1);
     verify(
@@ -489,6 +499,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: handle,
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     ).thenAnswer((_) async => _page(enabled: true));
 
@@ -502,6 +513,7 @@ void main() {
               () => paymentPageService.savePaymentPage(
                 command: captureAny(named: 'command'),
                 handle: handle,
+                ctDescriptor: any(named: 'ctDescriptor'),
               ),
             ).captured.single
             as SavePaymentPageCommand;
@@ -516,6 +528,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: handle,
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     ).thenAnswer((_) async => _page());
     when(
@@ -542,6 +555,7 @@ void main() {
       () => paymentPageService.savePaymentPage(
         command: any(named: 'command'),
         handle: handle,
+        ctDescriptor: any(named: 'ctDescriptor'),
       ),
     ).called(1);
     verify(

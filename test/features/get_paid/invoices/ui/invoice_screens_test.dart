@@ -485,7 +485,7 @@ void main() {
     expect(command.fiatAmountMinor, isNull);
     expect(command.acceptBtc, isTrue);
     expect(command.acceptLn, isTrue);
-    expect(command.acceptLiquid, isFalse);
+    expect(command.acceptLiquid, isTrue);
   });
 
   testWidgets('invoice create screen pops true after Done', (tester) async {
@@ -733,7 +733,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    for (final label in ['Bitcoin on-chain', 'Lightning']) {
+    for (final label in ['Bitcoin on-chain', 'Lightning', 'Liquid']) {
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();
     }
@@ -779,16 +779,16 @@ void main() {
     final liquidSwitch = tester.widget<SwitchListTile>(
       find.widgetWithText(SwitchListTile, 'Liquid'),
     );
-    expect(liquidSwitch.value, isFalse);
+    expect(liquidSwitch.value, isTrue);
     expect(liquidSwitch.onChanged, isNotNull);
 
     await tester.tap(find.text('Liquid'));
     await tester.pumpAndSettle();
 
-    final enabledLiquidSwitch = tester.widget<SwitchListTile>(
+    final disabledLiquidSwitch = tester.widget<SwitchListTile>(
       find.widgetWithText(SwitchListTile, 'Liquid'),
     );
-    expect(enabledLiquidSwitch.value, isTrue);
+    expect(disabledLiquidSwitch.value, isFalse);
   });
 
   testWidgets('invoice create screen keeps selected expiry across rebuilds', (

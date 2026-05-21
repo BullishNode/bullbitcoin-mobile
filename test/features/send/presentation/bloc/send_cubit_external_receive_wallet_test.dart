@@ -182,4 +182,40 @@ void main() {
       );
     },
   );
+
+  test('BTCPay Bitcoin wallet remains sendable', () async {
+    final harness = SendCubitHarness();
+    final manual = sendCubitWallet(id: 'manual-wallet', label: 'Cold Storage');
+    final btcpayBitcoin = sendCubitWallet(
+      id: 'btcpay-bitcoin',
+      label: 'BTCPay-BTC',
+      network: Network.bitcoinMainnet,
+    );
+    final btcpayLiquid = sendCubitWallet(
+      id: 'btcpay-liquid',
+      label: 'BTCPay-LBTC',
+    );
+    harness.stubWallets([manual, btcpayBitcoin, btcpayLiquid]);
+    when(
+      () => harness.externalReceiveWallets.idsForWallets(any()),
+    ).thenAnswer(
+      (_) async => ExternalReceiveWalletIds(
+        purposeByWalletId: {
+          btcpayBitcoin.id: ExternalReceiveWalletPurpose.btcpay,
+          btcpayLiquid.id: ExternalReceiveWalletPurpose.btcpay,
+        },
+      ),
+    );
+
+    final cubit = harness.createCubit(wallet: btcpayBitcoin);
+    addTearDown(cubit.close);
+
+    await cubit.loadWalletWithRatesAndFees();
+
+    expect(cubit.state.error, isNull);
+    expect(cubit.state.wallets.map((wallet) => wallet.id), [
+      manual.id,
+      btcpayBitcoin.id,
+    ]);
+  });
 }

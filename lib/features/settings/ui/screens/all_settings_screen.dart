@@ -7,6 +7,7 @@ import 'package:bb_mobile/core/widgets/settings_entry_item.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_cubit.dart';
 import 'package:bb_mobile/features/exchange/ui/exchange_router.dart';
 import 'package:bb_mobile/features/exchange_support_chat/ui/exchange_support_chat_router.dart';
+import 'package:bb_mobile/features/get_paid/ui/get_paid_router.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:bb_mobile/features/settings/ui/settings_router.dart';
 import 'package:bb_mobile/features/status_check/presentation/cubit.dart';
@@ -42,9 +43,7 @@ class _AllSettingsScreenState extends State<AllSettingsScreen> {
     );
 
     final isSuperuser =
-        context.select(
-          (SettingsCubit cubit) => cubit.state.isSuperuser,
-        ) ??
+        context.select((SettingsCubit cubit) => cubit.state.isSuperuser) ??
         false;
 
     final serviceStatusLoading = context.select(
@@ -71,8 +70,10 @@ class _AllSettingsScreenState extends State<AllSettingsScreen> {
                   onTap: () {
                     if (Platform.isIOS) {
                       if (isSuperuser) {
-                        final notLoggedIn =
-                            context.read<ExchangeCubit>().state.notLoggedIn;
+                        final notLoggedIn = context
+                            .read<ExchangeCubit>()
+                            .state
+                            .notLoggedIn;
                         if (notLoggedIn) {
                           context.goNamed(ExchangeRoute.exchangeLanding.name);
                         } else {
@@ -81,8 +82,10 @@ class _AllSettingsScreenState extends State<AllSettingsScreen> {
                           );
                         }
                       } else {
-                        final notLoggedIn =
-                            context.read<ExchangeCubit>().state.notLoggedIn;
+                        final notLoggedIn = context
+                            .read<ExchangeCubit>()
+                            .state
+                            .notLoggedIn;
                         if (notLoggedIn) {
                           context.goNamed(ExchangeRoute.exchangeLanding.name);
                         } else {
@@ -92,8 +95,10 @@ class _AllSettingsScreenState extends State<AllSettingsScreen> {
                         }
                       }
                     } else {
-                      final notLoggedIn =
-                          context.read<ExchangeCubit>().state.notLoggedIn;
+                      final notLoggedIn = context
+                          .read<ExchangeCubit>()
+                          .state
+                          .notLoggedIn;
                       if (notLoggedIn) {
                         context.goNamed(ExchangeRoute.exchangeLanding.name);
                       } else {
@@ -107,6 +112,13 @@ class _AllSettingsScreenState extends State<AllSettingsScreen> {
                   title: context.loc.settingsWalletBackupTitle,
                   onTap: () {
                     context.pushNamed(SettingsRoute.backupSettings.name);
+                  },
+                ),
+                SettingsEntryItem(
+                  icon: Icons.payments,
+                  title: context.loc.getPaidSettingsTitle,
+                  onTap: () {
+                    context.pushNamed(GetPaidRoute.settings.name);
                   },
                 ),
                 SettingsEntryItem(
@@ -202,8 +214,10 @@ class _AllSettingsScreenState extends State<AllSettingsScreen> {
                     ),
                     InkWell(
                       onTap: () {
-                        final notLoggedIn =
-                            context.read<ExchangeCubit>().state.notLoggedIn;
+                        final notLoggedIn = context
+                            .read<ExchangeCubit>()
+                            .state
+                            .notLoggedIn;
                         if (notLoggedIn) {
                           context.goNamed(
                             ExchangeRoute.exchangeLoginForSupport.name,

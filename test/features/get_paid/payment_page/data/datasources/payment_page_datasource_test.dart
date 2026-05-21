@@ -38,6 +38,7 @@ void main() {
       () => bullnymClient.savePaymentPage(
         handle: handle,
         nym: 'alice',
+        ctDescriptor: 'ct-desc',
         header: "Alice's Coffee",
         description: 'Tips welcome',
         displayCurrency: 'USD',
@@ -60,6 +61,7 @@ void main() {
         enabled: true,
       ),
       handle: handle,
+      ctDescriptor: 'ct-desc',
     );
 
     expect(page.displayCurrency, 'USD');
@@ -67,6 +69,7 @@ void main() {
       () => bullnymClient.savePaymentPage(
         handle: handle,
         nym: 'alice',
+        ctDescriptor: 'ct-desc',
         header: "Alice's Coffee",
         description: 'Tips welcome',
         displayCurrency: 'USD',

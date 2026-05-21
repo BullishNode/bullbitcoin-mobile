@@ -250,6 +250,7 @@ void main() {
       final response = await client.savePaymentPage(
         handle: handle,
         nym: 'alice',
+        ctDescriptor: 'ct-desc',
         header: "Alice's Coffee",
         description: 'Buy me a coffee',
         displayCurrency: 'CAD',
@@ -266,6 +267,7 @@ void main() {
       expect(request.path, '/donation-page');
       expect(request.data, {
         'nym': 'alice',
+        'ct_descriptor': 'ct-desc',
         'header': "Alice's Coffee",
         'description': 'Buy me a coffee',
         'display_currency': 'CAD',
@@ -285,6 +287,7 @@ void main() {
         'alice',
         'alice_ig',
         '1',
+        'ct-desc',
       ];
       _expectMessageBytes(
         action: bullpayActionDonationPageSave,
@@ -312,6 +315,7 @@ void main() {
     await client.savePaymentPage(
       handle: handle,
       nym: 'alice',
+      ctDescriptor: '',
       header: 'Alice',
       description: 'Tips welcome',
       displayCurrency: 'USD',
@@ -329,7 +333,7 @@ void main() {
           (request.data as Map<String, dynamic>)['signature'] as String,
       action: bullpayActionDonationPageSave,
       nymOrEmpty: 'alice',
-      payloadFields: ['Alice', 'Tips welcome', 'USD', '', '', '', '0'],
+      payloadFields: ['Alice', 'Tips welcome', 'USD', '', '', '', '0', ''],
       timestampSecs: timestamp,
     );
   });

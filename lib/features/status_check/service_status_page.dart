@@ -63,6 +63,8 @@ class _ServiceStatusPageState extends State<ServiceStatusPage> {
                     const SizedBox(height: 12),
                     _ServiceStatusItem(service: serviceStatus.mempool),
                     const SizedBox(height: 12),
+                    _ServiceStatusItem(service: serviceStatus.lightningAddress),
+                    const SizedBox(height: 12),
                     _ServiceStatusItem(service: serviceStatus.tor),
                     const SizedBox(height: 12),
                     _ServiceStatusItem(service: serviceStatus.recoverbull),

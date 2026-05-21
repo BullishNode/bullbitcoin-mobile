@@ -14,7 +14,7 @@ sealed class InvoiceCreateState with _$InvoiceCreateState {
     @Default('') String invoiceNumber,
     @Default(true) bool acceptBtc,
     @Default(true) bool acceptLn,
-    @Default(false) bool acceptLiquid,
+    @Default(true) bool acceptLiquid,
     required DateTime expiresAt,
     @Default('') String linkToPageNym,
     @Default('') String privateMemo,

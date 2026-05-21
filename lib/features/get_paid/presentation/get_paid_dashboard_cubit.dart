@@ -1,3 +1,4 @@
+import 'package:bb_mobile/features/get_paid/btcpay/application/get_btcpay_connection_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/payment_page_application_error.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/application/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/get_paid/payment_page/presentation/payment_page_error_message.dart';
@@ -9,13 +10,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
   final LightningAddressFacade _lightningAddressFacade;
   final FindPaymentPageUsecase _findPaymentPage;
+  final GetBtcpayConnectionUsecase _getBtcpayConnection;
   int _refreshGeneration = 0;
 
   GetPaidDashboardCubit({
     required LightningAddressFacade lightningAddressFacade,
     required FindPaymentPageUsecase findPaymentPage,
+    required GetBtcpayConnectionUsecase getBtcpayConnection,
   }) : _lightningAddressFacade = lightningAddressFacade,
        _findPaymentPage = findPaymentPage,
+       _getBtcpayConnection = getBtcpayConnection,
        super(const GetPaidDashboardState());
 
   Future<void> refresh() async {
@@ -23,7 +27,9 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
     emit(state.copyWith(isLoading: true, clearError: true));
     String? lightningAddress;
     String? nym;
+    var btcpayConnection = state.btcpayConnection;
     try {
+      btcpayConnection = await _getBtcpayConnection.execute();
       lightningAddress = await _lightningAddressFacade
           .getCurrentLightningAddress();
       nym = lightningAddress?.split('@').firstOrNull;
@@ -36,6 +42,8 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
             clearLightningAddress: true,
             clearNym: true,
             clearPaymentPage: true,
+            btcpayConnection: btcpayConnection,
+            clearBtcpayConnection: btcpayConnection == null,
           ),
         );
         return;
@@ -51,6 +59,8 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
           nym: nym,
           paymentPage: paymentPage?.isArchived == true ? null : paymentPage,
           clearPaymentPage: paymentPage == null || paymentPage.isArchived,
+          btcpayConnection: btcpayConnection,
+          clearBtcpayConnection: btcpayConnection == null,
         ),
       );
     } on PaymentPageApplicationError catch (e) {
@@ -60,6 +70,8 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
           isLoading: false,
           lightningAddress: lightningAddress,
           nym: nym,
+          btcpayConnection: btcpayConnection,
+          clearBtcpayConnection: btcpayConnection == null,
           error: paymentPageErrorMessage(e),
         ),
       );
@@ -71,6 +83,8 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
           isLoading: false,
           lightningAddress: lightningAddress,
           nym: nym,
+          btcpayConnection: btcpayConnection,
+          clearBtcpayConnection: btcpayConnection == null,
           error: 'Something went wrong. Please try again.',
         ),
       );
