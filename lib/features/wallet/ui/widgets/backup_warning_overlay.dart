@@ -39,6 +39,8 @@ class _BackupWarningBlocker extends StatefulWidget {
 }
 
 class _BackupWarningBlockerState extends State<_BackupWarningBlocker> {
+  bool _navigatingToBackup = false;
+
   @override
   void initState() {
     super.initState();
@@ -79,11 +81,7 @@ class _BackupWarningBlockerState extends State<_BackupWarningBlocker> {
                   const Gap(24),
                   BBButton.big(
                     label: context.loc.backupWarningBackupNow,
-                    onPressed: () {
-                      context.pushNamed(
-                        BackupSettingsSubroute.backupOptions.name,
-                      );
-                    },
+                    onPressed: _openBackupOptions,
                     bgColor: context.appColors.onSurface,
                     textColor: context.appColors.surface,
                   ),
@@ -91,9 +89,9 @@ class _BackupWarningBlockerState extends State<_BackupWarningBlocker> {
                   BBButton.big(
                     label: context.loc.backupWarningBackupLater,
                     onPressed: () {
-                      context
-                          .read<WalletBloc>()
-                          .add(const DismissBackupWarning());
+                      context.read<WalletBloc>().add(
+                        const DismissBackupWarning(),
+                      );
                     },
                     bgColor: context.appColors.surface,
                     textColor: context.appColors.onSurface,
@@ -106,5 +104,17 @@ class _BackupWarningBlockerState extends State<_BackupWarningBlocker> {
         ),
       ),
     );
+  }
+
+  Future<void> _openBackupOptions() async {
+    if (_navigatingToBackup) return;
+    setState(() => _navigatingToBackup = true);
+    try {
+      await context.pushNamed(BackupSettingsSubroute.backupOptions.name);
+    } finally {
+      if (mounted) {
+        setState(() => _navigatingToBackup = false);
+      }
+    }
   }
 }

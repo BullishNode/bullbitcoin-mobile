@@ -67,6 +67,8 @@ void main() {
     when(() => settings.setNostrPublishOutcome(any())).thenAnswer((_) async {});
     when(() => settings.clearNostrPublishOutcome()).thenAnswer((_) async {});
     when(() => settings.getNostrPublishOutcome()).thenAnswer((_) async => null);
+    when(() => payService.storeAddress(any())).thenAnswer((_) async {});
+    when(() => payService.clearStoredAddress()).thenAnswer((_) async {});
     when(
       () => publishProfile.execute(nym: any(named: 'nym')),
     ).thenAnswer((_) async {});
@@ -324,6 +326,13 @@ void main() {
       when(
         () => payService.getStoredAddress(),
       ).thenAnswer((_) async => 'alice@bullpay.ca');
+      when(() => lookupStatus.execute()).thenAnswer(
+        (_) async => const ActiveLookupResult(
+          nym: 'alice',
+          quota: NymQuota(used: 1, cap: 3),
+          previousNyms: [],
+        ),
+      );
       when(
         () => settings.getNostrPublishOutcome(),
       ).thenAnswer((_) async => NostrPublishStatus.none);
@@ -351,6 +360,13 @@ void main() {
       when(
         () => payService.getStoredAddress(),
       ).thenAnswer((_) async => 'alice@bullpay.ca');
+      when(() => lookupStatus.execute()).thenAnswer(
+        (_) async => const ActiveLookupResult(
+          nym: 'alice',
+          quota: NymQuota(used: 1, cap: 3),
+          previousNyms: [],
+        ),
+      );
       when(
         () => settings.getNostrPublishOutcome(),
       ).thenAnswer((_) async => null);
@@ -362,6 +378,35 @@ void main() {
       expect(cubit.state.lightningAddress, 'alice@bullpay.ca');
       expect(cubit.state.nostrPublishStatus, NostrPublishStatus.none);
       verifyNever(() => publishProfile.execute(nym: any(named: 'nym')));
+      await cubit.close();
+    },
+  );
+
+  test(
+    'checkStatus clears stale locally cached nym when current auth npub is inactive',
+    () async {
+      when(
+        () => externalReceiveWallets.get(
+          environment: any(named: 'environment'),
+          purpose: any(named: 'purpose'),
+        ),
+      ).thenAnswer((_) async => null);
+      when(
+        () => payService.getStoredAddress(),
+      ).thenAnswer((_) async => 'old@bullpay.ca');
+      when(() => lookupStatus.execute()).thenAnswer(
+        (_) async => const InactiveLookupResult(
+          nym: 'old',
+          quota: NymQuota(used: 1, cap: 3),
+          previousNyms: [],
+        ),
+      );
+
+      final cubit = build();
+      await cubit.checkStatus(Environment.mainnet);
+
+      expect(cubit.state.lightningAddress, isNull);
+      verify(() => payService.clearStoredAddress()).called(1);
       await cubit.close();
     },
   );

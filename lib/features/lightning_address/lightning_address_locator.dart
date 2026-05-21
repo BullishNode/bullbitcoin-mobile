@@ -92,7 +92,10 @@ class LightningAddressLocator {
     );
 
     locator.registerFactory<LightningAddressFacade>(
-      () => LightningAddressFacade(payService: locator<PayServicePort>()),
+      () => LightningAddressFacade(
+        payService: locator<PayServicePort>(),
+        lookupStatus: locator<LookupLightningAddressStatusUsecase>(),
+      ),
     );
   }
 }

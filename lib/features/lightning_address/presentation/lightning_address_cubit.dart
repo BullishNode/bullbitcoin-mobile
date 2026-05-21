@@ -56,19 +56,12 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
       );
       final storedAddress = await _payService.getStoredAddress();
 
-      if (storedAddress != null) {
-        if (isClosed) return;
-        await _emitActivated(
-          address: storedAddress,
-          walletExists: wallet != null,
-        );
-        return;
-      }
-
       LookupResult? lookup;
+      var lookupFailed = false;
       try {
         lookup = await _lookupStatus.execute();
       } on PayServiceException catch (e, stack) {
+        lookupFailed = true;
         log.warning('LA server lookup failed', error: e, trace: stack);
       }
 
@@ -85,9 +78,14 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
             previousNyms: previousNyms,
           );
         case InactiveLookupResult(:final quota, :final previousNyms):
+          if (storedAddress != null) {
+            await _payService.clearStoredAddress();
+          }
+          if (isClosed) return;
           emit(
             state.copyWith(
               loading: false,
+              lightningAddress: null,
               walletExists: wallet != null,
               previousNyms: previousNyms,
               quota: quota,
@@ -96,6 +94,18 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
             ),
           );
         case null:
+          if (lookupFailed && storedAddress != null) {
+            await _emitActivated(
+              address: storedAddress,
+              walletExists: wallet != null,
+              quotaStale: true,
+            );
+            return;
+          }
+          if (storedAddress != null) {
+            await _payService.clearStoredAddress();
+          }
+          if (isClosed) return;
           emit(state.copyWith(loading: false, walletExists: wallet != null));
       }
     } on Exception catch (e) {
@@ -219,6 +229,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
     required bool walletExists,
     NymQuota? quota,
     List<PreviousNym>? previousNyms,
+    bool quotaStale = false,
   }) async {
     final persisted = await _settings.getNostrPublishOutcome();
     if (isClosed) return;
@@ -230,7 +241,7 @@ class LightningAddressCubit extends Cubit<LightningAddressState> {
         lightningAddress: address,
         previousNyms: previousNyms ?? state.previousNyms,
         quota: quota ?? state.quota,
-        quotaStale: false,
+        quotaStale: quotaStale,
         nostrPublishStatus: status,
       ),
     );

@@ -54,6 +54,12 @@ class PayServiceDatasource implements PayServicePort {
   }
 
   @override
+  Future<void> clearStoredAddress() async {
+    final box = await Hive.openBox<String>(_boxName);
+    await box.delete(_addressKey);
+  }
+
+  @override
   Future<LookupResult?> lookupByNpub(String npubHex) async {
     try {
       final response = await _bullnymClient.lookupRegistration(
@@ -93,8 +99,7 @@ class PayServiceDatasource implements PayServicePort {
         nym: nym,
       );
 
-      final box = await Hive.openBox<String>(_boxName);
-      await box.delete(_addressKey);
+      await clearStoredAddress();
 
       return _quotaFromDto(response.quota);
     } on BullnymException catch (e) {

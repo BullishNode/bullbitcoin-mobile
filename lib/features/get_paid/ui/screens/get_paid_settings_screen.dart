@@ -330,17 +330,18 @@ class _SettingsSwitchTile extends StatelessWidget {
       ),
       child: ListTile(
         title: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(child: Text(title)),
+            Expanded(child: Text(title, maxLines: 2)),
             IconButton(
               icon: const Icon(Icons.info_outline, size: 20),
               onPressed: onInfoTap,
               tooltip: tooltip,
             ),
+            Switch(value: value, onChanged: enabled ? onChanged : null),
           ],
         ),
         subtitle: Text(subtitle),
-        trailing: Switch(value: value, onChanged: enabled ? onChanged : null),
       ),
     );
   }

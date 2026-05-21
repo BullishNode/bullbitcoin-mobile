@@ -167,6 +167,14 @@ void main() {
     );
   });
 
+  test('clearStoredAddress removes cached Lightning Address', () async {
+    await datasource.storeAddress('alice@bullpay.ca');
+
+    await datasource.clearStoredAddress();
+
+    expect(await datasource.getStoredAddress(), isNull);
+  });
+
   test('delete delegates to Bullnym and clears stored address', () async {
     await datasource.storeAddress('alice@bullpay.ca');
     when(

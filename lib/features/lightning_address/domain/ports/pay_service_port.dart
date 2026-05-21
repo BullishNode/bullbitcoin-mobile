@@ -29,6 +29,8 @@ abstract class PayServicePort {
   Future<String?> getStoredAddress();
 
   Future<void> storeAddress(String address);
+
+  Future<void> clearStoredAddress();
 }
 
 class PayServiceException implements Exception {
