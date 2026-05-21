@@ -58,7 +58,8 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
           IconButton(
             tooltip: context.loc.getPaidSettingsTitle,
             icon: const Icon(Icons.settings),
-            onPressed: () => context.pushNamed(GetPaidRoute.settings.name),
+            onPressed: () =>
+                context.pushNamed(GetPaidRoute.getPaidSettings.name),
           ),
         ],
       ),

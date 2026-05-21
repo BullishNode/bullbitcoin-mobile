@@ -15,7 +15,7 @@ import 'package:go_router/go_router.dart';
 
 enum GetPaidRoute {
   dashboard('/get-paid'),
-  settings('settings'),
+  getPaidSettings('settings'),
   btcpayPairing('btcpay');
 
   final String path;
@@ -36,8 +36,8 @@ class GetPaidRouter {
     ),
     routes: [
       GoRoute(
-        name: GetPaidRoute.settings.name,
-        path: GetPaidRoute.settings.path,
+        name: GetPaidRoute.getPaidSettings.name,
+        path: GetPaidRoute.getPaidSettings.path,
         builder: (context, state) => BlocProvider(
           create: (_) => locator<GetPaidSettingsCubit>()..load(),
           child: GetPaidSettingsScreen(

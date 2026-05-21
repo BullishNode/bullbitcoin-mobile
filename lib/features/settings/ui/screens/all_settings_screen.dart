@@ -118,7 +118,7 @@ class _AllSettingsScreenState extends State<AllSettingsScreen> {
                   icon: Icons.payments,
                   title: context.loc.getPaidSettingsTitle,
                   onTap: () {
-                    context.pushNamed(GetPaidRoute.settings.name);
+                    context.pushNamed(GetPaidRoute.getPaidSettings.name);
                   },
                 ),
                 SettingsEntryItem(

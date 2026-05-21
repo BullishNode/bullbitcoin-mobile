@@ -204,8 +204,8 @@ void main() {
           ),
           routes: [
             GoRoute(
-              name: GetPaidRoute.settings.name,
-              path: GetPaidRoute.settings.path,
+              name: GetPaidRoute.getPaidSettings.name,
+              path: GetPaidRoute.getPaidSettings.path,
               builder: (context, state) =>
                   const Scaffold(body: Text('Get Paid settings route')),
             ),
