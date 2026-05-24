@@ -84,6 +84,7 @@ graph TB
     SEND --> SWAPS
     SEND --> UTXO_MGMT
     SEND --> WALLETS
+    SETTINGS --> BTCPAY
     SETTINGS --> CORE
     SWAPS --> UTXO_MGMT
     TOR --> CORE
