@@ -87,6 +87,32 @@ class Bip85Datasource {
     }
   }
 
+  Future<({String derivation, bip39.Mnemonic mnemonic})> deriveMnemonicPreview({
+    required String xprvBase58,
+    required bip39.MnemonicLength length,
+    required int index,
+    bip39.Language language = bip39.Language.english,
+  }) async {
+    try {
+      const application = Bip85ApplicationColumn.bip39;
+      final derivationPath =
+          "${application.number}'/${language.toBip85Code()}'/${length.toBip85Code()}'/$index'";
+
+      bip32.Bip32Keys.fromBase58(xprvBase58);
+
+      final bip85Mnemonic = bip85.Bip85Entropy.deriveMnemonic(
+        xprvBase58: xprvBase58,
+        language: language,
+        length: length,
+        index: index,
+      );
+
+      return (derivation: derivationPath, mnemonic: bip85Mnemonic);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<Bip85DerivationModel?> fetch(String path) async {
     final row = await _sqlite.managers.bip85Derivations
         .filter((b) => b.path(path))
