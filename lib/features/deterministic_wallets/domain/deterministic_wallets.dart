@@ -1,0 +1,63 @@
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+
+class DeterministicWalletsRequest {
+  final int bip85Index;
+  final String bip85Alias;
+  final Environment environment;
+  final List<DeterministicWalletSpec> walletSpecs;
+
+  const DeterministicWalletsRequest({
+    required this.bip85Index,
+    required this.bip85Alias,
+    required this.environment,
+    required this.walletSpecs,
+  });
+}
+
+class DeterministicWalletSpec {
+  final String id;
+  final Network network;
+  final ScriptType scriptType;
+  final String? label;
+  final bool isDefault;
+  final bool sync;
+
+  const DeterministicWalletSpec({
+    required this.id,
+    required this.network,
+    required this.scriptType,
+    this.label,
+    required this.isDefault,
+    required this.sync,
+  });
+}
+
+class PreparedDeterministicWallets {
+  final List<PreparedDeterministicWallet> wallets;
+  final String childSeedFingerprint;
+  final bool childSeedStoredDuringAttempt;
+
+  const PreparedDeterministicWallets({
+    required this.wallets,
+    required this.childSeedFingerprint,
+    required this.childSeedStoredDuringAttempt,
+  });
+
+  bool get shouldDeleteChildSeedOnRollback {
+    final hasReusedWallets = wallets.any((wallet) => !wallet.created);
+    return childSeedStoredDuringAttempt && !hasReusedWallets;
+  }
+}
+
+class PreparedDeterministicWallet {
+  final String specId;
+  final Wallet wallet;
+  final bool created;
+
+  const PreparedDeterministicWallet({
+    required this.specId,
+    required this.wallet,
+    required this.created,
+  });
+}
