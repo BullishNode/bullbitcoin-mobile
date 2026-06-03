@@ -116,6 +116,8 @@ class WalletRepository {
       signerDevice: metadata.signerDevice?.toEntity(),
       balanceSat: balance.totalSat,
       confirmedBalanceSat: balance.confirmedSat,
+      hideOnHome: metadata.hideOnHome ?? false,
+      autoSweepEnabled: metadata.autoSweepEnabled ?? false,
     );
   }
 
@@ -156,6 +158,8 @@ class WalletRepository {
       signerDevice: metadata.signerDevice?.toEntity(),
       balanceSat: balance.totalSat,
       confirmedBalanceSat: balance.confirmedSat,
+      hideOnHome: metadata.hideOnHome ?? false,
+      autoSweepEnabled: metadata.autoSweepEnabled ?? false,
     );
   }
 
@@ -202,6 +206,8 @@ class WalletRepository {
       signerDevice: metadata.signerDevice?.toEntity(),
       balanceSat: balance.totalSat,
       confirmedBalanceSat: balance.confirmedSat,
+      hideOnHome: metadata.hideOnHome ?? false,
+      autoSweepEnabled: metadata.autoSweepEnabled ?? false,
     );
   }
 
@@ -233,6 +239,8 @@ class WalletRepository {
       signerDevice: metadata.signerDevice?.toEntity(),
       balanceSat: balance.totalSat,
       confirmedBalanceSat: balance.confirmedSat,
+      hideOnHome: metadata.hideOnHome ?? false,
+      autoSweepEnabled: metadata.autoSweepEnabled ?? false,
       isEncryptedVaultTested: metadata.isEncryptedVaultTested,
       isPhysicalBackupTested: metadata.isPhysicalBackupTested,
       latestEncryptedBackup: metadata.latestEncryptedBackup != null
@@ -295,6 +303,8 @@ class WalletRepository {
             signerDevice: entry.value.signerDevice?.toEntity(),
             balanceSat: balances[entry.key].totalSat,
             confirmedBalanceSat: balances[entry.key].confirmedSat,
+            hideOnHome: entry.value.hideOnHome ?? false,
+            autoSweepEnabled: entry.value.autoSweepEnabled ?? false,
             isEncryptedVaultTested: entry.value.isEncryptedVaultTested,
             isPhysicalBackupTested: entry.value.isPhysicalBackupTested,
             latestEncryptedBackup: entry.value.latestEncryptedBackup != null
@@ -349,6 +359,44 @@ class WalletRepository {
         isPhysicalBackupTested: isPhysicalBackupTested,
         latestEncryptedBackup: latestEncryptedBackup?.millisecondsSinceEpoch,
         latestPhysicalBackup: latestPhysicalBackup?.millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  Future<void> applyWalletBehaviorDefaultsIfMissing({
+    required String walletId,
+    bool? hideOnHome,
+    bool? autoSweepEnabled,
+  }) async {
+    final metadata = await _walletMetadataDatasource.fetch(walletId);
+
+    if (metadata == null) {
+      throw WalletError.notFound(walletId);
+    }
+
+    await _walletMetadataDatasource.store(
+      metadata.copyWith(
+        hideOnHome: metadata.hideOnHome ?? hideOnHome,
+        autoSweepEnabled: metadata.autoSweepEnabled ?? autoSweepEnabled,
+      ),
+    );
+  }
+
+  Future<void> updateWalletBehavior({
+    required String walletId,
+    bool? hideOnHome,
+    bool? autoSweepEnabled,
+  }) async {
+    final metadata = await _walletMetadataDatasource.fetch(walletId);
+
+    if (metadata == null) {
+      throw WalletError.notFound(walletId);
+    }
+
+    await _walletMetadataDatasource.store(
+      metadata.copyWith(
+        hideOnHome: hideOnHome ?? metadata.hideOnHome,
+        autoSweepEnabled: autoSweepEnabled ?? metadata.autoSweepEnabled,
       ),
     );
   }
