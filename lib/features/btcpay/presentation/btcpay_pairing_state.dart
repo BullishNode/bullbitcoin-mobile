@@ -11,6 +11,8 @@ class BtcpayPairingState {
   final BtcpayPairingFailure? failure;
   final String? failureMessage;
   final BtcpayConnectionViewModel? connection;
+  final List<BtcpayWalletBehaviorViewModel> walletBehaviors;
+  final bool walletSettingsSaving;
   final bool showPairingForm;
 
   const BtcpayPairingState({
@@ -18,6 +20,8 @@ class BtcpayPairingState {
     this.failure,
     this.failureMessage,
     this.connection,
+    this.walletBehaviors = const [],
+    this.walletSettingsSaving = false,
     this.showPairingForm = false,
   });
 
@@ -33,6 +37,8 @@ class BtcpayPairingState {
     BtcpayPairingFailure? failure,
     String? failureMessage,
     BtcpayConnectionViewModel? connection,
+    List<BtcpayWalletBehaviorViewModel>? walletBehaviors,
+    bool? walletSettingsSaving,
     bool clearFailure = false,
     bool clearFailureMessage = false,
     bool clearConnection = false,
@@ -45,7 +51,35 @@ class BtcpayPairingState {
           ? null
           : failureMessage ?? this.failureMessage,
       connection: clearConnection ? null : connection ?? this.connection,
+      walletBehaviors: walletBehaviors ?? this.walletBehaviors,
+      walletSettingsSaving: walletSettingsSaving ?? this.walletSettingsSaving,
       showPairingForm: showPairingForm ?? this.showPairingForm,
+    );
+  }
+}
+
+class BtcpayWalletBehaviorViewModel {
+  final String walletId;
+  final BtcpayPairingWallet wallet;
+  final bool hideOnHome;
+  final bool autoSweepEnabled;
+
+  const BtcpayWalletBehaviorViewModel({
+    required this.walletId,
+    required this.wallet,
+    required this.hideOnHome,
+    required this.autoSweepEnabled,
+  });
+
+  BtcpayWalletBehaviorViewModel copyWith({
+    bool? hideOnHome,
+    bool? autoSweepEnabled,
+  }) {
+    return BtcpayWalletBehaviorViewModel(
+      walletId: walletId,
+      wallet: wallet,
+      hideOnHome: hideOnHome ?? this.hideOnHome,
+      autoSweepEnabled: autoSweepEnabled ?? this.autoSweepEnabled,
     );
   }
 }

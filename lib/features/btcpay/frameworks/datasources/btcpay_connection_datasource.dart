@@ -35,6 +35,7 @@ class BtcpayConnectionDatasource implements BtcpayConnectionStore {
     final updatedAt = decoded['updatedAt'];
     final capabilities = decoded['capabilities'];
     final walletNetworks = decoded['walletNetworks'];
+    final walletIds = decoded['walletIds'];
     if (serverUrl is! String ||
         storeId is! String ||
         storedEnvironment is! String ||
@@ -68,6 +69,18 @@ class BtcpayConnectionDatasource implements BtcpayConnectionStore {
         .whereType<BtcpayWalletNetwork>()
         .toList();
     if (parsedWalletNetworks.isEmpty) return null;
+    final parsedWalletIds = <BtcpayWalletNetwork, String>{};
+    if (walletIds is Map) {
+      for (final entry in walletIds.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        if (key is! String || value is! String || value.trim().isEmpty) {
+          continue;
+        }
+        final network = _walletNetworkFromValue(key);
+        if (network != null) parsedWalletIds[network] = value;
+      }
+    }
 
     return BtcpayConnection(
       environment: environment,
@@ -75,6 +88,7 @@ class BtcpayConnectionDatasource implements BtcpayConnectionStore {
       storeId: storeId,
       capabilities: parsedCapabilities,
       walletNetworks: parsedWalletNetworks,
+      walletIds: parsedWalletIds,
       status: parsedStatus,
       pairedAt: parsedPairedAt,
       updatedAt: parsedUpdatedAt,
@@ -97,6 +111,10 @@ class BtcpayConnectionDatasource implements BtcpayConnectionStore {
         'walletNetworks': connection.walletNetworks
             .map(_walletNetworkValue)
             .toList(),
+        'walletIds': connection.walletIds.map(
+          (network, walletId) =>
+              MapEntry(_walletNetworkValue(network), walletId),
+        ),
         'pairedAt': connection.pairedAt?.toIso8601String(),
         'updatedAt': connection.updatedAt.toIso8601String(),
         'lastError': connection.lastError,

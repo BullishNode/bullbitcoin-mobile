@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
 import 'package:bb_mobile/features/btcpay/application/application_errors.dart';
 import 'package:bb_mobile/features/btcpay/application/ports/btcpay_connection_store.dart';
 import 'package:bb_mobile/features/btcpay/application/ports/samrock_pairing_service_port.dart';
@@ -9,6 +10,7 @@ import 'package:bb_mobile/features/btcpay/application/samrock_setup_payload_buil
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
+import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
 
 class CompleteBtcpaySamRockPairingUsecase {
@@ -17,6 +19,8 @@ class CompleteBtcpaySamRockPairingUsecase {
   final DeterministicWalletsFacade _deterministicWallets;
   final SamRockPairingServicePort _pairingService;
   final BtcpayConnectionStore _connectionStore;
+  final ApplyWalletBehaviorDefaultsUsecase _applyWalletBehaviorDefaults;
+  final Bip85RegistryFacade _bip85Registry;
 
   const CompleteBtcpaySamRockPairingUsecase({
     required this._getSettings,
@@ -24,6 +28,8 @@ class CompleteBtcpaySamRockPairingUsecase {
     required this._deterministicWallets,
     required this._pairingService,
     required this._connectionStore,
+    required this._applyWalletBehaviorDefaults,
+    this._bip85Registry = const Bip85RegistryFacade(),
   });
 
   Future<BtcpayConnection> execute({required String pairingUrl}) async {
@@ -58,6 +64,7 @@ class CompleteBtcpaySamRockPairingUsecase {
         environment: settings.environment,
         request: request,
         walletNetworks: _walletNetworks(preparedWallets),
+        walletIds: _walletIds(preparedWallets),
         status: BtcpayConnectionStatus.uncertain,
         updatedAt: now,
       );
@@ -78,6 +85,7 @@ class CompleteBtcpaySamRockPairingUsecase {
         }
         throw BtcpayPairingException.rejected(response.message);
       }
+      await _applyBtcpayWalletBehaviorDefaults(preparedWallets);
     } on BtcpayPairingException {
       rethrow;
     } on SamRockSetupPayloadException catch (e) {
@@ -117,6 +125,7 @@ class CompleteBtcpaySamRockPairingUsecase {
       environment: submittedConnection.environment,
       request: request,
       walletNetworks: _walletNetworks(preparedWallets),
+      walletIds: _walletIds(preparedWallets),
       status: BtcpayConnectionStatus.paired,
       pairedAt: pairedAt,
       updatedAt: pairedAt,
@@ -167,8 +176,9 @@ class CompleteBtcpaySamRockPairingUsecase {
   }
 
   DeterministicWalletsRequest _btcpayWalletsRequest(Environment environment) {
+    final reservation = _bip85Registry.btcpayWalletSeed;
     return DeterministicWalletsRequest(
-      bip85Index: BtcpayWalletConstants.bip85Index,
+      bip85Index: reservation.scope.segmentValue('index'),
       bip85Alias: BtcpayWalletConstants.bip85Alias,
       environment: environment,
       walletSpecs: BtcpayWalletNetwork.values.map((btcpayNetwork) {
@@ -190,6 +200,28 @@ class CompleteBtcpaySamRockPairingUsecase {
     return preparedWallets.wallets
         .map((wallet) => BtcpayWalletNetwork.fromSpecId(wallet.specId))
         .toList();
+  }
+
+  Map<BtcpayWalletNetwork, String> _walletIds(
+    PreparedDeterministicWallets preparedWallets,
+  ) {
+    return {
+      for (final wallet in preparedWallets.wallets)
+        BtcpayWalletNetwork.fromSpecId(wallet.specId): wallet.wallet.id,
+    };
+  }
+
+  Future<void> _applyBtcpayWalletBehaviorDefaults(
+    PreparedDeterministicWallets preparedWallets,
+  ) async {
+    for (final prepared in preparedWallets.wallets) {
+      final network = BtcpayWalletNetwork.fromSpecId(prepared.specId);
+      await _applyWalletBehaviorDefaults.execute(
+        walletId: prepared.wallet.id,
+        hideOnHome: network == BtcpayWalletNetwork.liquid,
+        autoSweepEnabled: network == BtcpayWalletNetwork.liquid,
+      );
+    }
   }
 }
 

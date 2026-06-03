@@ -1,7 +1,11 @@
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/storage/data/datasources/key_value_storage/key_value_storage_datasource.dart';
 import 'package:bb_mobile/core/utils/constants.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/btcpay/application/usecases/complete_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/features/btcpay/application/usecases/get_btcpay_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/btcpay/application/usecases/get_btcpay_connection_usecase.dart';
 import 'package:bb_mobile/features/btcpay/application/ports/btcpay_connection_store.dart';
 import 'package:bb_mobile/features/btcpay/application/ports/samrock_pairing_service_port.dart';
@@ -34,6 +38,11 @@ class BtcpayLocator {
         store: locator<BtcpayConnectionStore>(),
       ),
     );
+    locator.registerFactory<GetBtcpayWalletBehaviorsUsecase>(
+      () => GetBtcpayWalletBehaviorsUsecase(
+        getWallets: locator<GetWalletsUsecase>(),
+      ),
+    );
     locator.registerFactory<PreviewBtcpaySamRockPairingUsecase>(
       () => PreviewBtcpaySamRockPairingUsecase(
         parser: locator<SamRockPairingRequestParser>(),
@@ -46,13 +55,17 @@ class BtcpayLocator {
         deterministicWallets: locator<DeterministicWalletsFacade>(),
         pairingService: locator<SamRockPairingServicePort>(),
         connectionStore: locator<BtcpayConnectionStore>(),
+        applyWalletBehaviorDefaults:
+            locator<ApplyWalletBehaviorDefaultsUsecase>(),
       ),
     );
     locator.registerFactory<BtcpayPairingCubit>(
       () => BtcpayPairingCubit(
         completePairing: locator<CompleteBtcpaySamRockPairingUsecase>(),
         getConnection: locator<GetBtcpayConnectionUsecase>(),
+        getWalletBehaviors: locator<GetBtcpayWalletBehaviorsUsecase>(),
         previewPairing: locator<PreviewBtcpaySamRockPairingUsecase>(),
+        updateWalletBehavior: locator<UpdateWalletBehaviorUsecase>(),
       ),
     );
   }

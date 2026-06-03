@@ -23,6 +23,10 @@ void main() {
         BtcpayWalletNetwork.bitcoin,
         BtcpayWalletNetwork.liquid,
       ],
+      walletIds: const {
+        BtcpayWalletNetwork.bitcoin: 'btcpay-bitcoin-wallet',
+        BtcpayWalletNetwork.liquid: 'btcpay-liquid-wallet',
+      },
       status: BtcpayConnectionStatus.uncertain,
       pairedAt: null,
       updatedAt: DateTime.utc(2026, 5, 23),
@@ -38,6 +42,10 @@ void main() {
     expect(mainnet.storeId, 'store123');
     expect(mainnet.isUncertain, isTrue);
     expect(mainnet.supportsLightning, isTrue);
+    expect(mainnet.walletIds, {
+      BtcpayWalletNetwork.bitcoin: 'btcpay-bitcoin-wallet',
+      BtcpayWalletNetwork.liquid: 'btcpay-liquid-wallet',
+    });
     expect(mainnet.lastError, 'timeout');
     expect(testnet, isNull);
   });

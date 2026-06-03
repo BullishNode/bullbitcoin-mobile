@@ -23,9 +23,10 @@ reserved-index materialization behavior.
 
 - Other features may only consume
   `public/deterministic_wallets_facade.dart`.
-- Product policy lives with the consuming feature. For example, BTCPay chooses
-  index 77, Bitcoin and Liquid wallet specs, labels, sync behavior, and whether
-  wallets are default wallets.
+- Product policy lives with the consuming feature or a feature-owned public
+  policy boundary. For example, BTCPay consumes the BIP85 registry reservation
+  `39'/0'/12'/100'` and supplies Bitcoin and Liquid wallet specs, labels, sync
+  behavior, and whether wallets are default wallets.
 - The feature does not own auto-sweep, hide-on-home, wallet display settings,
   payment products, Nostr, SamRock, or BTCPay connection state.
 - The feature does not automate recovery; recovery ownership remains outside
@@ -34,8 +35,8 @@ reserved-index materialization behavior.
 ## Public Contract
 
 `DeterministicWalletsFacade.prepare()` accepts a
-`DeterministicWalletsRequest` with a reserved BIP85 index, alias, environment,
-and explicit wallet specs. The request must have a non-negative index,
+`DeterministicWalletsRequest` with a BIP85 child mnemonic index, alias,
+environment, and explicit wallet specs. The request must have a non-negative index,
 non-empty alias, at least one wallet spec, and unique non-empty spec IDs.
 
 The facade returns prepared deterministic-wallet DTOs containing wallet IDs,
