@@ -15,6 +15,7 @@ import 'package:bb_mobile/features/btcpay/frameworks/datasources/btcpay_connecti
 import 'package:bb_mobile/features/btcpay/frameworks/datasources/samrock_pairing_datasource.dart';
 import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_cubit.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:get_it/get_it.dart';
 
 class BtcpayLocator {
@@ -57,6 +58,7 @@ class BtcpayLocator {
         connectionStore: locator<BtcpayConnectionStore>(),
         applyWalletBehaviorDefaults:
             locator<ApplyWalletBehaviorDefaultsUsecase>(),
+        keychainManifest: locator<KeychainManifestFacade>(),
       ),
     );
     locator.registerFactory<BtcpayPairingCubit>(

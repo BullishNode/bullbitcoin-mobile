@@ -9,6 +9,7 @@ import 'package:bb_mobile/core/storage/tables/auto_swap.dart';
 import 'package:bb_mobile/core/storage/tables/bip85_derivations_table.dart';
 import 'package:bb_mobile/core/storage/tables/electrum_servers_table.dart';
 import 'package:bb_mobile/core/storage/tables/electrum_settings_table.dart';
+import 'package:bb_mobile/core/storage/tables/keychain_manifest_entries_table.dart';
 import 'package:bb_mobile/core/storage/tables/labels_table.dart';
 import 'package:bb_mobile/core/storage/tables/mempool_servers_table.dart';
 import 'package:bb_mobile/core/storage/tables/mempool_settings_table.dart';
@@ -45,6 +46,8 @@ part 'sqlite_database.g.dart';
     Swaps,
     AutoSwap,
     Bip85Derivations,
+    KeychainManifestEntries,
+    KeychainManifestWalletBindings,
     Recoverbull,
     Prices,
   ],
@@ -98,7 +101,7 @@ class SqliteDatabase extends _$SqliteDatabase {
   /// asserts that an entry for this number exists in the
   /// schema → app-version map so a future bump can't silently
   /// misclassify upgrade events.
-  static const int currentSchemaVersion = 14;
+  static const int currentSchemaVersion = 15;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -155,6 +158,7 @@ class SqliteDatabase extends _$SqliteDatabase {
         from11To12: _reportingMigration('from11To12', Schema11To12.migrate),
         from12To13: _reportingMigration('from12To13', Schema12To13.migrate),
         from13To14: _reportingMigration('from13To14', Schema13To14.migrate),
+        from14To15: _reportingMigration('from14To15', Schema14To15.migrate),
       ),
       // Backfills `Report.fromVersion` for installs that predate the
       // `_lastVersionKey` SharedPreferences marker (added in v6.6.0).

@@ -21,21 +21,6 @@ class Bip85Reservations {
       ],
     ),
     allocation: Bip85AllocationPolicy.blockExactPath,
-    manifest: Bip85ManifestPolicy.includeWhenMaterialized,
-    hints: Bip85ReservationHints(
-      wallets: [
-        Bip85WalletHint(
-          id: 'btcpay_bitcoin',
-          networkFamily: Bip85NetworkFamily.bitcoin,
-          purpose: 'btcpay',
-        ),
-        Bip85WalletHint(
-          id: 'btcpay_liquid',
-          networkFamily: Bip85NetworkFamily.liquid,
-          purpose: 'btcpay',
-        ),
-      ],
-    ),
   );
 
   static const all = [btcpayWalletSeed];

@@ -62,7 +62,6 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
         state.copyWith(
           status: BtcpayPairingStatus.failure,
           failure: _failureFor(e),
-          failureMessage: _failureMessageFor(e),
           clearConnection: true,
           showPairingForm: true,
         ),
@@ -77,7 +76,6 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
       state.copyWith(
         status: BtcpayPairingStatus.idle,
         clearFailure: true,
-        clearFailureMessage: true,
         showPairingForm: true,
       ),
     );
@@ -89,7 +87,6 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
       state.copyWith(
         status: BtcpayPairingStatus.submitting,
         clearFailure: true,
-        clearFailureMessage: true,
         showPairingForm: true,
       ),
     );
@@ -112,7 +109,6 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
         state.copyWith(
           status: BtcpayPairingStatus.failure,
           failure: _failureFor(e),
-          failureMessage: _failureMessageFor(e),
           connection: connection == null ? null : _connectionView(connection),
           clearConnection: connection == null,
           showPairingForm: connection == null,
@@ -176,16 +172,6 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
       BtcpayPairingException(type: BtcpayPairingExceptionType.uncertain) =>
         BtcpayPairingFailure.uncertain,
       _ => BtcpayPairingFailure.generic,
-    };
-  }
-
-  String? _failureMessageFor(Object error) {
-    return switch (error) {
-      BtcpayPairingException(type: BtcpayPairingExceptionType.rejected) =>
-        error.message,
-      BtcpayPairingException(type: BtcpayPairingExceptionType.uncertain) =>
-        error.message,
-      _ => null,
     };
   }
 

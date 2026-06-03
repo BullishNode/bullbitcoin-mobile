@@ -18,7 +18,10 @@ class DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase {
     required this._seedRepository,
   });
 
-  Future<({String derivation, bip39.Mnemonic mnemonic})> execute({
+  Future<
+    ({String derivation, bip39.Mnemonic mnemonic, String parentFingerprint})
+  >
+  execute({
     required int index,
     required String alias,
     Environment? environment,
@@ -53,14 +56,23 @@ class DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase {
         xprvBase58: xprv,
         alias: alias,
       );
-      return preview;
+      return (
+        derivation: preview.derivation,
+        mnemonic: preview.mnemonic,
+        parentFingerprint: defaultWallet.masterFingerprint,
+      );
     }
 
-    return _bip85Repository.deriveMnemonic(
+    final derived = await _bip85Repository.deriveMnemonic(
       xprvBase58: xprv,
       length: length,
       index: index,
       alias: alias,
+    );
+    return (
+      derivation: derived.derivation,
+      mnemonic: derived.mnemonic,
+      parentFingerprint: defaultWallet.masterFingerprint,
     );
   }
 

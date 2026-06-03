@@ -9,7 +9,6 @@ enum BtcpayPairingWallet { bitcoin, liquid }
 class BtcpayPairingState {
   final BtcpayPairingStatus status;
   final BtcpayPairingFailure? failure;
-  final String? failureMessage;
   final BtcpayConnectionViewModel? connection;
   final List<BtcpayWalletBehaviorViewModel> walletBehaviors;
   final bool walletSettingsSaving;
@@ -18,7 +17,6 @@ class BtcpayPairingState {
   const BtcpayPairingState({
     this.status = BtcpayPairingStatus.loading,
     this.failure,
-    this.failureMessage,
     this.connection,
     this.walletBehaviors = const [],
     this.walletSettingsSaving = false,
@@ -35,21 +33,16 @@ class BtcpayPairingState {
   BtcpayPairingState copyWith({
     BtcpayPairingStatus? status,
     BtcpayPairingFailure? failure,
-    String? failureMessage,
     BtcpayConnectionViewModel? connection,
     List<BtcpayWalletBehaviorViewModel>? walletBehaviors,
     bool? walletSettingsSaving,
     bool clearFailure = false,
-    bool clearFailureMessage = false,
     bool clearConnection = false,
     bool? showPairingForm,
   }) {
     return BtcpayPairingState(
       status: status ?? this.status,
       failure: clearFailure ? null : failure ?? this.failure,
-      failureMessage: clearFailureMessage
-          ? null
-          : failureMessage ?? this.failureMessage,
       connection: clearConnection ? null : connection ?? this.connection,
       walletBehaviors: walletBehaviors ?? this.walletBehaviors,
       walletSettingsSaving: walletSettingsSaving ?? this.walletSettingsSaving,

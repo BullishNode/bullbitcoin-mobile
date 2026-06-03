@@ -43,17 +43,4 @@ void main() {
       isFalse,
     );
   });
-
-  test('keeps wallet hints non-authoritative and scoped to BTCPay', () {
-    final wallets = registry.btcpayWalletSeed.hints.wallets;
-
-    expect(wallets.map((wallet) => wallet.id), [
-      'btcpay_bitcoin',
-      'btcpay_liquid',
-    ]);
-    expect(wallets.map((wallet) => wallet.networkFamily), [
-      Bip85NetworkFamily.bitcoin,
-      Bip85NetworkFamily.liquid,
-    ]);
-  });
 }
