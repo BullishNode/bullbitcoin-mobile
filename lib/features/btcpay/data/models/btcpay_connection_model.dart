@@ -12,6 +12,7 @@ class BtcpayConnectionModel {
   final String status;
   final List<String> capabilities;
   final List<String> walletNetworks;
+  final Map<String, String> walletIds;
   final String? pairedAt;
   final String updatedAt;
   final String? lastError;
@@ -23,6 +24,7 @@ class BtcpayConnectionModel {
     required this.status,
     required this.capabilities,
     required this.walletNetworks,
+    this.walletIds = const {},
     required this.pairedAt,
     required this.updatedAt,
     this.lastError,
@@ -47,6 +49,7 @@ class BtcpayConnectionModel {
     final updatedAt = decoded['updatedAt'];
     final capabilities = decoded['capabilities'];
     final walletNetworks = decoded['walletNetworks'];
+    final walletIds = decoded['walletIds'];
     if (environment is! String ||
         serverUrl is! String ||
         storeId is! String ||
@@ -57,6 +60,18 @@ class BtcpayConnectionModel {
       return null;
     }
 
+    final parsedWalletIds = <String, String>{};
+    if (walletIds is Map) {
+      for (final entry in walletIds.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        if (key is! String || value is! String || value.trim().isEmpty) {
+          continue;
+        }
+        parsedWalletIds[key] = value;
+      }
+    }
+
     return BtcpayConnectionModel(
       environment: environment,
       serverUrl: serverUrl,
@@ -64,6 +79,7 @@ class BtcpayConnectionModel {
       status: status,
       capabilities: capabilities.whereType<String>().toList(),
       walletNetworks: walletNetworks.whereType<String>().toList(),
+      walletIds: parsedWalletIds,
       pairedAt: pairedAt is String ? pairedAt : null,
       updatedAt: updatedAt,
       lastError: decoded['lastError'] is String
@@ -80,6 +96,7 @@ class BtcpayConnectionModel {
       'status': status,
       'capabilities': capabilities,
       'walletNetworks': walletNetworks,
+      'walletIds': walletIds,
       'pairedAt': pairedAt,
       'updatedAt': updatedAt,
       'lastError': lastError,
@@ -96,6 +113,9 @@ class BtcpayConnectionModel {
       walletNetworks: connection.walletNetworks
           .map(_walletNetworkValue)
           .toList(),
+      walletIds: connection.walletIds.map(
+        (network, walletId) => MapEntry(_walletNetworkValue(network), walletId),
+      ),
       pairedAt: connection.pairedAt?.toIso8601String(),
       updatedAt: connection.updatedAt.toIso8601String(),
       lastError: connection.lastError,
@@ -132,12 +152,19 @@ class BtcpayConnectionModel {
         .toList();
     if (parsedWalletNetworks.isEmpty) return null;
 
+    final parsedWalletIds = <BtcpayWalletNetwork, String>{};
+    for (final entry in walletIds.entries) {
+      final network = _walletNetworkFromValue(entry.key);
+      if (network != null) parsedWalletIds[network] = entry.value;
+    }
+
     return BtcpayConnection(
       environment: parsedEnvironment,
       serverUrl: serverUrl,
       storeId: storeId,
       capabilities: parsedCapabilities,
       walletNetworks: parsedWalletNetworks,
+      walletIds: parsedWalletIds,
       status: parsedStatus,
       pairedAt: parsedPairedAt,
       updatedAt: parsedUpdatedAt,

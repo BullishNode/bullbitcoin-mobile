@@ -2,32 +2,42 @@ import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_error.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/preview_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_state.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
   final CompleteBtcpaySamRockPairingUsecase _completePairing;
   final GetBtcpayConnectionUsecase _getConnection;
+  final GetBtcpayWalletBehaviorsUsecase _getWalletBehaviors;
   final PreviewBtcpaySamRockPairingUsecase _previewPairing;
+  final UpdateWalletBehaviorUsecase _updateWalletBehavior;
 
   BtcpayPairingCubit({
     required this._completePairing,
     required this._getConnection,
+    required this._getWalletBehaviors,
     required this._previewPairing,
+    required this._updateWalletBehavior,
   }) : super(const BtcpayPairingState());
 
   Future<void> load() async {
     if (state.isSubmitting || state.connection != null) return;
     try {
       final connection = await _getConnection.execute();
+      final walletBehaviors = connection == null
+          ? const <BtcpayWalletBehaviorViewModel>[]
+          : await _loadWalletBehaviors(connection);
       if (isClosed) return;
       emit(
         state.copyWith(
           status: BtcpayPairingStatus.idle,
           connection: connection == null ? null : _connectionView(connection),
+          walletBehaviors: walletBehaviors,
           clearConnection: connection == null,
         ),
       );
@@ -91,6 +101,7 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
         state.copyWith(
           status: BtcpayPairingStatus.success,
           connection: _connectionView(connection),
+          walletBehaviors: await _loadWalletBehaviors(connection),
           showPairingForm: false,
         ),
       );
@@ -105,6 +116,52 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
           connection: connection == null ? null : _connectionView(connection),
           clearConnection: connection == null,
           showPairingForm: connection == null,
+        ),
+      );
+    }
+  }
+
+  Future<void> updateWalletBehavior({
+    required String walletId,
+    bool? hideOnHome,
+    bool? autoSweepEnabled,
+  }) async {
+    if (state.walletSettingsSaving) return;
+    final previous = state.walletBehaviors;
+    final updated = previous.map((behavior) {
+      if (behavior.walletId != walletId) return behavior;
+      return behavior.copyWith(
+        hideOnHome: hideOnHome,
+        autoSweepEnabled: autoSweepEnabled,
+      );
+    }).toList();
+    emit(state.copyWith(walletBehaviors: updated, walletSettingsSaving: true));
+    try {
+      await _updateWalletBehavior.execute(
+        walletId: walletId,
+        hideOnHome: hideOnHome,
+        autoSweepEnabled: autoSweepEnabled,
+      );
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          walletBehaviors: await _loadWalletBehaviors(),
+          walletSettingsSaving: false,
+        ),
+      );
+    } catch (e, stack) {
+      log.warning(
+        'Failed to update BTCPay wallet behavior',
+        error: e,
+        trace: stack,
+      );
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          status: BtcpayPairingStatus.failure,
+          failure: BtcpayPairingFailure.generic,
+          walletBehaviors: previous,
+          walletSettingsSaving: false,
         ),
       );
     }
@@ -167,5 +224,34 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
       isPaired: connection.isPaired,
       displayDate: connection.pairedAt ?? connection.updatedAt,
     );
+  }
+
+  Future<List<BtcpayWalletBehaviorViewModel>> _loadWalletBehaviors([
+    BtcpayConnection? connection,
+  ]) async {
+    try {
+      final btcpayConnection = connection ?? await _getConnection.execute();
+      final behaviors = await _getWalletBehaviors.execute(
+        connection: btcpayConnection,
+      );
+      return behaviors.map((behavior) {
+        return BtcpayWalletBehaviorViewModel(
+          walletId: behavior.wallet.id,
+          wallet: switch (behavior.network) {
+            BtcpayWalletNetwork.bitcoin => BtcpayPairingWallet.bitcoin,
+            BtcpayWalletNetwork.liquid => BtcpayPairingWallet.liquid,
+          },
+          hideOnHome: behavior.wallet.hideOnHome,
+          autoSweepEnabled: behavior.wallet.autoSweepEnabled,
+        );
+      }).toList();
+    } catch (e, stack) {
+      log.warning(
+        'Failed to load BTCPay wallet behavior settings',
+        error: e,
+        trace: stack,
+      );
+      return const [];
+    }
   }
 }

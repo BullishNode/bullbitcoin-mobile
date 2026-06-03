@@ -4,7 +4,6 @@ import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 class BtcpayWalletConstants {
   const BtcpayWalletConstants._();
 
-  static const bip85Index = 77;
   static const bip85Alias = 'BTCPay';
   static const bitcoinSpecId = 'btcpay-bitcoin';
   static const liquidSpecId = 'btcpay-liquid';
@@ -15,6 +14,9 @@ class BtcpayWalletConstants {
 enum BtcpayWalletNetwork {
   bitcoin,
   liquid;
+
+  bool get isBitcoin => this == BtcpayWalletNetwork.bitcoin;
+  bool get isLiquid => this == BtcpayWalletNetwork.liquid;
 
   Network networkForEnvironment(Environment environment) {
     return switch ((this, environment)) {

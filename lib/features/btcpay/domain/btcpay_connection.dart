@@ -10,6 +10,7 @@ class BtcpayConnection {
   final String storeId;
   final List<SamRockSetupCapability> capabilities;
   final List<BtcpayWalletNetwork> walletNetworks;
+  final Map<BtcpayWalletNetwork, String> walletIds;
   final BtcpayConnectionStatus status;
   final DateTime? pairedAt;
   final DateTime updatedAt;
@@ -21,6 +22,7 @@ class BtcpayConnection {
     required this.storeId,
     required this.capabilities,
     required this.walletNetworks,
+    this.walletIds = const {},
     required this.status,
     required this.pairedAt,
     required this.updatedAt,
@@ -40,6 +42,7 @@ class BtcpayConnection {
     required Environment environment,
     required SamRockPairingRequest request,
     required List<BtcpayWalletNetwork> walletNetworks,
+    required Map<BtcpayWalletNetwork, String> walletIds,
     required BtcpayConnectionStatus status,
     required DateTime updatedAt,
     DateTime? pairedAt,
@@ -52,6 +55,7 @@ class BtcpayConnection {
       capabilities: request.setup.toList()
         ..sort((a, b) => a.value.compareTo(b.value)),
       walletNetworks: walletNetworks,
+      walletIds: walletIds,
       status: status,
       pairedAt: pairedAt,
       updatedAt: updatedAt,
@@ -72,6 +76,7 @@ class BtcpayConnection {
       storeId: storeId,
       capabilities: capabilities,
       walletNetworks: walletNetworks,
+      walletIds: walletIds,
       status: status ?? this.status,
       pairedAt: pairedAt ?? this.pairedAt,
       updatedAt: updatedAt ?? this.updatedAt,
