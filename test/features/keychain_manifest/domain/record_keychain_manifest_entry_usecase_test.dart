@@ -252,6 +252,16 @@ class _InMemoryKeychainManifestStore
   }
 
   @override
+  Future<List<KeychainManifestWalletMaterializationRecord>>
+  fetchWalletMaterializationRecordsByParentFingerprint(
+    String parentFingerprint,
+  ) async {
+    return records
+        .where((record) => record.entry.parentFingerprint == parentFingerprint)
+        .toList(growable: false);
+  }
+
+  @override
   Future<void> insertWalletMaterializationRecord(
     KeychainManifestWalletMaterializationRecord record,
   ) async {
