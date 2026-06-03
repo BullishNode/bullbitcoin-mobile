@@ -27,6 +27,7 @@ import 'package:bb_mobile/features/mempool_settings/mempool_settings_locator.dar
 import 'package:bb_mobile/features/fund_exchange/fund_exchange_locator.dart';
 import 'package:bb_mobile/features/import_mnemonic/locator.dart';
 import 'package:bb_mobile/features/import_watch_only_wallet/import_watch_only_locator.dart';
+import 'package:bb_mobile/features/keychain_manifest/keychain_manifest_locator.dart';
 import 'package:bb_mobile/features/ledger/ledger_locator.dart';
 import 'package:bb_mobile/features/legacy_seed_view/legacy_seed_view_locator.dart';
 import 'package:bb_mobile/features/onboarding/onboarding_locator.dart';
@@ -88,6 +89,7 @@ class AppLocator {
     TransactionsLocator.registerAdapters(locator);
     Bip85RegistryLocator.setup(locator);
     DeterministicWalletsLocator.setup(locator);
+    KeychainManifestLocator.setup(locator);
     BtcpayLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);
     TransactionsLocator.registerBlocs(locator);

@@ -20,7 +20,10 @@ class DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase {
     required this._seedRepository,
   });
 
-  Future<({String derivation, bip39.Mnemonic mnemonic})> execute({
+  Future<
+    ({String derivation, bip39.Mnemonic mnemonic, String parentFingerprint})
+  >
+  execute({
     required int index,
     required String alias,
     Environment? environment,
@@ -51,7 +54,11 @@ class DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase {
     final existing = await _bip85Repository.fetch(preview.derivation);
     if (existing != null && _isForCurrentWallet(existing, xprvBase58: xprv)) {
       _throwIfIncompatibleExistingDerivation(existing, alias: alias);
-      return preview;
+      return (
+        derivation: preview.derivation,
+        mnemonic: preview.mnemonic,
+        parentFingerprint: defaultWallet.masterFingerprint,
+      );
     }
     // No row, or a stale row from a previous default wallet seed. A stale
     // row's mnemonic can no longer be derived from the current seed, so it
@@ -69,7 +76,11 @@ class DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase {
         failure.logMessage ?? 'Failed to derive BIP85 mnemonic',
       ),
     };
-    return (derivation: derived.derivation, mnemonic: derived.mnemonic);
+    return (
+      derivation: derived.derivation,
+      mnemonic: derived.mnemonic,
+      parentFingerprint: defaultWallet.masterFingerprint,
+    );
   }
 
   bool _isForCurrentWallet(

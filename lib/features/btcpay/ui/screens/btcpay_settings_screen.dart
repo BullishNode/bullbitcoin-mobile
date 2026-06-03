@@ -163,10 +163,8 @@ class _BtcpaySettingsScreenState extends State<BtcpaySettingsScreen> {
     return switch (state.failure) {
       BtcpayPairingFailure.invalidRequest =>
         context.loc.btcpayPairingInvalidRequestError,
-      BtcpayPairingFailure.rejected =>
-        state.failureMessage ?? context.loc.btcpayPairingRejectedError,
-      BtcpayPairingFailure.uncertain =>
-        state.failureMessage ?? context.loc.btcpayPairingUncertainError,
+      BtcpayPairingFailure.rejected => context.loc.btcpayPairingRejectedError,
+      BtcpayPairingFailure.uncertain => context.loc.btcpayPairingUncertainError,
       _ => context.loc.btcpayPairingGenericError,
     };
   }

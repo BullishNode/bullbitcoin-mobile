@@ -108,7 +108,11 @@ void main() {
         environment: Environment.mainnet,
       ),
     ).thenAnswer(
-      (_) async => (derivation: "39'/0'/12'/77'", mnemonic: mnemonic),
+      (_) async => (
+        derivation: "39'/0'/12'/77'",
+        mnemonic: mnemonic,
+        parentFingerprint: 'fedcba98',
+      ),
     );
   });
 
@@ -454,6 +458,7 @@ void main() {
           bitcoinWallet.copyWithCreated(true),
           liquidWallet.copyWithCreated(true),
         ],
+        parentFingerprint: 'fedcba98',
         childSeedFingerprint: childSeed.masterFingerprint,
         childSeedStoredDuringAttempt: true,
       );

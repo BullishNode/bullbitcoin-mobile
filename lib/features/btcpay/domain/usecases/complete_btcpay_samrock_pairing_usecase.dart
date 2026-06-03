@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 
 class CompleteBtcpaySamRockPairingUsecase {
   final GetSettingsUsecase _getSettings;
@@ -21,6 +22,7 @@ class CompleteBtcpaySamRockPairingUsecase {
   final BtcpayConnectionRepository _connectionRepository;
   final ApplyWalletBehaviorDefaultsUsecase _applyWalletBehaviorDefaults;
   final Bip85RegistryFacade _bip85Registry;
+  final KeychainManifestFacade _keychainManifest;
 
   const CompleteBtcpaySamRockPairingUsecase({
     required this._getSettings,
@@ -30,6 +32,7 @@ class CompleteBtcpaySamRockPairingUsecase {
     required this._connectionRepository,
     required this._applyWalletBehaviorDefaults,
     required this._bip85Registry,
+    required this._keychainManifest,
   });
 
   Future<BtcpayConnection> execute({required String pairingUrl}) async {
@@ -43,6 +46,7 @@ class CompleteBtcpaySamRockPairingUsecase {
     var submitAttempted = false;
     PreparedDeterministicWallets? preparedWallets;
     BtcpayConnection? submittedConnection;
+    KeychainManifestRecordReservedDerivationResult? recordedKeychainEntries;
     try {
       final settings = await _getSettings.execute();
       preparedWallets = await _deterministicWallets.prepare(
@@ -58,6 +62,9 @@ class CompleteBtcpaySamRockPairingUsecase {
         await _rollbackPreparedWalletsBestEffort(preparedWallets);
         rethrow;
       }
+      recordedKeychainEntries = await _recordBtcpayKeychainManifestEntries(
+        preparedWallets,
+      );
 
       final now = DateTime.now().toUtc();
       submittedConnection = BtcpayConnection.fromPairing(
@@ -81,6 +88,16 @@ class CompleteBtcpaySamRockPairingUsecase {
               lastError: _safeUncertainMessage,
             ),
           );
+          throw BtcpayPairingException.uncertain(response.message);
+        }
+        final rollbackSucceeded = await _rollbackPreparedWalletsBestEffort(
+          preparedWallets,
+        );
+        if (rollbackSucceeded) {
+          await _deleteBtcpayKeychainManifestEntriesBestEffort(
+            recordedKeychainEntries,
+          );
+        } else {
           throw BtcpayPairingException.uncertain(response.message);
         }
         throw BtcpayPairingException.rejected(response.message);
@@ -160,11 +177,12 @@ class CompleteBtcpaySamRockPairingUsecase {
     }
   }
 
-  Future<void> _rollbackPreparedWalletsBestEffort(
+  Future<bool> _rollbackPreparedWalletsBestEffort(
     PreparedDeterministicWallets preparedWallets,
   ) async {
     try {
       await _deterministicWallets.rollbackCreatedWallets(preparedWallets);
+      return true;
     } catch (e, stack) {
       log.warning(
         'BTCPay pairing failed before descriptor submission and created '
@@ -172,7 +190,54 @@ class CompleteBtcpaySamRockPairingUsecase {
         error: e,
         trace: stack,
       );
+      return false;
     }
+  }
+
+  Future<KeychainManifestRecordReservedDerivationResult>
+  _recordBtcpayKeychainManifestEntries(
+    PreparedDeterministicWallets preparedWallets,
+  ) async {
+    return _keychainManifest.recordReservedDerivation(
+      _btcpayKeychainManifestRequest(preparedWallets),
+    );
+  }
+
+  Future<void> _deleteBtcpayKeychainManifestEntriesBestEffort(
+    KeychainManifestRecordReservedDerivationResult recordedEntries,
+  ) async {
+    if (recordedEntries.insertedMaterializations.isEmpty) return;
+    try {
+      await _keychainManifest.deleteInsertedMaterializations(recordedEntries);
+    } catch (e, stack) {
+      log.warning(
+        'BTCPay rejected setup and keychain manifest cleanup failed',
+        error: e,
+        trace: stack,
+      );
+    }
+  }
+
+  KeychainManifestReservedDerivationRequest _btcpayKeychainManifestRequest(
+    PreparedDeterministicWallets preparedWallets,
+  ) {
+    final reservation = _bip85Registry.btcpayWalletSeed;
+    return KeychainManifestReservedDerivationRequest(
+      reservationId: reservation.id,
+      parentFingerprint: preparedWallets.parentFingerprint,
+      materializations: preparedWallets.wallets
+          .map((prepared) {
+            final network = BtcpayWalletNetwork.fromSpecId(prepared.specId);
+            return KeychainManifestWalletMaterializationRequest(
+              walletId: prepared.walletId,
+              childSeedFingerprint: preparedWallets.childSeedFingerprint,
+              network: prepared.network,
+              walletPurpose: network.name,
+              scriptType: prepared.scriptType,
+            );
+          })
+          .toList(growable: false),
+    );
   }
 
   DeterministicWalletsRequest _btcpayWalletsRequest(Environment environment) {

@@ -4,9 +4,9 @@ The BIP85 registry owns static reservations for BIP85 derivation paths that the
 application reserves for first-party features.
 
 It is not runtime state. It does not record which secrets have been created,
-which wallets exist, or which future recovery manifest entries should be
-published. Those concerns stay with the creating feature, wallet metadata, and
-the future keychain manifest.
+which wallets exist, or which manifest entries should be published. Those
+concerns stay with the creating feature, wallet metadata, and
+`keychain_manifest`.
 
 ## Boundaries
 

@@ -25,7 +25,12 @@ class PrepareDeterministicWalletsUsecase {
     DeterministicWalletsRequest request,
   ) async {
     _validateRequest(request);
-    final ({String derivation, bip39.Mnemonic mnemonic}) derived;
+    final ({
+      String derivation,
+      bip39.Mnemonic mnemonic,
+      String parentFingerprint,
+    })
+    derived;
     try {
       derived = await _deriveBip85.execute(
         index: request.bip85Index,
@@ -82,6 +87,7 @@ class PrepareDeterministicWalletsUsecase {
 
     return PreparedDeterministicWallets(
       wallets: results,
+      parentFingerprint: derived.parentFingerprint,
       childSeedFingerprint: childSeedPreview.masterFingerprint,
       childSeedStoredDuringAttempt: seedStoredDuringAttempt,
     );

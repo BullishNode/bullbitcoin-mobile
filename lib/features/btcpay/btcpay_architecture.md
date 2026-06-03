@@ -5,7 +5,7 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
 ## Scope
 
 - Entry point: Bitcoin Settings -> BTCPay.
-- The BTCPay integration PR pairs a BTCPay Server store with dedicated BTCPay Bitcoin and Liquid
+- BTCPay pairs a BTCPay Server store with dedicated BTCPay Bitcoin and Liquid
   wallets.
 - Both wallets are deterministic from the BIP85 registry's BTCPay reservation:
   BIP39 English 12-word path `39'/0'/12'/100'`. BTCPay consumes that reserved
@@ -14,13 +14,19 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
   materialization machinery.
 - SamRock `btc-ln` is supported as Lightning via Liquid/Boltz descriptor
   setup. It does not expose the later Get Paid Lightning Address flow.
-- The BTCPay integration PR applies generic wallet-owned behavior defaults to the dedicated BTCPay
+- BTCPay applies generic wallet-owned behavior defaults to the dedicated BTCPay
   wallets after SamRock accepts descriptor submission. BTCPay Liquid is hidden
   from Home and auto-sweep enabled by default; BTCPay Bitcoin is visible and
   auto-sweep disabled by default.
-- The BTCPay integration PR exposes those generic wallet behavior settings from the BTCPay details
+- BTCPay records one local Keychain Manifest reserved derivation with Bitcoin
+  and Liquid wallet materializations after deterministic wallets are prepared and the SamRock
+  payload is built, but before descriptors are submitted. If that local record
+  step fails before submission, descriptors are not shared and created wallets
+  are rolled back; materializations written in the failed batch are cleaned up
+  best-effort by the Keychain Manifest feature.
+- BTCPay exposes those generic wallet behavior settings from the BTCPay details
   screen only.
-- The BTCPay integration PR does not expose Get Paid navigation, dashboard, automated recovery,
+- BTCPay does not expose Get Paid navigation, dashboard, automated recovery,
   Lightning Address, Payment Page, invoices, Nostr, Bullnym, wallet manifest
   behavior, manual BIP85 creation, or non-BTCPay wallet behavior settings.
 
@@ -35,6 +41,10 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
 - BTCPay may consume `features/bip85_registry/public/` and must not import
   registry internals. The registry is reserved path/purpose policy only, not
   runtime wallet/key state.
+- BTCPay may consume `features/keychain_manifest/public/` and must not import
+  keychain manifest internals. Keychain Manifest records local key material
+  provenance; it does not create files, restore wallets, or publish Nostr
+  events.
 - BTCPay may consume wallet behavior use cases to apply and edit settings for
   its own wallets. The wallet layer owns the flags and persistence.
 - BTCPay does not own the auto-sweep runner. It only enables the generic
@@ -78,22 +88,19 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
 - The BTCPay Liquid wallet defaults to hidden on Home and auto-sweeps received
   funds to the default Liquid wallet. These settings remain editable from the
   BTCPay details screen.
-- Before descriptor submission, local wallets created during the current attempt may be rolled back.
-- After descriptor submission starts, wallets are kept. Explicit SamRock
-  rejection is not saved as a connection; transport/server/unknown completion
-  failures are saved as `uncertain`.
-- SamRock submits the requested setup in one HTTP call, so the BTCPay integration PR persists a
+- Before descriptor submission, local wallets created during the current attempt
+  may be rolled back.
+- Explicit SamRock rejection after descriptor submission is not saved as a
+  connection; BTCPay best-effort deletes keychain manifest materializations
+  created during the attempt and rolls back local wallets created during the
+  attempt.
+- Transport/server/unknown completion failures are saved as `uncertain`, and
+  wallets plus keychain manifest entries are kept because remote completion
+  cannot be confirmed.
+- SamRock submits the requested setup in one HTTP call, so BTCPay persists a
   single `uncertain` state rather than pretending to have per-rail server ACKs.
 - Pairing state is scoped by wallet environment and persists the BTCPay server
   URL, SamRock store ID, requested capabilities, paired wallet networks, status,
   update timestamp, and pairing timestamp when confirmed.
 - Raw exception text is logged only. User-facing uncertain state uses localized
   generic copy.
-
-## Deferred
-
-- Neutral external receive wallet abstractions belong to a later PR only after another concrete consumer exists.
-- Full deterministic Get Paid navigation and recovery are stacked on top of
-  this feature in a later PR.
-- Other products can use the same wallet-owned behavior settings later, but PR
-  1 exposes them only for BTCPay wallets.
