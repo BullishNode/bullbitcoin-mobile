@@ -14,6 +14,9 @@ concerns stay with the creating feature, wallet metadata, and
 - `public/` exposes read-only lookup helpers for other features.
 - No database, dependency injection, UI, allocation service, or runtime manifest
   writer is owned here.
+- Reservation metadata includes the canonical deterministic alias used when
+  deriving or reusing the reserved BIP85 child. Product features and recovery
+  use that alias through the registry instead of duplicating product constants.
 
 ## Current Reservation
 

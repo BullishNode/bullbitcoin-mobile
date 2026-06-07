@@ -197,7 +197,7 @@ class CompleteBtcpaySamRockPairingUsecase {
     final reservation = _bip85Registry.btcpayWalletSeed;
     return DeterministicWalletsRequest(
       bip85Index: reservation.walletIndex,
-      bip85Alias: BtcpayWalletConstants.bip85Alias,
+      bip85Alias: reservation.deterministicAlias,
       environment: environment,
       walletSpecs: BtcpayWalletNetwork.values.map((btcpayNetwork) {
         return DeterministicWalletSpec(

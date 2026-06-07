@@ -9,9 +9,9 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
   wallets.
 - Both wallets are deterministic from the BIP85 registry's BTCPay reservation:
   BIP39 English 12-word path `39'/0'/12'/100'`. BTCPay consumes that reserved
-  path through the registry public boundary and supplies wallet specs as a
-  caller-provided deterministic wallet request; it does not own the wallet
-  materialization machinery.
+  path and canonical deterministic alias through the registry public boundary
+  and supplies wallet specs as a caller-provided deterministic wallet request;
+  it does not own the wallet materialization machinery.
 - SamRock `btc-ln` is supported as Lightning via Liquid/Boltz descriptor
   setup. It does not expose the later Get Paid Lightning Address flow.
 - BTCPay applies generic wallet-owned behavior defaults to the dedicated BTCPay
