@@ -1,5 +1,10 @@
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart'
     show KeychainManifestException, KeychainManifestExceptionType;
+export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart'
+    show
+        KeychainManifestImportPlan,
+        KeychainManifestImportEntryIntent,
+        KeychainManifestWalletMaterializationIntent;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart'
     show
         KeychainManifestReservedDerivationRequest,
@@ -8,18 +13,22 @@ export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_re
 import 'dart:convert';
 
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 
 class KeychainManifestFacade {
   final RecordKeychainManifestEntryUsecase _recordEntry;
   final BuildKeychainManifestFileUsecase _buildManifestFile;
+  final ParseKeychainManifestFileUsecase _parseManifestFile;
 
   KeychainManifestFacade({
     required this._recordEntry,
     required this._buildManifestFile,
+    required this._parseManifestFile,
   });
 
   Future<void> recordReservedDerivation(
@@ -56,6 +65,14 @@ class KeychainManifestFacade {
         generatedAt: manifestFile.generatedAt,
         inventoryUpdatedAt: manifestFile.inventoryUpdatedAt,
       );
+    } catch (e) {
+      throw KeychainManifestException.fromInternal(e);
+    }
+  }
+
+  KeychainManifestImportPlan parseManifestFilePayload(String payload) {
+    try {
+      return _parseManifestFile.execute(payload);
     } catch (e) {
       throw KeychainManifestException.fromInternal(e);
     }

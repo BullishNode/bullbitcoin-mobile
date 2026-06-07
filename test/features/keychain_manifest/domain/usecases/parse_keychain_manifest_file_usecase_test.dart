@@ -1,0 +1,88 @@
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  const usecase = ParseKeychainManifestFileUsecase();
+
+  test('validates registered reservation metadata', () {
+    final plan = usecase.execute(_manifestPayload);
+
+    expect(plan.parentFingerprint, 'fedcba98');
+    expect(plan.entries.single.reservationId, 'btcpay_wallet_seed');
+    expect(plan.entries.single.bip85DerivationPath, "39'/0'/12'/100'");
+    expect(plan.walletMaterializations, hasLength(2));
+  });
+
+  test('rejects unknown reservations', () {
+    final payload = _manifestPayload.replaceFirst(
+      'btcpay_wallet_seed',
+      'unknown_wallet_seed',
+    );
+
+    expect(
+      () => usecase.execute(payload),
+      throwsA(
+        isA<KeychainManifestFileParseException>().having(
+          (error) => error.type,
+          'type',
+          KeychainManifestExceptionType.fileParse,
+        ),
+      ),
+    );
+  });
+
+  test('rejects reservation path mismatches', () {
+    final payload = _manifestPayload.replaceFirst(
+      "39'/0'/12'/100'",
+      "39'/0'/12'/77'",
+    );
+
+    expect(
+      () => usecase.execute(payload),
+      throwsA(isA<KeychainManifestFileParseException>()),
+    );
+  });
+
+  test('rejects reservation metadata mismatches', () {
+    final payload = _manifestPayload.replaceFirst(
+      '"bip85Index":100',
+      '"bip85Index":101',
+    );
+
+    expect(
+      () => usecase.execute(payload),
+      throwsA(isA<KeychainManifestFileParseException>()),
+    );
+  });
+
+  test('collapses exact duplicate wallet materializations', () {
+    final duplicate =
+        '{"type":"wallet","walletId":"btc-wallet",'
+        '"childSeedFingerprint":"0123abcd","network":"bitcoinMainnet",'
+        '"walletPurpose":"bitcoin","scriptType":"bip84",'
+        '"createdAt":10,"updatedAt":10},';
+    final payload = _manifestPayload.replaceFirst(
+      '"materializations":[',
+      '"materializations":[$duplicate',
+    );
+
+    final plan = usecase.execute(payload);
+
+    expect(plan.walletMaterializations, hasLength(2));
+  });
+}
+
+const _manifestPayload =
+    '{"version":1,"parentFingerprint":"fedcba98","generatedAt":20,'
+    '"inventoryUpdatedAt":12,"entries":[{"entryId":"fedcba98:39\'/0\'/12\'/100\'",'
+    '"bip85DerivationPath":"39\'/0\'/12\'/100\'",'
+    '"reservationId":"btcpay_wallet_seed","entryType":"walletSeed",'
+    '"ownerFeature":"btcpay","bip85Application":39,"bip85Index":100,'
+    '"createdAt":10,"updatedAt":12,"materializations":[{"type":"wallet",'
+    '"walletId":"btc-wallet","childSeedFingerprint":"0123abcd",'
+    '"network":"bitcoinMainnet","walletPurpose":"bitcoin",'
+    '"scriptType":"bip84","createdAt":10,"updatedAt":10},{"type":"wallet",'
+    '"walletId":"lbtc-wallet","childSeedFingerprint":"0123abcd",'
+    '"network":"liquidMainnet","walletPurpose":"liquid",'
+    '"scriptType":"bip84","createdAt":11,"updatedAt":11}]}]}';

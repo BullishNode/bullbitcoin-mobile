@@ -22,8 +22,10 @@ missing proven materializations idempotently instead of rolling back valid rows.
 It can build an on-demand manifest file payload from local records for a
 requested parent fingerprint. The local Drift records remain the source of
 truth; the file payload is a read-only projection and is not cached as product
-state. This PR does not import, publish, fetch, or restore a manifest file, and
-non-wallet materialization types are out of scope.
+state. It can also validate an imported v1 payload into typed import intents for
+later consumer flows. Import parsing does not persist, delete, create wallets,
+publish, fetch, or restore product state, and non-wallet materialization types
+are out of scope for v1.
 
 ## Boundaries
 
@@ -38,7 +40,7 @@ non-wallet materialization types are out of scope.
 - The public boundary may build a manifest file payload, but file operations
   must not mutate local manifest inventory.
 - `keychain_manifest` must not import BTCPay, Get Paid, external receive
-  wallets, Nostr, or UI features.
+  wallets, Nostr, UI features, or wallet creation/restoration features.
 
 ## Entry Identity
 
@@ -121,9 +123,9 @@ Rules:
   materializations. Empty manifests use the build timestamp.
 - V1 supports only wallet materializations with `"type": "wallet"`.
 - Public callers must explicitly opt in before exporting an empty manifest.
-- This PR only encodes the v1 payload. Decoding, import validation, and restore
-  semantics belong to a later consumer PR.
+- V1 decode validates the same payload shape into import intents. Wallet
+  creation and restore semantics belong to later consumer features.
 
 The payload is generated on demand by callers that need a serialized projection.
-Transport, import, restore, and UI flows are out of scope and are not specified
-by this PR.
+Transport, wallet creation, product restore, and UI flows are out of scope and
+are not specified by this feature.
