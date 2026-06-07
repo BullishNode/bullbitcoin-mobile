@@ -8,7 +8,8 @@ class Bip85RegistryFacade {
 
   List<Bip85Reservation> get reservations => Bip85Reservations.all;
 
-  Bip85Reservation get btcpayWalletSeed => Bip85Reservations.btcpayWalletSeed;
+  Bip85WalletSeedReservation get btcpayWalletSeed =>
+      Bip85Reservations.btcpayWalletSeed;
 
   // Registry-driven exclusion sets for the BIP85 next-index allocator and the
   // dev derivation screen: every reserved wallet-seed index/path is a product
@@ -16,12 +17,12 @@ class Bip85RegistryFacade {
   // its entropy re-derived and exposed. Derived from the reservation list, so a
   // new wallet-seed reservation is covered automatically (KI-1/KI-2).
   Set<int> get reservedWalletSeedIndices => Bip85Reservations.all
-      .where((r) => r.purpose == Bip85ReservationPurpose.walletSeed)
+      .whereType<Bip85WalletSeedReservation>()
       .map((r) => r.walletIndex)
       .toSet();
 
   Set<String> get reservedWalletSeedPaths => Bip85Reservations.all
-      .where((r) => r.purpose == Bip85ReservationPurpose.walletSeed)
+      .whereType<Bip85WalletSeedReservation>()
       .map((r) => r.scope.exactPath)
       .toSet();
 

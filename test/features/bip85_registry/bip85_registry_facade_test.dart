@@ -13,39 +13,147 @@ const _masterXprv =
 void main() {
   const registry = Bip85RegistryFacade();
 
-  test('exposes only the BTCPay wallet seed reservation', () {
-    expect(registry.reservations, hasLength(1));
-    expect(registry.reservations.single.id, 'btcpay_wallet_seed');
-    expect(
-      registry.reservationById('btcpay_wallet_seed')?.id,
+  test('exposes reserved first-party derivations', () {
+    expect(registry.reservations.map((reservation) => reservation.id), [
       'btcpay_wallet_seed',
-    );
+      'lightning_address_wallet_seed',
+      'payment_page_wallet_seed',
+      'nostr_wallet_manifest_key',
+      'nostr_bullnym_server_auth_key',
+      'nostr_nip05_public_nym_verification_key',
+    ]);
+    for (final reservation in registry.reservations) {
+      expect(registry.reservationById(reservation.id), same(reservation));
+    }
     expect(registry.reservationById('unknown_reservation'), isNull);
   });
 
-  test('reserves the locked BIP39 English 12-word path at index 100', () {
-    final reservation = registry.btcpayWalletSeed;
+  test('models Get Paid receive wallets as BIP39 child mnemonic paths', () {
+    final reservations = [
+      _walletSeedReservation('btcpay_wallet_seed'),
+      _walletSeedReservation('lightning_address_wallet_seed'),
+      _walletSeedReservation('payment_page_wallet_seed'),
+    ];
 
-    expect(reservation.application.number, 39);
+    expect(reservations.map((reservation) => reservation.scope.exactPath), [
+      "39'/0'/12'/100'",
+      "39'/0'/12'/101'",
+      "39'/0'/12'/102'",
+    ]);
+    expect(reservations.map((reservation) => reservation.walletIndex), [
+      100,
+      101,
+      102,
+    ]);
+    for (final reservation in reservations) {
+      expect(reservation.application.number, 39);
+      expect(reservation.purpose, Bip85ReservationPurpose.walletSeed);
+      expect(reservation.scope.segments.map((segment) => segment.name), [
+        'language',
+        'words',
+        'index',
+      ]);
+      expect(
+        reservation.scope.segmentValue('language'),
+        bip39.Language.english.toBip85Code(),
+      );
+      expect(
+        reservation.scope.segmentValue('words'),
+        bip39.MnemonicLength.words12.toBip85Code(),
+      );
+      expect(reservation.scope.segmentValue('index'), reservation.walletIndex);
+    }
+  });
+
+  test('models Nostr role keys as index-free reserved policy only', () {
+    final reservations = [
+      _keyReservation('nostr_wallet_manifest_key'),
+      _keyReservation('nostr_bullnym_server_auth_key'),
+      _keyReservation('nostr_nip05_public_nym_verification_key'),
+    ];
+
+    expect(reservations.map((reservation) => reservation.scope.exactPath), [
+      "9000'/1'/1'",
+      "9000'/2'/1'",
+      "9000'/3'/1'",
+    ]);
     expect(
-      reservation.scope.segmentValue('language'),
-      bip39.Language.english.toBip85Code(),
+      reservations.map(
+        (reservation) => reservation.scope.segmentValue('identity'),
+      ),
+      [1, 2, 3],
+    );
+    for (final reservation in reservations) {
+      expect(reservation.owner, Bip85ReservationOwner.nostr);
+      expect(reservation.purpose, Bip85ReservationPurpose.nonWalletNostrKey);
+      expect(reservation.application.number, 9000);
+      expect(reservation.scope.segments.map((segment) => segment.name), [
+        'identity',
+        'account',
+      ]);
+      expect(reservation.scope.segmentValue('account'), 1);
+      // Key reservations carry no wallet index; even asking for one is a
+      // programming error rather than a value.
+      expect(() => reservation.scope.segmentValue('index'), throwsStateError);
+    }
+  });
+
+  test('rejects mis-shaped reservation scopes at construction', () {
+    expect(
+      () => Bip85WalletSeedReservation(
+        id: 'malformed_wallet_seed',
+        deterministicAlias: 'Malformed',
+        owner: Bip85ReservationOwner.btcpay,
+        application: const Bip85ApplicationSpec(number: 39),
+        segments: const [Bip85PathSegment(name: 'language', value: 0)],
+      ),
+      throwsArgumentError,
     );
     expect(
-      reservation.scope.segmentValue('words'),
-      bip39.MnemonicLength.words12.toBip85Code(),
+      () => Bip85KeyReservation(
+        id: 'malformed_key',
+        deterministicAlias: 'Malformed',
+        owner: Bip85ReservationOwner.nostr,
+        purpose: Bip85ReservationPurpose.nonWalletNostrKey,
+        application: const Bip85ApplicationSpec(number: 9000),
+        segments: const [Bip85PathSegment(name: 'index', value: 1)],
+      ),
+      throwsArgumentError,
     );
-    expect(reservation.walletIndex, 100);
-    expect(reservation.scope.exactPath, "39'/0'/12'/100'");
+    expect(
+      () => Bip85KeyReservation(
+        id: 'malformed_purpose',
+        deterministicAlias: 'Malformed',
+        owner: Bip85ReservationOwner.nostr,
+        purpose: Bip85ReservationPurpose.walletSeed,
+        application: const Bip85ApplicationSpec(number: 9000),
+        segments: const [Bip85PathSegment(name: 'identity', value: 1)],
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('keeps reservation ids and exact paths unique', () {
+    final ids = registry.reservations.map((reservation) => reservation.id);
+    final paths = registry.reservations.map(
+      (reservation) => reservation.scope.exactPath,
+    );
+
+    expect(ids.toSet(), hasLength(registry.reservations.length));
+    expect(paths.toSet(), hasLength(registry.reservations.length));
   });
 
   test('exposes the reserved wallet-seed exclusion sets for the allocator', () {
     // The dev screen and the next-index allocator consume these to never
-    // allocate, re-derive, or expose a product spend seed (KI-1/KI-2). At this
-    // stack level only BTCPay (index 100) is reserved; LN/page (101/102) are
-    // added by later PRs and must show up here automatically.
-    expect(registry.reservedWalletSeedIndices, {100});
-    expect(registry.reservedWalletSeedPaths, {"39'/0'/12'/100'"});
+    // allocate, re-derive, or expose a product spend seed (KI-1/KI-2). The set
+    // is registry-driven: adding the LN (101) and Payment Page (102) wallet
+    // seeds must extend it automatically, with no allocator change (R2-KI1b).
+    expect(registry.reservedWalletSeedIndices, {100, 101, 102});
+    expect(registry.reservedWalletSeedPaths, {
+      "39'/0'/12'/100'",
+      "39'/0'/12'/101'",
+      "39'/0'/12'/102'",
+    });
   });
 
   group('against the core BIP85 datasource', () {
@@ -59,11 +167,15 @@ void main() {
 
     tearDown(() => database.close());
 
-    test(
-      'encodes the reserved path exactly as the datasource derives it',
-      () async {
-        final reservation = registry.btcpayWalletSeed;
+    test('encodes reserved wallet seed paths exactly as the datasource derives '
+        'them', () async {
+      final reservations = [
+        _walletSeedReservation('btcpay_wallet_seed'),
+        _walletSeedReservation('lightning_address_wallet_seed'),
+        _walletSeedReservation('payment_page_wallet_seed'),
+      ];
 
+      for (final reservation in reservations) {
         final preview = await datasource.deriveMnemonicPreview(
           xprvBase58: _masterXprv,
           length: bip39.MnemonicLength.words12,
@@ -71,8 +183,8 @@ void main() {
         );
 
         expect(preview.derivation, reservation.scope.exactPath);
-      },
-    );
+      }
+    });
 
     test('derives the pinned mnemonic at the reserved index', () async {
       final preview = await datasource.deriveMnemonicPreview(
@@ -88,4 +200,18 @@ void main() {
       );
     });
   });
+}
+
+Bip85WalletSeedReservation _walletSeedReservation(String id) {
+  const registry = Bip85RegistryFacade();
+  final reservation = registry.reservationById(id);
+  expect(reservation, isA<Bip85WalletSeedReservation>());
+  return reservation! as Bip85WalletSeedReservation;
+}
+
+Bip85KeyReservation _keyReservation(String id) {
+  const registry = Bip85RegistryFacade();
+  final reservation = registry.reservationById(id);
+  expect(reservation, isA<Bip85KeyReservation>());
+  return reservation! as Bip85KeyReservation;
 }
