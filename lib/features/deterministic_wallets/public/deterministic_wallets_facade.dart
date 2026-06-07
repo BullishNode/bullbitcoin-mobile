@@ -28,4 +28,7 @@ class DeterministicWalletsFacade {
     }
   }
 
+  Future<void> rollbackCreatedWallets(PreparedDeterministicWallets result) {
+    return _prepareWallets.rollbackCreatedWallets(result);
+  }
 }

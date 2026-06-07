@@ -42,11 +42,10 @@ non-empty alias, at least one wallet spec, and unique non-empty spec IDs.
 The facade returns prepared deterministic-wallet DTOs containing wallet IDs,
 network/script metadata, labels, public descriptors, creation flags, and
 rollback metadata. It does not expose mnemonic words, seed bytes, or child seed
-objects to consuming features. The facade exposes no rollback method:
-compensation for same-operation aborts is internal to the feature
-(`PrepareDeterministicWalletsUsecase` cleans up its own failed attempts) and
-stays internal-only until a consumer actually needs it. Products that have
-accepted prepared wallets should keep them and repair later product state
+objects to consuming features. Rollback is performed by passing the prepared
+result back to `rollbackCreatedWallets()`. `rollbackCreatedWallets()` exists for
+same-operation aborts before a caller accepts materialization; products that
+have accepted prepared wallets should keep them and repair later product state
 instead.
 
 ## Layers
