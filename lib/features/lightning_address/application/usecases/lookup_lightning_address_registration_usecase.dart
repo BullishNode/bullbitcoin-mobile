@@ -21,9 +21,7 @@ class LookupLightningAddressRegistrationUsecase {
       final result = await _bullnym.lookupRegistration(
         npubHex: handle.publicKeyHex,
       );
-      return result.active
-          ? LightningAddressStatus.active(nym: result.nym)
-          : LightningAddressStatus.inactive(nym: result.nym);
+      return LightningAddressStatus(nym: result.nym, active: result.active);
     } on BullnymException catch (e) {
       throw LightningAddressException.fromBullnym(e);
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/lightning_address/application/application_errors.dart';
+import 'package:bb_mobile/features/lightning_address/application/lightning_address_nym_validation.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 
 class DeleteLightningAddressRegistrationCommand {
@@ -25,6 +26,8 @@ class DeleteLightningAddressRegistrationUsecase {
   Future<void> execute(
     DeleteLightningAddressRegistrationCommand command,
   ) async {
+    validateLightningAddressNym(command.nym);
+
     try {
       final handle = _nostrIdentity.deriveBullnymServerAuthHandleFromXprv(
         command.xprvBase58,
