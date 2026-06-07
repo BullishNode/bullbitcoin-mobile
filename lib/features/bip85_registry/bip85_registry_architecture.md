@@ -18,10 +18,29 @@ concerns stay with the creating feature, wallet metadata, and
   deriving or reusing the reserved BIP85 child. Product features and recovery
   use that alias through the registry instead of duplicating product constants.
 
-## Current Reservation
+## Current Reservations
 
 BTCPay reserves BIP85 path `39'/0'/12'/100'`, which is a BIP39 English
 12-word child mnemonic at child index `100`.
+
+Lightning Address reserves BIP85 path `39'/0'/12'/101'`, which is a BIP39
+English 12-word child mnemonic at child index `101`.
+
+Payment Page reserves BIP85 path `39'/0'/12'/102'`, which is a BIP39 English
+12-word child mnemonic at child index `102`.
+
+Nostr role keys reserve the app-owned Nostr namespace paths:
+
+- `9000'/1'/1'` for the future wallet manifest key.
+- `9000'/2'/1'` for Bullnym server authentication.
+- `9000'/3'/1'` for future NIP-05 public nym verification.
+
+These Nostr reservations are static namespace policy only. They do not implement
+Nostr signing, relay publish/fetch, wallet manifest transport, DMs, NIP-05
+registration, verification, lookup, NIP-05 UI, or product behavior.
+The exact app number and role segments are the locked PR7 namespace allocation;
+later Nostr behavior PRs may consume these ids and paths, but should not infer
+runtime semantics from this registry entry alone.
 
 Future reservations should add typed entries here only when a first-party
 feature needs a stable, blocked path. User-created ad hoc BIP85 outputs remain

@@ -118,6 +118,36 @@ void main() {
     );
   });
 
+  test('records Lightning Address reserved wallet metadata', () async {
+    await usecase.execute(
+      _command(
+        reservationId: 'lightning_address_wallet_seed',
+        walletId: 'lightning-address-wallet',
+        network: Network.liquidMainnet,
+        walletPurpose: 'liquid',
+      ),
+    );
+
+    expect(store.entries.single.reservationId, 'lightning_address_wallet_seed');
+    expect(store.entries.single.ownerFeature, 'lightningAddress');
+    expect(store.entries.single.bip85DerivationPath, "39'/0'/12'/101'");
+  });
+
+  test('records Payment Page reserved wallet metadata', () async {
+    await usecase.execute(
+      _command(
+        reservationId: 'payment_page_wallet_seed',
+        walletId: 'payment-page-wallet',
+        network: Network.liquidMainnet,
+        walletPurpose: 'liquid',
+      ),
+    );
+
+    expect(store.entries.single.reservationId, 'payment_page_wallet_seed');
+    expect(store.entries.single.ownerFeature, 'paymentPage');
+    expect(store.entries.single.bip85DerivationPath, "39'/0'/12'/102'");
+  });
+
   test('does not keep batch records if a later record fails', () async {
     store.failOnWalletId = 'lbtc-wallet';
 

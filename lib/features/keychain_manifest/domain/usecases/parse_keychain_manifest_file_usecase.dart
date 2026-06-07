@@ -2,6 +2,7 @@ import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.d
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_reservation_support.dart';
 
 class ParseKeychainManifestFileUsecase {
   final Bip85RegistryFacade registry;
@@ -58,6 +59,11 @@ class ParseKeychainManifestFileUsecase {
         reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
     }
+    if (!_supportsWalletManifestImport(reservation)) {
+      throw KeychainManifestFileParseException(
+        reason: KeychainManifestFileParseFailureReason.invalidMetadata,
+      );
+    }
     if (reservation.owner.name != entry.ownerFeature ||
         reservation.purpose.name != entry.entryType ||
         reservation.application.number != entry.bip85Application ||
@@ -69,6 +75,12 @@ class ParseKeychainManifestFileUsecase {
     return KeychainManifestImportEntryIntent.fromFileEntry(
       entry,
       walletMaterializations: _walletMaterializations(entry),
+    );
+  }
+
+  bool _supportsWalletManifestImport(Bip85Reservation reservation) {
+    return KeychainManifestReservationSupport.supportsV1WalletManifestFile(
+      reservation,
     );
   }
 

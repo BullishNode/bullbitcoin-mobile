@@ -1,11 +1,17 @@
+import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_reservation_support.dart';
 
 class BuildKeychainManifestFileUsecase {
   final KeychainManifestEntryRepository repository;
+  final Bip85RegistryFacade registry;
 
-  const BuildKeychainManifestFileUsecase({required this.repository});
+  const BuildKeychainManifestFileUsecase({
+    required this.repository,
+    this.registry = const Bip85RegistryFacade(),
+  });
 
   Future<KeychainManifestFile> execute(
     String parentFingerprint, {
@@ -20,7 +26,7 @@ class BuildKeychainManifestFileUsecase {
         .fetchWalletMaterializationRecordsByParentFingerprint(
           normalizedParentFingerprint,
         );
-    final entries = _entriesFromRecords(records);
+    final entries = _entriesFromRecords(_exportableRecords(records));
     return KeychainManifestFile(
       parentFingerprint: normalizedParentFingerprint,
       generatedAt: generatedAt,
@@ -57,6 +63,22 @@ class BuildKeychainManifestFileUsecase {
       return left.entryId.compareTo(right.entryId);
     });
     return entries;
+  }
+
+  List<KeychainManifestWalletMaterializationRecord> _exportableRecords(
+    List<KeychainManifestWalletMaterializationRecord> records,
+  ) {
+    return records
+        .where((record) {
+          final reservation = registry.reservationById(
+            record.entry.reservationId,
+          );
+          return reservation != null &&
+              KeychainManifestReservationSupport.supportsV1WalletManifestFile(
+                reservation,
+              );
+        })
+        .toList(growable: false);
   }
 
   int _compareRecordsForMaterializationOrder(

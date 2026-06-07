@@ -24,5 +24,114 @@ class Bip85Reservations {
     allocation: Bip85AllocationPolicy.blockExactPath,
   );
 
-  static const all = [btcpayWalletSeed];
+  static const lightningAddressWalletSeed = Bip85Reservation(
+    id: 'lightning_address_wallet_seed',
+    deterministicAlias: 'Lightning Address',
+    owner: Bip85ReservationOwner.lightningAddress,
+    purpose: Bip85ReservationPurpose.walletSeed,
+    application: Bip85ApplicationSpec(
+      number: 39,
+      name: 'bip39Mnemonic',
+      standard: true,
+    ),
+    scope: Bip85ReservationScope(
+      exactPath: "39'/0'/12'/101'",
+      segments: [
+        Bip85PathSegment(name: 'language', value: 0),
+        Bip85PathSegment(name: 'words', value: 12),
+        Bip85PathSegment(name: 'index', value: 101),
+      ],
+    ),
+    allocation: Bip85AllocationPolicy.blockExactPath,
+  );
+
+  static const paymentPageWalletSeed = Bip85Reservation(
+    id: 'payment_page_wallet_seed',
+    deterministicAlias: 'Payment Page',
+    owner: Bip85ReservationOwner.paymentPage,
+    purpose: Bip85ReservationPurpose.walletSeed,
+    application: Bip85ApplicationSpec(
+      number: 39,
+      name: 'bip39Mnemonic',
+      standard: true,
+    ),
+    scope: Bip85ReservationScope(
+      exactPath: "39'/0'/12'/102'",
+      segments: [
+        Bip85PathSegment(name: 'language', value: 0),
+        Bip85PathSegment(name: 'words', value: 12),
+        Bip85PathSegment(name: 'index', value: 102),
+      ],
+    ),
+    allocation: Bip85AllocationPolicy.blockExactPath,
+  );
+
+  static const nostrWalletManifestKey = Bip85Reservation(
+    id: 'nostr_wallet_manifest_key',
+    deterministicAlias: 'Nostr Wallet Manifest',
+    owner: Bip85ReservationOwner.nostr,
+    purpose: Bip85ReservationPurpose.nonWalletNostrKey,
+    application: Bip85ApplicationSpec(
+      number: 9000,
+      name: 'nostr',
+      standard: false,
+    ),
+    scope: Bip85ReservationScope(
+      exactPath: "9000'/1'/1'",
+      segments: [
+        Bip85PathSegment(name: 'identity', value: 1),
+        Bip85PathSegment(name: 'account', value: 1),
+      ],
+    ),
+    allocation: Bip85AllocationPolicy.blockExactPath,
+  );
+
+  static const nostrBullnymServerAuthKey = Bip85Reservation(
+    id: 'nostr_bullnym_server_auth_key',
+    deterministicAlias: 'Nostr Bullnym Auth',
+    owner: Bip85ReservationOwner.nostr,
+    purpose: Bip85ReservationPurpose.nonWalletNostrKey,
+    application: Bip85ApplicationSpec(
+      number: 9000,
+      name: 'nostr',
+      standard: false,
+    ),
+    scope: Bip85ReservationScope(
+      exactPath: "9000'/2'/1'",
+      segments: [
+        Bip85PathSegment(name: 'identity', value: 2),
+        Bip85PathSegment(name: 'account', value: 1),
+      ],
+    ),
+    allocation: Bip85AllocationPolicy.blockExactPath,
+  );
+
+  static const nostrNip05PublicNymVerificationKey = Bip85Reservation(
+    id: 'nostr_nip05_public_nym_verification_key',
+    deterministicAlias: 'Nostr NIP-05 Public Nym Verification',
+    owner: Bip85ReservationOwner.nostr,
+    purpose: Bip85ReservationPurpose.nonWalletNostrKey,
+    application: Bip85ApplicationSpec(
+      number: 9000,
+      name: 'nostr',
+      standard: false,
+    ),
+    scope: Bip85ReservationScope(
+      exactPath: "9000'/3'/1'",
+      segments: [
+        Bip85PathSegment(name: 'identity', value: 3),
+        Bip85PathSegment(name: 'account', value: 1),
+      ],
+    ),
+    allocation: Bip85AllocationPolicy.blockExactPath,
+  );
+
+  static const all = [
+    btcpayWalletSeed,
+    lightningAddressWalletSeed,
+    paymentPageWalletSeed,
+    nostrWalletManifestKey,
+    nostrBullnymServerAuthKey,
+    nostrNip05PublicNymVerificationKey,
+  ];
 }

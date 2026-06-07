@@ -142,12 +142,92 @@ void main() {
           parentFingerprint: 'fedcba98',
           bip85DerivationPath: "39'/0'/12'/100'",
           reservationId: 'btcpay_wallet_seed',
+          entryType: 'walletSeed',
+          ownerFeature: 'lightningAddress',
+          bip85Application: 39,
+          bip85Index: 100,
           walletMaterializations: [forgedIntent],
         ),
       ],
     );
 
     final result = await usecase.execute(forgedPlan);
+
+    expect(result.hasFailures, true);
+    expect(result.walletOutcomes.single.status, _invalidImportPlan);
+    expect(materializer.batches, isEmpty);
+    expect(keychainManifest.recordRequests, isEmpty);
+  });
+
+  test(
+    'rejects non-wallet reservations before wallet materialization',
+    () async {
+      final intent = KeychainManifestWalletMaterializationIntent(
+        entryId: "fedcba98:9000'/1'/1'",
+        reservationId: 'nostr_wallet_manifest_key',
+        bip85DerivationPath: "9000'/1'/1'",
+        walletId: 'nostr-wallet',
+        childSeedFingerprint: '0123abcd',
+        network: Network.liquidMainnet,
+        walletPurpose: 'liquid',
+        scriptType: ScriptType.bip84,
+      );
+      final plan = KeychainManifestImportPlan(
+        parentFingerprint: 'fedcba98',
+        entries: [
+          KeychainManifestImportEntryIntent(
+            entryId: "fedcba98:9000'/1'/1'",
+            parentFingerprint: 'fedcba98',
+            bip85DerivationPath: "9000'/1'/1'",
+            reservationId: 'nostr_wallet_manifest_key',
+            entryType: 'nonWalletNostrKey',
+            ownerFeature: 'nostr',
+            bip85Application: 9000,
+            bip85Index: 1,
+            walletMaterializations: [intent],
+          ),
+        ],
+      );
+
+      final result = await usecase.execute(plan);
+
+      expect(result.hasFailures, true);
+      expect(result.walletOutcomes.single.status, _invalidImportPlan);
+      expect(materializer.batches, isEmpty);
+      expect(keychainManifest.recordRequests, isEmpty);
+    },
+  );
+
+  test(
+    'rejects Lightning Address plans before wallet materialization',
+    () async {
+      final result = await usecase.execute(
+        _unsupportedPlan(
+          reservationId: 'lightning_address_wallet_seed',
+          path: "39'/0'/12'/101'",
+          ownerFeature: 'lightningAddress',
+          bip85Index: 101,
+          walletId: 'lightning-address-wallet',
+        ),
+      );
+
+      expect(result.hasFailures, true);
+      expect(result.walletOutcomes.single.status, _invalidImportPlan);
+      expect(materializer.batches, isEmpty);
+      expect(keychainManifest.recordRequests, isEmpty);
+    },
+  );
+
+  test('rejects Payment Page plans before wallet materialization', () async {
+    final result = await usecase.execute(
+      _unsupportedPlan(
+        reservationId: 'payment_page_wallet_seed',
+        path: "39'/0'/12'/102'",
+        ownerFeature: 'paymentPage',
+        bip85Index: 102,
+        walletId: 'payment-page-wallet',
+      ),
+    );
 
     expect(result.hasFailures, true);
     expect(result.walletOutcomes.single.status, _invalidImportPlan);
@@ -168,6 +248,10 @@ KeychainManifestImportPlan _plan(
         parentFingerprint: 'fedcba98',
         bip85DerivationPath: "39'/0'/12'/100'",
         reservationId: 'btcpay_wallet_seed',
+        entryType: 'walletSeed',
+        ownerFeature: 'btcpay',
+        bip85Application: 39,
+        bip85Index: 100,
         walletMaterializations: [intent, ?secondIntent],
       ),
     ],
@@ -188,6 +272,42 @@ KeychainManifestWalletMaterializationIntent _intent({
     network: network,
     walletPurpose: walletPurpose,
     scriptType: ScriptType.bip84,
+  );
+}
+
+KeychainManifestImportPlan _unsupportedPlan({
+  required String reservationId,
+  required String path,
+  required String ownerFeature,
+  required int bip85Index,
+  required String walletId,
+}) {
+  final entryId = 'fedcba98:$path';
+  final intent = KeychainManifestWalletMaterializationIntent(
+    entryId: entryId,
+    reservationId: reservationId,
+    bip85DerivationPath: path,
+    walletId: walletId,
+    childSeedFingerprint: '0123abcd',
+    network: Network.liquidMainnet,
+    walletPurpose: 'liquid',
+    scriptType: ScriptType.bip84,
+  );
+  return KeychainManifestImportPlan(
+    parentFingerprint: 'fedcba98',
+    entries: [
+      KeychainManifestImportEntryIntent(
+        entryId: entryId,
+        parentFingerprint: 'fedcba98',
+        bip85DerivationPath: path,
+        reservationId: reservationId,
+        entryType: 'walletSeed',
+        ownerFeature: ownerFeature,
+        bip85Application: 39,
+        bip85Index: bip85Index,
+        walletMaterializations: [intent],
+      ),
+    ],
   );
 }
 

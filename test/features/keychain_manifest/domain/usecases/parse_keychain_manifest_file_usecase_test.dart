@@ -70,6 +70,57 @@ void main() {
     );
   });
 
+  test('rejects non-wallet reservations in wallet manifest files', () {
+    final payload = _manifestPayload
+        .replaceFirst('btcpay_wallet_seed', 'nostr_wallet_manifest_key')
+        .replaceFirst('walletSeed', 'nonWalletNostrKey')
+        .replaceFirst('btcpay', 'nostr')
+        .replaceFirst('39,"bip85Index":100', '9000,"bip85Index":1')
+        .replaceFirst("39'/0'/12'/100'", "9000'/1'/1'")
+        .replaceFirst("39'/0'/12'/100'", "9000'/1'/1'");
+
+    expect(
+      () => usecase.execute(codec.decode(payload)),
+      throwsA(
+        isA<KeychainManifestFileParseException>().having(
+          (error) => error.reason,
+          'reason',
+          KeychainManifestFileParseFailureReason.invalidMetadata,
+        ),
+      ),
+    );
+  });
+
+  test('rejects Lightning Address wallet manifests until activation', () {
+    final payload = _manifestPayloadForReservation(
+      reservationId: 'lightning_address_wallet_seed',
+      path: "39'/0'/12'/101'",
+      ownerFeature: 'lightningAddress',
+      bip85Application: 39,
+      bip85Index: 101,
+    );
+
+    expect(
+      () => usecase.execute(codec.decode(payload)),
+      throwsA(isA<KeychainManifestFileParseException>()),
+    );
+  });
+
+  test('rejects Payment Page wallet manifests until activation', () {
+    final payload = _manifestPayloadForReservation(
+      reservationId: 'payment_page_wallet_seed',
+      path: "39'/0'/12'/102'",
+      ownerFeature: 'paymentPage',
+      bip85Application: 39,
+      bip85Index: 102,
+    );
+
+    expect(
+      () => usecase.execute(codec.decode(payload)),
+      throwsA(isA<KeychainManifestFileParseException>()),
+    );
+  });
+
   test('rejects duplicate wallet materializations in the same entry', () {
     final duplicate =
         '{"type":"wallet","walletId":"btc-wallet",'
@@ -152,3 +203,22 @@ const _manifestPayload =
     '"walletId":"lbtc-wallet","childSeedFingerprint":"0123abcd",'
     '"network":"liquidMainnet","walletPurpose":"liquid",'
     '"scriptType":"bip84","createdAt":11,"updatedAt":11}]}]}';
+
+String _manifestPayloadForReservation({
+  required String reservationId,
+  required String path,
+  required String ownerFeature,
+  required int bip85Application,
+  required int bip85Index,
+}) {
+  return _manifestPayload
+      .replaceFirst("fedcba98:39'/0'/12'/100'", 'fedcba98:$path')
+      .replaceFirst("39'/0'/12'/100'", path)
+      .replaceFirst('btcpay_wallet_seed', reservationId)
+      .replaceFirst('btcpay', ownerFeature)
+      .replaceFirst(
+        '"bip85Application":39',
+        '"bip85Application":$bip85Application',
+      )
+      .replaceFirst('"bip85Index":100', '"bip85Index":$bip85Index');
+}

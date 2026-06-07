@@ -57,7 +57,12 @@ class RestoreKeychainManifestWalletsUsecase {
         entry.parentFingerprint != importPlan.parentFingerprint ||
         entry.entryId !=
             _entryId(importPlan.parentFingerprint, entry.bip85DerivationPath) ||
-        !reservation.scope.matchesExactPath(entry.bip85DerivationPath)) {
+        !reservation.scope.matchesExactPath(entry.bip85DerivationPath) ||
+        !_supportsWalletManifestRecovery(reservation) ||
+        reservation.owner.name != entry.ownerFeature ||
+        reservation.purpose.name != entry.entryType ||
+        reservation.application.number != entry.bip85Application ||
+        reservation.scope.segmentValue('index') != entry.bip85Index) {
       return _failedInvalidImportPlan(entry.walletMaterializations);
     }
 
@@ -81,6 +86,12 @@ class RestoreKeychainManifestWalletsUsecase {
       entry.walletMaterializations.map((intent) => intent.walletId),
     );
     return null;
+  }
+
+  bool _supportsWalletManifestRecovery(Bip85Reservation reservation) {
+    return KeychainManifestReservationSupport.supportsV1WalletManifestFile(
+      reservation,
+    );
   }
 
   KeychainRecoveryWalletMaterializationBatch _materializationBatch({
