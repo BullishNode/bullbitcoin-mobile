@@ -32,7 +32,7 @@ class BullnymFacade {
     );
   }
 
-  Future<BullnymDeleteResult> deleteRegistration({
+  Future<void> deleteRegistration({
     required NostrKeychainHandle handle,
     required String nym,
   }) {

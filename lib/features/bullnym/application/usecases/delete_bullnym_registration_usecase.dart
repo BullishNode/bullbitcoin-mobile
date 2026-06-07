@@ -1,7 +1,6 @@
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/features/bullnym/application/application_errors.dart';
 import 'package:bb_mobile/features/bullnym/application/ports/bullnym_client_port.dart';
-import 'package:bb_mobile/features/bullnym/domain/bullnym_models.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullpay_signing.dart';
 
 import 'register_bullnym_usecase.dart';
@@ -16,7 +15,7 @@ class DeleteBullnymRegistrationUsecase {
   }) : _client = client,
        _nowSecs = nowSecs;
 
-  Future<BullnymDeleteResult> execute({
+  Future<void> execute({
     required NostrKeychainHandle handle,
     required String nym,
   }) {
