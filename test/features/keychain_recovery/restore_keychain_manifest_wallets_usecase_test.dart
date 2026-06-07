@@ -2,7 +2,7 @@ import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/keychain_recovery/application/ports/keychain_recovery_wallet_materializer_port.dart';
-import 'package:bb_mobile/features/keychain_recovery/application/usecases/restore_keychain_manifest_wallets_usecase.dart';
+import 'package:bb_mobile/features/keychain_recovery/application/restore_keychain_manifest_wallets_usecase.dart';
 import 'package:bb_mobile/features/keychain_recovery/domain/keychain_recovery_result.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,7 +25,7 @@ void main() {
     materializer.result = KeychainRecoveryWalletMaterializationResult(
       materializedWallets: [
         KeychainRecoveryMaterializedWallet(
-          intent: intent,
+          intent: _recoveryIntent(intent),
           wallet: _wallet(intent.walletId),
           childSeedFingerprint: intent.childSeedFingerprint,
           created: true,
@@ -38,6 +38,7 @@ void main() {
 
     expect(result.hasFailures, false);
     expect(result.walletOutcomes.single.status, _created);
+    expect(materializer.batches.single.deterministicAlias, 'BTCPay');
     expect(
       keychainManifest.recordRequests.single.reservationId,
       intent.reservationId,
@@ -54,7 +55,7 @@ void main() {
       materializedWallets: const [],
       failedOutcomes: [
         KeychainRecoveryWalletRestoreOutcome(
-          intent: intent,
+          intent: _recoveryIntent(intent),
           status: KeychainRecoveryWalletRestoreStatus.skippedUnsupported,
           walletId: intent.walletId,
         ),
@@ -71,23 +72,60 @@ void main() {
   test('reports manifest record failures per materialized wallet', () async {
     final intent = _intent();
     keychainManifest.recordError = const KeychainManifestException('failed');
+    var rollbackCalled = false;
     materializer.result = KeychainRecoveryWalletMaterializationResult(
       materializedWallets: [
         KeychainRecoveryMaterializedWallet(
-          intent: intent,
+          intent: _recoveryIntent(intent),
           wallet: _wallet(intent.walletId),
           childSeedFingerprint: intent.childSeedFingerprint,
-          created: false,
+          created: true,
         ),
       ],
       failedOutcomes: const [],
+      rollbackCreatedWallets: () async {
+        rollbackCalled = true;
+      },
     );
 
     final result = await usecase.execute(_plan(intent));
 
     expect(result.hasFailures, true);
     expect(result.walletOutcomes.single.status, _recordFailed);
+    expect(rollbackCalled, true);
   });
+
+  test(
+    'reports metadata repair for existing wallets with new manifest records',
+    () async {
+      final intent = _intent();
+      keychainManifest.recordResult =
+          const KeychainManifestRecordReservedDerivationResult.forTesting(
+            insertedMaterializations: [
+              KeychainManifestRecordedMaterialization.walletForTesting(
+                entryId: "fedcba98:39'/0'/12'/100'",
+                walletId: 'btc-wallet',
+              ),
+            ],
+          );
+      materializer.result = KeychainRecoveryWalletMaterializationResult(
+        materializedWallets: [
+          KeychainRecoveryMaterializedWallet(
+            intent: _recoveryIntent(intent),
+            wallet: _wallet(intent.walletId),
+            childSeedFingerprint: intent.childSeedFingerprint,
+            created: false,
+          ),
+        ],
+        failedOutcomes: const [],
+      );
+
+      final result = await usecase.execute(_plan(intent));
+
+      expect(result.hasFailures, false);
+      expect(result.walletOutcomes.single.status, _metadataRepaired);
+    },
+  );
 }
 
 KeychainManifestImportPlan _plan(
@@ -124,6 +162,21 @@ KeychainManifestWalletMaterializationIntent _intent() {
   );
 }
 
+KeychainRecoveryWalletIntent _recoveryIntent(
+  KeychainManifestWalletMaterializationIntent intent,
+) {
+  return KeychainRecoveryWalletIntent(
+    entryId: intent.entryId,
+    reservationId: intent.reservationId,
+    bip85DerivationPath: intent.bip85DerivationPath,
+    walletId: intent.walletId,
+    childSeedFingerprint: intent.childSeedFingerprint,
+    network: intent.network,
+    walletPurpose: intent.walletPurpose,
+    scriptType: intent.scriptType,
+  );
+}
+
 Wallet _wallet(String id) {
   return Wallet(
     origin: id,
@@ -142,12 +195,14 @@ Wallet _wallet(String id) {
 
 class _FakeWalletMaterializer
     implements KeychainRecoveryWalletMaterializerPort {
+  final batches = <KeychainRecoveryWalletMaterializationBatch>[];
   late KeychainRecoveryWalletMaterializationResult result;
 
   @override
   Future<KeychainRecoveryWalletMaterializationResult> materialize(
     KeychainRecoveryWalletMaterializationBatch batch,
   ) async {
+    batches.add(batch);
     return result;
   }
 }
@@ -155,6 +210,10 @@ class _FakeWalletMaterializer
 class _FakeKeychainManifestFacade implements KeychainManifestFacade {
   final recordRequests = <KeychainManifestReservedDerivationRequest>[];
   KeychainManifestException? recordError;
+  KeychainManifestRecordReservedDerivationResult recordResult =
+      const KeychainManifestRecordReservedDerivationResult.forTesting(
+        insertedMaterializations: [],
+      );
 
   @override
   Future<KeychainManifestRecordReservedDerivationResult>
@@ -165,9 +224,7 @@ class _FakeKeychainManifestFacade implements KeychainManifestFacade {
     final error = recordError;
     if (error != null) throw error;
     recordRequests.add(request);
-    return const KeychainManifestRecordReservedDerivationResult.forTesting(
-      insertedMaterializations: [],
-    );
+    return recordResult;
   }
 
   @override
@@ -175,5 +232,6 @@ class _FakeKeychainManifestFacade implements KeychainManifestFacade {
 }
 
 const _created = KeychainRecoveryWalletRestoreStatus.created;
+const _metadataRepaired = KeychainRecoveryWalletRestoreStatus.metadataRepaired;
 const _skipped = KeychainRecoveryWalletRestoreStatus.skippedUnsupported;
 const _recordFailed = KeychainRecoveryWalletRestoreStatus.failedManifestRecord;

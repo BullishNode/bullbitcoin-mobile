@@ -63,8 +63,9 @@ dummy seed fingerprint.
 
 The manifest file is a serialized projection generated from local
 `keychain_manifest` records. It is not the current-device source of truth, is
-not maintained as a separate local file, and does not become a recovery artifact
-until a later restore flow defines those semantics.
+not maintained as a separate local file, and does not create wallets. Validated
+import plans may be consumed by `keychain_recovery`, which owns local wallet
+restore semantics.
 
 Current-device source of truth:
 
@@ -129,6 +130,8 @@ Rules:
   requires the caller's expected parent fingerprint and rejects files from a
   different wallet before returning a plan. Wallet creation and restore semantics
   belong to `keychain_recovery`.
+- V1 decode rejects duplicate entry ids and duplicate wallet materialization ids
+  before recovery can perform wallet side effects.
 
 The payload is generated on demand by callers that need a serialized projection.
 Transport, wallet creation, product restore, and UI flows are out of scope and
