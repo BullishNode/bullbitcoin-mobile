@@ -126,6 +126,43 @@ void main() {
       expect(result.walletOutcomes.single.status, _metadataRepaired);
     },
   );
+
+  test('rejects forged import plans before wallet materialization', () async {
+    final intent = _intent();
+    final forgedIntent = KeychainManifestWalletMaterializationIntent(
+      entryId: intent.entryId,
+      reservationId: intent.reservationId,
+      bip85DerivationPath: intent.bip85DerivationPath,
+      walletId: intent.walletId,
+      childSeedFingerprint: intent.childSeedFingerprint,
+      network: intent.network,
+      walletPurpose: intent.walletPurpose,
+      scriptType: intent.scriptType,
+    );
+    final forgedPlan = KeychainManifestImportPlan(
+      parentFingerprint: 'fedcba98',
+      entries: [
+        KeychainManifestImportEntryIntent(
+          entryId: "fedcba98:39'/0'/12'/100'",
+          parentFingerprint: 'fedcba98',
+          bip85DerivationPath: "39'/0'/12'/100'",
+          reservationId: 'btcpay_wallet_seed',
+          entryType: 'walletSeed',
+          ownerFeature: 'btcpay',
+          bip85Application: 39,
+          bip85Index: 101,
+          walletMaterializations: [forgedIntent],
+        ),
+      ],
+    );
+
+    final result = await usecase.execute(forgedPlan);
+
+    expect(result.hasFailures, true);
+    expect(result.walletOutcomes.single.status, _invalidImportPlan);
+    expect(materializer.batches, isEmpty);
+    expect(keychainManifest.recordRequests, isEmpty);
+  });
 }
 
 KeychainManifestImportPlan _plan(
@@ -234,4 +271,6 @@ class _FakeKeychainManifestFacade implements KeychainManifestFacade {
 const _created = KeychainRecoveryWalletRestoreStatus.created;
 const _metadataRepaired = KeychainRecoveryWalletRestoreStatus.metadataRepaired;
 const _skipped = KeychainRecoveryWalletRestoreStatus.skippedUnsupported;
+const _invalidImportPlan =
+    KeychainRecoveryWalletRestoreStatus.failedInvalidImportPlan;
 const _recordFailed = KeychainRecoveryWalletRestoreStatus.failedManifestRecord;
