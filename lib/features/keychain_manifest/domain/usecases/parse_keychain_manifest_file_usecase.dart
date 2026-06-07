@@ -15,9 +15,7 @@ class ParseKeychainManifestFileUsecase {
   KeychainManifestImportPlan execute(String payload) {
     try {
       final manifestFile = const _KeychainManifestFileDecoder().decode(payload);
-      final entries = manifestFile.entries
-          .map(_entryIntent)
-          .toList(growable: false);
+      final entries = _entryIntents(manifestFile.entries);
       return KeychainManifestImportPlan(
         parentFingerprint: manifestFile.parentFingerprint,
         entries: entries,
@@ -27,6 +25,31 @@ class ParseKeychainManifestFileUsecase {
     } catch (e) {
       throw KeychainManifestFileParseException(cause: e);
     }
+  }
+
+  List<KeychainManifestImportEntryIntent> _entryIntents(
+    List<KeychainManifestFileEntry> entries,
+  ) {
+    final entryIds = <String>{};
+    final walletIds = <String>{};
+    final intents = <KeychainManifestImportEntryIntent>[];
+    for (final entry in entries) {
+      if (!entryIds.add(entry.entryId)) {
+        throw KeychainManifestInvalidEntryException(
+          'manifest file duplicate entry id',
+        );
+      }
+      final intent = _entryIntent(entry);
+      for (final materialization in intent.walletMaterializations) {
+        if (!walletIds.add(materialization.walletId)) {
+          throw KeychainManifestInvalidEntryException(
+            'manifest file duplicate wallet materialization',
+          );
+        }
+      }
+      intents.add(intent);
+    }
+    return intents;
   }
 
   KeychainManifestImportEntryIntent _entryIntent(
@@ -71,7 +94,7 @@ class ParseKeychainManifestFileUsecase {
       final existing = materializations[intent.materializationKey];
       if (existing == null) {
         materializations[intent.materializationKey] = intent;
-      } else if (!existing.sameMaterializationAs(intent)) {
+      } else {
         throw KeychainManifestInvalidEntryException(
           'manifest file wallet materialization conflict',
         );
