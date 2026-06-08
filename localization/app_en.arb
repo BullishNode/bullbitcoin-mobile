@@ -14218,5 +14218,129 @@
   "importWatchOnlyXpubLabel": "XPUB",
   "@importWatchOnlyXpubLabel": {
     "description": "Label for the derived XPUB value in watch-only wallet details"
+  },
+  "bitcoinSettingsLightningAddressTitle": "Lightning Address",
+  "@bitcoinSettingsLightningAddressTitle": {
+    "description": "Title for the Lightning Address entry in Bitcoin settings."
+  },
+  "lightningAddressTitle": "Lightning Address",
+  "@lightningAddressTitle": {
+    "description": "Title for the Lightning Address activation and status screen."
+  },
+  "lightningAddressInactiveTitle": "Register a Lightning Address",
+  "@lightningAddressInactiveTitle": {
+    "description": "Heading shown when no active wallet-owned Lightning Address is found."
+  },
+  "lightningAddressInactiveBody": "Choose a name for receiving Lightning payments through your wallet-owned Liquid address.",
+  "@lightningAddressInactiveBody": {
+    "description": "Body shown before registering a Lightning Address."
+  },
+  "lightningAddressInactiveKnownTitle": "Lightning Address is inactive",
+  "@lightningAddressInactiveKnownTitle": {
+    "description": "Heading shown when Bullnym reports a known but inactive Lightning Address nym."
+  },
+  "lightningAddressInactiveKnownBody": "Status lookup found this name, but it is not active.",
+  "@lightningAddressInactiveKnownBody": {
+    "description": "Body shown when Bullnym reports a known but inactive Lightning Address nym."
+  },
+  "lightningAddressNymLabel": "Name",
+  "@lightningAddressNymLabel": {
+    "description": "Label for the Lightning Address nym field."
+  },
+  "lightningAddressNymHelper": "Use only the name part before @.",
+  "@lightningAddressNymHelper": {
+    "description": "Helper text for the Lightning Address nym field."
+  },
+  "lightningAddressNymRequired": "Enter a name.",
+  "@lightningAddressNymRequired": {
+    "description": "Validation error shown when the Lightning Address nym is blank."
+  },
+  "lightningAddressRegisterButton": "Register",
+  "@lightningAddressRegisterButton": {
+    "description": "Button label to register a Lightning Address."
+  },
+  "lightningAddressSubmitting": "Registering...",
+  "@lightningAddressSubmitting": {
+    "description": "Button label while Lightning Address registration is submitting."
+  },
+  "lightningAddressConfirmTitle": "Register Lightning Address?",
+  "@lightningAddressConfirmTitle": {
+    "description": "Confirmation dialog title before Lightning Address registration."
+  },
+  "lightningAddressConfirmBody": "Bull Wallet will create or reuse a dedicated Lightning Address Liquid wallet, derive wallet-owned server authentication internally, and submit your selected name plus a confidential descriptor to the configured Bullnym server.",
+  "@lightningAddressConfirmBody": {
+    "description": "Confirmation dialog body before Lightning Address registration."
+  },
+  "lightningAddressConfirmCancel": "Cancel",
+  "@lightningAddressConfirmCancel": {
+    "description": "Cancel button in the Lightning Address confirmation dialog."
+  },
+  "lightningAddressConfirmSubmit": "Register",
+  "@lightningAddressConfirmSubmit": {
+    "description": "Confirm button in the Lightning Address confirmation dialog."
+  },
+  "lightningAddressOperationInProgress": "Lightning Address registration is still in progress.",
+  "@lightningAddressOperationInProgress": {
+    "description": "Snackbar shown when the user tries to leave during registration."
+  },
+  "lightningAddressActiveTitle": "Lightning Address is active",
+  "@lightningAddressActiveTitle": {
+    "description": "Heading shown for an active wallet-owned Lightning Address found by lookup."
+  },
+  "lightningAddressSuccessTitle": "Lightning Address registered",
+  "@lightningAddressSuccessTitle": {
+    "description": "Heading shown after successful Lightning Address registration."
+  },
+  "lightningAddressSuccessBody": "This address was returned by the server after registration.",
+  "@lightningAddressSuccessBody": {
+    "description": "Body shown after successful Lightning Address registration."
+  },
+  "lightningAddressNoCopyableAddressAfterLookup": "Status lookup confirms the name is active. The full address is only shown immediately after a new registration.",
+  "@lightningAddressNoCopyableAddressAfterLookup": {
+    "description": "Body shown for active lookup when the full Lightning Address is not available from the status API."
+  },
+  "lightningAddressCopyModalTitle": "Lightning Address",
+  "@lightningAddressCopyModalTitle": {
+    "description": "Modal title for viewing and copying a returned Lightning Address."
+  },
+  "lightningAddressCheckStatusButton": "Check Status",
+  "@lightningAddressCheckStatusButton": {
+    "description": "Button label to retry Lightning Address status lookup."
+  },
+  "lightningAddressUncertainTitle": "Status Unknown",
+  "@lightningAddressUncertainTitle": {
+    "description": "Heading shown when registration submission may have succeeded but status is unknown."
+  },
+  "lightningAddressUncertainBody": "Registration may have succeeded. Check status before trying again.",
+  "@lightningAddressUncertainBody": {
+    "description": "Failure message shown when a post-submission Lightning Address error is uncertain."
+  },
+  "lightningAddressLookupFailedTitle": "Status Check Failed",
+  "@lightningAddressLookupFailedTitle": {
+    "description": "Heading shown when Lightning Address status lookup fails."
+  },
+  "lightningAddressLookupFailedBody": "Status could not be checked. Try again before registering.",
+  "@lightningAddressLookupFailedBody": {
+    "description": "Body shown when Lightning Address status lookup fails."
+  },
+  "lightningAddressInvalidNym": "Use a valid name.",
+  "@lightningAddressInvalidNym": {
+    "description": "Failure message shown when the Lightning Address nym is invalid."
+  },
+  "lightningAddressSetupFailed": "Setup failed before anything was submitted. Please try again.",
+  "@lightningAddressSetupFailed": {
+    "description": "Failure message shown when local wallet setup failed before server submission."
+  },
+  "lightningAddressRejected": "The server rejected this name.",
+  "@lightningAddressRejected": {
+    "description": "Failure message shown when the Bullnym server rejects registration."
+  },
+  "lightningAddressNetworkError": "Network error. Please try again.",
+  "@lightningAddressNetworkError": {
+    "description": "Failure message shown for a retryable Lightning Address network error before uncertain submission."
+  },
+  "lightningAddressGenericError": "Lightning Address setup failed. Please try again.",
+  "@lightningAddressGenericError": {
+    "description": "Generic Lightning Address activation failure message."
   }
 }
