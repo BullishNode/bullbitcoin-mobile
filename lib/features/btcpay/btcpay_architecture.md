@@ -13,7 +13,7 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
   and supplies wallet specs as a caller-provided deterministic wallet request;
   it does not own the wallet materialization machinery.
 - SamRock `btc-ln` is supported as Lightning via Liquid/Boltz descriptor
-  setup. It does not expose the later Get Paid Lightning Address flow.
+  setup. It does not expose the later Lightning Address flow.
 - BTCPay applies generic wallet-owned behavior defaults to the dedicated BTCPay
   wallets after SamRock accepts descriptor submission. BTCPay Liquid is hidden
   from Home and auto-sweep enabled by default; BTCPay Bitcoin is visible and
@@ -28,7 +28,7 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
   same settings stay editable from the BTCPay details screen.
 - BTCPay exposes those generic wallet behavior settings from the BTCPay details
   screen only.
-- BTCPay does not expose Get Paid navigation, dashboard, automated recovery,
+- BTCPay does not expose product receive navigation, dashboard, automated recovery,
   Lightning Address, Payment Page, invoices, Nostr, Bullnym, wallet manifest
   behavior, manual BIP85 creation, or non-BTCPay wallet behavior settings.
 
