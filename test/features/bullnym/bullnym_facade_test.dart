@@ -94,6 +94,12 @@ void main() {
     expect(client.baseUrl, 'https://custom.bullnym.test');
   });
 
+  test('defaults to the Bull Wallet payment server', () {
+    final client = BullnymHttpClient();
+
+    expect(client.baseUrl, 'https://pay.bull-wallet.com');
+  });
+
   test('rejects invalid Bullnym base URLs', () {
     expect(() => BullnymHttpClient(baseUrl: ''), throwsArgumentError);
     expect(
