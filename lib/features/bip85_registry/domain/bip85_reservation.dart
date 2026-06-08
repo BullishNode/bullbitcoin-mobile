@@ -42,6 +42,34 @@ class Bip85ReservationScope {
   }
 }
 
+class Bip85WalletMaterializationPolicy {
+  final int count;
+  final Map<String, String> networkNameByEnvironment;
+  final String walletPurpose;
+  final String scriptType;
+  final bool requiresProductReactivationOnRecovery;
+
+  const Bip85WalletMaterializationPolicy({
+    required this.count,
+    required this.networkNameByEnvironment,
+    required this.walletPurpose,
+    required this.scriptType,
+    this.requiresProductReactivationOnRecovery = false,
+  });
+
+  Set<String> get networkNames => networkNameByEnvironment.values.toSet();
+
+  String networkNameForEnvironment(String environmentName) {
+    final networkName = networkNameByEnvironment[environmentName];
+    if (networkName == null) {
+      throw StateError(
+        'Unknown wallet materialization environment: $environmentName',
+      );
+    }
+    return networkName;
+  }
+}
+
 class Bip85Reservation {
   final String id;
   final String deterministicAlias;
@@ -50,6 +78,7 @@ class Bip85Reservation {
   final Bip85ApplicationSpec application;
   final Bip85ReservationScope scope;
   final Bip85AllocationPolicy allocation;
+  final Bip85WalletMaterializationPolicy? walletMaterializationPolicy;
 
   const Bip85Reservation({
     required this.id,
@@ -59,5 +88,6 @@ class Bip85Reservation {
     required this.application,
     required this.scope,
     required this.allocation,
+    this.walletMaterializationPolicy,
   });
 }

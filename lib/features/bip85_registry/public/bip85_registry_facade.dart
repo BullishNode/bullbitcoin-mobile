@@ -10,6 +10,9 @@ class Bip85RegistryFacade {
 
   Bip85Reservation get btcpayWalletSeed => Bip85Reservations.btcpayWalletSeed;
 
+  Bip85Reservation get lightningAddressWalletSeed =>
+      Bip85Reservations.lightningAddressWalletSeed;
+
   Bip85Reservation? reservationById(String id) {
     for (final reservation in reservations) {
       if (reservation.id == id) return reservation;

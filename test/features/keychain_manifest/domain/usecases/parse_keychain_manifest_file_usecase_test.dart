@@ -91,13 +91,91 @@ void main() {
     );
   });
 
-  test('rejects Lightning Address wallet manifests until activation', () {
+  test('parses Lightning Address wallet manifests after activation', () {
     final payload = _manifestPayloadForReservation(
       reservationId: 'lightning_address_wallet_seed',
       path: "39'/0'/12'/101'",
       ownerFeature: 'lightningAddress',
       bip85Application: 39,
       bip85Index: 101,
+      materializations: _lightningAddressMaterialization,
+    );
+
+    final manifestFile = const KeychainManifestFileCodec().decode(payload);
+    final plan = usecase.execute(manifestFile);
+
+    expect(plan.entries.single.reservationId, 'lightning_address_wallet_seed');
+    expect(plan.entries.single.ownerFeature, 'lightningAddress');
+    expect(plan.entries.single.bip85DerivationPath, "39'/0'/12'/101'");
+    expect(plan.entries.single.bip85Index, 101);
+  });
+
+  test('rejects Lightning Address manifests with Bitcoin wallets', () {
+    final payload = _manifestPayloadForReservation(
+      reservationId: 'lightning_address_wallet_seed',
+      path: "39'/0'/12'/101'",
+      ownerFeature: 'lightningAddress',
+      bip85Application: 39,
+      bip85Index: 101,
+      materializations: _lightningAddressMaterialization.replaceFirst(
+        'liquidMainnet',
+        'bitcoinMainnet',
+      ),
+    );
+
+    expect(
+      () => usecase.execute(const KeychainManifestFileCodec().decode(payload)),
+      throwsA(isA<KeychainManifestFileParseException>()),
+    );
+  });
+
+  test('rejects Lightning Address manifests with the wrong purpose', () {
+    final payload = _manifestPayloadForReservation(
+      reservationId: 'lightning_address_wallet_seed',
+      path: "39'/0'/12'/101'",
+      ownerFeature: 'lightningAddress',
+      bip85Application: 39,
+      bip85Index: 101,
+      materializations: _lightningAddressMaterialization.replaceFirst(
+        'liquid',
+        'bitcoin',
+      ),
+    );
+
+    expect(
+      () => usecase.execute(const KeychainManifestFileCodec().decode(payload)),
+      throwsA(isA<KeychainManifestFileParseException>()),
+    );
+  });
+
+  test('rejects Lightning Address manifests with the wrong script type', () {
+    final payload = _manifestPayloadForReservation(
+      reservationId: 'lightning_address_wallet_seed',
+      path: "39'/0'/12'/101'",
+      ownerFeature: 'lightningAddress',
+      bip85Application: 39,
+      bip85Index: 101,
+      materializations: _lightningAddressMaterialization.replaceFirst(
+        'bip84',
+        'bip49',
+      ),
+    );
+
+    expect(
+      () => usecase.execute(const KeychainManifestFileCodec().decode(payload)),
+      throwsA(isA<KeychainManifestFileParseException>()),
+    );
+  });
+
+  test('rejects Lightning Address manifests with multiple wallets', () {
+    final payload = _manifestPayloadForReservation(
+      reservationId: 'lightning_address_wallet_seed',
+      path: "39'/0'/12'/101'",
+      ownerFeature: 'lightningAddress',
+      bip85Application: 39,
+      bip85Index: 101,
+      materializations:
+          '$_lightningAddressMaterialization,$_lightningAddressMaterialization',
     );
 
     expect(
@@ -113,6 +191,7 @@ void main() {
       ownerFeature: 'paymentPage',
       bip85Application: 39,
       bip85Index: 102,
+      materializations: _lightningAddressMaterialization,
     );
 
     expect(
@@ -204,14 +283,21 @@ const _manifestPayload =
     '"network":"liquidMainnet","walletPurpose":"liquid",'
     '"scriptType":"bip84","createdAt":11,"updatedAt":11}]}]}';
 
+const _lightningAddressMaterialization =
+    '{"type":"wallet","walletId":"lightning-address-wallet",'
+    '"childSeedFingerprint":"0123abcd","network":"liquidMainnet",'
+    '"walletPurpose":"liquid","scriptType":"bip84",'
+    '"createdAt":10,"updatedAt":10}';
+
 String _manifestPayloadForReservation({
   required String reservationId,
   required String path,
   required String ownerFeature,
   required int bip85Application,
   required int bip85Index,
+  String? materializations,
 }) {
-  return _manifestPayload
+  final payload = _manifestPayload
       .replaceFirst("fedcba98:39'/0'/12'/100'", 'fedcba98:$path')
       .replaceFirst("39'/0'/12'/100'", path)
       .replaceFirst('btcpay_wallet_seed', reservationId)
@@ -221,4 +307,9 @@ String _manifestPayloadForReservation({
         '"bip85Application":$bip85Application',
       )
       .replaceFirst('"bip85Index":100', '"bip85Index":$bip85Index');
+  if (materializations == null) return payload;
+  return payload.replaceFirst(
+    RegExp(r'"materializations":\[[^\]]+\]'),
+    '"materializations":[$materializations]',
+  );
 }

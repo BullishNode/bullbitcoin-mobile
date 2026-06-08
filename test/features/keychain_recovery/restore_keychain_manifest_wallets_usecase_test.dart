@@ -24,7 +24,10 @@ void main() {
     materializer.result = KeychainRecoveryWalletMaterializationResult(
       materializedWallets: [
         KeychainRecoveryMaterializedWallet(
-          intent: intent,
+          intent: _recoveryIntent(intent),
+          walletId: intent.walletId,
+          network: intent.network,
+          scriptType: intent.scriptType,
           childSeedFingerprint: intent.childSeedFingerprint,
           created: true,
         ),
@@ -52,7 +55,7 @@ void main() {
       materializedWallets: const [],
       failedOutcomes: [
         KeychainRecoveryWalletRestoreOutcome(
-          intent: intent,
+          intent: _recoveryIntent(intent),
           status: KeychainRecoveryWalletRestoreStatus.skippedUnsupported,
         ),
       ],
@@ -72,23 +75,33 @@ void main() {
       network: Network.liquidMainnet,
       walletPurpose: 'liquid',
     );
+    var rollbackCalls = 0;
     keychainManifest.recordError = KeychainManifestFileParseException(
       reason: KeychainManifestFileParseFailureReason.invalidMetadata,
     );
     materializer.result = KeychainRecoveryWalletMaterializationResult(
       materializedWallets: [
         KeychainRecoveryMaterializedWallet(
-          intent: intent,
+          intent: _recoveryIntent(intent),
+          walletId: intent.walletId,
+          network: intent.network,
+          scriptType: intent.scriptType,
           childSeedFingerprint: intent.childSeedFingerprint,
           created: true,
         ),
         KeychainRecoveryMaterializedWallet(
-          intent: liquidIntent,
+          intent: _recoveryIntent(liquidIntent),
+          walletId: liquidIntent.walletId,
+          network: Network.liquidMainnet,
+          scriptType: liquidIntent.scriptType,
           childSeedFingerprint: liquidIntent.childSeedFingerprint,
           created: true,
         ),
       ],
       failedOutcomes: const [],
+      rollbackCreatedWallets: () async {
+        rollbackCalls++;
+      },
     );
 
     final result = await usecase.execute(_plan(intent, liquidIntent));
@@ -98,6 +111,7 @@ void main() {
       _recordFailed,
       _recordFailed,
     ]);
+    expect(rollbackCalls, 1);
   });
 
   test(
@@ -107,7 +121,10 @@ void main() {
       materializer.result = KeychainRecoveryWalletMaterializationResult(
         materializedWallets: [
           KeychainRecoveryMaterializedWallet(
-            intent: intent,
+            intent: _recoveryIntent(intent),
+            walletId: intent.walletId,
+            network: intent.network,
+            scriptType: intent.scriptType,
             childSeedFingerprint: intent.childSeedFingerprint,
             created: false,
           ),
@@ -119,6 +136,41 @@ void main() {
 
       expect(result.hasFailures, false);
       expect(result.walletOutcomes.single.status, _alreadyPresent);
+    },
+  );
+
+  test(
+    'reports existing Lightning Address wallet as requiring reactivation',
+    () async {
+      final plan = _unsupportedPlan(
+        reservationId: 'lightning_address_wallet_seed',
+        path: "39'/0'/12'/101'",
+        ownerFeature: 'lightningAddress',
+        bip85Application: 39,
+        bip85Index: 101,
+        walletId: 'lightning-address-wallet',
+      );
+      final intent = plan.walletMaterializations.single;
+      materializer.result = KeychainRecoveryWalletMaterializationResult(
+        materializedWallets: [
+          KeychainRecoveryMaterializedWallet(
+            intent: _recoveryIntent(intent),
+            walletId: intent.walletId,
+            network: Network.liquidMainnet,
+            scriptType: intent.scriptType,
+            childSeedFingerprint: intent.childSeedFingerprint,
+            created: false,
+          ),
+        ],
+        failedOutcomes: const [],
+      );
+
+      final result = await usecase.execute(plan);
+
+      expect(result.hasFailures, false);
+      expect(result.hasProductReactivationRequired, true);
+      expect(result.productReactivationRequiredOutcomes, hasLength(1));
+      expect(result.walletOutcomes.single.status, _requiresReactivation);
     },
   );
 
@@ -199,7 +251,53 @@ void main() {
   );
 
   test(
-    'rejects Lightning Address plans before wallet materialization',
+    'restores Lightning Address plans after wallet materialization',
+    () async {
+      final plan = _unsupportedPlan(
+        reservationId: 'lightning_address_wallet_seed',
+        path: "39'/0'/12'/101'",
+        ownerFeature: 'lightningAddress',
+        bip85Application: 39,
+        bip85Index: 101,
+        walletId: 'lightning-address-wallet',
+      );
+      final intent = plan.walletMaterializations.single;
+      materializer.result = KeychainRecoveryWalletMaterializationResult(
+        materializedWallets: [
+          KeychainRecoveryMaterializedWallet(
+            intent: _recoveryIntent(intent),
+            walletId: intent.walletId,
+            network: Network.liquidMainnet,
+            scriptType: intent.scriptType,
+            childSeedFingerprint: intent.childSeedFingerprint,
+            created: true,
+          ),
+        ],
+        failedOutcomes: const [],
+      );
+
+      final result = await usecase.execute(plan);
+
+      expect(result.hasFailures, false);
+      expect(result.walletOutcomes.single.status, _requiresReactivation);
+      expect(
+        materializer.batches.single.reservationId,
+        'lightning_address_wallet_seed',
+      );
+      expect(materializer.batches.single.bip85Index, 101);
+      expect(
+        materializer.batches.single.deterministicAlias,
+        'Lightning Address',
+      );
+      expect(
+        keychainManifest.recordRequests.single.reservationId,
+        'lightning_address_wallet_seed',
+      );
+    },
+  );
+
+  test(
+    'rejects Lightning Address recovery plans for Bitcoin wallets',
     () async {
       final result = await usecase.execute(
         _unsupportedPlan(
@@ -208,6 +306,7 @@ void main() {
           ownerFeature: 'lightningAddress',
           bip85Index: 101,
           walletId: 'lightning-address-wallet',
+          network: Network.bitcoinMainnet,
         ),
       );
 
@@ -217,6 +316,72 @@ void main() {
       expect(keychainManifest.recordRequests, isEmpty);
     },
   );
+
+  test(
+    'rejects Lightning Address recovery plans with the wrong purpose',
+    () async {
+      final result = await usecase.execute(
+        _unsupportedPlan(
+          reservationId: 'lightning_address_wallet_seed',
+          path: "39'/0'/12'/101'",
+          ownerFeature: 'lightningAddress',
+          bip85Application: 39,
+          bip85Index: 101,
+          walletId: 'lightning-address-wallet',
+          walletPurpose: 'bitcoin',
+        ),
+      );
+
+      expect(result.hasFailures, true);
+      expect(result.walletOutcomes.single.status, _invalidImportPlan);
+      expect(materializer.batches, isEmpty);
+      expect(keychainManifest.recordRequests, isEmpty);
+    },
+  );
+
+  test(
+    'rejects Lightning Address recovery plans with the wrong script type',
+    () async {
+      final result = await usecase.execute(
+        _unsupportedPlan(
+          reservationId: 'lightning_address_wallet_seed',
+          path: "39'/0'/12'/101'",
+          ownerFeature: 'lightningAddress',
+          bip85Application: 39,
+          bip85Index: 101,
+          walletId: 'lightning-address-wallet',
+          scriptType: ScriptType.bip49,
+        ),
+      );
+
+      expect(result.hasFailures, true);
+      expect(result.walletOutcomes.single.status, _invalidImportPlan);
+      expect(materializer.batches, isEmpty);
+      expect(keychainManifest.recordRequests, isEmpty);
+    },
+  );
+
+  test('rejects multiple Lightning Address recovery wallets', () async {
+    final result = await usecase.execute(
+      _unsupportedPlan(
+        reservationId: 'lightning_address_wallet_seed',
+        path: "39'/0'/12'/101'",
+        ownerFeature: 'lightningAddress',
+        bip85Application: 39,
+        bip85Index: 101,
+        walletId: 'lightning-address-wallet',
+        extraWalletIds: ['second-lightning-address-wallet'],
+      ),
+    );
+
+    expect(result.hasFailures, true);
+    expect(result.walletOutcomes.map((outcome) => outcome.status), [
+      _invalidImportPlan,
+      _invalidImportPlan,
+    ]);
+    expect(materializer.batches, isEmpty);
+    expect(keychainManifest.recordRequests, isEmpty);
+  });
 
   test('rejects Payment Page plans before wallet materialization', () async {
     final result = await usecase.execute(
@@ -279,8 +444,13 @@ KeychainManifestImportPlan _unsupportedPlan({
   required String reservationId,
   required String path,
   required String ownerFeature,
+  int bip85Application = 39,
   required int bip85Index,
   required String walletId,
+  Network network = Network.liquidMainnet,
+  String walletPurpose = 'liquid',
+  ScriptType scriptType = ScriptType.bip84,
+  List<String> extraWalletIds = const [],
 }) {
   final entryId = 'fedcba98:$path';
   final intent = KeychainManifestWalletMaterializationIntent(
@@ -289,10 +459,24 @@ KeychainManifestImportPlan _unsupportedPlan({
     bip85DerivationPath: path,
     walletId: walletId,
     childSeedFingerprint: '0123abcd',
-    network: Network.liquidMainnet,
-    walletPurpose: 'liquid',
-    scriptType: ScriptType.bip84,
+    network: network,
+    walletPurpose: walletPurpose,
+    scriptType: scriptType,
   );
+  final extraIntents = extraWalletIds
+      .map(
+        (extraWalletId) => KeychainManifestWalletMaterializationIntent(
+          entryId: entryId,
+          reservationId: reservationId,
+          bip85DerivationPath: path,
+          walletId: extraWalletId,
+          childSeedFingerprint: '0123abcd',
+          network: network,
+          walletPurpose: walletPurpose,
+          scriptType: scriptType,
+        ),
+      )
+      .toList(growable: false);
   return KeychainManifestImportPlan(
     parentFingerprint: 'fedcba98',
     entries: [
@@ -303,11 +487,26 @@ KeychainManifestImportPlan _unsupportedPlan({
         reservationId: reservationId,
         entryType: 'walletSeed',
         ownerFeature: ownerFeature,
-        bip85Application: 39,
+        bip85Application: bip85Application,
         bip85Index: bip85Index,
-        walletMaterializations: [intent],
+        walletMaterializations: [intent, ...extraIntents],
       ),
     ],
+  );
+}
+
+KeychainRecoveryWalletIntent _recoveryIntent(
+  KeychainManifestWalletMaterializationIntent intent,
+) {
+  return KeychainRecoveryWalletIntent(
+    entryId: intent.entryId,
+    reservationId: intent.reservationId,
+    bip85DerivationPath: intent.bip85DerivationPath,
+    walletId: intent.walletId,
+    childSeedFingerprint: intent.childSeedFingerprint,
+    network: intent.network,
+    walletPurpose: intent.walletPurpose,
+    scriptType: intent.scriptType,
   );
 }
 
@@ -345,6 +544,8 @@ class _FakeKeychainManifestFacade implements KeychainManifestFacade {
 
 const _created = KeychainRecoveryWalletRestoreStatus.created;
 const _alreadyPresent = KeychainRecoveryWalletRestoreStatus.alreadyPresent;
+const _requiresReactivation =
+    KeychainRecoveryWalletRestoreStatus.requiresProductReactivation;
 const _skipped = KeychainRecoveryWalletRestoreStatus.skippedUnsupported;
 const _invalidImportPlan =
     KeychainRecoveryWalletRestoreStatus.failedInvalidImportPlan;

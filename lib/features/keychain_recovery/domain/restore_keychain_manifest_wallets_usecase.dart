@@ -58,7 +58,10 @@ class RestoreKeychainManifestWalletsUsecase {
         entry.entryId !=
             _entryId(importPlan.parentFingerprint, entry.bip85DerivationPath) ||
         !reservation.scope.matchesExactPath(entry.bip85DerivationPath) ||
-        !_supportsWalletManifestRecovery(reservation) ||
+        !_supportsWalletManifestRecovery(
+          reservation,
+          entry.walletMaterializations,
+        ) ||
         reservation.owner.name != entry.ownerFeature ||
         reservation.purpose.name != entry.entryType ||
         reservation.application.number != entry.bip85Application ||
@@ -88,9 +91,21 @@ class RestoreKeychainManifestWalletsUsecase {
     return null;
   }
 
-  bool _supportsWalletManifestRecovery(Bip85Reservation reservation) {
-    return KeychainManifestReservationSupport.supportsV1WalletManifestFile(
-      reservation,
+  bool _supportsWalletManifestRecovery(
+    Bip85Reservation reservation,
+    List<KeychainManifestWalletMaterializationIntent> materializations,
+  ) {
+    return KeychainManifestReservationSupport.supportsWalletMaterializations(
+      reservation: reservation,
+      materializations: materializations
+          .map(
+            (materialization) => KeychainManifestWalletMaterializationShape(
+              network: materialization.network.name,
+              walletPurpose: materialization.walletPurpose,
+              scriptType: materialization.scriptType.name,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -101,9 +116,27 @@ class RestoreKeychainManifestWalletsUsecase {
     final reservation = _registry.reservationById(entry.reservationId)!;
     return KeychainRecoveryWalletMaterializationBatch(
       parentFingerprint: importPlan.parentFingerprint,
+      reservationId: entry.reservationId,
       bip85Index: reservation.scope.segmentValue('index'),
       deterministicAlias: reservation.deterministicAlias,
-      intents: entry.walletMaterializations,
+      intents: entry.walletMaterializations
+          .map(_walletIntent)
+          .toList(growable: false),
+    );
+  }
+
+  KeychainRecoveryWalletIntent _walletIntent(
+    KeychainManifestWalletMaterializationIntent intent,
+  ) {
+    return KeychainRecoveryWalletIntent(
+      entryId: intent.entryId,
+      reservationId: intent.reservationId,
+      bip85DerivationPath: intent.bip85DerivationPath,
+      walletId: intent.walletId,
+      childSeedFingerprint: intent.childSeedFingerprint,
+      network: intent.network,
+      walletPurpose: intent.walletPurpose,
+      scriptType: intent.scriptType,
     );
   }
 
@@ -113,8 +146,9 @@ class RestoreKeychainManifestWalletsUsecase {
     return intents
         .map(
           (intent) => KeychainRecoveryWalletRestoreOutcome(
-            intent: intent,
+            intent: _walletIntent(intent),
             status: KeychainRecoveryWalletRestoreStatus.failedInvalidImportPlan,
+            materializedWalletId: intent.walletId,
           ),
         )
         .toList(growable: false);
@@ -145,6 +179,7 @@ class RestoreKeychainManifestWalletsUsecase {
                 intent: intent,
                 status:
                     KeychainRecoveryWalletRestoreStatus.failedWalletCreation,
+                materializedWalletId: intent.walletId,
               ),
             )
             .toList(growable: false),
@@ -168,11 +203,11 @@ class RestoreKeychainManifestWalletsUsecase {
           materializations: wallets
               .map(
                 (wallet) => KeychainManifestWalletMaterializationRequest(
-                  walletId: wallet.intent.walletId,
+                  walletId: wallet.walletId,
                   childSeedFingerprint: wallet.childSeedFingerprint,
-                  network: wallet.intent.network,
+                  network: wallet.network,
                   walletPurpose: wallet.intent.walletPurpose,
-                  scriptType: wallet.intent.scriptType,
+                  scriptType: wallet.scriptType,
                 ),
               )
               .toList(growable: false),
@@ -183,15 +218,25 @@ class RestoreKeychainManifestWalletsUsecase {
             return KeychainRecoveryWalletRestoreOutcome(
               intent: wallet.intent,
               status: _successStatus(wallet),
+              materializedWalletId: wallet.walletId,
             );
           })
           .toList(growable: false);
     } on KeychainManifestException {
+      final rollback = materializationResult.rollbackCreatedWallets;
+      if (rollback != null) {
+        try {
+          await rollback();
+        } catch (_) {
+          // Preserve the recovery failure result; rollback is best effort here.
+        }
+      }
       return wallets
           .map((wallet) {
             return KeychainRecoveryWalletRestoreOutcome(
               intent: wallet.intent,
               status: KeychainRecoveryWalletRestoreStatus.failedManifestRecord,
+              materializedWalletId: wallet.walletId,
             );
           })
           .toList(growable: false);
@@ -201,7 +246,33 @@ class RestoreKeychainManifestWalletsUsecase {
   KeychainRecoveryWalletRestoreStatus _successStatus(
     KeychainRecoveryMaterializedWallet wallet,
   ) {
-    if (wallet.created) return KeychainRecoveryWalletRestoreStatus.created;
-    return KeychainRecoveryWalletRestoreStatus.alreadyPresent;
+    if (wallet.created) {
+      return _successfulRestoreStatus(
+        intent: wallet.intent,
+        defaultStatus: KeychainRecoveryWalletRestoreStatus.created,
+      );
+    }
+    return _successfulRestoreStatus(
+      intent: wallet.intent,
+      defaultStatus: KeychainRecoveryWalletRestoreStatus.alreadyPresent,
+    );
+  }
+
+  KeychainRecoveryWalletRestoreStatus _successfulRestoreStatus({
+    required KeychainRecoveryWalletIntent intent,
+    required KeychainRecoveryWalletRestoreStatus defaultStatus,
+  }) {
+    if (_requiresProductReactivation(intent.reservationId)) {
+      return KeychainRecoveryWalletRestoreStatus.requiresProductReactivation;
+    }
+    return defaultStatus;
+  }
+
+  bool _requiresProductReactivation(String reservationId) {
+    return _registry
+            .reservationById(reservationId)
+            ?.walletMaterializationPolicy
+            ?.requiresProductReactivationOnRecovery ??
+        false;
   }
 }

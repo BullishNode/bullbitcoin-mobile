@@ -133,19 +133,18 @@ void main() {
     expect(store.entries.single.bip85DerivationPath, "39'/0'/12'/101'");
   });
 
-  test('records Payment Page reserved wallet metadata', () async {
-    await usecase.execute(
-      _command(
-        reservationId: 'payment_page_wallet_seed',
-        walletId: 'payment-page-wallet',
-        network: Network.liquidMainnet,
-        walletPurpose: 'liquid',
+  test('rejects Payment Page wallet metadata until it is manifest-enabled', () {
+    expect(
+      () => usecase.execute(
+        _command(
+          reservationId: 'payment_page_wallet_seed',
+          walletId: 'payment-page-wallet',
+          network: Network.liquidMainnet,
+          walletPurpose: 'liquid',
+        ),
       ),
+      throwsA(isA<KeychainManifestEntryConflictException>()),
     );
-
-    expect(store.entries.single.reservationId, 'payment_page_wallet_seed');
-    expect(store.entries.single.ownerFeature, 'paymentPage');
-    expect(store.entries.single.bip85DerivationPath, "39'/0'/12'/102'");
   });
 
   test('does not keep batch records if a later record fails', () async {

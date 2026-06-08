@@ -43,6 +43,16 @@ class Bip85Reservations {
       ],
     ),
     allocation: Bip85AllocationPolicy.blockExactPath,
+    walletMaterializationPolicy: Bip85WalletMaterializationPolicy(
+      count: 1,
+      networkNameByEnvironment: {
+        'mainnet': 'liquidMainnet',
+        'testnet': 'liquidTestnet',
+      },
+      walletPurpose: 'liquid',
+      scriptType: 'bip84',
+      requiresProductReactivationOnRecovery: true,
+    ),
   );
 
   static const paymentPageWalletSeed = Bip85Reservation(

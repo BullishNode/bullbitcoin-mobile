@@ -46,6 +46,12 @@ void main() {
       101,
     );
     expect(
+      _reservation(
+        'lightning_address_wallet_seed',
+      ).walletMaterializationPolicy?.requiresProductReactivationOnRecovery,
+      isTrue,
+    );
+    expect(
       _reservation('payment_page_wallet_seed').scope.segmentValue('index'),
       102,
     );

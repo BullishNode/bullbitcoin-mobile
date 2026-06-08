@@ -47,7 +47,7 @@ void main() {
     );
   });
 
-  test('excludes unsupported wallet reservations from v1 export', () async {
+  test('includes supported BTCPay and Lightning Address reservations', () async {
     store.records.addAll([
       _record(walletId: 'btc-wallet', network: 'bitcoinMainnet', updatedAt: 10),
       _record(
@@ -66,13 +66,18 @@ void main() {
       now: DateTime.fromMillisecondsSinceEpoch(20000, isUtc: true),
     );
 
-    expect(manifestFile.entries, hasLength(1));
-    expect(manifestFile.entries.single.reservationId, 'btcpay_wallet_seed');
+    expect(manifestFile.entries, hasLength(2));
     expect(
-      manifestFile.entries.single.materializations.single.walletId,
-      'btc-wallet',
+      manifestFile.entries.map((entry) => entry.reservationId),
+      containsAll(['btcpay_wallet_seed', 'lightning_address_wallet_seed']),
     );
-    expect(manifestFile.inventoryUpdatedAt, 12);
+    expect(
+      manifestFile.entries
+          .expand((entry) => entry.materializations)
+          .map((materialization) => materialization.walletId),
+      containsAll(['btc-wallet', 'lightning-address-wallet']),
+    );
+    expect(manifestFile.inventoryUpdatedAt, 13);
   });
 }
 

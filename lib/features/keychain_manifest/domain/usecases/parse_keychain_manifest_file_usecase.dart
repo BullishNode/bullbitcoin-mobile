@@ -59,7 +59,8 @@ class ParseKeychainManifestFileUsecase {
         reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
     }
-    if (!_supportsWalletManifestImport(reservation)) {
+    final walletMaterializations = _walletMaterializations(entry);
+    if (!_supportsWalletManifestImport(reservation, walletMaterializations)) {
       throw KeychainManifestFileParseException(
         reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
@@ -74,13 +75,25 @@ class ParseKeychainManifestFileUsecase {
     }
     return KeychainManifestImportEntryIntent.fromFileEntry(
       entry,
-      walletMaterializations: _walletMaterializations(entry),
+      walletMaterializations: walletMaterializations,
     );
   }
 
-  bool _supportsWalletManifestImport(Bip85Reservation reservation) {
-    return KeychainManifestReservationSupport.supportsV1WalletManifestFile(
-      reservation,
+  bool _supportsWalletManifestImport(
+    Bip85Reservation reservation,
+    List<KeychainManifestWalletMaterializationIntent> materializations,
+  ) {
+    return KeychainManifestReservationSupport.supportsWalletMaterializations(
+      reservation: reservation,
+      materializations: materializations
+          .map(
+            (materialization) => KeychainManifestWalletMaterializationShape(
+              network: materialization.network.name,
+              walletPurpose: materialization.walletPurpose,
+              scriptType: materialization.scriptType.name,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 

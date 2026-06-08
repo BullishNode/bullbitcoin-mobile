@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_reservation_support.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 
@@ -24,9 +25,20 @@ class RecordKeychainManifestEntryUsecase {
         'wallet materialization does not match BIP85 reservation purpose',
       );
     }
-    if (request.materializations.isEmpty) {
+    if (!KeychainManifestReservationSupport.supportsWalletMaterializations(
+      reservation: reservation,
+      materializations: request.materializations
+          .map(
+            (materialization) => KeychainManifestWalletMaterializationShape(
+              network: materialization.network.name,
+              walletPurpose: materialization.walletPurpose,
+              scriptType: materialization.scriptType.name,
+            ),
+          )
+          .toList(growable: false),
+    )) {
       throw KeychainManifestEntryConflictException(
-        'at least one materialization is required',
+        'wallet materialization does not match BIP85 reservation policy',
       );
     }
 

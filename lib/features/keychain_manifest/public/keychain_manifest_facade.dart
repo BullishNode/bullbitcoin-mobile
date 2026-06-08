@@ -10,7 +10,9 @@ export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_im
         KeychainManifestImportEntryIntent,
         KeychainManifestWalletMaterializationIntent;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_reservation_support.dart'
-    show KeychainManifestReservationSupport;
+    show
+        KeychainManifestReservationSupport,
+        KeychainManifestWalletMaterializationShape;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart'
     show
         KeychainManifestReservedDerivationRequest,
