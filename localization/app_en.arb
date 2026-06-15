@@ -14295,6 +14295,18 @@
   "@lightningAddressNoCopyableAddressAfterLookup": {
     "description": "Body shown for active lookup when the full Lightning Address is not available from the status API."
   },
+  "lightningAddressReceiveReadinessLabel": "Receive wallet",
+  "@lightningAddressReceiveReadinessLabel": {
+    "description": "Label for the local Lightning Address receive wallet readiness row."
+  },
+  "lightningAddressReceiveReady": "Ready to receive and autosweep",
+  "@lightningAddressReceiveReady": {
+    "description": "Value shown when the Lightning Address receive wallet exists and autosweep defaults are applied."
+  },
+  "lightningAddressReceiveNotReady": "Needs local wallet setup",
+  "@lightningAddressReceiveNotReady": {
+    "description": "Value shown when the Lightning Address server registration is active but the local receive wallet is not ready."
+  },
   "lightningAddressCheckStatusButton": "Check Status",
   "@lightningAddressCheckStatusButton": {
     "description": "Button label to retry Lightning Address status lookup."

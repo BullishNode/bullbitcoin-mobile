@@ -7,12 +7,14 @@ import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
 import 'package:bb_mobile/features/bullnym/bullnym_locator.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/lightning_address/data/default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_default_wallet_xprv_port.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_receive_readiness_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_wallet_owned_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/prepare_lightning_address_wallet_usecase.dart';
@@ -282,6 +284,8 @@ void main() {
           ),
       registerWalletOwned: ({required nym}) => walletOwned.execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
+      lookupReceiveReadiness:
+          _FakeLookupLightningAddressReceiveReadinessUsecase().execute,
     );
 
     final result = await facade.registerWalletOwned(nym: 'alice');
@@ -302,6 +306,8 @@ void main() {
       registerWalletOwned: ({required nym}) =>
           _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
+      lookupReceiveReadiness:
+          _FakeLookupLightningAddressReceiveReadinessUsecase().execute,
     );
 
     final result = await facade.lookupWalletOwnedRegistration();
@@ -309,6 +315,29 @@ void main() {
     expect(lookupWalletOwned.executeCalls, 1);
     expect(result.nym, 'alice');
     expect(result.active, true);
+  });
+
+  test('LightningAddressFacade delegates receive readiness lookup', () async {
+    final lookupReadiness =
+        _FakeLookupLightningAddressReceiveReadinessUsecase();
+    final facade = LightningAddressFacade(
+      prepareWallet: _FakePrepareLightningAddressWalletUsecase().execute,
+      lookupRegistration: ({required npubHex}) =>
+          _FakeLookupLightningAddressRegistrationUsecase().execute(
+            npubHex: npubHex,
+          ),
+      registerWalletOwned: ({required nym}) =>
+          _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
+      lookupWalletOwnedRegistration:
+          _FakeLookupWalletOwnedLightningAddressRegistrationUsecase().execute,
+      lookupReceiveReadiness: lookupReadiness.execute,
+    );
+
+    final result = await facade.lookupReceiveReadiness();
+
+    expect(lookupReadiness.executeCalls, 1);
+    expect(result.registration.nym, 'alice');
+    expect(result.receiveReady, true);
   });
 
   test(
@@ -360,6 +389,9 @@ void main() {
     );
     getIt.registerFactory<KeychainManifestFacade>(
       () => _FakeKeychainManifestFacade(),
+    );
+    getIt.registerFactory<ApplyWalletBehaviorDefaultsUsecase>(
+      () => _FakeApplyWalletBehaviorDefaultsUsecase(),
     );
 
     BullnymLocator.setup(getIt);
@@ -483,6 +515,20 @@ class _FakeLookupWalletOwnedLightningAddressRegistrationUsecase
   }
 }
 
+class _FakeLookupLightningAddressReceiveReadinessUsecase
+    implements LookupLightningAddressReceiveReadinessUsecase {
+  int executeCalls = 0;
+
+  @override
+  Future<LightningAddressReceiveReadiness> execute() async {
+    executeCalls += 1;
+    return const LightningAddressReceiveReadiness(
+      registration: LightningAddressStatus(nym: 'alice', active: true),
+      receiveReady: true,
+    );
+  }
+}
+
 class _FakeWalletRepository implements WalletRepository {
   final List<Wallet> wallets;
   Environment? environment;
@@ -554,6 +600,16 @@ class _FakeDeterministicWalletsFacade implements DeterministicWalletsFacade {
 class _FakeKeychainManifestFacade implements KeychainManifestFacade {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeApplyWalletBehaviorDefaultsUsecase
+    implements ApplyWalletBehaviorDefaultsUsecase {
+  @override
+  Future<void> execute({
+    required String walletId,
+    bool? hideOnHome,
+    bool? autoSweepEnabled,
+  }) async {}
 }
 
 PreparedLightningAddressWallet _prepared({bool created = true}) {

@@ -1,12 +1,14 @@
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/lightning_address/data/default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/activate_wallet_owned_lightning_address_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_receive_readiness_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_wallet_owned_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/prepare_lightning_address_wallet_usecase.dart';
@@ -31,6 +33,8 @@ class LightningAddressLocator {
         getSettings: locator<GetSettingsUsecase>(),
         deterministicWallets: locator<DeterministicWalletsFacade>(),
         keychainManifest: locator<KeychainManifestFacade>(),
+        applyWalletBehaviorDefaults:
+            locator<ApplyWalletBehaviorDefaultsUsecase>(),
       ),
     );
     locator.registerFactory<RegisterLightningAddressUsecase>(
@@ -58,6 +62,13 @@ class LightningAddressLocator {
             nostrIdentity: locator<NostrIdentityFacade>(),
           ),
         );
+    locator.registerFactory<LookupLightningAddressReceiveReadinessUsecase>(
+      () => LookupLightningAddressReceiveReadinessUsecase(
+        lookupRegistration:
+            locator<LookupWalletOwnedLightningAddressRegistrationUsecase>(),
+        prepareWallet: locator<PrepareLightningAddressWalletUsecase>(),
+      ),
+    );
     locator.registerFactory<LightningAddressFacade>(() {
       final prepareWallet = locator<PrepareLightningAddressWalletUsecase>();
       final lookupRegistration =
@@ -66,6 +77,8 @@ class LightningAddressLocator {
           locator<RegisterWalletOwnedLightningAddressUsecase>();
       final lookupWalletOwnedRegistration =
           locator<LookupWalletOwnedLightningAddressRegistrationUsecase>();
+      final lookupReceiveReadiness =
+          locator<LookupLightningAddressReceiveReadinessUsecase>();
 
       return LightningAddressFacade(
         prepareWallet: prepareWallet.execute,
@@ -74,6 +87,7 @@ class LightningAddressLocator {
         registerWalletOwned: ({required nym}) =>
             registerWalletOwned.execute(nym: nym),
         lookupWalletOwnedRegistration: lookupWalletOwnedRegistration.execute,
+        lookupReceiveReadiness: lookupReceiveReadiness.execute,
       );
     });
     locator.registerFactory<ActivateWalletOwnedLightningAddressUsecase>(
@@ -84,7 +98,7 @@ class LightningAddressLocator {
     locator.registerFactory<LightningAddressActivationCubit>(
       () => LightningAddressActivationCubit(
         locator<ActivateWalletOwnedLightningAddressUsecase>(),
-        locator<LookupWalletOwnedLightningAddressRegistrationUsecase>(),
+        locator<LookupLightningAddressReceiveReadinessUsecase>(),
       ),
     );
   }

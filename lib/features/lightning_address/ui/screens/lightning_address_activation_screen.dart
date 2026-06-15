@@ -69,9 +69,13 @@ class _LightningAddressActivationScreenState
                   ? _RegisteredView(
                       nym: state.nym,
                       lightningAddress: state.registeredAddress!,
+                      receiveReady: state.receiveReady,
                     )
                   : state.isActive
-                  ? _ActiveView(nym: state.nym)
+                  ? _ActiveView(
+                      nym: state.nym,
+                      receiveReady: state.receiveReady,
+                    )
                   : state.isInactive
                   ? _InactiveKnownView(
                       nym: state.nym,
@@ -366,8 +370,9 @@ class _InactiveKnownView extends StatelessWidget {
 
 class _ActiveView extends StatelessWidget {
   final String nym;
+  final bool receiveReady;
 
-  const _ActiveView({required this.nym});
+  const _ActiveView({required this.nym, required this.receiveReady});
 
   @override
   Widget build(BuildContext context) {
@@ -381,6 +386,13 @@ class _ActiveView extends StatelessWidget {
         ),
         const Gap(24),
         _InfoRow(label: context.loc.lightningAddressNymLabel, value: nym),
+        const Gap(16),
+        _InfoRow(
+          label: context.loc.lightningAddressReceiveReadinessLabel,
+          value: receiveReady
+              ? context.loc.lightningAddressReceiveReady
+              : context.loc.lightningAddressReceiveNotReady,
+        ),
       ],
     );
   }
@@ -389,8 +401,13 @@ class _ActiveView extends StatelessWidget {
 class _RegisteredView extends StatelessWidget {
   final String nym;
   final String lightningAddress;
+  final bool receiveReady;
 
-  const _RegisteredView({required this.nym, required this.lightningAddress});
+  const _RegisteredView({
+    required this.nym,
+    required this.lightningAddress,
+    required this.receiveReady,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -409,6 +426,13 @@ class _RegisteredView extends StatelessWidget {
           text: lightningAddress,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
+        ),
+        const Gap(16),
+        _InfoRow(
+          label: context.loc.lightningAddressReceiveReadinessLabel,
+          value: receiveReady
+              ? context.loc.lightningAddressReceiveReady
+              : context.loc.lightningAddressReceiveNotReady,
         ),
       ],
     );

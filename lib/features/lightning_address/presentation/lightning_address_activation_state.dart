@@ -24,12 +24,14 @@ class LightningAddressActivationState {
   final LightningAddressActivationFailure? failure;
   final String nym;
   final String? registeredAddress;
+  final bool receiveReady;
 
   const LightningAddressActivationState({
     this.status = LightningAddressActivationStatus.loading,
     this.failure,
     this.nym = '',
     this.registeredAddress,
+    this.receiveReady = false,
   });
 
   bool get isLoading => status == LightningAddressActivationStatus.loading;
@@ -45,6 +47,7 @@ class LightningAddressActivationState {
     LightningAddressActivationFailure? failure,
     String? nym,
     String? registeredAddress,
+    bool? receiveReady,
     bool clearFailure = false,
     bool clearRegisteredAddress = false,
   }) {
@@ -55,6 +58,7 @@ class LightningAddressActivationState {
       registeredAddress: clearRegisteredAddress
           ? null
           : registeredAddress ?? this.registeredAddress,
+      receiveReady: receiveReady ?? this.receiveReady,
     );
   }
 }

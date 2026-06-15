@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
@@ -15,11 +16,13 @@ class PrepareLightningAddressWalletUsecase {
   final DeterministicWalletsFacade _deterministicWallets;
   final KeychainManifestFacade _keychainManifest;
   final Bip85RegistryFacade _bip85Registry;
+  final ApplyWalletBehaviorDefaultsUsecase _applyWalletBehaviorDefaults;
 
   const PrepareLightningAddressWalletUsecase({
     required this._getSettings,
     required this._deterministicWallets,
     required this._keychainManifest,
+    required this._applyWalletBehaviorDefaults,
     this._bip85Registry = const Bip85RegistryFacade(),
   });
 
@@ -32,12 +35,16 @@ class PrepareLightningAddressWalletUsecase {
       );
       await _recordKeychainManifestEntry(preparedWallets);
       final preparedWallet = preparedWallets.wallets.single;
+      await _applyLightningAddressWalletDefaults(preparedWallet.wallet.id);
       return PreparedLightningAddressWallet(
         walletId: preparedWallet.walletId,
         ctDescriptor: preparedWallet.externalPublicDescriptor,
         created: preparedWallet.created,
       );
     } on LightningAddressException {
+      if (preparedWallets != null) {
+        await _rollbackPreparedWalletsBestEffort(preparedWallets);
+      }
       rethrow;
     } on DeterministicWalletException catch (e) {
       if (preparedWallets != null) {
@@ -111,6 +118,21 @@ class PrepareLightningAddressWalletUsecase {
         ],
       ),
     );
+  }
+
+  Future<void> _applyLightningAddressWalletDefaults(String walletId) async {
+    try {
+      await _applyWalletBehaviorDefaults.execute(
+        walletId: walletId,
+        hideOnHome: true,
+        autoSweepEnabled: true,
+      );
+    } catch (e) {
+      throw const LightningAddressException.localPreparationFailed(
+        code: 'WalletDefaultsFailed',
+        retryable: true,
+      );
+    }
   }
 
   Bip85WalletMaterializationPolicy _materializationPolicy(
