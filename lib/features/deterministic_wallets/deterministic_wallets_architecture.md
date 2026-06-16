@@ -14,10 +14,10 @@ reserved-index materialization behavior.
 - Create or reuse the requested wallets after verifying deterministic wallet
   descriptors for existing wallet IDs.
 - Store the child seed only when at least one requested wallet must be created.
-- Expose rollback for wallets created before an external product submits or
-  persists descriptors. This remains a public compensation operation for
-  best-effort local cleanup before a consumer starts remote descriptor
-  submission.
+- Expose rollback only for same-operation aborts before a caller accepts wallet
+  materialization.
+- Keep successfully accepted wallets stable for product retry and repair flows.
+  Product failures after acceptance should not use wallet rollback as cleanup.
 
 ## Boundaries
 
@@ -43,7 +43,10 @@ The facade returns prepared deterministic-wallet DTOs containing wallet IDs,
 network/script metadata, labels, public descriptors, creation flags, and
 rollback metadata. It does not expose mnemonic words, seed bytes, or child seed
 objects to consuming features. Rollback is performed by passing the prepared
-result back to `rollbackCreatedWallets()`.
+result back to `rollbackCreatedWallets()`. `rollbackCreatedWallets()` exists for
+same-operation aborts before a caller accepts materialization; products that
+have accepted prepared wallets should keep them and repair later product state
+instead.
 
 ## Layers
 
@@ -68,9 +71,9 @@ result back to `rollbackCreatedWallets()`.
 3. Expected wallet metadata is derived from the child seed.
 4. Existing wallet IDs are reused only if descriptors and script type match.
 5. Missing wallets trigger child seed storage and wallet creation.
-6. If an external product fails before descriptor submission, rollback deletes
-   only wallets created by that attempt and deletes the child seed only when it
-   was stored by that attempt and no wallet was reused.
+6. If materialization fails inside the use case, its own best-effort cleanup
+   deletes only wallets created by that attempt and deletes the child seed only
+   when it was stored by that attempt and no wallet was reused.
 
 ## Future Consumers
 

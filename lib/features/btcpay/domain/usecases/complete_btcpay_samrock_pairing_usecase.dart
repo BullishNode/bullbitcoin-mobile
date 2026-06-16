@@ -46,7 +46,6 @@ class CompleteBtcpaySamRockPairingUsecase {
     var submitAttempted = false;
     PreparedDeterministicWallets? preparedWallets;
     BtcpayConnection? submittedConnection;
-    KeychainManifestRecordReservedDerivationResult? recordedKeychainEntries;
     try {
       final settings = await _getSettings.execute();
       preparedWallets = await _deterministicWallets.prepare(
@@ -59,12 +58,9 @@ class CompleteBtcpaySamRockPairingUsecase {
           preparedWallets: preparedWallets,
         );
       } on SamRockSetupPayloadException {
-        await _rollbackPreparedWalletsBestEffort(preparedWallets);
         rethrow;
       }
-      recordedKeychainEntries = await _recordBtcpayKeychainManifestEntries(
-        preparedWallets,
-      );
+      await _recordBtcpayKeychainManifestEntries(preparedWallets);
 
       final now = DateTime.now().toUtc();
       submittedConnection = BtcpayConnection.fromPairing(
@@ -88,16 +84,6 @@ class CompleteBtcpaySamRockPairingUsecase {
               lastError: _safeUncertainMessage,
             ),
           );
-          throw BtcpayPairingException.uncertain(response.message);
-        }
-        final rollbackSucceeded = await _rollbackPreparedWalletsBestEffort(
-          preparedWallets,
-        );
-        if (rollbackSucceeded) {
-          await _deleteBtcpayKeychainManifestEntriesBestEffort(
-            recordedKeychainEntries,
-          );
-        } else {
           throw BtcpayPairingException.uncertain(response.message);
         }
         throw BtcpayPairingException.rejected(response.message);
@@ -126,11 +112,11 @@ class CompleteBtcpaySamRockPairingUsecase {
           'BTCPay setup was submitted, but completion could not be confirmed',
         );
       }
-      if (preparedWallets != null) {
-        await _rollbackPreparedWalletsBestEffort(preparedWallets);
-      }
       log.warning(
-        'BTCPay pairing failed before submission',
+        preparedWallets == null
+            ? 'BTCPay pairing failed before wallet materialization completed'
+            : 'BTCPay pairing failed before descriptor submission; '
+                  'prepared wallets were kept for retry or manifest repair',
         error: e,
         trace: stack,
       );
@@ -177,23 +163,6 @@ class CompleteBtcpaySamRockPairingUsecase {
     }
   }
 
-  Future<bool> _rollbackPreparedWalletsBestEffort(
-    PreparedDeterministicWallets preparedWallets,
-  ) async {
-    try {
-      await _deterministicWallets.rollbackCreatedWallets(preparedWallets);
-      return true;
-    } catch (e, stack) {
-      log.warning(
-        'BTCPay pairing failed before descriptor submission and created '
-        'wallet cleanup failed',
-        error: e,
-        trace: stack,
-      );
-      return false;
-    }
-  }
-
   Future<KeychainManifestRecordReservedDerivationResult>
   _recordBtcpayKeychainManifestEntries(
     PreparedDeterministicWallets preparedWallets,
@@ -201,21 +170,6 @@ class CompleteBtcpaySamRockPairingUsecase {
     return _keychainManifest.recordReservedDerivation(
       _btcpayKeychainManifestRequest(preparedWallets),
     );
-  }
-
-  Future<void> _deleteBtcpayKeychainManifestEntriesBestEffort(
-    KeychainManifestRecordReservedDerivationResult recordedEntries,
-  ) async {
-    if (recordedEntries.insertedMaterializations.isEmpty) return;
-    try {
-      await _keychainManifest.deleteInsertedMaterializations(recordedEntries);
-    } catch (e, stack) {
-      log.warning(
-        'BTCPay rejected setup and keychain manifest cleanup failed',
-        error: e,
-        trace: stack,
-      );
-    }
   }
 
   KeychainManifestReservedDerivationRequest _btcpayKeychainManifestRequest(
