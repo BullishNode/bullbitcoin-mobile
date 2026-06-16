@@ -141,7 +141,7 @@ void main() {
   });
 
   test(
-    'rolls back created wallets before descriptor submission failure',
+    'keeps materialized wallets when payload building fails before submission',
     () async {
       final deterministicWallets = _MockDeterministicWalletsFacade();
       final getSettings = _MockGetSettingsUsecase();
@@ -177,10 +177,6 @@ void main() {
       when(
         () => deterministicWallets.prepare(any()),
       ).thenAnswer((_) async => preparedWallets);
-      when(
-        () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      ).thenAnswer((_) async {});
-
       await expectLater(
         usecase.execute(pairingUrl: pairingUrl),
         throwsA(
@@ -191,9 +187,9 @@ void main() {
           ),
         ),
       );
-      verify(
+      verifyNever(
         () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      ).called(1);
+      );
       verifyNever(
         () => pairingService.submitSetup(
           request: any(named: 'request'),
@@ -204,7 +200,7 @@ void main() {
   );
 
   test(
-    'rolls back local wallets when server rejects after descriptor submission',
+    'keeps local wallets and manifest entries when server rejects after descriptor submission',
     () async {
       final deterministicWallets = _MockDeterministicWalletsFacade();
       final getSettings = _MockGetSettingsUsecase();
@@ -262,9 +258,6 @@ void main() {
         () => connectionStore.saveConnection(any()),
       ).thenAnswer((_) async {});
       when(
-        () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      ).thenAnswer((_) async {});
-      when(
         () => pairingService.submitSetup(
           request: any(named: 'request'),
           payload: any(named: 'payload'),
@@ -282,84 +275,75 @@ void main() {
         ),
       );
       verifyNever(() => connectionStore.saveConnection(any()));
-      verify(
-        () => keychainManifest.deleteInsertedMaterializations(any()),
-      ).called(1);
-      verify(
+      verifyNever(
         () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      ).called(1);
+      );
     },
   );
 
-  test(
-    'keeps keychain entries when server rejects and wallet rollback fails',
-    () async {
-      final deterministicWallets = _MockDeterministicWalletsFacade();
-      final getSettings = _MockGetSettingsUsecase();
-      final pairingService = _MockSamRockPairingServicePort();
-      final connectionStore = _MockBtcpayConnectionStore();
-      final applyWalletBehaviorDefaults =
-          _MockApplyWalletBehaviorDefaultsUsecase();
-      final keychainManifest = _MockKeychainManifestFacade();
-      _stubKeychainManifest(keychainManifest);
-      final preparedWallets = PreparedDeterministicWallets(
-        wallets: [
-          _wallet(
-            specId: BtcpayWalletConstants.bitcoinSpecId,
-            network: Network.bitcoinMainnet,
-            externalDescriptor: 'btc-desc',
-            created: true,
-          ),
-          _wallet(
-            specId: BtcpayWalletConstants.liquidSpecId,
-            network: Network.liquidMainnet,
-            externalDescriptor: 'lbtc-desc',
-            created: true,
-          ),
-        ],
-        parentFingerprint: 'fedcba98',
-        childSeedFingerprint: '0123abcd',
-        childSeedStoredDuringAttempt: true,
-      );
-      final usecase = CompleteBtcpaySamRockPairingUsecase(
-        getSettings: getSettings,
-        parser: const SamRockPairingRequestParser(),
-        deterministicWallets: deterministicWallets,
-        pairingService: pairingService,
-        connectionStore: connectionStore,
-        applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
-        keychainManifest: keychainManifest,
-      );
-      when(() => getSettings.execute()).thenAnswer((_) async => settings);
-      when(
-        () => deterministicWallets.prepare(any()),
-      ).thenAnswer((_) async => preparedWallets);
-      when(
-        () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      ).thenThrow(StateError('rollback failed'));
-      when(
-        () => pairingService.submitSetup(
-          request: any(named: 'request'),
-          payload: any(named: 'payload'),
+  test('does not rely on wallet rollback when server rejects', () async {
+    final deterministicWallets = _MockDeterministicWalletsFacade();
+    final getSettings = _MockGetSettingsUsecase();
+    final pairingService = _MockSamRockPairingServicePort();
+    final connectionStore = _MockBtcpayConnectionStore();
+    final applyWalletBehaviorDefaults =
+        _MockApplyWalletBehaviorDefaultsUsecase();
+    final keychainManifest = _MockKeychainManifestFacade();
+    _stubKeychainManifest(keychainManifest);
+    final preparedWallets = PreparedDeterministicWallets(
+      wallets: [
+        _wallet(
+          specId: BtcpayWalletConstants.bitcoinSpecId,
+          network: Network.bitcoinMainnet,
+          externalDescriptor: 'btc-desc',
+          created: true,
         ),
-      ).thenAnswer((_) async => const SamRockPairingResponse(success: false));
+        _wallet(
+          specId: BtcpayWalletConstants.liquidSpecId,
+          network: Network.liquidMainnet,
+          externalDescriptor: 'lbtc-desc',
+          created: true,
+        ),
+      ],
+      parentFingerprint: 'fedcba98',
+      childSeedFingerprint: '0123abcd',
+      childSeedStoredDuringAttempt: true,
+    );
+    final usecase = CompleteBtcpaySamRockPairingUsecase(
+      getSettings: getSettings,
+      parser: const SamRockPairingRequestParser(),
+      deterministicWallets: deterministicWallets,
+      pairingService: pairingService,
+      connectionStore: connectionStore,
+      applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+      keychainManifest: keychainManifest,
+    );
+    when(() => getSettings.execute()).thenAnswer((_) async => settings);
+    when(
+      () => deterministicWallets.prepare(any()),
+    ).thenAnswer((_) async => preparedWallets);
+    when(
+      () => pairingService.submitSetup(
+        request: any(named: 'request'),
+        payload: any(named: 'payload'),
+      ),
+    ).thenAnswer((_) async => const SamRockPairingResponse(success: false));
 
-      await expectLater(
-        usecase.execute(pairingUrl: pairingUrl),
-        throwsA(
-          isA<BtcpayPairingException>().having(
-            (exception) => exception.type,
-            'type',
-            BtcpayPairingExceptionType.uncertain,
-          ),
+    await expectLater(
+      usecase.execute(pairingUrl: pairingUrl),
+      throwsA(
+        isA<BtcpayPairingException>().having(
+          (exception) => exception.type,
+          'type',
+          BtcpayPairingExceptionType.rejected,
         ),
-      );
-      verifyNever(() => keychainManifest.deleteInsertedMaterializations(any()));
-      verify(
-        () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      ).called(1);
-    },
-  );
+      ),
+    );
+    verifyNever(
+      () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
+    );
+    verifyNever(() => keychainManifest.deleteInsertedMaterializations(any()));
+  });
 
   test(
     'does not delete reused keychain entries when server rejects retry',
@@ -378,9 +362,6 @@ void main() {
           insertedMaterializations: [],
         );
       });
-      when(
-        () => keychainManifest.deleteInsertedMaterializations(any()),
-      ).thenAnswer((_) async {});
       final preparedWallets = PreparedDeterministicWallets(
         wallets: [
           _wallet(
@@ -408,9 +389,6 @@ void main() {
         () => deterministicWallets.prepare(any()),
       ).thenAnswer((_) async => preparedWallets);
       when(
-        () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      ).thenAnswer((_) async {});
-      when(
         () => pairingService.submitSetup(
           request: any(named: 'request'),
           payload: any(named: 'payload'),
@@ -421,10 +399,9 @@ void main() {
         usecase.execute(pairingUrl: pairingUrl),
         throwsA(isA<BtcpayPairingException>()),
       );
-      verifyNever(() => keychainManifest.deleteInsertedMaterializations(any()));
-      verify(
+      verifyNever(
         () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      ).called(1);
+      );
     },
   );
 
@@ -525,9 +502,6 @@ void main() {
                 as KeychainManifestReservedDerivationRequest;
         return _recordedKeychainEntries;
       });
-      when(
-        () => keychainManifest.deleteInsertedMaterializations(any()),
-      ).thenAnswer((_) async {});
       final preparedWallets = PreparedDeterministicWallets(
         wallets: [
           _wallet(
@@ -560,9 +534,6 @@ void main() {
       when(
         () => deterministicWallets.prepare(any()),
       ).thenAnswer((_) async => preparedWallets);
-      when(
-        () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      ).thenAnswer((_) async {});
       when(
         () => pairingService.submitSetup(
           request: any(named: 'request'),
@@ -621,7 +592,7 @@ void main() {
     },
   );
 
-  test('rolls back created wallets when manifest recording fails', () async {
+  test('keeps materialized wallets when manifest recording fails', () async {
     final deterministicWallets = _MockDeterministicWalletsFacade();
     final getSettings = _MockGetSettingsUsecase();
     final pairingService = _MockSamRockPairingServicePort();
@@ -664,18 +635,14 @@ void main() {
     when(
       () => deterministicWallets.prepare(any()),
     ).thenAnswer((_) async => preparedWallets);
-    when(
-      () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-    ).thenAnswer((_) async {});
-
     await expectLater(
       usecase.execute(pairingUrl: pairingUrl),
       throwsA(isA<BtcpayPairingException>()),
     );
 
-    verify(
+    verifyNever(
       () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-    ).called(1);
+    );
     verifyNever(
       () => pairingService.submitSetup(
         request: any(named: 'request'),
@@ -838,9 +805,6 @@ void _stubKeychainManifest(_MockKeychainManifestFacade keychainManifest) {
   when(
     () => keychainManifest.recordReservedDerivation(any()),
   ).thenAnswer((_) async => _recordedKeychainEntries);
-  when(
-    () => keychainManifest.deleteInsertedMaterializations(any()),
-  ).thenAnswer((_) async {});
 }
 
 const _recordedKeychainEntries =

@@ -19,11 +19,10 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
   from Home and auto-sweep enabled by default; BTCPay Bitcoin is visible and
   auto-sweep disabled by default.
 - BTCPay records one local Keychain Manifest reserved derivation with Bitcoin
-  and Liquid wallet materializations after deterministic wallets are prepared and the SamRock
-  payload is built, but before descriptors are submitted. If that local record
-  step fails before submission, descriptors are not shared and created wallets
-  are rolled back; materializations written in the failed batch are cleaned up
-  best-effort by the Keychain Manifest feature.
+  and Liquid wallet materializations after deterministic wallets are prepared
+  and the SamRock payload is built, but before descriptors are submitted. If
+  that local record step fails before submission, descriptors are not shared,
+  and prepared wallets are kept for retry or later manifest repair.
 - BTCPay exposes those generic wallet behavior settings from the BTCPay details
   screen only.
 - BTCPay does not expose Get Paid navigation, dashboard, automated recovery,
@@ -80,15 +79,15 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
 - The BTCPay Liquid wallet defaults to hidden on Home and auto-sweeps received
   funds to the default Liquid wallet. These settings remain editable from the
   BTCPay details screen.
-- Before descriptor submission, local wallets created during the current attempt
-  may be rolled back.
 - Explicit SamRock rejection after descriptor submission is not saved as a
-  connection; BTCPay best-effort deletes keychain manifest materializations
-  created during the attempt and rolls back local wallets created during the
-  attempt.
+  connection, but prepared wallets plus keychain manifest entries are kept so a
+  later retry can reuse the same deterministic materialization.
 - Transport/server/unknown completion failures are saved as `uncertain`, and
   wallets plus keychain manifest entries are kept because remote completion
   cannot be confirmed.
+- Wallet behavior default failures after server acceptance are treated as local
+  completion uncertainty. BTCPay does not roll back already materialized wallets
+  because behavior settings can be repaired independently.
 - SamRock submits the requested setup in one HTTP call, so BTCPay persists a
   single `uncertain` state rather than pretending to have per-rail server ACKs.
 - Pairing state is scoped by wallet environment and persists the BTCPay server
