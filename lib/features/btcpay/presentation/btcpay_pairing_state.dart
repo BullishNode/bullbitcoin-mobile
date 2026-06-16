@@ -1,6 +1,12 @@
 enum BtcpayPairingStatus { loading, idle, submitting, success, failure }
 
-enum BtcpayPairingFailure { invalidRequest, rejected, uncertain, generic }
+enum BtcpayPairingFailure {
+  invalidRequest,
+  localSetup,
+  rejected,
+  uncertain,
+  generic,
+}
 
 enum BtcpayPairingRail { bitcoin, liquid, lightning }
 

@@ -81,6 +81,17 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
     );
   }
 
+  void clearPairingFailure() {
+    if (state.isSubmitting || state.failure == null) return;
+    emit(
+      state.copyWith(
+        status: BtcpayPairingStatus.idle,
+        clearFailure: true,
+        showPairingForm: true,
+      ),
+    );
+  }
+
   Future<void> submit(String pairingUrl) async {
     if (state.isSubmitting) return;
     emit(
@@ -94,17 +105,20 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
     try {
       final connection = await _completePairing.execute(pairingUrl: pairingUrl);
       if (isClosed) return;
+      final walletBehaviors = await _loadWalletBehaviors(connection);
+      if (isClosed) return;
       emit(
         state.copyWith(
           status: BtcpayPairingStatus.success,
           connection: _connectionView(connection),
-          walletBehaviors: await _loadWalletBehaviors(connection),
+          walletBehaviors: walletBehaviors,
           showPairingForm: false,
         ),
       );
     } catch (e) {
       if (isClosed) return;
       final connection = await _connectionAfterPairingFailure();
+      if (isClosed) return;
       emit(
         state.copyWith(
           status: BtcpayPairingStatus.failure,
@@ -167,6 +181,8 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
     return switch (error) {
       BtcpayPairingException(type: BtcpayPairingExceptionType.invalidRequest) =>
         BtcpayPairingFailure.invalidRequest,
+      BtcpayPairingException(type: BtcpayPairingExceptionType.localSetup) =>
+        BtcpayPairingFailure.localSetup,
       BtcpayPairingException(type: BtcpayPairingExceptionType.rejected) =>
         BtcpayPairingFailure.rejected,
       BtcpayPairingException(type: BtcpayPairingExceptionType.uncertain) =>

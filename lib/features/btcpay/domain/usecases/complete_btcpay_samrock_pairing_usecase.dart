@@ -51,6 +51,8 @@ class CompleteBtcpaySamRockPairingUsecase {
       preparedWallets = await _deterministicWallets.prepare(
         _btcpayWalletsRequest(settings.environment),
       );
+      await _recordBtcpayKeychainManifestEntries(preparedWallets);
+
       final Map<String, Object?> payload;
       try {
         payload = const SamRockSetupPayloadBuilder().build(
@@ -60,7 +62,6 @@ class CompleteBtcpaySamRockPairingUsecase {
       } on SamRockSetupPayloadException {
         rethrow;
       }
-      await _recordBtcpayKeychainManifestEntries(preparedWallets);
 
       final now = DateTime.now().toUtc();
       submittedConnection = BtcpayConnection.fromPairing(
@@ -91,8 +92,6 @@ class CompleteBtcpaySamRockPairingUsecase {
       await _applyBtcpayWalletBehaviorDefaults(preparedWallets);
     } on BtcpayPairingException {
       rethrow;
-    } on SamRockSetupPayloadException catch (e) {
-      throw BtcpayPairingException.generic(e.message);
     } catch (e, stack) {
       if (submitAttempted) {
         if (submittedConnection != null) {
@@ -116,10 +115,16 @@ class CompleteBtcpaySamRockPairingUsecase {
         preparedWallets == null
             ? 'BTCPay pairing failed before wallet materialization completed'
             : 'BTCPay pairing failed before descriptor submission; '
-                  'prepared wallets were kept for retry or manifest repair',
+                  'prepared wallets were kept for retry',
         error: e,
         trace: stack,
       );
+      if (preparedWallets != null) {
+        throw BtcpayPairingException.localSetup();
+      }
+      if (e is SamRockSetupPayloadException) {
+        throw BtcpayPairingException.generic(e.message);
+      }
       throw BtcpayPairingException.generic();
     }
 
@@ -163,11 +168,10 @@ class CompleteBtcpaySamRockPairingUsecase {
     }
   }
 
-  Future<KeychainManifestRecordReservedDerivationResult>
-  _recordBtcpayKeychainManifestEntries(
+  Future<void> _recordBtcpayKeychainManifestEntries(
     PreparedDeterministicWallets preparedWallets,
   ) async {
-    return _keychainManifest.recordReservedDerivation(
+    await _keychainManifest.recordReservedDerivation(
       _btcpayKeychainManifestRequest(preparedWallets),
     );
   }

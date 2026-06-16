@@ -13395,19 +13395,23 @@
   "@btcpayPairingGenericError": {
     "description": "Generic error message when BTCPay pairing fails"
   },
+  "btcpayPairingLocalSetupError": "Dedicated BTCPay wallets were kept, but local setup did not finish. Retry to reuse them and finish setup.",
+  "@btcpayPairingLocalSetupError": {
+    "description": "Error shown when dedicated BTCPay wallets were prepared locally but setup failed before server submission"
+  },
   "btcpayPairingInvalidRequestError": "The SamRock pairing URL is invalid.",
   "@btcpayPairingInvalidRequestError": {
     "description": "Error shown when the BTCPay pairing URL cannot be parsed or is unsupported"
   },
-  "btcpayPairingRejectedError": "BTCPay Server rejected the pairing request.",
+  "btcpayPairingRejectedError": "BTCPay Server rejected the pairing request. Dedicated BTCPay wallets were kept. Check the pairing URL or create a new pairing request in BTCPay, then retry.",
   "@btcpayPairingRejectedError": {
     "description": "Error shown when BTCPay Server rejects the SamRock pairing setup"
   },
-  "btcpayPairingUncertainError": "BTCPay pairing may have completed. Review the saved pairing details before retrying.",
+  "btcpayPairingUncertainError": "BTCPay pairing may have completed, but the app could not confirm it. Check BTCPay Server before retrying.",
   "@btcpayPairingUncertainError": {
     "description": "Error shown when BTCPay pairing was submitted but completion could not be confirmed"
   },
-  "btcpayPairingConfirmTitle": "Create BTCPay wallets?",
+  "btcpayPairingConfirmTitle": "Pair BTCPay Server?",
   "@btcpayPairingConfirmTitle": {
     "description": "Title for the consent dialog before BTCPay wallet descriptors are shared"
   },
@@ -13434,7 +13438,7 @@
   "@btcpayPairingConfirmCancel": {
     "description": "Cancel button text for the BTCPay pairing consent dialog"
   },
-  "btcpayPairingConfirmSubmit": "Create wallets and share details",
+  "btcpayPairingConfirmSubmit": "Pair and share details",
   "@btcpayPairingConfirmSubmit": {
     "description": "Confirm button text for the BTCPay pairing consent dialog"
   },
@@ -13482,7 +13486,7 @@
   "@btcpayConnectionUncertainTitle": {
     "description": "Title shown when BTCPay pairing may have completed but the app could not confirm it"
   },
-  "btcpayConnectionUncertainBody": "BTCPay pairing was submitted, but the app could not confirm completion.",
+  "btcpayConnectionUncertainBody": "BTCPay pairing was submitted, but the app could not confirm completion. Check BTCPay Server before pairing again.",
   "@btcpayConnectionUncertainBody": {
     "description": "Body shown when BTCPay pairing may have completed but the app could not confirm it"
   },
