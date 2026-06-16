@@ -1,6 +1,12 @@
 import 'package:bb_mobile/core/errors/bull_exception.dart';
 
-enum BtcpayPairingExceptionType { invalidRequest, rejected, uncertain, generic }
+enum BtcpayPairingExceptionType {
+  invalidRequest,
+  localSetup,
+  rejected,
+  uncertain,
+  generic,
+}
 
 class BtcpayPairingException extends BullException {
   final BtcpayPairingExceptionType type;
@@ -18,6 +24,14 @@ class BtcpayPairingException extends BullException {
     return BtcpayPairingException._(
       BtcpayPairingExceptionType.rejected,
       _safeMessage(message) ?? 'BTCPay Server rejected the SamRock setup',
+    );
+  }
+
+  factory BtcpayPairingException.localSetup([String? message]) {
+    return BtcpayPairingException._(
+      BtcpayPairingExceptionType.localSetup,
+      _safeMessage(message) ??
+          'Dedicated BTCPay wallets were kept, but local setup did not finish',
     );
   }
 
