@@ -96,18 +96,9 @@ void main() {
   });
 
   test(
-    'reports metadata repair for existing wallets with new manifest records',
+    'reports existing wallets as already present after manifest recording',
     () async {
       final intent = _intent();
-      keychainManifest.recordResult =
-          const KeychainManifestRecordReservedDerivationResult.forTesting(
-            insertedMaterializations: [
-              KeychainManifestRecordedMaterialization.walletForTesting(
-                entryId: "fedcba98:39'/0'/12'/100'",
-                walletId: 'btc-wallet',
-              ),
-            ],
-          );
       materializer.result = KeychainRecoveryWalletMaterializationResult(
         materializedWallets: [
           KeychainRecoveryMaterializedWallet(
@@ -123,7 +114,7 @@ void main() {
       final result = await usecase.execute(_plan(intent));
 
       expect(result.hasFailures, false);
-      expect(result.walletOutcomes.single.status, _metadataRepaired);
+      expect(result.walletOutcomes.single.status, _alreadyPresent);
     },
   );
 
@@ -247,21 +238,15 @@ class _FakeWalletMaterializer
 class _FakeKeychainManifestFacade implements KeychainManifestFacade {
   final recordRequests = <KeychainManifestReservedDerivationRequest>[];
   KeychainManifestException? recordError;
-  KeychainManifestRecordReservedDerivationResult recordResult =
-      const KeychainManifestRecordReservedDerivationResult.forTesting(
-        insertedMaterializations: [],
-      );
 
   @override
-  Future<KeychainManifestRecordReservedDerivationResult>
-  recordReservedDerivation(
+  Future<void> recordReservedDerivation(
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
   }) async {
     final error = recordError;
     if (error != null) throw error;
     recordRequests.add(request);
-    return recordResult;
   }
 
   @override
@@ -269,7 +254,7 @@ class _FakeKeychainManifestFacade implements KeychainManifestFacade {
 }
 
 const _created = KeychainRecoveryWalletRestoreStatus.created;
-const _metadataRepaired = KeychainRecoveryWalletRestoreStatus.metadataRepaired;
+const _alreadyPresent = KeychainRecoveryWalletRestoreStatus.alreadyPresent;
 const _skipped = KeychainRecoveryWalletRestoreStatus.skippedUnsupported;
 const _invalidImportPlan =
     KeychainRecoveryWalletRestoreStatus.failedInvalidImportPlan;

@@ -164,7 +164,7 @@ class RestoreKeychainManifestWalletsUsecase {
     final wallets = materializationResult.materializedWallets;
     if (wallets.isEmpty) return [];
     try {
-      final recordResult = await _keychainManifest.recordReservedDerivation(
+      await _keychainManifest.recordReservedDerivation(
         KeychainManifestReservedDerivationRequest(
           reservationId: reservationId,
           parentFingerprint: parentFingerprint,
@@ -178,22 +178,14 @@ class RestoreKeychainManifestWalletsUsecase {
                   scriptType: wallet.wallet.scriptType,
                 ),
               )
-              .toList(growable: false),
+            .toList(growable: false),
         ),
       );
-      final insertedWalletIds = recordResult.insertedMaterializations
-          .where(
-            (materialization) =>
-                materialization.materializationType ==
-                KeychainManifestRecordedMaterialization.walletType,
-          )
-          .map((materialization) => materialization.materializationId)
-          .toSet();
       return wallets
           .map((wallet) {
             return KeychainRecoveryWalletRestoreOutcome(
               intent: wallet.intent,
-              status: _successStatus(wallet, insertedWalletIds),
+              status: _successStatus(wallet),
               walletId: wallet.wallet.id,
             );
           })
@@ -221,12 +213,8 @@ class RestoreKeychainManifestWalletsUsecase {
 
   KeychainRecoveryWalletRestoreStatus _successStatus(
     KeychainRecoveryMaterializedWallet wallet,
-    Set<String> insertedWalletIds,
   ) {
     if (wallet.created) return KeychainRecoveryWalletRestoreStatus.created;
-    if (insertedWalletIds.contains(wallet.wallet.id)) {
-      return KeychainRecoveryWalletRestoreStatus.metadataRepaired;
-    }
     return KeychainRecoveryWalletRestoreStatus.alreadyPresent;
   }
 }
