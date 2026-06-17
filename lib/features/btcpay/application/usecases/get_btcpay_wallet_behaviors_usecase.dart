@@ -6,8 +6,7 @@ import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 class GetBtcpayWalletBehaviorsUsecase {
   final GetWalletsUsecase _getWallets;
 
-  const GetBtcpayWalletBehaviorsUsecase({required GetWalletsUsecase getWallets})
-    : _getWallets = getWallets;
+  const GetBtcpayWalletBehaviorsUsecase({required this._getWallets});
 
   Future<List<BtcpayWalletBehavior>> execute({
     BtcpayConnection? connection,

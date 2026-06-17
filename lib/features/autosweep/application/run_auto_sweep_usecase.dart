@@ -21,18 +21,13 @@ class RunAutoSweepUsecase {
   final Set<String> _inFlightWalletIds = {};
 
   RunAutoSweepUsecase({
-    required AutosweepWalletPort wallets,
-    required BroadcastLiquidTransactionUsecase broadcastLiquid,
-    required BroadcastBitcoinTransactionUsecase broadcastBitcoin,
-    required GetNetworkFeesUsecase getNetworkFees,
-    required LabelsFacade labelsFacade,
-    required AutosweepFeePolicy feePolicy,
-  }) : _wallets = wallets,
-       _broadcastLiquid = broadcastLiquid,
-       _broadcastBitcoin = broadcastBitcoin,
-       _getNetworkFees = getNetworkFees,
-       _labelsFacade = labelsFacade,
-       _feePolicy = feePolicy;
+    required this._wallets,
+    required this._broadcastLiquid,
+    required this._broadcastBitcoin,
+    required this._getNetworkFees,
+    required this._labelsFacade,
+    required this._feePolicy,
+  });
 
   Future<String?> execute(Wallet syncedWallet) async {
     if (!syncedWallet.autoSweepEnabled) return null;

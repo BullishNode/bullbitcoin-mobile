@@ -4,8 +4,7 @@ import 'package:bb_mobile/features/autosweep/public/autosweep_facade.dart';
 class RunWalletAutoSweepUsecase {
   final AutosweepFacade _autosweep;
 
-  const RunWalletAutoSweepUsecase({required AutosweepFacade autosweep})
-    : _autosweep = autosweep;
+  const RunWalletAutoSweepUsecase({required this._autosweep});
 
   Future<String?> execute(Wallet syncedWallet) {
     return _autosweep.run(syncedWallet);

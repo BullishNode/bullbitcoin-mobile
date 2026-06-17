@@ -3,8 +3,7 @@ import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 class UpdateWalletBehaviorUsecase {
   final WalletRepository _walletRepository;
 
-  UpdateWalletBehaviorUsecase({required WalletRepository walletRepository})
-    : _walletRepository = walletRepository;
+  UpdateWalletBehaviorUsecase({required this._walletRepository});
 
   Future<void> execute({
     required String walletId,

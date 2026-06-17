@@ -14,14 +14,11 @@ class AutosweepWalletAdapter implements AutosweepWalletPort {
   final BitcoinWalletRepository _bitcoinWalletRepository;
 
   const AutosweepWalletAdapter({
-    required WalletRepository walletRepository,
-    required WalletAddressRepository walletAddressRepository,
-    required LiquidWalletRepository liquidWalletRepository,
-    required BitcoinWalletRepository bitcoinWalletRepository,
-  }) : _walletRepository = walletRepository,
-       _walletAddressRepository = walletAddressRepository,
-       _liquidWalletRepository = liquidWalletRepository,
-       _bitcoinWalletRepository = bitcoinWalletRepository;
+    required this._walletRepository,
+    required this._walletAddressRepository,
+    required this._liquidWalletRepository,
+    required this._bitcoinWalletRepository,
+  });
 
   @override
   Future<Wallet?> getDefaultWallet({
