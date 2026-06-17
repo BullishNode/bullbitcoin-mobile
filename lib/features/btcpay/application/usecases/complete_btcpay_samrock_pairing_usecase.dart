@@ -19,16 +19,12 @@ class CompleteBtcpaySamRockPairingUsecase {
   final BtcpayConnectionStore _connectionStore;
 
   const CompleteBtcpaySamRockPairingUsecase({
-    required GetSettingsUsecase getSettings,
-    required SamRockPairingRequestParser parser,
-    required DeterministicWalletsFacade deterministicWallets,
-    required SamRockPairingServicePort pairingService,
-    required BtcpayConnectionStore connectionStore,
-  }) : _getSettings = getSettings,
-       _parser = parser,
-       _deterministicWallets = deterministicWallets,
-       _pairingService = pairingService,
-       _connectionStore = connectionStore;
+    required this._getSettings,
+    required this._parser,
+    required this._deterministicWallets,
+    required this._pairingService,
+    required this._connectionStore,
+  });
 
   Future<BtcpayConnection> execute({required String pairingUrl}) async {
     final SamRockPairingRequest request;

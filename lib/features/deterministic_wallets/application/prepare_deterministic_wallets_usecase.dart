@@ -30,14 +30,11 @@ class PrepareDeterministicWalletsUsecase {
   final DeterministicWalletMetadataDeriver _deriveWalletMetadata;
 
   PrepareDeterministicWalletsUsecase({
-    required DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase deriveBip85,
-    required WalletRepository walletRepository,
-    required SeedRepository seedRepository,
+    required this._deriveBip85,
+    required this._walletRepository,
+    required this._seedRepository,
     DeterministicWalletMetadataDeriver? deriveWalletMetadata,
-  }) : _deriveBip85 = deriveBip85,
-       _walletRepository = walletRepository,
-       _seedRepository = seedRepository,
-       _deriveWalletMetadata =
+  }) : _deriveWalletMetadata =
            deriveWalletMetadata ?? WalletMetadataService.deriveFromSeed;
 
   Future<PreparedDeterministicWallets> execute(

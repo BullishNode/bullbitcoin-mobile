@@ -7,9 +7,7 @@ export 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wa
 class DeterministicWalletsFacade {
   final PrepareDeterministicWalletsUsecase _prepareWallets;
 
-  const DeterministicWalletsFacade({
-    required PrepareDeterministicWalletsUsecase prepareWallets,
-  }) : _prepareWallets = prepareWallets;
+  const DeterministicWalletsFacade({required this._prepareWallets});
 
   Future<PreparedDeterministicWallets> prepare(
     DeterministicWalletsRequest request,
