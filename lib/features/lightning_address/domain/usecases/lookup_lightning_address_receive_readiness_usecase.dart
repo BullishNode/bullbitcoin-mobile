@@ -21,11 +21,9 @@ class LookupLightningAddressReceiveReadinessUsecase {
   final PrepareLightningAddressWalletUsecase _prepareWallet;
 
   const LookupLightningAddressReceiveReadinessUsecase({
-    required LookupWalletOwnedLightningAddressRegistrationUsecase
-    lookupRegistration,
-    required PrepareLightningAddressWalletUsecase prepareWallet,
-  }) : _lookupRegistration = lookupRegistration,
-       _prepareWallet = prepareWallet;
+    required this._lookupRegistration,
+    required this._prepareWallet,
+  });
 
   Future<LightningAddressReceiveReadiness> execute() async {
     final registration = await _lookupRegistration.execute();
