@@ -12,9 +12,7 @@ class BtcpayConnectionDatasource implements BtcpayConnectionStore {
 
   final KeyValueStorageDatasource<String> _storage;
 
-  const BtcpayConnectionDatasource({
-    required KeyValueStorageDatasource<String> storage,
-  }) : _storage = storage;
+  const BtcpayConnectionDatasource({required this._storage});
 
   @override
   Future<BtcpayConnection?> getConnection(Environment environment) async {

@@ -14,13 +14,10 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
   final PreviewBtcpaySamRockPairingUsecase _previewPairing;
 
   BtcpayPairingCubit({
-    required CompleteBtcpaySamRockPairingUsecase completePairing,
-    required GetBtcpayConnectionUsecase getConnection,
-    required PreviewBtcpaySamRockPairingUsecase previewPairing,
-  }) : _completePairing = completePairing,
-       _getConnection = getConnection,
-       _previewPairing = previewPairing,
-       super(const BtcpayPairingState());
+    required this._completePairing,
+    required this._getConnection,
+    required this._previewPairing,
+  }) : super(const BtcpayPairingState());
 
   Future<void> load() async {
     if (state.isSubmitting || state.connection != null) return;

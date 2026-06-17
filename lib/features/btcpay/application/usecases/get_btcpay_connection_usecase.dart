@@ -7,10 +7,9 @@ class GetBtcpayConnectionUsecase {
   final BtcpayConnectionStore _store;
 
   const GetBtcpayConnectionUsecase({
-    required GetSettingsUsecase getSettings,
-    required BtcpayConnectionStore store,
-  }) : _getSettings = getSettings,
-       _store = store;
+    required this._getSettings,
+    required this._store,
+  });
 
   Future<BtcpayConnection?> execute() async {
     final settings = await _getSettings.execute();

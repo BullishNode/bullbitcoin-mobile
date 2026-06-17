@@ -5,9 +5,7 @@ import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 class PreviewBtcpaySamRockPairingUsecase {
   final SamRockPairingRequestParser _parser;
 
-  const PreviewBtcpaySamRockPairingUsecase({
-    required SamRockPairingRequestParser parser,
-  }) : _parser = parser;
+  const PreviewBtcpaySamRockPairingUsecase({required this._parser});
 
   BtcpaySamRockPairingPreview execute(String pairingUrl) {
     final SamRockPairingRequest request;
