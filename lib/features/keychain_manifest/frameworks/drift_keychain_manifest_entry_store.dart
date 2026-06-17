@@ -7,8 +7,7 @@ import 'package:drift/native.dart' show SqliteException;
 class DriftKeychainManifestEntryStore implements KeychainManifestEntryStore {
   final SqliteDatabase _database;
 
-  DriftKeychainManifestEntryStore({required SqliteDatabase database})
-    : _database = database;
+  DriftKeychainManifestEntryStore({required this._database});
 
   @override
   Future<KeychainManifestWalletMaterializationRecord?>

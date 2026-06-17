@@ -6,9 +6,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/domain_errors.dart';
 class KeychainManifestFacade {
   final RecordKeychainManifestEntryUsecase _recordEntry;
 
-  KeychainManifestFacade({
-    required RecordKeychainManifestEntryUsecase recordEntry,
-  }) : _recordEntry = recordEntry;
+  KeychainManifestFacade({required this._recordEntry});
 
   Future<void> recordReservedDerivation(
     KeychainManifestReservedDerivationRequest request, {

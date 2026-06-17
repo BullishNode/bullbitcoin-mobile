@@ -38,10 +38,9 @@ class RecordKeychainManifestEntryUsecase {
   final Bip85RegistryFacade _bip85Registry;
 
   RecordKeychainManifestEntryUsecase({
-    required KeychainManifestEntryStore store,
-    Bip85RegistryFacade bip85Registry = const Bip85RegistryFacade(),
-  }) : _store = store,
-       _bip85Registry = bip85Registry;
+    required this._store,
+    this._bip85Registry = const Bip85RegistryFacade(),
+  });
 
   Future<void> execute(
     RecordReservedKeychainDerivationCommand command, {
