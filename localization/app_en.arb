@@ -14259,22 +14259,6 @@
   "@lightningAddressSubmitting": {
     "description": "Button label while Lightning Address registration is submitting."
   },
-  "lightningAddressConfirmTitle": "Register Lightning Address?",
-  "@lightningAddressConfirmTitle": {
-    "description": "Confirmation dialog title before Lightning Address registration."
-  },
-  "lightningAddressConfirmBody": "Bull Wallet will create or reuse a dedicated Lightning Address Liquid wallet, derive wallet-owned server authentication internally, and submit your selected name plus a confidential descriptor to the configured Bullnym server.",
-  "@lightningAddressConfirmBody": {
-    "description": "Confirmation dialog body before Lightning Address registration."
-  },
-  "lightningAddressConfirmCancel": "Cancel",
-  "@lightningAddressConfirmCancel": {
-    "description": "Cancel button in the Lightning Address confirmation dialog."
-  },
-  "lightningAddressConfirmSubmit": "Register",
-  "@lightningAddressConfirmSubmit": {
-    "description": "Confirm button in the Lightning Address confirmation dialog."
-  },
   "lightningAddressOperationInProgress": "Lightning Address registration is still in progress.",
   "@lightningAddressOperationInProgress": {
     "description": "Snackbar shown when the user tries to leave during registration."
@@ -14291,9 +14275,25 @@
   "@lightningAddressSuccessBody": {
     "description": "Body shown after successful Lightning Address registration."
   },
-  "lightningAddressNoCopyableAddressAfterLookup": "Status lookup confirms the name is active. The full address is only shown immediately after a new registration.",
+  "lightningAddressNoCopyableAddressAfterLookup": "Status lookup confirms the name is active. The server did not return the full address for copying.",
   "@lightningAddressNoCopyableAddressAfterLookup": {
     "description": "Body shown for active lookup when the full Lightning Address is not available from the status API."
+  },
+  "lightningAddressCopyableAddressAfterLookup": "Status lookup confirms the name is active. This address was returned by the server for copying.",
+  "@lightningAddressCopyableAddressAfterLookup": {
+    "description": "Body shown for active lookup when the full Lightning Address is available from the status API."
+  },
+  "lightningAddressLocalSetupFailedTitle": "Lightning Address is active",
+  "@lightningAddressLocalSetupFailedTitle": {
+    "description": "Heading shown when Bullnym reports an active Lightning Address but the local receive wallet setup needs retry."
+  },
+  "lightningAddressLocalSetupFailedBody": "The address is registered, but the receive wallet still needs local setup before it is ready.",
+  "@lightningAddressLocalSetupFailedBody": {
+    "description": "Body shown when Bullnym reports an active Lightning Address but local receive wallet setup failed."
+  },
+  "lightningAddressRetrySetupButton": "Retry Setup",
+  "@lightningAddressRetrySetupButton": {
+    "description": "Button label to retry local Lightning Address receive wallet setup."
   },
   "lightningAddressReceiveReadinessLabel": "Receive wallet",
   "@lightningAddressReceiveReadinessLabel": {
@@ -14338,6 +14338,10 @@
   "lightningAddressRejected": "The server rejected this name.",
   "@lightningAddressRejected": {
     "description": "Failure message shown when the Bullnym server rejects registration."
+  },
+  "lightningAddressServerTemporary": "The server could not register this name right now. Please try again.",
+  "@lightningAddressServerTemporary": {
+    "description": "Failure message shown when Bullnym returns a retryable server rejection."
   },
   "lightningAddressNetworkError": "Network error. Please try again.",
   "@lightningAddressNetworkError": {

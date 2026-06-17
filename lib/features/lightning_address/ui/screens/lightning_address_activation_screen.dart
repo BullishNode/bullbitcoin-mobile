@@ -74,7 +74,16 @@ class _LightningAddressActivationScreenState
                   : state.isActive
                   ? _ActiveView(
                       nym: state.nym,
+                      lightningAddress: state.registeredAddress,
                       receiveReady: state.receiveReady,
+                    )
+                  : state.isActiveLocalSetupFailed
+                  ? _ActiveLocalSetupFailedView(
+                      nym: state.nym,
+                      lightningAddress: state.registeredAddress,
+                      onCheckStatus: context
+                          .read<LightningAddressActivationCubit>()
+                          .load,
                     )
                   : state.isInactive
                   ? _InactiveKnownView(
@@ -121,28 +130,6 @@ class _LightningAddressActivationScreenState
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        scrollable: true,
-        title: Text(context.loc.lightningAddressConfirmTitle),
-        content: Text(context.loc.lightningAddressConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(context.loc.lightningAddressConfirmCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(
-              context.loc.lightningAddressConfirmSubmit,
-              textAlign: TextAlign.end,
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
     await context.read<LightningAddressActivationCubit>().submit();
   }
 
@@ -163,6 +150,8 @@ class _LightningAddressActivationScreenState
         context.loc.lightningAddressUncertainBody,
       LightningAddressActivationFailure.rejected =>
         context.loc.lightningAddressRejected,
+      LightningAddressActivationFailure.serverTemporary =>
+        context.loc.lightningAddressServerTemporary,
       LightningAddressActivationFailure.network =>
         context.loc.lightningAddressNetworkError,
       LightningAddressActivationFailure.generic =>
@@ -370,9 +359,14 @@ class _InactiveKnownView extends StatelessWidget {
 
 class _ActiveView extends StatelessWidget {
   final String nym;
+  final String? lightningAddress;
   final bool receiveReady;
 
-  const _ActiveView({required this.nym, required this.receiveReady});
+  const _ActiveView({
+    required this.nym,
+    required this.lightningAddress,
+    required this.receiveReady,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -382,16 +376,71 @@ class _ActiveView extends StatelessWidget {
         _StatusNotice(
           icon: Icons.check_circle,
           title: context.loc.lightningAddressActiveTitle,
-          body: context.loc.lightningAddressNoCopyableAddressAfterLookup,
+          body: lightningAddress == null
+              ? context.loc.lightningAddressNoCopyableAddressAfterLookup
+              : context.loc.lightningAddressCopyableAddressAfterLookup,
         ),
         const Gap(24),
         _InfoRow(label: context.loc.lightningAddressNymLabel, value: nym),
+        if (lightningAddress != null) ...[
+          const Gap(16),
+          CopyInput(
+            text: lightningAddress!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
         const Gap(16),
         _InfoRow(
           label: context.loc.lightningAddressReceiveReadinessLabel,
           value: receiveReady
               ? context.loc.lightningAddressReceiveReady
               : context.loc.lightningAddressReceiveNotReady,
+        ),
+      ],
+    );
+  }
+}
+
+class _ActiveLocalSetupFailedView extends StatelessWidget {
+  final String nym;
+  final String? lightningAddress;
+  final VoidCallback onCheckStatus;
+
+  const _ActiveLocalSetupFailedView({
+    required this.nym,
+    required this.lightningAddress,
+    required this.onCheckStatus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _StatusNotice(
+          icon: Icons.warning_amber_outlined,
+          title: context.loc.lightningAddressLocalSetupFailedTitle,
+          body: context.loc.lightningAddressLocalSetupFailedBody,
+        ),
+        const Gap(24),
+        _InfoRow(label: context.loc.lightningAddressNymLabel, value: nym),
+        if (lightningAddress != null) ...[
+          const Gap(16),
+          CopyInput(
+            text: lightningAddress!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+        const Gap(24),
+        BBButton.big(
+          label: context.loc.lightningAddressRetrySetupButton,
+          iconData: Icons.refresh,
+          iconFirst: true,
+          onPressed: onCheckStatus,
+          bgColor: context.appColors.secondary,
+          textColor: context.appColors.onSecondary,
         ),
       ],
     );

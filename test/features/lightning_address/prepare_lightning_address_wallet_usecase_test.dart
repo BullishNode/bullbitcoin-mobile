@@ -119,26 +119,26 @@ void main() {
     );
   });
 
-  test('rolls back prepared wallets when behavior defaults fail', () async {
-    applyWalletBehaviorDefaults.error = StateError('metadata failed');
+  test(
+    'keeps prepared wallets when behavior defaults fail after manifest',
+    () async {
+      applyWalletBehaviorDefaults.error = StateError('metadata failed');
 
-    await expectLater(
-      usecase.execute(),
-      throwsA(
-        isA<LightningAddressException>().having(
-          (error) => error.kind,
-          'kind',
-          LightningAddressErrorKind.localPreparationFailed,
+      await expectLater(
+        usecase.execute(),
+        throwsA(
+          isA<LightningAddressException>().having(
+            (error) => error.kind,
+            'kind',
+            LightningAddressErrorKind.localPreparationFailed,
+          ),
         ),
-      ),
-    );
+      );
 
-    expect(deterministicWallets.rollbackRequests, hasLength(1));
-    expect(
-      deterministicWallets.rollbackRequests.single.wallets.single.wallet.id,
-      'la-wallet',
-    );
-  });
+      expect(keychainManifest.recordRequests, hasLength(1));
+      expect(deterministicWallets.rollbackRequests, isEmpty);
+    },
+  );
 
   test('reports durable manifest failures as non-retryable', () async {
     keychainManifest.recordError = KeychainManifestEntryConflictException(

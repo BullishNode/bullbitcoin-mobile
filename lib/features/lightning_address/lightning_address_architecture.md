@@ -39,13 +39,14 @@ It delegates local wallet creation/reuse to Deterministic Wallets, records recov
 `prepareWallet()` creates or reuses the dedicated Liquid receive wallet from the `lightning_address_wallet_seed` BIP85 reservation, records the resulting wallet materialization in the keychain manifest, and applies product defaults through the generic wallet behavior use case: `hideOnHome: true` and `autoSweepEnabled: true`.
 Lightning Address applies those defaults because it owns the product policy, but it does not run sweeps itself.
 Actual drain execution remains in `features/autosweep` and is triggered by the wallet sync flow when the synced wallet has autosweep enabled.
-If manifest recording or defaults fail after local wallet creation, the use case rolls back newly created deterministic wallets best-effort and returns a local preparation error.
+If local wallet creation fails before manifest recording, the use case rolls back newly created deterministic wallets best-effort and returns a local preparation error.
+Once manifest recording succeeds, defaults failures return a local preparation error without rolling back the wallet, so durable recovery metadata never points at a removed wallet.
 Recovered Lightning Address wallets require product reactivation because the manifest can restore wallet materialization metadata but cannot prove an active Bullnym server registration.
 
 The existing `xprvBase58` and confidential descriptor registration inputs remain foundation inputs for internal protocol use cases.
 They are not exported by the public facade and must not be passed from routed UI.
 `RegisterWalletOwnedLightningAddressUsecase` is the product-safe registration composition point: it accepts only a nym, rejects blank nyms before local side effects, derives the default-wallet xprv behind a Lightning Address port, prepares or reuses the dedicated Liquid wallet, and submits the prepared wallet's confidential descriptor through the protocol registration use case.
-`LookupWalletOwnedLightningAddressRegistrationUsecase` is the matching product-safe status path; it derives the same wallet-owned auth material internally, derives the Bullnym auth public key, and returns Bullnym's nym/active status without exposing xprv input.
+`LookupWalletOwnedLightningAddressRegistrationUsecase` is the matching product-safe status path; it derives the same wallet-owned auth material internally, derives the Bullnym auth public key, and returns Bullnym's nym/active status plus a canonical Lightning Address only when Bullnym supplies one, without exposing xprv input.
 
 If local default-wallet xprv derivation or wallet preparation fails, no Bullnym registration is attempted.
 If Bullnym registration fails after wallet preparation, the wallet-owned registration use case throws `WalletOwnedLightningAddressRegistrationException` with the prepared wallet id, whether it was created in the attempt, and whether the failure is an uncertain post-submission transport/response failure.
@@ -55,12 +56,12 @@ The routed activation/status UI lives under Bitcoin settings.
 Its Cubit depends on `ActivateWalletOwnedLightningAddressUsecase` and `LookupLightningAddressReceiveReadinessUsecase`.
 The activation use case maps wallet-owned registration failures to an activation-safe Lightning Address exception that keeps wallet-id metadata out of the presentation contract while preserving local-preparation versus uncertain post-submission failure semantics.
 The readiness use case combines the wallet-owned Bullnym status lookup with local receive-wallet preparation only when the server registration is active, so an active server registration can repair local receive readiness without exposing wallet metadata to the UI.
-The UI can submit a nym after explicit consent, show an active nym from lookup, show whether the local receive wallet is ready for receive/autosweep, show the server-returned Lightning Address only after a fresh registration response, and surface lookup failures separately from inactive status.
+Local setup failures during active-status readiness are represented as `activeLocalSetupFailed` so the user can retry local setup without being told the server registration is inactive.
+The UI can submit a nym after explicit consent, show an active nym from lookup, show whether the local receive wallet is ready for receive/autosweep, show a copyable Lightning Address when Bullnym returns a canonical address, and surface lookup failures separately from inactive status.
 It does not pass xprv material, descriptors, wallet ids, Nostr handles, Bullnym internals, autosweep internals, or raw protocol use cases through presentation or route state.
 
-Lookup currently reflects the Bullnym public lookup contract: it reports the registered nym and whether it is active.
-It does not synthesize a copyable Lightning Address from a hardcoded domain.
-Canonical display/copy address after lookup belongs in a later backend/facade contract or wallet/config-owned flow.
+Lookup reflects the Bullnym public lookup contract: it reports the registered nym, whether it is active, and optionally the canonical Lightning Address when the server returns one.
+Lightning Address does not synthesize a copyable address from a hardcoded domain.
 
 The local nym validation owned here rejects empty or whitespace-only values and full-address input containing `@` before key derivation and network calls.
 Character sets, case policy, length limits, reserved names, and normalization remain Bullnym protocol or product decisions.

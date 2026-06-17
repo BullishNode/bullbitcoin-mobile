@@ -199,6 +199,37 @@ void main() {
       );
     });
 
+    test(
+      'keeps retryable server rejection distinct from uncertainty',
+      () async {
+        register.error = const LightningAddressServerRejectedRequestException(
+          code: 'TemporarilyUnavailable',
+          retryable: true,
+        );
+
+        await expectLater(
+          usecase.execute(nym: 'alice'),
+          throwsA(
+            isA<WalletOwnedLightningAddressRegistrationException>()
+                .having(
+                  (e) => e.phase,
+                  'phase',
+                  WalletOwnedLightningAddressRegistrationFailurePhase
+                      .registrationSubmission,
+                )
+                .having(
+                  (e) => e.submissionMayBeUncertain,
+                  'submissionMayBeUncertain',
+                  false,
+                )
+                .having((e) => e.cause.retryable, 'retryable', true),
+          ),
+        );
+        expect(prepareWallet.executeCalls, 1);
+        expect(register.commands.single.ctDescriptor, 'ct-desc');
+      },
+    );
+
     test('reports reused wallet metadata for idempotent retry', () async {
       prepareWallet.prepared = _prepared(created: false);
 

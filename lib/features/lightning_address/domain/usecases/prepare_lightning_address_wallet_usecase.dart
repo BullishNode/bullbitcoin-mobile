@@ -28,12 +28,14 @@ class PrepareLightningAddressWalletUsecase {
 
   Future<PreparedLightningAddressWallet> execute() async {
     PreparedDeterministicWallets? preparedWallets;
+    var manifestRecorded = false;
     try {
       final settings = await _getSettings.execute();
       preparedWallets = await _deterministicWallets.prepare(
         _lightningAddressWalletRequest(settings.environment),
       );
       await _recordKeychainManifestEntry(preparedWallets);
+      manifestRecorded = true;
       final preparedWallet = preparedWallets.wallets.single;
       await _applyLightningAddressWalletDefaults(preparedWallet.wallet.id);
       return PreparedLightningAddressWallet(
@@ -42,12 +44,12 @@ class PrepareLightningAddressWalletUsecase {
         created: preparedWallet.created,
       );
     } on LightningAddressException {
-      if (preparedWallets != null) {
+      if (preparedWallets != null && !manifestRecorded) {
         await _rollbackPreparedWalletsBestEffort(preparedWallets);
       }
       rethrow;
     } on DeterministicWalletException catch (e) {
-      if (preparedWallets != null) {
+      if (preparedWallets != null && !manifestRecorded) {
         await _rollbackPreparedWalletsBestEffort(preparedWallets);
       }
       if (e.type == DeterministicWalletExceptionType.generic) {
@@ -58,7 +60,7 @@ class PrepareLightningAddressWalletUsecase {
       }
       throw const LightningAddressException.unexpected();
     } on KeychainManifestException catch (e) {
-      if (preparedWallets != null) {
+      if (preparedWallets != null && !manifestRecorded) {
         await _rollbackPreparedWalletsBestEffort(preparedWallets);
       }
       throw LightningAddressException.localPreparationFailed(
@@ -66,7 +68,7 @@ class PrepareLightningAddressWalletUsecase {
         retryable: _isRetryableManifestFailure(e),
       );
     } catch (_) {
-      if (preparedWallets != null) {
+      if (preparedWallets != null && !manifestRecorded) {
         await _rollbackPreparedWalletsBestEffort(preparedWallets);
       }
       throw const LightningAddressException.unexpected();

@@ -42,23 +42,19 @@ void main() {
     expect(result.receiveReady, true);
   });
 
-  test('active registration propagates local readiness failures', () async {
+  test('active registration reports local readiness failures', () async {
     lookup.status = const LightningAddressStatus(nym: 'alice', active: true);
     prepareWallet.error = LightningAddressException.localPreparationFailed(
       code: 'MetadataFailed',
       retryable: true,
     );
 
-    await expectLater(
-      usecase.execute(),
-      throwsA(
-        isA<LightningAddressException>().having(
-          (error) => error.kind,
-          'kind',
-          LightningAddressErrorKind.localPreparationFailed,
-        ),
-      ),
-    );
+    final result = await usecase.execute();
+
+    expect(result.registration.nym, 'alice');
+    expect(result.registration.active, true);
+    expect(result.receiveReady, false);
+    expect(result.localSetupFailed, true);
   });
 }
 

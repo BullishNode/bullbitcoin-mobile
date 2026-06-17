@@ -35,15 +35,18 @@ class LightningAddressActivationCubit
       final registration = readiness.registration;
       emit(
         state.copyWith(
-          status: registration.active
+          status: readiness.localSetupFailed
+              ? LightningAddressActivationStatus.activeLocalSetupFailed
+              : registration.active
               ? LightningAddressActivationStatus.active
               : LightningAddressActivationStatus.inactive,
           nym: registration.active || state.nym.trim().isEmpty
               ? registration.nym
               : null,
+          registeredAddress: registration.lightningAddress,
           receiveReady: readiness.receiveReady,
           clearFailure: true,
-          clearRegisteredAddress: true,
+          clearRegisteredAddress: registration.lightningAddress == null,
         ),
       );
     } catch (e, stack) {
@@ -184,6 +187,13 @@ class LightningAddressActivationCubit
       WalletOwnedLightningAddressActivationException(
         cause: LightningAddressException(
           kind: LightningAddressErrorKind.serverRejectedRequest,
+          retryable: true,
+        ),
+      ) =>
+        LightningAddressActivationFailure.serverTemporary,
+      WalletOwnedLightningAddressActivationException(
+        cause: LightningAddressException(
+          kind: LightningAddressErrorKind.serverRejectedRequest,
         ),
       ) =>
         LightningAddressActivationFailure.rejected,
@@ -195,6 +205,11 @@ class LightningAddressActivationCubit
         LightningAddressActivationFailure.network,
       LightningAddressException(kind: LightningAddressErrorKind.invalidNym) =>
         LightningAddressActivationFailure.invalidNym,
+      LightningAddressException(
+        kind: LightningAddressErrorKind.serverRejectedRequest,
+        retryable: true,
+      ) =>
+        LightningAddressActivationFailure.serverTemporary,
       LightningAddressException(
         kind: LightningAddressErrorKind.serverRejectedRequest,
       ) =>

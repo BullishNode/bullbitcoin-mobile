@@ -2,6 +2,7 @@ enum LightningAddressActivationStatus {
   loading,
   idle,
   active,
+  activeLocalSetupFailed,
   inactive,
   submitting,
   registered,
@@ -15,6 +16,7 @@ enum LightningAddressActivationFailure {
   setupFailed,
   submissionUncertain,
   rejected,
+  serverTemporary,
   network,
   generic,
 }
@@ -40,6 +42,8 @@ class LightningAddressActivationState {
   bool get isRegistered =>
       status == LightningAddressActivationStatus.registered;
   bool get isActive => status == LightningAddressActivationStatus.active;
+  bool get isActiveLocalSetupFailed =>
+      status == LightningAddressActivationStatus.activeLocalSetupFailed;
   bool get isInactive => status == LightningAddressActivationStatus.inactive;
 
   LightningAddressActivationState copyWith({
@@ -55,7 +59,7 @@ class LightningAddressActivationState {
       status: status ?? this.status,
       failure: clearFailure ? null : failure ?? this.failure,
       nym: nym ?? this.nym,
-      registeredAddress: clearRegisteredAddress
+      registeredAddress: clearRegisteredAddress && registeredAddress == null
           ? null
           : registeredAddress ?? this.registeredAddress,
       receiveReady: receiveReady ?? this.receiveReady,

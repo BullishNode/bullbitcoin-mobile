@@ -37,6 +37,21 @@ void main() {
       expect(cubit.state.receiveReady, true);
     });
 
+    test('load active status stores canonical address when returned', () async {
+      lookup.registration = const LightningAddressStatus(
+        nym: 'alice',
+        active: true,
+        lightningAddress: 'alice@example.invalid',
+      );
+
+      await cubit.load();
+
+      expect(cubit.state.status, LightningAddressActivationStatus.active);
+      expect(cubit.state.nym, 'alice');
+      expect(cubit.state.registeredAddress, 'alice@example.invalid');
+      expect(cubit.state.receiveReady, true);
+    });
+
     test(
       'load inactive known status keeps it distinct from first run',
       () async {
@@ -155,6 +170,29 @@ void main() {
       expect(cubit.state.receiveReady, false);
     });
 
+    test('retryable server rejection maps to temporary failure', () async {
+      cubit.nymChanged('alice');
+      activate.error = const WalletOwnedLightningAddressActivationException(
+        phase: WalletOwnedLightningAddressActivationFailurePhase
+            .registrationSubmission,
+        cause: LightningAddressException(
+          kind: LightningAddressErrorKind.serverRejectedRequest,
+          code: 'TemporarilyUnavailable',
+          retryable: true,
+        ),
+        walletCreated: true,
+        submissionMayBeUncertain: false,
+      );
+
+      await cubit.submit();
+
+      expect(cubit.state.status, LightningAddressActivationStatus.failure);
+      expect(
+        cubit.state.failure,
+        LightningAddressActivationFailure.serverTemporary,
+      );
+    });
+
     test('load failure keeps status distinct from inactive', () async {
       lookup.error = const LightningAddressNetworkException(
         code: 'Network',
@@ -189,24 +227,23 @@ void main() {
       expect(cubit.state.receiveReady, false);
     });
 
-    test(
-      'active lookup with local setup failure maps to setup failure',
-      () async {
-        lookup.error = LightningAddressException.localPreparationFailed(
-          code: 'MetadataFailed',
-          retryable: true,
-        );
+    test('active lookup with local setup failure keeps active state', () async {
+      lookup.result = const LightningAddressReceiveReadiness(
+        registration: LightningAddressStatus(nym: 'alice', active: true),
+        receiveReady: false,
+        localSetupFailed: true,
+      );
 
-        await cubit.load();
+      await cubit.load();
 
-        expect(cubit.state.status, LightningAddressActivationStatus.failure);
-        expect(
-          cubit.state.failure,
-          LightningAddressActivationFailure.setupFailed,
-        );
-        expect(cubit.state.receiveReady, false);
-      },
-    );
+      expect(
+        cubit.state.status,
+        LightningAddressActivationStatus.activeLocalSetupFailed,
+      );
+      expect(cubit.state.failure, isNull);
+      expect(cubit.state.nym, 'alice');
+      expect(cubit.state.receiveReady, false);
+    });
 
     test('failed status check preserves uncertain submission state', () async {
       cubit.nymChanged('alice');
