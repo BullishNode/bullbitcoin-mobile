@@ -123,6 +123,77 @@ void main() {
       throwsA(isA<KeychainManifestNostrEventException>()),
     );
   });
+
+  test('derives deterministic NIP-01 event ids and encodes signed events', () {
+    const signedCodec = KeychainManifestNostrSignedEventCodec();
+    final draft = KeychainManifestNostrEventDraft(
+      authorPublicKeyHex:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      encryptedContent: 'encrypted-payload',
+      createdAt: 123,
+    );
+    final eventId = keychainManifestNostrEventIdForDraft(draft);
+    final signed = KeychainManifestNostrSignedEvent.fromDraft(
+      draft: draft,
+      signatureHex: _signatureHex,
+    );
+
+    expect(
+      eventId,
+      'c41a120630a0329803e227d2beea76c286ef40f28b25cfe51ad54c3da88c1ec9',
+    );
+    expect(signed.signatureHex, _signatureHex);
+    expect(signed.id, eventId);
+    expect(signed.authorPublicKeyHex, draft.authorPublicKeyHex);
+    expect(signed.tags, [
+      ['d', keychainManifestNostrDTag],
+    ]);
+    expect(signedCodec.encode(signed), {
+      'id': signed.id,
+      'pubkey': draft.authorPublicKeyHex,
+      'created_at': 123,
+      'kind': keychainManifestNostrEventKind,
+      'tags': [
+        ['d', keychainManifestNostrDTag],
+      ],
+      'content': 'encrypted-payload',
+      'sig': _signatureHex,
+    });
+  });
+
+  test('derives signed event ids internally and deep-freezes tags', () {
+    final draft = KeychainManifestNostrEventDraft(
+      authorPublicKeyHex:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      encryptedContent: 'encrypted-payload',
+      createdAt: 123,
+    );
+    final signed = KeychainManifestNostrSignedEvent.fromDraft(
+      draft: draft,
+      signatureHex: _signatureHex,
+    );
+
+    expect(signed.id, keychainManifestNostrEventIdForDraft(draft));
+    expect(() => signed.tags.add(['p', 'x']), throwsUnsupportedError);
+    expect(() => signed.tags.single.add('x'), throwsUnsupportedError);
+  });
+
+  test('rejects invalid signed event signatures', () {
+    final draft = KeychainManifestNostrEventDraft(
+      authorPublicKeyHex:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      encryptedContent: 'encrypted-payload',
+      createdAt: 123,
+    );
+
+    expect(
+      () => KeychainManifestNostrSignedEvent.fromDraft(
+        draft: draft,
+        signatureHex: 'bad-signature',
+      ),
+      throwsA(isA<KeychainManifestNostrEventException>()),
+    );
+  });
 }
 
 KeychainManifestFile _manifestFile() {
@@ -169,3 +240,7 @@ const _nostrSnapshotPayload =
     '"walletId":"btc-wallet","childSeedFingerprint":"0123abcd",'
     '"network":"bitcoinMainnet","walletPurpose":"bitcoin",'
     '"scriptType":"bip84","createdAt":10,"updatedAt":10}]}]}}';
+
+const _signatureHex =
+    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';

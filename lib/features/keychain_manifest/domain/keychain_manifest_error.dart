@@ -109,6 +109,12 @@ final class KeychainManifestNostrEncryptionException
     : super._(KeychainManifestExceptionType.generic, message, cause: cause);
 }
 
+final class KeychainManifestNostrSigningException
+    extends KeychainManifestException {
+  KeychainManifestNostrSigningException(String message, {Object? cause})
+    : super._(KeychainManifestExceptionType.generic, message, cause: cause);
+}
+
 final class KeychainManifestGenericException extends KeychainManifestException {
   KeychainManifestGenericException({Object? cause})
     : super._(

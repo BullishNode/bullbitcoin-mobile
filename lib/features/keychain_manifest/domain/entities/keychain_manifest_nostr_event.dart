@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
+import 'package:convert/convert.dart';
+import 'package:crypto/crypto.dart';
 
 const int keychainManifestNostrEventKind = 30078;
 const String keychainManifestNostrDTag = 'manifest';
@@ -74,4 +78,49 @@ class KeychainManifestNostrEventDraft {
   List<List<String>> get tags => const [
     ['d', keychainManifestNostrDTag],
   ];
+}
+
+class KeychainManifestNostrSignedEvent {
+  static final _signaturePattern = RegExp(r'^[0-9a-fA-F]{128}$');
+
+  final String id;
+  final String authorPublicKeyHex;
+  final int createdAt;
+  final int kind;
+  final List<List<String>> tags;
+  final String encryptedContent;
+  final String signatureHex;
+
+  KeychainManifestNostrSignedEvent.fromDraft({
+    required KeychainManifestNostrEventDraft draft,
+    required String signatureHex,
+  }) : id = keychainManifestNostrEventIdForDraft(draft),
+       authorPublicKeyHex = draft.authorPublicKeyHex,
+       createdAt = draft.createdAt,
+       kind = draft.kind,
+       tags = List<List<String>>.unmodifiable(
+         draft.tags.map(List<String>.unmodifiable),
+       ),
+       encryptedContent = draft.encryptedContent,
+       signatureHex = signatureHex.trim().toLowerCase() {
+    if (!_signaturePattern.hasMatch(this.signatureHex)) {
+      throw KeychainManifestNostrEventException(
+        'Nostr event signature must be a 64-byte hex value',
+      );
+    }
+  }
+}
+
+String keychainManifestNostrEventIdForDraft(
+  KeychainManifestNostrEventDraft draft,
+) {
+  final serialized = jsonEncode([
+    0,
+    draft.authorPublicKeyHex,
+    draft.createdAt,
+    draft.kind,
+    draft.tags,
+    draft.encryptedContent,
+  ]);
+  return hex.encode(sha256.convert(utf8.encode(serialized)).bytes);
 }
