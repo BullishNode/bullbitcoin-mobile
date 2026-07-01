@@ -77,8 +77,6 @@ class LightningAddressLocator {
           locator<RegisterWalletOwnedLightningAddressUsecase>();
       final lookupWalletOwnedRegistration =
           locator<LookupWalletOwnedLightningAddressRegistrationUsecase>();
-      final lookupReceiveReadiness =
-          locator<LookupLightningAddressReceiveReadinessUsecase>();
 
       return LightningAddressFacade(
         prepareWallet: prepareWallet.execute,
@@ -87,7 +85,6 @@ class LightningAddressLocator {
         registerWalletOwned: ({required nym}) =>
             registerWalletOwned.execute(nym: nym),
         lookupWalletOwnedRegistration: lookupWalletOwnedRegistration.execute,
-        lookupReceiveReadiness: lookupReceiveReadiness.execute,
       );
     });
     locator.registerFactory<ActivateWalletOwnedLightningAddressUsecase>(

@@ -23,7 +23,7 @@ class LightningAddressActivationCubit
     emit(
       state.copyWith(
         status: LightningAddressActivationStatus.loading,
-        receiveReady: false,
+        localSetupRetryable: false,
         clearFailure: !wasSubmissionUncertain,
         clearRegisteredAddress: true,
       ),
@@ -44,7 +44,7 @@ class LightningAddressActivationCubit
               ? registration.nym
               : null,
           registeredAddress: registration.lightningAddress,
-          receiveReady: readiness.receiveReady,
+          localSetupRetryable: readiness.localSetupRetryable,
           clearFailure: true,
           clearRegisteredAddress: registration.lightningAddress == null,
         ),
@@ -66,7 +66,7 @@ class LightningAddressActivationCubit
         state.copyWith(
           status: LightningAddressActivationStatus.failure,
           failure: failure,
-          receiveReady: false,
+          localSetupRetryable: false,
           clearRegisteredAddress: true,
         ),
       );
@@ -90,7 +90,7 @@ class LightningAddressActivationCubit
     emit(
       state.copyWith(
         status: LightningAddressActivationStatus.idle,
-        receiveReady: false,
+        localSetupRetryable: false,
         clearFailure: true,
         clearRegisteredAddress: true,
       ),
@@ -125,7 +125,7 @@ class LightningAddressActivationCubit
       state.copyWith(
         status: LightningAddressActivationStatus.submitting,
         nym: nym,
-        receiveReady: false,
+        localSetupRetryable: false,
         clearFailure: true,
         clearRegisteredAddress: true,
       ),
@@ -139,7 +139,7 @@ class LightningAddressActivationCubit
           status: LightningAddressActivationStatus.registered,
           nym: result.nym,
           registeredAddress: result.lightningAddress,
-          receiveReady: true,
+          localSetupRetryable: false,
           clearFailure: true,
         ),
       );
@@ -154,7 +154,7 @@ class LightningAddressActivationCubit
         state.copyWith(
           status: LightningAddressActivationStatus.failure,
           failure: _registrationFailureFor(e),
-          receiveReady: false,
+          localSetupRetryable: false,
           clearRegisteredAddress: true,
         ),
       );

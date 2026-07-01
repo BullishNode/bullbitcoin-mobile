@@ -172,16 +172,16 @@ void main() {
 
     test('retryable server rejection maps to temporary failure', () async {
       cubit.nymChanged('alice');
-      activate.error = const WalletOwnedLightningAddressActivationException(
-        phase: WalletOwnedLightningAddressActivationFailurePhase
-            .registrationSubmission,
-        cause: LightningAddressException(
-          kind: LightningAddressErrorKind.serverRejectedRequest,
-          code: 'TemporarilyUnavailable',
-          retryable: true,
+      activate
+          .error = WalletOwnedLightningAddressActivationException.fromRegistration(
+        WalletOwnedLightningAddressRegistrationException.registrationSubmission(
+          cause: const LightningAddressServerRejectedRequestException(
+            code: 'TemporarilyUnavailable',
+            retryable: true,
+          ),
+          walletId: 'wallet-id',
+          walletCreated: true,
         ),
-        walletCreated: true,
-        submissionMayBeUncertain: false,
       );
 
       await cubit.submit();
@@ -230,8 +230,8 @@ void main() {
     test('active lookup with local setup failure keeps active state', () async {
       lookup.result = const LightningAddressReceiveReadiness(
         registration: LightningAddressStatus(nym: 'alice', active: true),
-        receiveReady: false,
         localSetupFailed: true,
+        localSetupRetryable: true,
       );
 
       await cubit.load();
@@ -243,7 +243,28 @@ void main() {
       expect(cubit.state.failure, isNull);
       expect(cubit.state.nym, 'alice');
       expect(cubit.state.receiveReady, false);
+      expect(cubit.state.localSetupRetryable, true);
     });
+
+    test(
+      'active lookup with non-retryable setup failure disables retry',
+      () async {
+        lookup.result = const LightningAddressReceiveReadiness(
+          registration: LightningAddressStatus(nym: 'alice', active: true),
+          localSetupFailed: true,
+          localSetupRetryable: false,
+        );
+
+        await cubit.load();
+
+        expect(
+          cubit.state.status,
+          LightningAddressActivationStatus.activeLocalSetupFailed,
+        );
+        expect(cubit.state.localSetupRetryable, false);
+        expect(cubit.state.receiveReady, false);
+      },
+    );
 
     test('failed status check preserves uncertain submission state', () async {
       cubit.nymChanged('alice');
@@ -283,7 +304,6 @@ void main() {
       pendingLookup.complete(
         const LightningAddressReceiveReadiness(
           registration: LightningAddressStatus(nym: 'old', active: false),
-          receiveReady: false,
         ),
       );
       await loadFuture;
@@ -319,16 +339,12 @@ class _FakeLookupLightningAddressReceiveReadinessUsecase
   LightningAddressReceiveReadiness result =
       const LightningAddressReceiveReadiness(
         registration: LightningAddressStatus(nym: '', active: false),
-        receiveReady: false,
       );
   Future<LightningAddressReceiveReadiness>? pendingResult;
   Object? error;
 
   set registration(LightningAddressStatus status) {
-    result = LightningAddressReceiveReadiness(
-      registration: status,
-      receiveReady: status.active,
-    );
+    result = LightningAddressReceiveReadiness(registration: status);
   }
 
   @override

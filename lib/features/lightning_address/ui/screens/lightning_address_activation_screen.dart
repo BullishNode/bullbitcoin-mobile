@@ -81,6 +81,7 @@ class _LightningAddressActivationScreenState
                   ? _ActiveLocalSetupFailedView(
                       nym: state.nym,
                       lightningAddress: state.registeredAddress,
+                      localSetupRetryable: state.localSetupRetryable,
                       onCheckStatus: context
                           .read<LightningAddressActivationCubit>()
                           .load,
@@ -130,6 +131,26 @@ class _LightningAddressActivationScreenState
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(dialogContext.loc.lightningAddressConfirmTitle),
+          content: Text(dialogContext.loc.lightningAddressConfirmBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(dialogContext.loc.lightningAddressConfirmCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(dialogContext.loc.lightningAddressConfirmSubmit),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted || confirmed != true) return;
     await context.read<LightningAddressActivationCubit>().submit();
   }
 
@@ -405,11 +426,13 @@ class _ActiveView extends StatelessWidget {
 class _ActiveLocalSetupFailedView extends StatelessWidget {
   final String nym;
   final String? lightningAddress;
+  final bool localSetupRetryable;
   final VoidCallback onCheckStatus;
 
   const _ActiveLocalSetupFailedView({
     required this.nym,
     required this.lightningAddress,
+    required this.localSetupRetryable,
     required this.onCheckStatus,
   });
 
@@ -421,7 +444,9 @@ class _ActiveLocalSetupFailedView extends StatelessWidget {
         _StatusNotice(
           icon: Icons.warning_amber_outlined,
           title: context.loc.lightningAddressLocalSetupFailedTitle,
-          body: context.loc.lightningAddressLocalSetupFailedBody,
+          body: localSetupRetryable
+              ? context.loc.lightningAddressLocalSetupFailedBody
+              : context.loc.lightningAddressLocalSetupNotRetryableBody,
         ),
         const Gap(24),
         _InfoRow(label: context.loc.lightningAddressNymLabel, value: nym),
@@ -433,15 +458,17 @@ class _ActiveLocalSetupFailedView extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
-        const Gap(24),
-        BBButton.big(
-          label: context.loc.lightningAddressRetrySetupButton,
-          iconData: Icons.refresh,
-          iconFirst: true,
-          onPressed: onCheckStatus,
-          bgColor: context.appColors.secondary,
-          textColor: context.appColors.onSecondary,
-        ),
+        if (localSetupRetryable) ...[
+          const Gap(24),
+          BBButton.big(
+            label: context.loc.lightningAddressRetrySetupButton,
+            iconData: Icons.refresh,
+            iconFirst: true,
+            onPressed: onCheckStatus,
+            bgColor: context.appColors.secondary,
+            textColor: context.appColors.onSecondary,
+          ),
+        ],
       ],
     );
   }

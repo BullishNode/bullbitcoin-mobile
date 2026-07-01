@@ -37,7 +37,7 @@ class PrepareLightningAddressWalletUsecase {
       await _recordKeychainManifestEntry(preparedWallets);
       manifestRecorded = true;
       final preparedWallet = preparedWallets.wallets.single;
-      await _applyLightningAddressWalletDefaults(preparedWallet.wallet.id);
+      await _applyLightningAddressWalletDefaults(preparedWallet.walletId);
       return PreparedLightningAddressWallet(
         walletId: preparedWallet.walletId,
         ctDescriptor: preparedWallet.externalPublicDescriptor,

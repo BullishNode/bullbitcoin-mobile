@@ -14259,6 +14259,22 @@
   "@lightningAddressSubmitting": {
     "description": "Button label while Lightning Address registration is submitting."
   },
+  "lightningAddressConfirmTitle": "Register Lightning Address?",
+  "@lightningAddressConfirmTitle": {
+    "description": "Confirmation dialog title before Lightning Address registration."
+  },
+  "lightningAddressConfirmBody": "Bull Wallet will create or reuse a dedicated Lightning Address Liquid wallet, hide it from Home, enable autosweep, and submit your selected name plus a confidential descriptor to the configured Bullnym server.",
+  "@lightningAddressConfirmBody": {
+    "description": "Confirmation dialog body before Lightning Address registration."
+  },
+  "lightningAddressConfirmCancel": "Cancel",
+  "@lightningAddressConfirmCancel": {
+    "description": "Cancel button in the Lightning Address confirmation dialog."
+  },
+  "lightningAddressConfirmSubmit": "Register",
+  "@lightningAddressConfirmSubmit": {
+    "description": "Confirm button in the Lightning Address confirmation dialog."
+  },
   "lightningAddressOperationInProgress": "Lightning Address registration is still in progress.",
   "@lightningAddressOperationInProgress": {
     "description": "Snackbar shown when the user tries to leave during registration."
@@ -14291,6 +14307,10 @@
   "@lightningAddressLocalSetupFailedBody": {
     "description": "Body shown when Bullnym reports an active Lightning Address but local receive wallet setup failed."
   },
+  "lightningAddressLocalSetupNotRetryableBody": "The address is registered, but the receive wallet could not finish local setup. Contact support before retrying.",
+  "@lightningAddressLocalSetupNotRetryableBody": {
+    "description": "Body shown when Bullnym reports an active Lightning Address but local receive wallet setup failed in a non-retryable way."
+  },
   "lightningAddressRetrySetupButton": "Retry Setup",
   "@lightningAddressRetrySetupButton": {
     "description": "Button label to retry local Lightning Address receive wallet setup."
@@ -14299,7 +14319,7 @@
   "@lightningAddressReceiveReadinessLabel": {
     "description": "Label for the local Lightning Address receive wallet readiness row."
   },
-  "lightningAddressReceiveReady": "Ready to receive and autosweep",
+  "lightningAddressReceiveReady": "Ready to receive; autosweep enabled",
   "@lightningAddressReceiveReady": {
     "description": "Value shown when the Lightning Address receive wallet exists and autosweep defaults are applied."
   },

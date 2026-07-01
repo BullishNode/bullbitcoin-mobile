@@ -14,7 +14,6 @@ import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wa
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/lightning_address/data/default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_default_wallet_xprv_port.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_receive_readiness_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_wallet_owned_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/prepare_lightning_address_wallet_usecase.dart';
@@ -315,8 +314,6 @@ void main() {
           ),
       registerWalletOwned: ({required nym}) => walletOwned.execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
-      lookupReceiveReadiness:
-          _FakeLookupLightningAddressReceiveReadinessUsecase().execute,
     );
 
     final result = await facade.registerWalletOwned(nym: 'alice');
@@ -337,8 +334,6 @@ void main() {
       registerWalletOwned: ({required nym}) =>
           _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
-      lookupReceiveReadiness:
-          _FakeLookupLightningAddressReceiveReadinessUsecase().execute,
     );
 
     final result = await facade.lookupWalletOwnedRegistration();
@@ -346,29 +341,6 @@ void main() {
     expect(lookupWalletOwned.executeCalls, 1);
     expect(result.nym, 'alice');
     expect(result.active, true);
-  });
-
-  test('LightningAddressFacade delegates receive readiness lookup', () async {
-    final lookupReadiness =
-        _FakeLookupLightningAddressReceiveReadinessUsecase();
-    final facade = LightningAddressFacade(
-      prepareWallet: _FakePrepareLightningAddressWalletUsecase().execute,
-      lookupRegistration: ({required npubHex}) =>
-          _FakeLookupLightningAddressRegistrationUsecase().execute(
-            npubHex: npubHex,
-          ),
-      registerWalletOwned: ({required nym}) =>
-          _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
-      lookupWalletOwnedRegistration:
-          _FakeLookupWalletOwnedLightningAddressRegistrationUsecase().execute,
-      lookupReceiveReadiness: lookupReadiness.execute,
-    );
-
-    final result = await facade.lookupReceiveReadiness();
-
-    expect(lookupReadiness.executeCalls, 1);
-    expect(result.registration.nym, 'alice');
-    expect(result.receiveReady, true);
   });
 
   test(
@@ -543,20 +515,6 @@ class _FakeLookupWalletOwnedLightningAddressRegistrationUsecase
   Future<LightningAddressStatus> execute() async {
     executeCalls += 1;
     return const LightningAddressStatus(nym: 'alice', active: true);
-  }
-}
-
-class _FakeLookupLightningAddressReceiveReadinessUsecase
-    implements LookupLightningAddressReceiveReadinessUsecase {
-  int executeCalls = 0;
-
-  @override
-  Future<LightningAddressReceiveReadiness> execute() async {
-    executeCalls += 1;
-    return const LightningAddressReceiveReadiness(
-      registration: LightningAddressStatus(nym: 'alice', active: true),
-      receiveReady: true,
-    );
   }
 }
 

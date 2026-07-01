@@ -55,6 +55,22 @@ void main() {
     expect(result.registration.active, true);
     expect(result.receiveReady, false);
     expect(result.localSetupFailed, true);
+    expect(result.localSetupRetryable, true);
+  });
+
+  test('active registration preserves non-retryable setup failures', () async {
+    lookup.status = const LightningAddressStatus(nym: 'alice', active: true);
+    prepareWallet.error = LightningAddressException.localPreparationFailed(
+      code: 'ManifestConflict',
+      retryable: false,
+    );
+
+    final result = await usecase.execute();
+
+    expect(result.registration.active, true);
+    expect(result.receiveReady, false);
+    expect(result.localSetupFailed, true);
+    expect(result.localSetupRetryable, false);
   });
 }
 

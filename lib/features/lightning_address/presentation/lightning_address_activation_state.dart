@@ -26,14 +26,14 @@ class LightningAddressActivationState {
   final LightningAddressActivationFailure? failure;
   final String nym;
   final String? registeredAddress;
-  final bool receiveReady;
+  final bool localSetupRetryable;
 
   const LightningAddressActivationState({
     this.status = LightningAddressActivationStatus.loading,
     this.failure,
     this.nym = '',
     this.registeredAddress,
-    this.receiveReady = false,
+    this.localSetupRetryable = false,
   });
 
   bool get isLoading => status == LightningAddressActivationStatus.loading;
@@ -45,13 +45,16 @@ class LightningAddressActivationState {
   bool get isActiveLocalSetupFailed =>
       status == LightningAddressActivationStatus.activeLocalSetupFailed;
   bool get isInactive => status == LightningAddressActivationStatus.inactive;
+  bool get receiveReady =>
+      status == LightningAddressActivationStatus.active ||
+      status == LightningAddressActivationStatus.registered;
 
   LightningAddressActivationState copyWith({
     LightningAddressActivationStatus? status,
     LightningAddressActivationFailure? failure,
     String? nym,
     String? registeredAddress,
-    bool? receiveReady,
+    bool? localSetupRetryable,
     bool clearFailure = false,
     bool clearRegisteredAddress = false,
   }) {
@@ -62,7 +65,7 @@ class LightningAddressActivationState {
       registeredAddress: clearRegisteredAddress && registeredAddress == null
           ? null
           : registeredAddress ?? this.registeredAddress,
-      receiveReady: receiveReady ?? this.receiveReady,
+      localSetupRetryable: localSetupRetryable ?? this.localSetupRetryable,
     );
   }
 }

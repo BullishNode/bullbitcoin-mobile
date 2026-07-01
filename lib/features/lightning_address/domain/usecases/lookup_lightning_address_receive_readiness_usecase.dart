@@ -5,14 +5,16 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/prepare_lig
 
 class LightningAddressReceiveReadiness {
   final LightningAddressStatus registration;
-  final bool receiveReady;
   final bool localSetupFailed;
+  final bool localSetupRetryable;
 
   const LightningAddressReceiveReadiness({
     required this.registration,
-    required this.receiveReady,
     this.localSetupFailed = false,
+    this.localSetupRetryable = false,
   });
+
+  bool get receiveReady => registration.active && !localSetupFailed;
 }
 
 class LookupLightningAddressReceiveReadinessUsecase {
@@ -28,10 +30,7 @@ class LookupLightningAddressReceiveReadinessUsecase {
   Future<LightningAddressReceiveReadiness> execute() async {
     final registration = await _lookupRegistration.execute();
     if (!registration.active) {
-      return LightningAddressReceiveReadiness(
-        registration: registration,
-        receiveReady: false,
-      );
+      return LightningAddressReceiveReadiness(registration: registration);
     }
 
     try {
@@ -42,14 +41,11 @@ class LookupLightningAddressReceiveReadinessUsecase {
       }
       return LightningAddressReceiveReadiness(
         registration: registration,
-        receiveReady: false,
         localSetupFailed: true,
+        localSetupRetryable: e.retryable,
       );
     }
 
-    return LightningAddressReceiveReadiness(
-      registration: registration,
-      receiveReady: true,
-    );
+    return LightningAddressReceiveReadiness(registration: registration);
   }
 }
