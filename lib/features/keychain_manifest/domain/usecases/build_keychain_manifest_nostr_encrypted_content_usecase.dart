@@ -3,6 +3,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_er
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_nostr_encryption.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/derive_keychain_manifest_nostr_encryption_key_usecase.dart';
 
 class BuildKeychainManifestNostrEncryptedContentUsecase {
   final BuildKeychainManifestFileUsecase buildManifestFile;
@@ -30,7 +31,10 @@ class BuildKeychainManifestNostrEncryptedContentUsecase {
       if (manifestFile.entries.isEmpty && !allowEmpty) {
         throw KeychainManifestEmptyInventoryException();
       }
-      final encryptionKey = deriveEncryptionKey.execute(xprvBase58: xprvBase58);
+      final encryptionKey = deriveEncryptionKey.execute(
+        xprvBase58: xprvBase58,
+        expectedParentFingerprint: manifestFile.parentFingerprint,
+      );
       final encryptedContent = encryptionRepository.encryptSnapshot(
         snapshot: KeychainManifestNostrSnapshot(manifestFile: manifestFile),
         key: encryptionKey,
@@ -39,8 +43,6 @@ class BuildKeychainManifestNostrEncryptedContentUsecase {
         encryptedContent: encryptedContent,
       );
     } on KeychainManifestException {
-      rethrow;
-    } on KeychainManifestNostrEncryptionException {
       rethrow;
     } catch (e) {
       throw KeychainManifestNostrEncryptionException(

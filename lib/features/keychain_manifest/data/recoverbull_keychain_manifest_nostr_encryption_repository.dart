@@ -1,3 +1,4 @@
+import 'package:bb_mobile/features/keychain_manifest/data/datasources/keychain_manifest_nostr_encryption_datasource.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_encryption_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_event_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
@@ -7,11 +8,12 @@ import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychai
 class RecoverBullKeychainManifestNostrEncryptionRepository
     implements KeychainManifestNostrEncryptionRepository {
   final KeychainManifestNostrSnapshotCodec snapshotCodec;
-  final KeychainManifestNostrEncryptionCodec encryptionCodec;
+  final KeychainManifestNostrEncryptionDatasource encryptionDatasource;
 
   const RecoverBullKeychainManifestNostrEncryptionRepository({
     this.snapshotCodec = const KeychainManifestNostrSnapshotCodec(),
-    this.encryptionCodec = const KeychainManifestNostrEncryptionCodec(),
+    this.encryptionDatasource =
+        const KeychainManifestNostrEncryptionDatasource(),
   });
 
   @override
@@ -19,9 +21,12 @@ class RecoverBullKeychainManifestNostrEncryptionRepository
     required KeychainManifestNostrSnapshot snapshot,
     required KeychainManifestNostrEncryptionKey key,
   }) {
-    return encryptionCodec.encrypt(
+    final encryptedContent = encryptionDatasource.encrypt(
       plaintext: snapshotCodec.encode(snapshot),
       key: key,
     );
+    return KeychainManifestNostrEncryptedContentModel.fromEntity(
+      KeychainManifestNostrEncryptedContent(encryptedContent: encryptedContent),
+    ).toJsonString();
   }
 }

@@ -1,21 +1,25 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/utils/recoverbull_bip85.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
-import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_encryption_model.dart';
+import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_event_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_nostr_encryption.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/derive_keychain_manifest_nostr_encryption_key_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
+import 'package:bip32_keys/bip32_keys.dart' as bip32;
 import 'package:bip39_mnemonic/bip39_mnemonic.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hex/hex.dart';
+import 'package:recoverbull/recoverbull.dart';
 
 void main() {
   late _InMemoryKeychainManifestStore store;
@@ -33,11 +37,24 @@ void main() {
   test('derives a deterministic app 1642 manifest encryption key', () {
     const deriveKey = DeriveKeychainManifestNostrEncryptionKeyUsecase();
 
-    final first = deriveKey.execute(xprvBase58: _xprv).hex;
-    final second = deriveKey.execute(xprvBase58: _xprv).hex;
+    final first = deriveKey
+        .execute(
+          xprvBase58: _xprv,
+          expectedParentFingerprint: _parentFingerprint,
+        )
+        .hex;
+    final second = deriveKey
+        .execute(
+          xprvBase58: _xprv,
+          expectedParentFingerprint: _parentFingerprint,
+        )
+        .hex;
 
-    expect(keychainManifestEncryptionBip85Application, 1642);
-    expect(keychainManifestEncryptionBip85Path, "1642'/0'/1'");
+    final reservation = const Bip85RegistryFacade().reservationById(
+      'keychain_manifest_encryption_key',
+    );
+    expect(reservation?.application.number, 1642);
+    expect(reservation?.scope.exactPath, "1642'/0'/1'");
     expect(first, second);
     expect(first, hasLength(64));
     expect(
@@ -54,25 +71,37 @@ void main() {
       await _recordInventory(store);
 
       final encrypted = await usecase.execute(
-        parentFingerprint: 'fedcba98',
+        parentFingerprint: _parentFingerprint,
         xprvBase58: _xprv,
         now: DateTime.fromMillisecondsSinceEpoch(20000, isUtc: true),
       );
 
-      expect(encrypted.encryptedContent, isNot(contains('fedcba98')));
+      expect(encrypted.encryptedContent, isNot(contains(_parentFingerprint)));
       expect(encrypted.encryptedContent, isNot(contains('btc-wallet')));
       expect(encrypted.encryptedContent, isNot(contains('btcpay_wallet_seed')));
       expect(encrypted.encryptedContent, isNot(contains('manifestFile')));
 
       final key = const DeriveKeychainManifestNostrEncryptionKeyUsecase()
-          .execute(xprvBase58: _xprv);
-      final decryptedPayload = const KeychainManifestNostrEncryptionCodec()
-          .decrypt(payload: encrypted.encryptedContent, key: key);
+          .execute(
+            xprvBase58: _xprv,
+            expectedParentFingerprint: _parentFingerprint,
+          );
+      final encryptedJson =
+          jsonDecode(encrypted.encryptedContent) as Map<String, Object?>;
+      final backup = BullBackup.fromJson(
+        encryptedJson['encryptedContent']! as String,
+      );
+      final decryptedPayload = utf8.decode(
+        RecoverBull.restoreBackup(
+          backup: backup,
+          backupKey: HEX.decode(key.hex),
+        ),
+      );
       final snapshot = const KeychainManifestNostrSnapshotCodec().decode(
         decryptedPayload,
       );
 
-      expect(snapshot.manifestFile.parentFingerprint, 'fedcba98');
+      expect(snapshot.manifestFile.parentFingerprint, _parentFingerprint);
       expect(
         snapshot.manifestFile.entries.single.reservationId,
         'btcpay_wallet_seed',
@@ -88,7 +117,10 @@ void main() {
     'requires explicit caller decision before encrypting empty inventory',
     () async {
       await expectLater(
-        usecase.execute(parentFingerprint: 'fedcba98', xprvBase58: _xprv),
+        usecase.execute(
+          parentFingerprint: _parentFingerprint,
+          xprvBase58: _xprv,
+        ),
         throwsA(
           isA<KeychainManifestException>().having(
             (error) => error.type,
@@ -104,7 +136,10 @@ void main() {
     await _recordInventory(store);
 
     await expectLater(
-      usecase.execute(parentFingerprint: 'fedcba98', xprvBase58: 'bad-xprv'),
+      usecase.execute(
+        parentFingerprint: _parentFingerprint,
+        xprvBase58: 'bad-xprv',
+      ),
       throwsA(
         isA<KeychainManifestNostrEncryptionException>()
             .having(
@@ -120,13 +155,37 @@ void main() {
       ),
     );
   });
+
+  test('rejects manifest parent fingerprint and xprv mismatches', () async {
+    await _recordInventory(store, parentFingerprint: 'fedcba98');
+
+    await expectLater(
+      usecase.execute(parentFingerprint: 'fedcba98', xprvBase58: _xprv),
+      throwsA(
+        isA<KeychainManifestNostrEncryptionException>()
+            .having(
+              (error) => error.message,
+              'message',
+              'manifest encryption xprv does not match parent fingerprint',
+            )
+            .having(
+              (error) => error.toString(),
+              'string',
+              isNot(contains(_xprv)),
+            ),
+      ),
+    );
+  });
 }
 
-Future<void> _recordInventory(_InMemoryKeychainManifestStore store) async {
+Future<void> _recordInventory(
+  _InMemoryKeychainManifestStore store, {
+  String? parentFingerprint,
+}) async {
   await RecordKeychainManifestEntryUsecase(repository: store).execute(
     KeychainManifestReservedDerivationRequest(
       reservationId: 'btcpay_wallet_seed',
-      parentFingerprint: 'fedcba98',
+      parentFingerprint: parentFingerprint ?? _parentFingerprint,
       materializations: [
         KeychainManifestWalletMaterializationRequest(
           walletId: 'btc-wallet',
@@ -149,6 +208,8 @@ final _xprv = Bip32Derivation.getXprvFromSeed(
   ),
   Network.bitcoinMainnet,
 );
+
+final _parentFingerprint = bip32.Bip32Keys.fromBase58(_xprv).fingerprintHex;
 
 class _InMemoryKeychainManifestStore
     implements KeychainManifestEntryRepository {
