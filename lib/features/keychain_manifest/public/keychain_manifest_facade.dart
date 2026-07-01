@@ -15,6 +15,8 @@ export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_im
         KeychainManifestImportPlan,
         KeychainManifestImportEntryIntent,
         KeychainManifestWalletMaterializationIntent;
+export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_nostr_import.dart'
+    show KeychainManifestNostrImportResult, KeychainManifestNostrImportStatus;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_reservation_support.dart'
     show KeychainManifestReservationSupport;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart'
@@ -26,8 +28,10 @@ import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_nostr_import.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/fetch_keychain_manifest_nostr_import_plan_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/publish_keychain_manifest_nostr_event_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
@@ -39,12 +43,14 @@ class KeychainManifestFacade {
   final BuildKeychainManifestFileUsecase _buildManifestFile;
   final ParseKeychainManifestFileUsecase _parseManifestFile;
   final PublishKeychainManifestNostrEventUsecase _publishNostrEvent;
+  final FetchKeychainManifestNostrImportPlanUsecase _fetchNostrImportPlan;
 
   KeychainManifestFacade({
     required this._recordEntry,
     required this._buildManifestFile,
     required this._parseManifestFile,
     required PublishKeychainManifestNostrEventUsecase publishNostrEvent,
+    required this._fetchNostrImportPlan,
     // ignore: prefer_initializing_formals
   }) : _publishNostrEvent = publishNostrEvent;
 
@@ -133,6 +139,22 @@ class KeychainManifestFacade {
         xprvBase58: xprvBase58,
         relayUrls: relayUrls,
         now: now,
+      );
+    } catch (e) {
+      throw KeychainManifestException.fromInternal(e);
+    }
+  }
+
+  Future<KeychainManifestNostrImportResult> fetchEncryptedNostrImportPlan({
+    required String parentFingerprint,
+    required String xprvBase58,
+    required List<String> relayUrls,
+  }) async {
+    try {
+      return await _fetchNostrImportPlan.execute(
+        parentFingerprint: parentFingerprint,
+        xprvBase58: xprvBase58,
+        relayUrls: relayUrls,
       );
     } catch (e) {
       throw KeychainManifestException.fromInternal(e);

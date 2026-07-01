@@ -6,4 +6,9 @@ abstract interface class KeychainManifestNostrRelayRepository {
     required KeychainManifestNostrSignedEvent event,
     required List<KeychainManifestNostrRelayUrl> relayUrls,
   });
+
+  Future<KeychainManifestNostrFetchResult> fetchManifestEvents({
+    required String authorPublicKeyHex,
+    required List<KeychainManifestNostrRelayUrl> relayUrls,
+  });
 }
