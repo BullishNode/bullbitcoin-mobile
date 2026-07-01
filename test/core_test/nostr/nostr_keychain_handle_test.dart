@@ -11,6 +11,7 @@ import 'package:bip85_entropy/bip85_entropy.dart' as bip85;
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
+import 'package:nostr/nostr.dart' as nostr;
 import 'package:test/test.dart';
 
 const _facade = NostrIdentityFacade(
@@ -29,7 +30,7 @@ const _expectedBullnymAuthPublicKeyHex =
     '23a772c17ca7b9eba8c9442c4378c063d791967e35fbaed98a51d65243c03cd4';
 
 void main() {
-  test('BIP85 path derivation matches the bitcoin_base public key', () {
+  test('BIP85 path derivation matches the nostr package public key', () {
     final xprv = _zeroMnemonicXprv();
     final handle = NostrKeychainHandle.deriveFromBip85Path(
       xprvBase58: xprv,
@@ -91,7 +92,7 @@ void main() {
     expect(handle.toString(), isNot(contains(_secretKeyHex(xprv))));
   });
 
-  test('signs an explicit hash with a signature bitcoin_base can verify', () {
+  test('signs an explicit hash with a standard BIP340 signature', () {
     final xprv = _zeroMnemonicXprv();
     const facade = _facade;
     final digest = sha256.convert([1, 2, 3, 4]).bytes;
@@ -99,12 +100,11 @@ void main() {
       xprvBase58: xprv,
       messageHashHex: hex.encode(digest),
     );
-    final pub = ECPublic.fromHex(
-      '02${facade.deriveWalletManifestPublicKeyFromXprv(xprv)}',
-    );
+    final publicKeyHex = facade.deriveWalletManifestPublicKeyFromXprv(xprv);
+    final publicKey = ECPublic.fromHex('02$publicKeyHex');
 
     expect(
-      pub.verifyBip340Signature(
+      publicKey.verifyBip340Signature(
         digest: digest,
         signature: hex.decode(signatureHex),
         tweak: false,
@@ -151,7 +151,7 @@ String _zeroMnemonicXprv() {
 
 String _legacyPublicKeyHex(String xprvBase58) {
   final secretKeyHex = _secretKeyHex(xprvBase58);
-  return ECPrivate.fromHex(secretKeyHex).getPublic().toXOnlyHex();
+  return nostr.Keys(secretKeyHex).public;
 }
 
 String _secretKeyHex(String xprvBase58) {

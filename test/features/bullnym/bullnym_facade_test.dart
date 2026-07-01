@@ -517,9 +517,9 @@ void _expectSignatureValid({
     timestampSecs: timestampSecs,
   );
   final digest = sha256.convert(message).bytes;
-  final pub = ECPublic.fromHex('02${handle.publicKeyHex}');
+  final publicKey = ECPublic.fromHex('02${handle.publicKeyHex}');
   expect(
-    pub.verifyBip340Signature(
+    publicKey.verifyBip340Signature(
       digest: digest,
       signature: hex.decode(signatureHex),
       tweak: false,

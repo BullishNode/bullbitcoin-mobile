@@ -195,17 +195,20 @@ void main() {
     expect(signed.tags, [
       ['d', keychainManifestNostrDTag],
     ]);
-    expect(signedCodec.encode(signed), {
-      'id': signed.id,
-      'pubkey': draft.authorPublicKeyHex,
-      'created_at': 123,
-      'kind': keychainManifestNostrEventKind,
-      'tags': [
-        ['d', keychainManifestNostrDTag],
-      ],
-      'content': _wellShapedCiphertext,
-      'sig': _signatureHex,
-    });
+    expect(jsonDecode(signedCodec.serialize(signed)), [
+      'EVENT',
+      {
+        'id': signed.id,
+        'pubkey': draft.authorPublicKeyHex,
+        'created_at': 123,
+        'kind': keychainManifestNostrEventKind,
+        'tags': [
+          ['d', keychainManifestNostrDTag],
+        ],
+        'content': _wellShapedCiphertext,
+        'sig': _signatureHex,
+      },
+    ]);
   });
 
   test('derives signed event ids internally and deep-freezes tags', () {
