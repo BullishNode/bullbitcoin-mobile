@@ -1,11 +1,19 @@
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_relay.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_relay_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_signed_keychain_manifest_nostr_event_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/publish_keychain_manifest_nostr_event_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
+import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -18,6 +26,7 @@ void main() {
       recordEntry: RecordKeychainManifestEntryUsecase(repository: store),
       buildManifestFile: BuildKeychainManifestFileUsecase(repository: store),
       parseManifestFile: const ParseKeychainManifestFileUsecase(),
+      publishNostrEvent: _unusedPublishUsecase(store),
     );
   });
 
@@ -191,6 +200,22 @@ void main() {
   });
 }
 
+PublishKeychainManifestNostrEventUsecase _unusedPublishUsecase(
+  _InMemoryKeychainManifestStore store,
+) {
+  return PublishKeychainManifestNostrEventUsecase(
+    buildSignedEvent: BuildSignedKeychainManifestNostrEventUsecase(
+      buildEncryptedContent: BuildKeychainManifestNostrEncryptedContentUsecase(
+        buildManifestFile: BuildKeychainManifestFileUsecase(repository: store),
+        encryptionRepository:
+            const RecoverBullKeychainManifestNostrEncryptionRepository(),
+      ),
+      nostrIdentity: _FakeNostrIdentityFacade(),
+    ),
+    relayRepository: _FakeKeychainManifestNostrRelayRepository(),
+  );
+}
+
 const _manifestPayload =
     '{"version":1,"parentFingerprint":"fedcba98","generatedAt":20,'
     '"inventoryUpdatedAt":10,"entries":[{"entryId":"fedcba98:39\'/0\'/12\'/100\'",'
@@ -272,5 +297,32 @@ class _InMemoryKeychainManifestStore
     this.records
       ..clear()
       ..addAll(nextRecords);
+  }
+}
+
+class _FakeNostrIdentityFacade extends NostrIdentityFacade {
+  @override
+  String deriveWalletManifestPublicKeyFromXprv(String xprvBase58) {
+    return 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  }
+
+  @override
+  String signWalletManifestHashFromXprv({
+    required String xprvBase58,
+    required String messageHashHex,
+  }) {
+    return 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+  }
+}
+
+class _FakeKeychainManifestNostrRelayRepository
+    implements KeychainManifestNostrRelayRepository {
+  @override
+  Future<bool> publish({
+    required KeychainManifestNostrSignedEvent event,
+    required List<KeychainManifestNostrRelayUrl> relayUrls,
+  }) async {
+    return true;
   }
 }

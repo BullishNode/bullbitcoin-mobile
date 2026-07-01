@@ -181,13 +181,21 @@ publish orchestration slice owns default-wallet xprv selection. The stable
 decrypt key from the seed without publishing derivation-path metadata as a Nostr
 tag.
 
-This slice signs the event with the wallet manifest Nostr role through
-`nostr_identity` and stops at a locally built signed event. It does not expose a
-public publish facade, relay publisher port, relay result model, or accepted
-relay semantics before a concrete relay transport exists. Relay publishing,
-relay fetching, candidate selection, wallet restore, product reactivation, and
-UI are separate later slices. Local wallet creation and manifest recording must
-not depend on relay publish success.
+The signed-event slice signs the event with the wallet manifest Nostr role
+through `nostr_identity` and stops at a locally built signed event. It does not
+choose relays or perform transport work.
+
+The relay publish slice is owned by `keychain_manifest` and publishes only
+non-empty signed keychain manifest events to caller-supplied `wss` relay URLs.
+It uses concrete websocket relay transport behind a manifest-specific
+repository; it must not grow into a generic Nostr relay facade, event bus, relay
+registry, public identity publisher, or reusable Nostr platform layer without a
+second real caller. Publish success requires at least one relay `OK` acceptance
+for the event id. Individual relay failures are collapsed into sanitized publish
+outcomes, and raw websocket errors must not cross the public boundary. Local
+wallet creation and manifest recording must not depend on relay publish
+success. Relay fetching, candidate selection, wallet restore, product
+reactivation, and UI are separate later slices.
 
 The wallet manifest Nostr role must not be reused for Bullnym server
 authentication, NIP-05, profile publishing, DMs, or any public identity flow.
