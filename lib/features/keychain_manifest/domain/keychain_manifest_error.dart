@@ -128,6 +128,12 @@ final class KeychainManifestNostrEventException
     : super._(KeychainManifestExceptionType.nostrEvent, message, cause: cause);
 }
 
+final class KeychainManifestNostrEncryptionException
+    extends KeychainManifestException {
+  KeychainManifestNostrEncryptionException(String message, {Object? cause})
+    : super._(KeychainManifestExceptionType.generic, message, cause: cause);
+}
+
 final class KeychainManifestGenericException extends KeychainManifestException {
   KeychainManifestGenericException({Object? cause})
     : super._(
