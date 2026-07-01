@@ -1,4 +1,5 @@
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 
 final class KeychainManifestNostrRelayUrl {
   final Uri uri;
@@ -32,4 +33,14 @@ final class KeychainManifestNostrRelayUrl {
 
   @override
   int get hashCode => value.hashCode;
+}
+
+class KeychainManifestNostrFetchResult {
+  final bool contactedAnyRelay;
+  final List<KeychainManifestNostrSignedEvent> events;
+
+  KeychainManifestNostrFetchResult({
+    required this.contactedAnyRelay,
+    required List<KeychainManifestNostrSignedEvent> events,
+  }) : events = List.unmodifiable(events);
 }

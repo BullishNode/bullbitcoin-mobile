@@ -49,6 +49,31 @@ void main() {
 
     expect(accepted, isTrue);
   });
+
+  test('uses timeout as an overall manifest fetch deadline', () async {
+    final channel = _FakeWebSocketChannel();
+    Timer.periodic(const Duration(milliseconds: 1), (timer) {
+      if (timer.tick >= 20 || channel.isClosed) {
+        timer.cancel();
+        return;
+      }
+      channel.addIncoming('["NOTICE","still not an EOSE"]');
+    });
+    final datasource = KeychainManifestNostrRelayDatasource(
+      connect: (_) => channel,
+    );
+
+    final events = await datasource.fetchManifestEvents(
+      relayUri: Uri.parse('wss://relay.example'),
+      subscriptionId: 'manifest-sub',
+      authorPublicKeyHex: _eventId,
+      limit: 20,
+      timeout: const Duration(milliseconds: 10),
+    );
+
+    expect(events, isEmpty);
+    expect(channel.isClosed, isTrue);
+  });
 }
 
 const _eventId =

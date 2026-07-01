@@ -6,6 +6,8 @@ import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychai
 
 class WebSocketKeychainManifestNostrRelayRepository
     implements KeychainManifestNostrRelayRepository {
+  static const _fetchLimit = 20;
+
   final KeychainManifestNostrRelayDatasource _datasource;
   final KeychainManifestNostrSignedEventCodec _eventCodec;
   final Duration _timeout;
@@ -46,5 +48,48 @@ class WebSocketKeychainManifestNostrRelayRepository
       }),
     );
     return outcomes.any((accepted) => accepted);
+  }
+
+  @override
+  Future<KeychainManifestNostrFetchResult> fetchManifestEvents({
+    required String authorPublicKeyHex,
+    required List<KeychainManifestNostrRelayUrl> relayUrls,
+  }) async {
+    final uniqueRelayUrls = relayUrls.toSet().toList(growable: false);
+    final normalizedAuthor = authorPublicKeyHex.trim().toLowerCase();
+    final eventsById = <String, KeychainManifestNostrSignedEvent>{};
+    var contactedAnyRelay = false;
+    await Future.wait(
+      uniqueRelayUrls.map((relayUrl) async {
+        try {
+          final events = await _datasource.fetchManifestEvents(
+            relayUri: relayUrl.uri,
+            subscriptionId: 'keychain-manifest-${normalizedAuthor.hashCode}',
+            authorPublicKeyHex: normalizedAuthor,
+            limit: _fetchLimit,
+            timeout: _timeout,
+          );
+          contactedAnyRelay = true;
+          for (final event in events) {
+            try {
+              final manifestEvent = _eventCodec.fromNostrEvent(event);
+              if (manifestEvent.authorPublicKeyHex == normalizedAuthor) {
+                eventsById[manifestEvent.id] = manifestEvent;
+              }
+            } catch (_) {
+              continue;
+            }
+          }
+        } catch (_) {
+          return;
+        }
+      }),
+    );
+    final events = eventsById.values.toList(growable: false)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return KeychainManifestNostrFetchResult(
+      contactedAnyRelay: contactedAnyRelay,
+      events: events,
+    );
   }
 }
