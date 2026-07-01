@@ -75,6 +75,18 @@ class KeychainManifestNostrSignedEventCodec {
     return _toNostrEvent(event).serialize();
   }
 
+  KeychainManifestNostrSignedEvent fromNostrEvent(nostr.Event event) {
+    return KeychainManifestNostrSignedEvent.fromRelay(
+      id: event.id,
+      authorPublicKeyHex: event.pubkey,
+      createdAt: event.createdAt,
+      kind: event.kind,
+      tags: event.tags,
+      encryptedContent: event.content,
+      signatureHex: event.sig,
+    );
+  }
+
   nostr.Event _toNostrEvent(KeychainManifestNostrSignedEvent event) {
     return nostr.Event(
       event.id,

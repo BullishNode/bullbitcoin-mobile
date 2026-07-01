@@ -188,18 +188,26 @@ The signed-event slice signs the event with the wallet manifest Nostr role
 through `nostr_identity` and stops at a locally built signed event. It does not
 choose relays or perform transport work.
 
-The relay publish slice is owned by `keychain_manifest` and publishes only
-non-empty signed keychain manifest events to caller-supplied `wss` relay URLs.
-It uses concrete websocket relay transport behind a manifest-specific
-repository and `nostr` package message parsing for relay command results; it
-must not grow into a generic Nostr relay facade, event bus, relay registry,
-public identity publisher, or reusable Nostr platform layer without a second
-real caller. Publish success requires at least one relay `OK` acceptance for the
-event id. Individual relay failures are collapsed into sanitized publish
-outcomes, and raw websocket errors must not cross the public boundary. Local
-wallet creation and manifest recording must not depend on relay publish success.
-Relay fetching, candidate selection, wallet restore, product reactivation, and
-UI are separate later slices.
+The relay transport slice is owned by `keychain_manifest` and talks only to
+caller-supplied `wss` relay URLs. It uses concrete websocket relay transport
+behind a manifest-specific repository and `nostr` package message parsing for
+relay command results; it must not grow into a generic Nostr relay facade, event
+bus, relay registry, public identity publisher, or reusable Nostr platform layer
+without a second real caller. Publish success requires at least one relay `OK`
+acceptance for the event id. Fetch accepts only authentic wallet-manifest events
+for the derived manifest author, kind `30078`, and `d=manifest`, then returns
+candidate events newest-first. Individual relay failures and malformed relay
+events are collapsed into sanitized outcomes, and raw websocket errors must not
+cross the public boundary. Local wallet creation and manifest recording must not
+depend on relay publish or fetch success.
+
+The Nostr import-plan slice derives the wallet-manifest author and encryption
+key from the caller-supplied root xprv, fetches candidate relay events,
+decrypts/parses newest-first, and returns a typed result: latest recoverable, no
+manifest found, relays unavailable, no recoverable manifest, or newest failed
+with an older recoverable candidate. It stops at `KeychainManifestImportPlan`;
+wallet restore, product reactivation, relay-disclosure UX, and UI are separate
+feature slices.
 
 The wallet manifest Nostr role must not be reused for Bullnym server
 authentication, NIP-05, profile publishing, DMs, or any public identity flow.

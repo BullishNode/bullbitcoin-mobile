@@ -6,4 +6,9 @@ abstract interface class KeychainManifestNostrEncryptionRepository {
     required KeychainManifestNostrSnapshot snapshot,
     required KeychainManifestNostrEncryptionKey key,
   });
+
+  KeychainManifestNostrSnapshot decryptSnapshot({
+    required String encryptedPayload,
+    required KeychainManifestNostrEncryptionKey key,
+  });
 }

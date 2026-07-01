@@ -9,6 +9,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychai
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_signed_keychain_manifest_nostr_event_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/fetch_keychain_manifest_nostr_import_plan_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/publish_keychain_manifest_nostr_event_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
@@ -27,6 +28,7 @@ void main() {
       buildManifestFile: BuildKeychainManifestFileUsecase(repository: store),
       parseManifestFile: const ParseKeychainManifestFileUsecase(),
       publishNostrEvent: _unusedPublishUsecase(store),
+      fetchNostrImportPlan: _unusedFetchUsecase(store),
     );
   });
 
@@ -216,6 +218,18 @@ PublishKeychainManifestNostrEventUsecase _unusedPublishUsecase(
   );
 }
 
+FetchKeychainManifestNostrImportPlanUsecase _unusedFetchUsecase(
+  _InMemoryKeychainManifestStore store,
+) {
+  return FetchKeychainManifestNostrImportPlanUsecase(
+    relayRepository: _FakeKeychainManifestNostrRelayRepository(),
+    encryptionRepository:
+        const RecoverBullKeychainManifestNostrEncryptionRepository(),
+    parseManifestFile: const ParseKeychainManifestFileUsecase(),
+    nostrIdentity: _FakeNostrIdentityFacade(),
+  );
+}
+
 const _manifestPayload =
     '{"version":1,"parentFingerprint":"fedcba98","generatedAt":20,'
     '"inventoryUpdatedAt":10,"entries":[{"entryId":"fedcba98:39\'/0\'/12\'/100\'",'
@@ -318,6 +332,17 @@ class _FakeNostrIdentityFacade extends NostrIdentityFacade {
 
 class _FakeKeychainManifestNostrRelayRepository
     implements KeychainManifestNostrRelayRepository {
+  @override
+  Future<KeychainManifestNostrFetchResult> fetchManifestEvents({
+    required String authorPublicKeyHex,
+    required List<KeychainManifestNostrRelayUrl> relayUrls,
+  }) async {
+    return KeychainManifestNostrFetchResult(
+      contactedAnyRelay: false,
+      events: [],
+    );
+  }
+
   @override
   Future<bool> publish({
     required KeychainManifestNostrSignedEvent event,

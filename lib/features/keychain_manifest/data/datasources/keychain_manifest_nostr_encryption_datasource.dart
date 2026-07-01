@@ -25,4 +25,23 @@ class KeychainManifestNostrEncryptionDatasource {
       );
     }
   }
+
+  String decrypt({
+    required String encryptedContent,
+    required KeychainManifestNostrEncryptionKey key,
+  }) {
+    try {
+      final backup = BullBackup.fromJson(encryptedContent);
+      final plaintext = RecoverBull.restoreBackup(
+        backup: backup,
+        backupKey: HEX.decode(key.hex),
+      );
+      return utf8.decode(plaintext);
+    } catch (e) {
+      throw KeychainManifestNostrEncryptionException(
+        'failed to decrypt manifest content',
+        cause: e,
+      );
+    }
+  }
 }

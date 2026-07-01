@@ -23,6 +23,38 @@ class KeychainManifestNostrEncryptedContentModel {
     );
   }
 
+  factory KeychainManifestNostrEncryptedContentModel.fromJsonString(
+    String payload,
+  ) {
+    final decoded = jsonDecode(payload);
+    if (decoded is! Map<String, Object?>) {
+      throw const FormatException(
+        'encrypted manifest content must be an object',
+      );
+    }
+    final version = decoded['version'];
+    final contentType = decoded['contentType'];
+    final encryptedContent = decoded['encryptedContent'];
+    if (version is! int ||
+        contentType is! String ||
+        encryptedContent is! String) {
+      throw const FormatException('encrypted manifest content is malformed');
+    }
+    return KeychainManifestNostrEncryptedContentModel(
+      version: version,
+      contentType: contentType,
+      encryptedContent: encryptedContent,
+    );
+  }
+
+  KeychainManifestNostrEncryptedContent toEntity() {
+    return KeychainManifestNostrEncryptedContent(
+      version: version,
+      contentType: contentType,
+      encryptedContent: encryptedContent,
+    );
+  }
+
   String toJsonString() {
     return jsonEncode({
       'version': version,
