@@ -1,12 +1,18 @@
 # Core Nostr
 
 `core/nostr` is the app-wide generic Nostr key boundary. It owns BIP85 path
-derivation, BIP340 hash signing, and public-key access through the existing
-`bitcoin_base` crypto stack.
+derivation, BIP340 hash signing, public-key access, and generic NIP-01 event-id
+calculation through the `nostr` package where that package provides the
+required generic Nostr primitive.
 
 Feature-specific protocol semantics stay outside this package. Bullnym actions,
 Lightning Address message fields, wallet manifest events, profile content,
 public identity registration, DMs, and UI policy belong to feature layers.
+
+The app uses `nostr` `2.0.0` from `ethicnology/dart-nostr`, pinned by Git
+commit. The Git source is used instead of hosted pub resolution so the stack can
+use the required `dart-nostr` API while staying on `pointycastle` `3.x`, which
+the current Ledger dependency stack requires.
 
 ## BIP85 Derivation
 

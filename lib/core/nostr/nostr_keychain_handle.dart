@@ -1,6 +1,6 @@
 import 'package:bip85_entropy/bip85_entropy.dart' as bip85;
-import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:convert/convert.dart';
+import 'package:nostr/nostr.dart' as nostr;
 
 /// BIP85 application number for direct Nostr key derivation.
 ///
@@ -12,12 +12,12 @@ const int nostrBip85Application = 9000;
 /// Do not store this type in DTOs or persistence models. It exposes public-key
 /// access and hash signing, but it does not expose raw secret-key material.
 final class NostrKeychainHandle {
-  final ECPrivate _key;
+  final nostr.Keys _keys;
 
-  NostrKeychainHandle._(this._key);
+  NostrKeychainHandle._(this._keys);
 
   factory NostrKeychainHandle._fromSecretKeyHex(String secretKeyHex) {
-    return NostrKeychainHandle._(ECPrivate.fromHex(secretKeyHex));
+    return NostrKeychainHandle._(nostr.Keys(secretKeyHex));
   }
 
   factory NostrKeychainHandle.deriveFromBip85Path({
@@ -32,7 +32,7 @@ final class NostrKeychainHandle {
     return NostrKeychainHandle._fromSecretKeyHex(entropyHex.substring(0, 64));
   }
 
-  String get publicKeyHex => _key.getPublic().toXOnlyHex();
+  String get publicKeyHex => _keys.public;
 
   String signHashHex(String messageHashHex) {
     final digest = hex.decode(messageHashHex);
@@ -43,7 +43,7 @@ final class NostrKeychainHandle {
         'Nostr signing requires a 32-byte hash hex value',
       );
     }
-    return _key.signBip340(digest, tweak: false);
+    return _keys.sign(message: messageHashHex);
   }
 
   @override
