@@ -50,8 +50,12 @@ must not be presented as importable or recoverable.
   current-attempt rollback.
 - The public boundary may build a manifest file payload, but file operations
   must not mutate local manifest inventory.
+- `keychain_manifest` owns the remote manifest Nostr event schema and encrypted
+  snapshot payload shape as a contract over the existing v1 manifest file
+  projection.
 - `keychain_manifest` must not import BTCPay, Get Paid, external receive
-  wallets, keychain recovery, Nostr, or UI features.
+  wallets, keychain recovery, core Nostr relay/signing infrastructure, or UI
+  features.
 
 ## Entry Identity
 
@@ -149,3 +153,24 @@ Rules:
 The payload is generated on demand by callers that need a serialized projection.
 Transport, wallet creation, product restore, and UI flows are out of scope and
 are not specified by this feature.
+
+## Nostr Event Contract
+
+The Nostr remote manifest event schema is a transport contract over the existing
+v1 manifest file payload. The local Drift records remain the source of truth;
+the Nostr payload is a full replacement snapshot generated from those records.
+
+Public event metadata is intentionally minimal:
+
+- event kind: `30078`
+- addressable tag: `["d", "manifest"]`
+- author: the dedicated wallet manifest Nostr role at `9000'/1'/1'`
+
+Schema/version metadata lives inside the encrypted content as
+`bullbitcoin.keychain_manifest.v1`; it must not be published as public Nostr
+tags. The event draft carries opaque encrypted content only. Encrypting,
+signing, relay publishing, relay fetching, candidate selection, wallet restore,
+product reactivation, and UI are separate later slices.
+
+The wallet manifest Nostr role must not be reused for Bullnym server
+authentication, NIP-05, profile publishing, DMs, or any public identity flow.
