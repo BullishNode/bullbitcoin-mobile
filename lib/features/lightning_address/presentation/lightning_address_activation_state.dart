@@ -11,6 +11,7 @@ enum LightningAddressActivationStatus {
 enum LightningAddressActivationFailure {
   invalidNym,
   lookupFailed,
+  noDefaultBitcoinWallet,
   setupFailed,
   submissionUncertain,
   rejected,

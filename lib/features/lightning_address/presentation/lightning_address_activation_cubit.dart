@@ -12,12 +12,8 @@ class LightningAddressActivationCubit
   final LookupWalletOwnedLightningAddressRegistrationUsecase _lookupStatus;
   int _operationId = 0;
 
-  LightningAddressActivationCubit({
-    required ActivateWalletOwnedLightningAddressUsecase activate,
-    required LookupWalletOwnedLightningAddressRegistrationUsecase lookupStatus,
-  }) : _activate = activate,
-       _lookupStatus = lookupStatus,
-       super(const LightningAddressActivationState());
+  LightningAddressActivationCubit(this._activate, this._lookupStatus)
+    : super(const LightningAddressActivationState());
 
   Future<void> load() async {
     if (state.isSubmitting) return;
@@ -52,14 +48,16 @@ class LightningAddressActivationCubit
         trace: stack,
       );
       if (isClosed || operationId != _operationId || state.isSubmitting) return;
-      if (wasSubmissionUncertain) {
+      final failure = _lookupFailureFor(e);
+      if (wasSubmissionUncertain &&
+          failure != LightningAddressActivationFailure.noDefaultBitcoinWallet) {
         emit(state.copyWith(status: LightningAddressActivationStatus.failure));
         return;
       }
       emit(
         state.copyWith(
           status: LightningAddressActivationStatus.failure,
-          failure: LightningAddressActivationFailure.lookupFailed,
+          failure: failure,
           clearRegisteredAddress: true,
         ),
       );
@@ -128,8 +126,8 @@ class LightningAddressActivationCubit
       emit(
         state.copyWith(
           status: LightningAddressActivationStatus.registered,
-          nym: result.registration.nym,
-          registeredAddress: result.registration.lightningAddress,
+          nym: result.nym,
+          registeredAddress: result.lightningAddress,
           clearFailure: true,
         ),
       );
@@ -152,6 +150,10 @@ class LightningAddressActivationCubit
 
   LightningAddressActivationFailure _registrationFailureFor(Object error) {
     return switch (error) {
+      WalletOwnedLightningAddressActivationException(
+        cause: LightningAddressException(code: 'NoDefaultBitcoinWallet'),
+      ) =>
+        LightningAddressActivationFailure.noDefaultBitcoinWallet,
       WalletOwnedLightningAddressActivationException(
         phase: WalletOwnedLightningAddressActivationFailurePhase
             .localPreparation,
@@ -190,6 +192,14 @@ class LightningAddressActivationCubit
       LightningAddressException(kind: LightningAddressErrorKind.network) =>
         LightningAddressActivationFailure.network,
       _ => LightningAddressActivationFailure.generic,
+    };
+  }
+
+  LightningAddressActivationFailure _lookupFailureFor(Object error) {
+    return switch (error) {
+      LightningAddressException(code: 'NoDefaultBitcoinWallet') =>
+        LightningAddressActivationFailure.noDefaultBitcoinWallet,
+      _ => LightningAddressActivationFailure.lookupFailed,
     };
   }
 }

@@ -50,7 +50,7 @@ Lightning Address keeps the prepared deterministic wallet and local manifest ent
 
 The routed activation/status UI lives under Bitcoin settings.
 Its Cubit depends on `ActivateWalletOwnedLightningAddressUsecase` and `LookupWalletOwnedLightningAddressRegistrationUsecase`.
-The activation use case keeps wallet-id metadata out of the presentation contract while preserving local-preparation versus uncertain post-submission failure semantics.
+The activation use case maps wallet-owned registration failures to an activation-safe Lightning Address exception that keeps wallet-id metadata out of the presentation contract while preserving local-preparation versus uncertain post-submission failure semantics.
 The UI can submit a nym after explicit consent, show an active nym from lookup, show the server-returned Lightning Address only after a fresh registration response, and surface lookup failures separately from inactive status.
 It does not pass xprv material, descriptors, wallet ids, Nostr handles, Bullnym internals, or raw protocol use cases through presentation or route state.
 
@@ -58,5 +58,5 @@ Lookup currently reflects the Bullnym public lookup contract: it reports the reg
 It does not synthesize a copyable Lightning Address from a hardcoded domain.
 Canonical display/copy address after lookup belongs in a later backend/facade contract or wallet/config-owned flow.
 
-The only local nym validation owned here is rejecting empty or whitespace-only values before key derivation and network calls.
+The local nym validation owned here is rejecting empty or whitespace-only values and full-address input containing `@` before key derivation and network calls.
 Character sets, case policy, length limits, reserved names, and normalization remain Bullnym protocol or product decisions.

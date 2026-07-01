@@ -78,15 +78,13 @@ class LightningAddressLocator {
     });
     locator.registerFactory<ActivateWalletOwnedLightningAddressUsecase>(
       () => ActivateWalletOwnedLightningAddressUsecase(
-        registerWalletOwned:
-            locator<RegisterWalletOwnedLightningAddressUsecase>(),
+        locator<RegisterWalletOwnedLightningAddressUsecase>(),
       ),
     );
     locator.registerFactory<LightningAddressActivationCubit>(
       () => LightningAddressActivationCubit(
-        activate: locator<ActivateWalletOwnedLightningAddressUsecase>(),
-        lookupStatus:
-            locator<LookupWalletOwnedLightningAddressRegistrationUsecase>(),
+        locator<ActivateWalletOwnedLightningAddressUsecase>(),
+        locator<LookupWalletOwnedLightningAddressRegistrationUsecase>(),
       ),
     );
   }

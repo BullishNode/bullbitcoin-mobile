@@ -17,10 +17,7 @@ void main() {
     setUp(() {
       activate = _FakeActivateWalletOwnedLightningAddressUsecase();
       lookup = _FakeLookupWalletOwnedLightningAddressRegistrationUsecase();
-      cubit = LightningAddressActivationCubit(
-        activate: activate,
-        lookupStatus: lookup,
-      );
+      cubit = LightningAddressActivationCubit(activate, lookup);
     });
 
     tearDown(() => cubit.close());
@@ -83,40 +80,40 @@ void main() {
       expect(cubit.state.registeredAddress, 'alice@example.invalid');
     });
 
-    test('local preparation failure maps to setup failure', () async {
+    test('missing default wallet maps to actionable setup failure', () async {
       cubit.nymChanged('alice');
-      activate.error = WalletOwnedLightningAddressActivationException(
-        phase:
-            WalletOwnedLightningAddressActivationFailurePhase.localPreparation,
-        cause: LightningAddressException.localPreparationFailed(
-          code: 'NoDefaultBitcoinWallet',
-          retryable: false,
-        ),
-        walletCreated: false,
-        submissionMayBeUncertain: false,
-      );
+      activate.error =
+          WalletOwnedLightningAddressActivationException.fromRegistration(
+            WalletOwnedLightningAddressRegistrationException.localPreparation(
+              cause: LightningAddressException.localPreparationFailed(
+                code: 'NoDefaultBitcoinWallet',
+                retryable: false,
+              ),
+            ),
+          );
 
       await cubit.submit();
 
       expect(cubit.state.status, LightningAddressActivationStatus.failure);
       expect(
         cubit.state.failure,
-        LightningAddressActivationFailure.setupFailed,
+        LightningAddressActivationFailure.noDefaultBitcoinWallet,
       );
       expect(cubit.state.registeredAddress, isNull);
     });
 
     test('uncertain submission maps to check-status state', () async {
       cubit.nymChanged('alice');
-      activate.error = WalletOwnedLightningAddressActivationException(
-        phase: WalletOwnedLightningAddressActivationFailurePhase
-            .registrationSubmission,
-        cause: const LightningAddressTimeoutException(
-          code: 'Timeout',
-          retryable: true,
+      activate
+          .error = WalletOwnedLightningAddressActivationException.fromRegistration(
+        WalletOwnedLightningAddressRegistrationException.registrationSubmission(
+          cause: const LightningAddressTimeoutException(
+            code: 'Timeout',
+            retryable: true,
+          ),
+          walletId: 'wallet-id',
+          walletCreated: true,
         ),
-        walletCreated: true,
-        submissionMayBeUncertain: true,
       );
 
       await cubit.submit();
@@ -131,15 +128,16 @@ void main() {
 
     test('server rejection maps to rejected failure', () async {
       cubit.nymChanged('alice');
-      activate.error = WalletOwnedLightningAddressActivationException(
-        phase: WalletOwnedLightningAddressActivationFailurePhase
-            .registrationSubmission,
-        cause: const LightningAddressServerRejectedRequestException(
-          code: 'Rejected',
-          retryable: false,
+      activate
+          .error = WalletOwnedLightningAddressActivationException.fromRegistration(
+        WalletOwnedLightningAddressRegistrationException.registrationSubmission(
+          cause: const LightningAddressServerRejectedRequestException(
+            code: 'Rejected',
+            retryable: false,
+          ),
+          walletId: 'wallet-id',
+          walletCreated: true,
         ),
-        walletCreated: true,
-        submissionMayBeUncertain: false,
       );
 
       await cubit.submit();
@@ -164,17 +162,34 @@ void main() {
       expect(cubit.state.registeredAddress, isNull);
     });
 
+    test('missing default wallet lookup maps to actionable failure', () async {
+      lookup.error = LightningAddressException.localPreparationFailed(
+        code: 'NoDefaultBitcoinWallet',
+        retryable: false,
+      );
+
+      await cubit.load();
+
+      expect(cubit.state.status, LightningAddressActivationStatus.failure);
+      expect(
+        cubit.state.failure,
+        LightningAddressActivationFailure.noDefaultBitcoinWallet,
+      );
+      expect(cubit.state.registeredAddress, isNull);
+    });
+
     test('failed status check preserves uncertain submission state', () async {
       cubit.nymChanged('alice');
-      activate.error = WalletOwnedLightningAddressActivationException(
-        phase: WalletOwnedLightningAddressActivationFailurePhase
-            .registrationSubmission,
-        cause: const LightningAddressTimeoutException(
-          code: 'Timeout',
-          retryable: true,
+      activate
+          .error = WalletOwnedLightningAddressActivationException.fromRegistration(
+        WalletOwnedLightningAddressRegistrationException.registrationSubmission(
+          cause: const LightningAddressTimeoutException(
+            code: 'Timeout',
+            retryable: true,
+          ),
+          walletId: 'wallet-id',
+          walletCreated: true,
         ),
-        walletCreated: true,
-        submissionMayBeUncertain: true,
       );
       await cubit.submit();
       lookup.error = const LightningAddressNetworkException(
@@ -217,18 +232,13 @@ class _FakeActivateWalletOwnedLightningAddressUsecase
   Object? error;
 
   @override
-  Future<WalletOwnedLightningAddressActivation> execute({
-    required String nym,
-  }) async {
+  Future<LightningAddressRegistration> execute({required String nym}) async {
     nyms.add(nym);
     final error = this.error;
     if (error != null) throw error;
-    return WalletOwnedLightningAddressActivation(
-      registration: LightningAddressRegistration(
-        nym: nym,
-        lightningAddress: '$nym@example.invalid',
-      ),
-      walletCreated: true,
+    return LightningAddressRegistration(
+      nym: nym,
+      lightningAddress: '$nym@example.invalid',
     );
   }
 }

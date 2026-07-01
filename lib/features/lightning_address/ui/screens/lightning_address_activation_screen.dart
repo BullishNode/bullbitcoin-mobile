@@ -90,6 +90,9 @@ class _LightningAddressActivationScreenState
                           .load,
                     )
                   : state.failure ==
+                        LightningAddressActivationFailure.noDefaultBitcoinWallet
+                  ? const _NoDefaultBitcoinWalletView()
+                  : state.failure ==
                         LightningAddressActivationFailure.submissionUncertain
                   ? _UncertainSubmissionView(
                       onCheckStatus: context
@@ -148,6 +151,8 @@ class _LightningAddressActivationScreenState
         context.loc.lightningAddressInvalidNym,
       LightningAddressActivationFailure.lookupFailed =>
         context.loc.lightningAddressLookupFailedBody,
+      LightningAddressActivationFailure.noDefaultBitcoinWallet =>
+        context.loc.lightningAddressNoDefaultBitcoinWalletError,
       LightningAddressActivationFailure.setupFailed =>
         context.loc.lightningAddressSetupFailed,
       LightningAddressActivationFailure.submissionUncertain =>
@@ -235,6 +240,24 @@ class _RegistrationForm extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NoDefaultBitcoinWalletView extends StatelessWidget {
+  const _NoDefaultBitcoinWalletView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _StatusNotice(
+          icon: Icons.account_balance_wallet_outlined,
+          title: context.loc.lightningAddressTitle,
+          body: context.loc.lightningAddressNoDefaultBitcoinWalletError,
+        ),
+      ],
     );
   }
 }

@@ -14251,10 +14251,6 @@
   "@lightningAddressNymHelper": {
     "description": "Helper text for the Lightning Address nym field."
   },
-  "lightningAddressNymRequired": "Enter a name.",
-  "@lightningAddressNymRequired": {
-    "description": "Validation error shown when the Lightning Address nym is blank."
-  },
   "lightningAddressRegisterButton": "Register",
   "@lightningAddressRegisterButton": {
     "description": "Button label to register a Lightning Address."
@@ -14298,10 +14294,6 @@
   "lightningAddressNoCopyableAddressAfterLookup": "Status lookup confirms the name is active. The full address is only shown immediately after a new registration.",
   "@lightningAddressNoCopyableAddressAfterLookup": {
     "description": "Body shown for active lookup when the full Lightning Address is not available from the status API."
-  },
-  "lightningAddressCopyModalTitle": "Lightning Address",
-  "@lightningAddressCopyModalTitle": {
-    "description": "Modal title for viewing and copying a returned Lightning Address."
   },
   "lightningAddressCheckStatusButton": "Check Status",
   "@lightningAddressCheckStatusButton": {
