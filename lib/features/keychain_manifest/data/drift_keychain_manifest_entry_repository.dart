@@ -10,9 +10,8 @@ class DriftKeychainManifestEntryRepository
 
   DriftKeychainManifestEntryRepository({required this._database});
 
-  @override
   Future<KeychainManifestWalletMaterializationRecord?>
-  fetchWalletMaterializationRecordByWalletId(String walletId) async {
+  _fetchWalletMaterializationRecordByWalletId(String walletId) async {
     final bindingQuery = _database.select(
       _database.keychainManifestWalletBindings,
     )..where((table) => table.walletId.equals(walletId));
@@ -71,27 +70,56 @@ class DriftKeychainManifestEntryRepository
   }
 
   @override
-  Future<void> insertWalletMaterializationRecord(
-    KeychainManifestWalletMaterializationRecord record,
+  Future<void> insertWalletMaterializationRecords(
+    List<KeychainManifestWalletMaterializationRecord> records,
   ) async {
+    if (records.isEmpty) return;
     try {
       await _database.transaction(() async {
-        await _ensureEntry(record.entry);
-        await _database
-            .into(_database.keychainManifestWalletBindings)
-            .insert(
-              KeychainManifestWalletBindingsCompanion.insert(
-                walletId: record.walletMaterialization.walletId,
-                entryId: record.walletMaterialization.entryId,
-                childSeedFingerprint:
-                    record.walletMaterialization.childSeedFingerprint,
-                network: record.walletMaterialization.network,
-                walletPurpose: record.walletMaterialization.walletPurpose,
-                scriptType: record.walletMaterialization.scriptType,
-                createdAt: record.walletMaterialization.createdAt,
-                updatedAt: record.walletMaterialization.updatedAt,
-              ),
+        for (final record in records) {
+          final existingByWallet =
+              await _fetchWalletMaterializationRecordByWalletId(
+                record.walletId,
+              );
+          if (existingByWallet != null) {
+            if (existingByWallet.sameRecordAs(record)) continue;
+            throw KeychainManifestEntryConflictException(
+              'keychain manifest wallet materialization already exists',
             );
+          }
+          await _ensureEntry(record.entry);
+          try {
+            await _database
+                .into(_database.keychainManifestWalletBindings)
+                .insert(
+                  KeychainManifestWalletBindingsCompanion.insert(
+                    walletId: record.walletMaterialization.walletId,
+                    entryId: record.walletMaterialization.entryId,
+                    childSeedFingerprint:
+                        record.walletMaterialization.childSeedFingerprint,
+                    network: record.walletMaterialization.network,
+                    walletPurpose: record.walletMaterialization.walletPurpose,
+                    scriptType: record.walletMaterialization.scriptType,
+                    createdAt: record.walletMaterialization.createdAt,
+                    updatedAt: record.walletMaterialization.updatedAt,
+                  ),
+                );
+          } catch (e) {
+            if (!_isUniqueConstraintFailure(e)) rethrow;
+            final insertedByWallet =
+                await _fetchWalletMaterializationRecordByWalletId(
+                  record.walletId,
+                );
+            if (insertedByWallet != null &&
+                insertedByWallet.sameRecordAs(record)) {
+              continue;
+            }
+            throw KeychainManifestEntryConflictException(
+              'keychain manifest wallet materialization already exists',
+              cause: e,
+            );
+          }
+        }
       });
     } catch (e) {
       if (_isUniqueConstraintFailure(e)) {
@@ -115,22 +143,36 @@ class DriftKeychainManifestEntryRepository
       );
     }
 
-    await _database
-        .into(_database.keychainManifestEntries)
-        .insert(
-          KeychainManifestEntriesCompanion.insert(
-            entryId: entry.entryId,
-            parentFingerprint: entry.parentFingerprint,
-            bip85DerivationPath: entry.bip85DerivationPath,
-            reservationId: entry.reservationId,
-            entryType: entry.entryType,
-            ownerFeature: entry.ownerFeature,
-            bip85Application: entry.bip85Application,
-            bip85Index: entry.bip85Index,
-            createdAt: entry.createdAt,
-            updatedAt: entry.updatedAt,
-          ),
-        );
+    try {
+      await _database
+          .into(_database.keychainManifestEntries)
+          .insert(
+            KeychainManifestEntriesCompanion.insert(
+              entryId: entry.entryId,
+              parentFingerprint: entry.parentFingerprint,
+              bip85DerivationPath: entry.bip85DerivationPath,
+              reservationId: entry.reservationId,
+              entryType: entry.entryType,
+              ownerFeature: entry.ownerFeature,
+              bip85Application: entry.bip85Application,
+              bip85Index: entry.bip85Index,
+              createdAt: entry.createdAt,
+              updatedAt: entry.updatedAt,
+            ),
+          );
+    } catch (e) {
+      if (!_isUniqueConstraintFailure(e)) rethrow;
+      final insertedQuery = _database.select(_database.keychainManifestEntries)
+        ..where((table) => table.entryId.equals(entry.entryId));
+      final inserted = await insertedQuery.getSingleOrNull();
+      if (inserted != null && _rowToEntry(inserted).sameRecordAs(entry)) {
+        return;
+      }
+      throw KeychainManifestDuplicateException(
+        'keychain manifest entry identity already exists',
+        cause: e,
+      );
+    }
   }
 
   Future<KeychainManifestWalletMaterializationRecord> _recordForBinding(
