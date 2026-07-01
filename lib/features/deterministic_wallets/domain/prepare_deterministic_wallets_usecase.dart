@@ -1,41 +1,23 @@
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/bip85/domain/derive_bip85_mnemonic_at_index_from_default_wallet_usecase.dart';
-import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/uint_8_list_x.dart';
-import 'package:bb_mobile/core/wallet/data/models/wallet_metadata_model.dart';
-import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
-import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
-import 'package:bb_mobile/core/wallet/wallet_metadata_service.dart';
-import 'package:bb_mobile/features/deterministic_wallets/application/application_errors.dart';
 import 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets.dart';
+import 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets_error.dart';
+import 'package:bb_mobile/features/deterministic_wallets/domain/repositories/deterministic_wallet_repository.dart';
 import 'package:bip32_keys/bip32_keys.dart' as bip32;
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 
-typedef DeterministicWalletMetadataDeriver =
-    Future<WalletMetadataModel> Function({
-      required Seed seed,
-      required Network network,
-      required ScriptType scriptType,
-      String? label,
-      required bool isDefault,
-    });
-
 class PrepareDeterministicWalletsUsecase {
   final DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase _deriveBip85;
-  final WalletRepository _walletRepository;
-  final SeedRepository _seedRepository;
-  final DeterministicWalletMetadataDeriver _deriveWalletMetadata;
+  final DeterministicWalletRepository _walletRepository;
 
   PrepareDeterministicWalletsUsecase({
     required this._deriveBip85,
     required this._walletRepository,
-    required this._seedRepository,
-    DeterministicWalletMetadataDeriver? deriveWalletMetadata,
-  }) : _deriveWalletMetadata =
-           deriveWalletMetadata ?? WalletMetadataService.deriveFromSeed;
+  });
 
   Future<PreparedDeterministicWallets> execute(
     DeterministicWalletsRequest request,
@@ -53,30 +35,12 @@ class PrepareDeterministicWalletsUsecase {
     MnemonicSeed? childSeed;
     try {
       for (final spec in request.walletSpecs) {
-        final expectedMetadata = await _deriveWalletMetadata(
-          seed: childSeedPreview,
-          network: spec.network,
-          scriptType: spec.scriptType,
-          label: spec.label,
-          isDefault: spec.isDefault,
+        final existing = await _walletRepository.getMatchingWallet(
+          seedPreview: childSeedPreview,
+          spec: spec,
         );
-        final existing = await _walletRepository.getWallet(expectedMetadata.id);
         if (existing != null) {
-          _throwIfWalletDoesNotMatchExpected(
-            wallet: existing,
-            spec: spec,
-            expectedExternalDescriptor:
-                expectedMetadata.externalPublicDescriptor,
-            expectedInternalDescriptor:
-                expectedMetadata.internalPublicDescriptor,
-          );
-          results.add(
-            PreparedDeterministicWallet(
-              specId: spec.id,
-              wallet: existing,
-              created: false,
-            ),
-          );
+          results.add(existing);
           continue;
         }
 
@@ -85,32 +49,26 @@ class PrepareDeterministicWalletsUsecase {
           onStored: () => seedStoredDuringAttempt = true,
         );
         final created = await _walletRepository.createWallet(
-          seed: childSeed,
-          network: spec.network,
-          scriptType: spec.scriptType,
-          isDefault: spec.isDefault,
-          sync: spec.sync,
-          label: spec.label,
+          childSeed: childSeed,
+          spec: spec,
         );
-        results.add(
-          PreparedDeterministicWallet(
-            specId: spec.id,
-            wallet: created,
-            created: true,
-          ),
-        );
+        results.add(created);
       }
     } catch (e, stack) {
-      await _rollbackCreatedWalletsBestEffort(results);
+      final cleanupFailures = await _rollbackCreatedWallets(results);
       if (seedStoredDuringAttempt &&
-          results.every((wallet) => wallet.created)) {
-        await _deleteChildSeedBestEffort(childSeedPreview);
+          results.every((wallet) => wallet.created) &&
+          !await _deleteChildSeed(childSeedPreview.masterFingerprint)) {
+        cleanupFailures.add(childSeedPreview.masterFingerprint);
       }
       log.warning(
         'Deterministic wallet materialization failed',
         error: e,
         trace: stack,
       );
+      if (cleanupFailures.isNotEmpty) {
+        throw DeterministicWalletException.rollbackFailed();
+      }
       rethrow;
     }
 
@@ -124,11 +82,13 @@ class PrepareDeterministicWalletsUsecase {
   Future<void> rollbackCreatedWallets(
     PreparedDeterministicWallets result,
   ) async {
-    for (final prepared in result.wallets.where((wallet) => wallet.created)) {
-      await _walletRepository.deleteWallet(walletId: prepared.wallet.id);
+    final cleanupFailures = await _rollbackCreatedWallets(result.wallets);
+    if (result.shouldDeleteChildSeedOnRollback &&
+        !await _deleteChildSeed(result.childSeedFingerprint)) {
+      cleanupFailures.add(result.childSeedFingerprint);
     }
-    if (result.shouldDeleteChildSeedOnRollback) {
-      await _seedRepository.delete(result.childSeedFingerprint);
+    if (cleanupFailures.isNotEmpty) {
+      throw DeterministicWalletException.rollbackFailed();
     }
   }
 
@@ -169,41 +129,24 @@ class PrepareDeterministicWalletsUsecase {
     MnemonicSeed childSeedPreview, {
     required void Function() onStored,
   }) async {
-    final exists = await _seedRepository.exists(
+    final exists = await _walletRepository.childSeedExists(
       childSeedPreview.masterFingerprint,
     );
     if (exists) return childSeedPreview;
 
     onStored();
-    return _seedRepository.createFromMnemonic(
-      mnemonicWords: childSeedPreview.mnemonicWords,
-      passphrase: childSeedPreview.passphrase,
-    );
+    return _walletRepository.storeChildSeed(childSeedPreview);
   }
 
-  void _throwIfWalletDoesNotMatchExpected({
-    required Wallet wallet,
-    required DeterministicWalletSpec spec,
-    required String expectedExternalDescriptor,
-    required String expectedInternalDescriptor,
-  }) {
-    if (wallet.scriptType != spec.scriptType ||
-        wallet.externalPublicDescriptor != expectedExternalDescriptor ||
-        wallet.internalPublicDescriptor != expectedInternalDescriptor) {
-      throw DeterministicWalletException.walletMismatch(
-        'Existing deterministic wallet metadata does not match expected '
-        'descriptors for ${spec.id}',
-      );
-    }
-  }
-
-  Future<void> _rollbackCreatedWalletsBestEffort(
+  Future<List<String>> _rollbackCreatedWallets(
     List<PreparedDeterministicWallet> wallets,
   ) async {
+    final failures = <String>[];
     for (final prepared in wallets.where((wallet) => wallet.created)) {
       try {
-        await _walletRepository.deleteWallet(walletId: prepared.wallet.id);
+        await _walletRepository.deleteWallet(prepared.walletId);
       } catch (e, stack) {
+        failures.add(prepared.walletId);
         log.warning(
           'Deterministic wallet rollback failed',
           error: e,
@@ -211,17 +154,20 @@ class PrepareDeterministicWalletsUsecase {
         );
       }
     }
+    return failures;
   }
 
-  Future<void> _deleteChildSeedBestEffort(MnemonicSeed childSeed) async {
+  Future<bool> _deleteChildSeed(String fingerprint) async {
     try {
-      await _seedRepository.delete(childSeed.masterFingerprint);
+      await _walletRepository.deleteChildSeed(fingerprint);
+      return true;
     } catch (e, stack) {
       log.warning(
         'Deterministic wallet child seed rollback failed',
         error: e,
         trace: stack,
       );
+      return false;
     }
   }
 

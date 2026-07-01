@@ -52,12 +52,22 @@ class PreparedDeterministicWallets {
 
 class PreparedDeterministicWallet {
   final String specId;
-  final Wallet wallet;
+  final String walletId;
+  final Network network;
+  final ScriptType scriptType;
+  final String? label;
+  final String externalPublicDescriptor;
+  final String internalPublicDescriptor;
   final bool created;
 
   const PreparedDeterministicWallet({
     required this.specId,
-    required this.wallet,
+    required this.walletId,
+    required this.network,
+    required this.scriptType,
+    this.label,
+    required this.externalPublicDescriptor,
+    required this.internalPublicDescriptor,
     required this.created,
   });
 }

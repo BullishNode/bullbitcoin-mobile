@@ -1,4 +1,3 @@
-import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
@@ -89,18 +88,22 @@ void main() {
         wallets: [
           PreparedDeterministicWallet(
             specId: BtcpayWalletConstants.bitcoinSpecId,
-            wallet: _wallet(
-              Network.bitcoinMainnet,
-              externalDescriptor: 'btc-desc',
-            ),
+            walletId: Network.bitcoinMainnet.name,
+            network: Network.bitcoinMainnet,
+            scriptType: ScriptType.bip84,
+            label: Network.bitcoinMainnet.name,
+            externalPublicDescriptor: 'btc-desc',
+            internalPublicDescriptor: 'internal-desc',
             created: false,
           ),
           PreparedDeterministicWallet(
             specId: BtcpayWalletConstants.liquidSpecId,
-            wallet: _wallet(
-              Network.liquidMainnet,
-              externalDescriptor: 'lbtc-desc',
-            ),
+            walletId: Network.liquidMainnet.name,
+            network: Network.liquidMainnet,
+            scriptType: ScriptType.bip84,
+            label: Network.liquidMainnet.name,
+            externalPublicDescriptor: 'lbtc-desc',
+            internalPublicDescriptor: 'internal-desc',
             created: false,
           ),
         ],
@@ -126,9 +129,10 @@ void main() {
       final connectionStore = _MockBtcpayConnectionStore();
       final preparedWallets = PreparedDeterministicWallets(
         wallets: [
-          PreparedDeterministicWallet(
+          _wallet(
             specId: BtcpayWalletConstants.bitcoinSpecId,
-            wallet: _wallet(Network.bitcoinMainnet, externalDescriptor: ''),
+            network: Network.bitcoinMainnet,
+            externalDescriptor: '',
             created: true,
           ),
         ],
@@ -175,20 +179,16 @@ void main() {
       final connectionStore = _MockBtcpayConnectionStore();
       final preparedWallets = PreparedDeterministicWallets(
         wallets: [
-          PreparedDeterministicWallet(
+          _wallet(
             specId: BtcpayWalletConstants.bitcoinSpecId,
-            wallet: _wallet(
-              Network.bitcoinMainnet,
-              externalDescriptor: 'btc-desc',
-            ),
+            network: Network.bitcoinMainnet,
+            externalDescriptor: 'btc-desc',
             created: true,
           ),
-          PreparedDeterministicWallet(
+          _wallet(
             specId: BtcpayWalletConstants.liquidSpecId,
-            wallet: _wallet(
-              Network.liquidMainnet,
-              externalDescriptor: 'lbtc-desc',
-            ),
+            network: Network.liquidMainnet,
+            externalDescriptor: 'lbtc-desc',
             created: true,
           ),
         ],
@@ -234,20 +234,16 @@ void main() {
     final connectionStore = _MockBtcpayConnectionStore();
     final preparedWallets = PreparedDeterministicWallets(
       wallets: [
-        PreparedDeterministicWallet(
+        _wallet(
           specId: BtcpayWalletConstants.bitcoinSpecId,
-          wallet: _wallet(
-            Network.bitcoinMainnet,
-            externalDescriptor: 'btc-desc',
-          ),
+          network: Network.bitcoinMainnet,
+          externalDescriptor: 'btc-desc',
           created: true,
         ),
-        PreparedDeterministicWallet(
+        _wallet(
           specId: BtcpayWalletConstants.liquidSpecId,
-          wallet: _wallet(
-            Network.liquidMainnet,
-            externalDescriptor: 'lbtc-desc',
-          ),
+          network: Network.liquidMainnet,
+          externalDescriptor: 'lbtc-desc',
           created: true,
         ),
       ],
@@ -294,20 +290,20 @@ void main() {
   });
 }
 
-Wallet _wallet(Network network, {required String externalDescriptor}) {
-  return Wallet(
-    origin: network.name,
-    label: network.name,
+PreparedDeterministicWallet _wallet({
+  required String specId,
+  required Network network,
+  required String externalDescriptor,
+  required bool created,
+}) {
+  return PreparedDeterministicWallet(
+    specId: specId,
+    walletId: network.name,
     network: network,
-    isDefault: false,
-    masterFingerprint: 'fingerprint',
-    xpubFingerprint: 'xpub-fingerprint',
     scriptType: ScriptType.bip84,
-    xpub: 'xpub',
+    label: network.name,
     externalPublicDescriptor: externalDescriptor,
     internalPublicDescriptor: 'internal-desc',
-    signer: SignerEntity.local,
-    signerDevice: null,
-    balanceSat: BigInt.zero,
+    created: created,
   );
 }
