@@ -65,6 +65,22 @@ class KeychainManifestNostrSnapshotCodec {
   }
 }
 
+class KeychainManifestNostrSignedEventCodec {
+  const KeychainManifestNostrSignedEventCodec();
+
+  Map<String, Object?> encode(KeychainManifestNostrSignedEvent event) {
+    return {
+      'id': event.id,
+      'pubkey': event.authorPublicKeyHex,
+      'created_at': event.createdAt,
+      'kind': event.kind,
+      'tags': event.tags,
+      'content': event.encryptedContent,
+      'sig': event.signatureHex,
+    };
+  }
+}
+
 String _string(Map<String, Object?> json, String key) {
   final value = json[key];
   if (value is String) return value;
