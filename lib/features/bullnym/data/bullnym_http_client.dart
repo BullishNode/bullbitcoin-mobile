@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 const bullnymBaseUrlEnvironmentKey = 'BULLNYM_BASE_URL';
 const bullnymDefaultBaseUrl = String.fromEnvironment(
   bullnymBaseUrlEnvironmentKey,
-  defaultValue: 'https://pay.bull-wallet.com',
+  defaultValue: 'https://bullpay.ca',
 );
 const Duration bullnymConnectTimeout = Duration(seconds: 10);
 const Duration bullnymReceiveTimeout = Duration(seconds: 15);

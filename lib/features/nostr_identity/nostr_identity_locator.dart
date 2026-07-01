@@ -1,4 +1,4 @@
-import 'package:bb_mobile/features/nostr_identity/application/derive_nostr_identity_handle_usecase.dart';
+import 'package:bb_mobile/features/nostr_identity/domain/derive_nostr_identity_handle_usecase.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:get_it/get_it.dart';
 
@@ -8,9 +8,7 @@ class NostrIdentityLocator {
       () => const DeriveNostrIdentityHandleUsecase(),
     );
     locator.registerFactory<NostrIdentityFacade>(
-      () => NostrIdentityFacade(
-        deriveHandle: locator<DeriveNostrIdentityHandleUsecase>(),
-      ),
+      () => NostrIdentityFacade(locator<DeriveNostrIdentityHandleUsecase>()),
     );
   }
 }

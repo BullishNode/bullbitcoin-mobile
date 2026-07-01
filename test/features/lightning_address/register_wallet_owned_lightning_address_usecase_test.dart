@@ -11,14 +11,13 @@ import 'package:bb_mobile/features/bullnym/bullnym_locator.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
-import 'package:bb_mobile/features/lightning_address/application/ports/lightning_address_default_wallet_xprv_port.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_registration_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/data/default_wallet_xprv_adapter.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_wallet_owned_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/prepare_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_wallet_owned_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/frameworks/default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/lightning_address/lightning_address_locator.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/nostr_identity/nostr_identity_locator.dart';
@@ -48,9 +47,7 @@ void main() {
     test(
       'derives xprv, prepares wallet, and registers with descriptor',
       () async {
-        final result = await usecase.execute(
-          const RegisterWalletOwnedLightningAddressCommand(nym: 'alice'),
-        );
+        final result = await usecase.execute(nym: 'alice');
 
         expect(defaultWalletXprv.deriveCalls, 1);
         expect(prepareWallet.executeCalls, 1);
@@ -68,9 +65,7 @@ void main() {
       'rejects blank nym before secret, wallet, or network side effects',
       () {
         expect(
-          () => usecase.execute(
-            const RegisterWalletOwnedLightningAddressCommand(nym: '  '),
-          ),
+          () => usecase.execute(nym: '  '),
           throwsA(
             isA<LightningAddressException>().having(
               (e) => e.kind,
@@ -91,9 +86,7 @@ void main() {
         defaultWalletXprv.error = StateError('no default wallet');
 
         await expectLater(
-          usecase.execute(
-            const RegisterWalletOwnedLightningAddressCommand(nym: 'alice'),
-          ),
+          usecase.execute(nym: 'alice'),
           throwsA(
             isA<WalletOwnedLightningAddressRegistrationException>()
                 .having(
@@ -122,9 +115,7 @@ void main() {
       );
 
       await expectLater(
-        usecase.execute(
-          const RegisterWalletOwnedLightningAddressCommand(nym: 'alice'),
-        ),
+        usecase.execute(nym: 'alice'),
         throwsA(
           isA<WalletOwnedLightningAddressRegistrationException>()
               .having(
@@ -150,9 +141,7 @@ void main() {
       );
 
       await expectLater(
-        usecase.execute(
-          const RegisterWalletOwnedLightningAddressCommand(nym: 'alice'),
-        ),
+        usecase.execute(nym: 'alice'),
         throwsA(
           isA<WalletOwnedLightningAddressRegistrationException>()
               .having(
@@ -184,12 +173,34 @@ void main() {
       expect(register.commands.single.ctDescriptor, 'ct-desc');
     });
 
+    test('does not mark signing failures as submitted to server', () async {
+      register.error = const LightningAddressSigningFailedException(
+        code: 'SigningFailed',
+        retryable: false,
+      );
+
+      await expectLater(
+        usecase.execute(nym: 'alice'),
+        throwsA(
+          isA<WalletOwnedLightningAddressRegistrationException>()
+              .having(
+                (e) => e.descriptorMayHaveBeenSubmitted,
+                'descriptorMayHaveBeenSubmitted',
+                false,
+              )
+              .having(
+                (e) => e.submissionMayBeUncertain,
+                'submissionMayBeUncertain',
+                false,
+              ),
+        ),
+      );
+    });
+
     test('reports reused wallet metadata for idempotent retry', () async {
       prepareWallet.prepared = _prepared(created: false);
 
-      final result = await usecase.execute(
-        const RegisterWalletOwnedLightningAddressCommand(nym: 'alice'),
-      );
+      final result = await usecase.execute(nym: 'alice');
 
       expect(result.walletId, 'la-wallet');
       expect(result.walletCreated, false);
@@ -239,39 +250,58 @@ void main() {
       );
       expect(lookupRegistration.executeCalls, 0);
     });
+
+    test('maps Nostr public-key derivation failures before lookup', () async {
+      nostrIdentity.error = StateError('bad xprv');
+
+      await expectLater(
+        usecase.execute(),
+        throwsA(
+          isA<LightningAddressException>()
+              .having(
+                (e) => e.kind,
+                'kind',
+                LightningAddressErrorKind.localPreparationFailed,
+              )
+              .having((e) => e.retryable, 'retryable', false),
+        ),
+      );
+      expect(lookupRegistration.executeCalls, 0);
+    });
   });
 
   test('LightningAddressFacade delegates wallet-owned registration', () async {
     final walletOwned = _FakeRegisterWalletOwnedLightningAddressUsecase();
     final lookupWalletOwned =
         _FakeLookupWalletOwnedLightningAddressRegistrationUsecase();
-    final facade = LightningAddressFacade.forUsecases(
-      prepareWallet: _FakePrepareLightningAddressWalletUsecase(),
-      register: _FakeRegisterLightningAddressUsecase(),
-      deleteRegistration: _FakeDeleteLightningAddressRegistrationUsecase(),
-      lookupRegistration: _FakeLookupLightningAddressRegistrationUsecase(),
-      registerWalletOwned: walletOwned,
-      lookupWalletOwnedRegistration: lookupWalletOwned,
+    final facade = LightningAddressFacade(
+      prepareWallet: _FakePrepareLightningAddressWalletUsecase().execute,
+      lookupRegistration: ({required npubHex}) =>
+          _FakeLookupLightningAddressRegistrationUsecase().execute(
+            npubHex: npubHex,
+          ),
+      registerWalletOwned: ({required nym}) => walletOwned.execute(nym: nym),
+      lookupWalletOwnedRegistration: lookupWalletOwned.execute,
     );
 
-    final result = await facade.registerWalletOwned(
-      const RegisterWalletOwnedLightningAddressCommand(nym: 'alice'),
-    );
+    final result = await facade.registerWalletOwned(nym: 'alice');
 
-    expect(walletOwned.commands.single.nym, 'alice');
+    expect(walletOwned.nyms.single, 'alice');
     expect(result.registration.lightningAddress, 'alice@example.invalid');
   });
 
   test('LightningAddressFacade delegates wallet-owned lookup', () async {
     final lookupWalletOwned =
         _FakeLookupWalletOwnedLightningAddressRegistrationUsecase();
-    final facade = LightningAddressFacade.forUsecases(
-      prepareWallet: _FakePrepareLightningAddressWalletUsecase(),
-      register: _FakeRegisterLightningAddressUsecase(),
-      deleteRegistration: _FakeDeleteLightningAddressRegistrationUsecase(),
-      lookupRegistration: _FakeLookupLightningAddressRegistrationUsecase(),
-      registerWalletOwned: _FakeRegisterWalletOwnedLightningAddressUsecase(),
-      lookupWalletOwnedRegistration: lookupWalletOwned,
+    final facade = LightningAddressFacade(
+      prepareWallet: _FakePrepareLightningAddressWalletUsecase().execute,
+      lookupRegistration: ({required npubHex}) =>
+          _FakeLookupLightningAddressRegistrationUsecase().execute(
+            npubHex: npubHex,
+          ),
+      registerWalletOwned: ({required nym}) =>
+          _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
+      lookupWalletOwnedRegistration: lookupWalletOwned.execute,
     );
 
     final result = await facade.lookupWalletOwnedRegistration();
@@ -282,14 +312,24 @@ void main() {
   });
 
   test(
-    'DefaultWalletXprvAdapter derives from the actual default wallet network',
+    'DefaultWalletXprvAdapter derives from the active-environment default wallet',
     () async {
       final seed = _zeroMnemonicSeed();
       final walletRepository = _FakeWalletRepository([
-        _wallet('default-bitcoin', network: Network.bitcoinTestnet),
+        _wallet(
+          'default-testnet',
+          network: Network.bitcoinTestnet,
+          masterFingerprint: 'test-fp',
+        ),
+        _wallet(
+          'default-mainnet',
+          network: Network.bitcoinMainnet,
+          masterFingerprint: 'main-fp',
+        ),
       ]);
       final seedRepository = _FakeSeedRepository(seed);
       final adapter = DefaultWalletXprvAdapter(
+        getSettings: _FakeGetSettingsUsecase(Environment.mainnet),
         walletRepository: walletRepository,
         seedRepository: seedRepository,
       );
@@ -298,8 +338,9 @@ void main() {
 
       expect(walletRepository.onlyDefaults, true);
       expect(walletRepository.onlyBitcoin, true);
-      expect(seedRepository.fingerprints.single, 'child-fp');
-      expect(xprv, startsWith('tprv'));
+      expect(walletRepository.environment, Environment.mainnet);
+      expect(seedRepository.fingerprints.single, 'main-fp');
+      expect(xprv, startsWith('xprv'));
     },
   );
 
@@ -371,7 +412,11 @@ class _FakeRegisterLightningAddressUsecase
     required String nym,
     required String ctDescriptor,
   }) async {
-    commands.add((xprvBase58: xprvBase58, nym: nym, ctDescriptor: ctDescriptor));
+    commands.add((
+      xprvBase58: xprvBase58,
+      nym: nym,
+      ctDescriptor: ctDescriptor,
+    ));
     final error = this.error;
     if (error != null) throw error;
     return LightningAddressRegistration(
@@ -383,17 +428,17 @@ class _FakeRegisterLightningAddressUsecase
 
 class _FakeRegisterWalletOwnedLightningAddressUsecase
     implements RegisterWalletOwnedLightningAddressUsecase {
-  final commands = <RegisterWalletOwnedLightningAddressCommand>[];
+  final nyms = <String>[];
 
   @override
-  Future<WalletOwnedLightningAddressRegistration> execute(
-    RegisterWalletOwnedLightningAddressCommand command,
-  ) async {
-    commands.add(command);
+  Future<WalletOwnedLightningAddressRegistration> execute({
+    required String nym,
+  }) async {
+    nyms.add(nym);
     return WalletOwnedLightningAddressRegistration(
       registration: LightningAddressRegistration(
-        nym: command.nym,
-        lightningAddress: '${command.nym}@example.invalid',
+        nym: nym,
+        lightningAddress: '$nym@example.invalid',
       ),
       walletId: 'la-wallet',
       walletCreated: true,
@@ -414,18 +459,15 @@ class _FakeLookupLightningAddressRegistrationUsecase
   }
 }
 
-class _FakeDeleteLightningAddressRegistrationUsecase
-    implements DeleteLightningAddressRegistrationUsecase {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 class _FakeNostrIdentityFacade extends NostrIdentityFacade {
   final xprvs = <String>[];
+  Object? error;
 
   @override
   String deriveBullnymServerAuthPublicKeyFromXprv(String xprvBase58) {
     xprvs.add(xprvBase58);
+    final error = this.error;
+    if (error != null) throw error;
     return 'npubhex';
   }
 }
@@ -443,6 +485,7 @@ class _FakeLookupWalletOwnedLightningAddressRegistrationUsecase
 
 class _FakeWalletRepository implements WalletRepository {
   final List<Wallet> wallets;
+  Environment? environment;
   bool? onlyDefaults;
   bool? onlyBitcoin;
 
@@ -456,9 +499,16 @@ class _FakeWalletRepository implements WalletRepository {
     bool? onlyLiquid,
     bool sync = false,
   }) async {
+    this.environment = environment;
     this.onlyDefaults = onlyDefaults;
     this.onlyBitcoin = onlyBitcoin;
-    return wallets;
+    return wallets.where((wallet) {
+      if (environment == null) return true;
+      return switch (environment) {
+        Environment.mainnet => wallet.network == Network.bitcoinMainnet,
+        Environment.testnet => wallet.network == Network.bitcoinTestnet,
+      };
+    }).toList();
   }
 
   @override
@@ -482,8 +532,18 @@ class _FakeSeedRepository implements SeedRepository {
 }
 
 class _FakeGetSettingsUsecase implements GetSettingsUsecase {
+  final Environment environment;
+
+  _FakeGetSettingsUsecase([this.environment = Environment.mainnet]);
+
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  Future<SettingsEntity> execute() async {
+    return SettingsEntity(
+      environment: environment,
+      bitcoinUnit: BitcoinUnit.sats,
+      currencyCode: 'USD',
+    );
+  }
 }
 
 class _FakeDeterministicWalletsFacade implements DeterministicWalletsFacade {
@@ -504,12 +564,16 @@ PreparedLightningAddressWallet _prepared({bool created = true}) {
   );
 }
 
-Wallet _wallet(String id, {Network network = Network.liquidMainnet}) {
+Wallet _wallet(
+  String id, {
+  Network network = Network.liquidMainnet,
+  String masterFingerprint = 'child-fp',
+}) {
   return Wallet(
     origin: id,
     network: network,
-    masterFingerprint: 'child-fp',
-    xpubFingerprint: 'child-fp',
+    masterFingerprint: masterFingerprint,
+    xpubFingerprint: masterFingerprint,
     scriptType: ScriptType.bip84,
     xpub: 'xpub',
     externalPublicDescriptor: 'ct-desc',

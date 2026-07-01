@@ -1,123 +1,47 @@
-import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
-import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
-import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
-import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
-import 'package:bb_mobile/features/lightning_address/application/ports/lightning_address_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_models.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_wallet_owned_lightning_address_registration_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_registration_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_registration_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/prepare_lightning_address_wallet_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/domain/usecases/register_wallet_owned_lightning_address_usecase.dart';
-import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet_registration.dart';
 
 export 'package:bb_mobile/features/lightning_address/domain/lightning_address_error.dart';
-export 'package:bb_mobile/features/lightning_address/domain/usecases/register_wallet_owned_lightning_address_usecase.dart'
-    show
-        RegisterWalletOwnedLightningAddressCommand,
-        WalletOwnedLightningAddressRegistrationException,
-        WalletOwnedLightningAddressRegistrationFailurePhase,
-        WalletOwnedLightningAddressRegistration;
+export 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet_registration.dart'
+    show WalletOwnedLightningAddressRegistration;
 export 'package:bb_mobile/features/lightning_address/domain/lightning_address_models.dart';
 export 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet.dart'
     show PreparedLightningAddressWallet;
 
 class LightningAddressFacade {
-  final PrepareLightningAddressWalletUsecase _prepareWallet;
-  final RegisterLightningAddressUsecase _register;
-  final DeleteLightningAddressRegistrationUsecase _deleteRegistration;
-  final LookupLightningAddressRegistrationUsecase _lookupRegistration;
-  final RegisterWalletOwnedLightningAddressUsecase _registerWalletOwned;
-  final LookupWalletOwnedLightningAddressRegistrationUsecase
+  final Future<PreparedLightningAddressWallet> Function() _prepareWallet;
+  final Future<LightningAddressStatus> Function({required String npubHex})
+  _lookupRegistration;
+  final Future<WalletOwnedLightningAddressRegistration> Function({
+    required String nym,
+  })
+  _registerWalletOwned;
+  final Future<LightningAddressStatus> Function()
   _lookupWalletOwnedRegistration;
 
-  LightningAddressFacade({
-    required GetSettingsUsecase getSettings,
-    required DeterministicWalletsFacade deterministicWallets,
-    required KeychainManifestFacade keychainManifest,
-    required BullnymFacade bullnym,
-    required LightningAddressDefaultWalletXprvPort defaultWalletXprv,
-    NostrIdentityFacade nostrIdentity = const NostrIdentityFacade(),
-  }) : _prepareWallet = PrepareLightningAddressWalletUsecase(
-         getSettings: getSettings,
-         deterministicWallets: deterministicWallets,
-         keychainManifest: keychainManifest,
-       ),
-       _register = RegisterLightningAddressUsecase(bullnym, nostrIdentity),
-       _deleteRegistration = DeleteLightningAddressRegistrationUsecase(
-         bullnym,
-         nostrIdentity,
-       ),
-       _lookupRegistration = LookupLightningAddressRegistrationUsecase(bullnym),
-       _registerWalletOwned = RegisterWalletOwnedLightningAddressUsecase(
-         defaultWalletXprv: defaultWalletXprv,
-         prepareWallet: PrepareLightningAddressWalletUsecase(
-           getSettings: getSettings,
-           deterministicWallets: deterministicWallets,
-           keychainManifest: keychainManifest,
-         ),
-         register: RegisterLightningAddressUsecase(bullnym, nostrIdentity),
-       ),
-       _lookupWalletOwnedRegistration =
-           LookupWalletOwnedLightningAddressRegistrationUsecase(
-             defaultWalletXprv: defaultWalletXprv,
-             lookupRegistration: LookupLightningAddressRegistrationUsecase(
-               bullnym,
-             ),
-             nostrIdentity: nostrIdentity,
-           );
-
-  const LightningAddressFacade.forUsecases({
-    required PrepareLightningAddressWalletUsecase prepareWallet,
-    required RegisterLightningAddressUsecase register,
-    required DeleteLightningAddressRegistrationUsecase deleteRegistration,
-    required LookupLightningAddressRegistrationUsecase lookupRegistration,
-    required RegisterWalletOwnedLightningAddressUsecase registerWalletOwned,
-    required LookupWalletOwnedLightningAddressRegistrationUsecase
-    lookupWalletOwnedRegistration,
-  }) : _prepareWallet = prepareWallet,
-       _register = register,
-       _deleteRegistration = deleteRegistration,
-       _lookupRegistration = lookupRegistration,
-       _registerWalletOwned = registerWalletOwned,
-       _lookupWalletOwnedRegistration = lookupWalletOwnedRegistration;
+  const LightningAddressFacade({
+    required this._prepareWallet,
+    required this._lookupRegistration,
+    required this._registerWalletOwned,
+    required this._lookupWalletOwnedRegistration,
+  });
 
   Future<PreparedLightningAddressWallet> prepareWallet() {
-    return _prepareWallet.execute();
+    return _prepareWallet();
   }
 
-  Future<WalletOwnedLightningAddressRegistration> registerWalletOwned(
-    RegisterWalletOwnedLightningAddressCommand command,
-  ) {
-    return _registerWalletOwned.execute(command);
+  Future<WalletOwnedLightningAddressRegistration> registerWalletOwned({
+    required String nym,
+  }) {
+    return _registerWalletOwned(nym: nym);
   }
 
   Future<LightningAddressStatus> lookupWalletOwnedRegistration() {
-    return _lookupWalletOwnedRegistration.execute();
-  }
-
-  Future<LightningAddressRegistration> register({
-    required String xprvBase58,
-    required String nym,
-    required String ctDescriptor,
-  }) {
-    return _register.execute(
-      xprvBase58: xprvBase58,
-      nym: nym,
-      ctDescriptor: ctDescriptor,
-    );
-  }
-
-  Future<void> deleteRegistration({
-    required String xprvBase58,
-    required String nym,
-  }) {
-    return _deleteRegistration.execute(xprvBase58: xprvBase58, nym: nym);
+    return _lookupWalletOwnedRegistration();
   }
 
   Future<LightningAddressStatus> lookupRegistration({required String npubHex}) {
-    return _lookupRegistration.execute(npubHex: npubHex);
+    return _lookupRegistration(npubHex: npubHex);
   }
 }

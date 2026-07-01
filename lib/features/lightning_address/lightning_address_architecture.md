@@ -39,31 +39,13 @@ A later wallet-owning application flow should avoid storing xprv-bearing request
 If manifest recording fails after local wallet creation, the use case rolls back newly created deterministic wallets best-effort and returns a local preparation error.
 Recovered Lightning Address wallets require product reactivation because the manifest can restore wallet materialization metadata but cannot prove an active Bullnym server registration.
 
-The existing `xprvBase58` and confidential descriptor registration command
-fields remain foundation inputs for internal protocol use cases. They are not
-exported by the public facade and must not be passed from routed UI.
-`RegisterWalletOwnedLightningAddressUsecase` is the product-safe registration
-composition point for later UI: it accepts only a nym, rejects blank nyms before
-local side effects, derives the default-wallet xprv behind a Lightning Address
-port, prepares or reuses the dedicated Liquid wallet, and submits the prepared
-wallet's confidential descriptor through the protocol registration use case.
-`LookupWalletOwnedLightningAddressRegistrationUsecase` is the matching
-product-safe status path; it derives the same wallet-owned auth material
-internally, derives the Bullnym auth public key, and returns Bullnym's
-nym/active status without exposing xprv input.
+The existing `xprvBase58` and confidential descriptor registration inputs remain foundation inputs for internal protocol use cases. They are not exported by the public facade and must not be passed from routed UI.
+`RegisterWalletOwnedLightningAddressUsecase` is the product-safe registration composition point for later UI: it accepts only a nym, rejects blank nyms before local side effects, derives the default-wallet xprv behind a Lightning Address port, prepares or reuses the dedicated Liquid wallet, and submits the prepared wallet's confidential descriptor through the protocol registration use case.
+`LookupWalletOwnedLightningAddressRegistrationUsecase` is the matching product-safe status path; it derives the same wallet-owned auth material internally, derives the Bullnym auth public key, and returns Bullnym's nym/active status without exposing xprv input.
 
-If local default-wallet xprv derivation or wallet preparation fails, no Bullnym
-registration is attempted. If Bullnym registration fails after wallet
-preparation, the wallet-owned registration use case throws
-`WalletOwnedLightningAddressRegistrationException` with the prepared wallet id,
-whether it was created in the attempt, and whether the failure is an uncertain
-post-submission transport/response failure. Lightning Address keeps the prepared
-deterministic wallet and local manifest entry for retry/status reconciliation; it
-does not invent rollback semantics for a request that may have reached the
-server.
+If local default-wallet xprv derivation or wallet preparation fails, no Bullnym registration is attempted. If Bullnym registration fails after wallet preparation, the wallet-owned registration use case throws `WalletOwnedLightningAddressRegistrationException` with the prepared wallet id, whether it was created in the attempt, and whether the failure is an uncertain post-submission transport/response failure. Lightning Address keeps the prepared deterministic wallet and local manifest entry for retry/status reconciliation; it does not invent rollback semantics for a request that may have reached the server.
 
-PR12 does not add a route, screen, BLoC/Cubit, background job, autosweep, or
-registration-state persistence.
+PR12 does not add a route, screen, BLoC/Cubit, background job, autosweep, or registration-state persistence.
 
 Lookup currently reflects the Bullnym public lookup contract: it reports the registered nym and whether it is active.
 It does not synthesize a copyable Lightning Address from a hardcoded domain.
