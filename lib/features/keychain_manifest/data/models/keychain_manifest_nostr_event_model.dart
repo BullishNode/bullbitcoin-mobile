@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
+import 'package:nostr/nostr.dart' as nostr;
 
 class KeychainManifestNostrSnapshotCodec {
   static const _manifestFileKey = 'manifestFile';
@@ -70,16 +71,21 @@ class KeychainManifestNostrSnapshotCodec {
 class KeychainManifestNostrSignedEventCodec {
   const KeychainManifestNostrSignedEventCodec();
 
-  Map<String, Object?> encode(KeychainManifestNostrSignedEvent event) {
-    return {
-      'id': event.id,
-      'pubkey': event.authorPublicKeyHex,
-      'created_at': event.createdAt,
-      'kind': event.kind,
-      'tags': event.tags,
-      'content': event.encryptedContent,
-      'sig': event.signatureHex,
-    };
+  String serialize(KeychainManifestNostrSignedEvent event) {
+    return _toNostrEvent(event).serialize();
+  }
+
+  nostr.Event _toNostrEvent(KeychainManifestNostrSignedEvent event) {
+    return nostr.Event(
+      event.id,
+      event.authorPublicKeyHex,
+      event.createdAt,
+      event.kind,
+      event.tags,
+      event.encryptedContent,
+      event.signatureHex,
+      verify: false,
+    );
   }
 }
 

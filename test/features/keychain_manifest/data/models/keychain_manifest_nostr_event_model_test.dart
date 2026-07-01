@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_event_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
@@ -148,17 +150,20 @@ void main() {
     expect(signed.tags, [
       ['d', keychainManifestNostrDTag],
     ]);
-    expect(signedCodec.encode(signed), {
-      'id': signed.id,
-      'pubkey': draft.authorPublicKeyHex,
-      'created_at': 123,
-      'kind': keychainManifestNostrEventKind,
-      'tags': [
-        ['d', keychainManifestNostrDTag],
-      ],
-      'content': 'encrypted-payload',
-      'sig': _signatureHex,
-    });
+    expect(jsonDecode(signedCodec.serialize(signed)), [
+      'EVENT',
+      {
+        'id': signed.id,
+        'pubkey': draft.authorPublicKeyHex,
+        'created_at': 123,
+        'kind': keychainManifestNostrEventKind,
+        'tags': [
+          ['d', keychainManifestNostrDTag],
+        ],
+        'content': 'encrypted-payload',
+        'sig': _signatureHex,
+      },
+    ]);
   });
 
   test('derives signed event ids internally and deep-freezes tags', () {

@@ -90,10 +90,10 @@ class AppLocator {
     WalletLocator.setup(locator);
     TransactionsLocator.registerAdapters(locator);
     DeterministicWalletsLocator.setup(locator);
+    NostrIdentityLocator.setup(locator);
     KeychainManifestLocator.setup(locator);
     KeychainRecoveryLocator.setup(locator);
     BullnymLocator.setup(locator);
-    NostrIdentityLocator.setup(locator);
     LightningAddressLocator.setup(locator);
     BtcpayLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);

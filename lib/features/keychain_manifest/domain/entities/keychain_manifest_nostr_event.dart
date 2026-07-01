@@ -1,8 +1,5 @@
-import 'dart:convert';
-
+import 'package:bb_mobile/core/nostr/nostr_event_id.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
-import 'package:convert/convert.dart';
-import 'package:crypto/crypto.dart';
 
 const int keychainManifestNostrEventKind = 30078;
 const String keychainManifestNostrDTag = 'manifest';
@@ -114,13 +111,11 @@ class KeychainManifestNostrSignedEvent {
 String keychainManifestNostrEventIdForDraft(
   KeychainManifestNostrEventDraft draft,
 ) {
-  final serialized = jsonEncode([
-    0,
-    draft.authorPublicKeyHex,
-    draft.createdAt,
-    draft.kind,
-    draft.tags,
-    draft.encryptedContent,
-  ]);
-  return hex.encode(sha256.convert(utf8.encode(serialized)).bytes);
+  return nostrEventId(
+    pubkey: draft.authorPublicKeyHex,
+    createdAt: draft.createdAt,
+    kind: draft.kind,
+    tags: draft.tags,
+    content: draft.encryptedContent,
+  );
 }

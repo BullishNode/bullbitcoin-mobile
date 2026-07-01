@@ -159,6 +159,9 @@ are not specified by this feature.
 The Nostr remote manifest event schema is a transport contract over the existing
 v1 manifest file payload. The local Drift records remain the source of truth;
 the Nostr payload is a full replacement snapshot generated from those records.
+NIP-01 event id calculation, event serialization, and relay message parsing use
+the app's `nostr` package dependency where it provides those generic protocol
+primitives. Manifest semantics remain owned here.
 
 Public event metadata is intentionally minimal:
 
@@ -188,14 +191,15 @@ choose relays or perform transport work.
 The relay publish slice is owned by `keychain_manifest` and publishes only
 non-empty signed keychain manifest events to caller-supplied `wss` relay URLs.
 It uses concrete websocket relay transport behind a manifest-specific
-repository; it must not grow into a generic Nostr relay facade, event bus, relay
-registry, public identity publisher, or reusable Nostr platform layer without a
-second real caller. Publish success requires at least one relay `OK` acceptance
-for the event id. Individual relay failures are collapsed into sanitized publish
+repository and `nostr` package message parsing for relay command results; it
+must not grow into a generic Nostr relay facade, event bus, relay registry,
+public identity publisher, or reusable Nostr platform layer without a second
+real caller. Publish success requires at least one relay `OK` acceptance for the
+event id. Individual relay failures are collapsed into sanitized publish
 outcomes, and raw websocket errors must not cross the public boundary. Local
-wallet creation and manifest recording must not depend on relay publish
-success. Relay fetching, candidate selection, wallet restore, product
-reactivation, and UI are separate later slices.
+wallet creation and manifest recording must not depend on relay publish success.
+Relay fetching, candidate selection, wallet restore, product reactivation, and
+UI are separate later slices.
 
 The wallet manifest Nostr role must not be reused for Bullnym server
 authentication, NIP-05, profile publishing, DMs, or any public identity flow.
