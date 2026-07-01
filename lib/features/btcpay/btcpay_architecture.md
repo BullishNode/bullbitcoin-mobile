@@ -45,9 +45,9 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
   registry internals. The registry is reserved path/purpose policy only, not
   runtime wallet/key state.
 - BTCPay may consume `features/keychain_manifest/public/` and must not import
-  keychain manifest internals. Keychain Manifest records local key material
-  provenance; it does not create files, restore wallets, or publish Nostr
-  events.
+  keychain manifest internals. Keychain Manifest records local derivation
+  metadata for app-created BIP85 materializations; it never stores mnemonic
+  words, seeds, private keys, or descriptors.
 - BTCPay may consume wallet behavior use cases to apply and edit settings for
   its own wallets. The wallet layer owns the flags and persistence.
 - BTCPay does not own the auto-sweep runner. It only enables the generic

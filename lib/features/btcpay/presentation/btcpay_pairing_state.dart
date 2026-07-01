@@ -3,6 +3,7 @@ enum BtcpayPairingStatus { loading, idle, submitting, success, failure }
 enum BtcpayPairingFailure {
   invalidRequest,
   localSetup,
+  keychainConflict,
   rejected,
   uncertain,
   generic,
