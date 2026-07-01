@@ -26,10 +26,6 @@ class KeychainManifestImportEntryIntent {
   final String parentFingerprint;
   final String bip85DerivationPath;
   final String reservationId;
-  final String entryType;
-  final String ownerFeature;
-  final int bip85Application;
-  final int bip85Index;
   final List<KeychainManifestWalletMaterializationIntent>
   walletMaterializations;
 
@@ -38,10 +34,6 @@ class KeychainManifestImportEntryIntent {
     required String parentFingerprint,
     required String bip85DerivationPath,
     required this.reservationId,
-    required this.entryType,
-    required this.ownerFeature,
-    required this.bip85Application,
-    required this.bip85Index,
     required List<KeychainManifestWalletMaterializationIntent>
     walletMaterializations,
   }) : parentFingerprint = KeychainManifestFingerprint.normalize(
@@ -68,10 +60,6 @@ class KeychainManifestImportEntryIntent {
       parentFingerprint: entry.parentFingerprint,
       bip85DerivationPath: entry.bip85DerivationPath,
       reservationId: entry.reservationId,
-      entryType: entry.entryType,
-      ownerFeature: entry.ownerFeature,
-      bip85Application: entry.bip85Application,
-      bip85Index: entry.bip85Index,
       walletMaterializations: walletMaterializations,
     );
   }
@@ -127,19 +115,4 @@ class KeychainManifestWalletMaterializationIntent {
       scriptType: ScriptType.fromName(materialization.scriptType),
     );
   }
-
-  bool sameMaterializationAs(
-    KeychainManifestWalletMaterializationIntent other,
-  ) {
-    return entryId == other.entryId &&
-        reservationId == other.reservationId &&
-        bip85DerivationPath == other.bip85DerivationPath &&
-        walletId == other.walletId &&
-        childSeedFingerprint == other.childSeedFingerprint &&
-        network == other.network &&
-        walletPurpose == other.walletPurpose &&
-        scriptType == other.scriptType;
-  }
-
-  String get materializationKey => '$entryId:$walletId';
 }

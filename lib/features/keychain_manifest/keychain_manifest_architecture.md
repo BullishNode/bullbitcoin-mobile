@@ -120,11 +120,15 @@ Rules:
 - `bip85DerivationPath` is the registry-relative hardened path.
 - `entryId` is derived from parent fingerprint and BIP85 path.
 - `inventoryUpdatedAt` is the latest timestamp among included entries and
-  materializations. Empty manifests use the build timestamp.
+  materializations. Empty manifests use the build timestamp. V1 decode rejects
+  payloads whose `inventoryUpdatedAt` does not match that derived value.
 - V1 supports only wallet materializations with `"type": "wallet"`.
 - Public callers must explicitly opt in before exporting an empty manifest.
-- V1 decode validates the same payload shape into import intents. Wallet
-  creation and restore semantics belong to later consumer features.
+- V1 decode validates the payload wire shape in `data/`, then validates registry
+  metadata into import intents in `domain/usecases`. Public import parsing
+  requires the caller's expected parent fingerprint and rejects files from a
+  different wallet before returning a plan. Wallet creation and restore semantics
+  belong to later consumer features.
 
 The payload is generated on demand by callers that need a serialized projection.
 Transport, wallet creation, product restore, and UI flows are out of scope and

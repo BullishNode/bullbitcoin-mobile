@@ -161,7 +161,10 @@ void main() {
   );
 
   test('parses manifest file payloads into import plans', () {
-    final plan = facade.parseManifestFilePayload(_manifestPayload);
+    final plan = facade.parseManifestFilePayload(
+      _manifestPayload,
+      expectedParentFingerprint: ' FEDCBA98 ',
+    );
 
     expect(plan.parentFingerprint, 'fedcba98');
     expect(plan.entries, hasLength(1));
@@ -169,6 +172,22 @@ void main() {
     expect(plan.walletMaterializations, hasLength(2));
     expect(plan.walletMaterializations.first.walletId, 'btc-wallet');
     expect(plan.walletMaterializations.last.walletId, 'lbtc-wallet');
+  });
+
+  test('rejects manifest file payloads for another parent fingerprint', () {
+    expect(
+      () => facade.parseManifestFilePayload(
+        _manifestPayload,
+        expectedParentFingerprint: '0123abcd',
+      ),
+      throwsA(
+        isA<KeychainManifestFileParseException>().having(
+          (error) => error.reason,
+          'reason',
+          KeychainManifestFileParseFailureReason.wrongParentFingerprint,
+        ),
+      ),
+    );
   });
 }
 

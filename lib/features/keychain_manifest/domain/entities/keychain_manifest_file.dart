@@ -30,6 +30,12 @@ class KeychainManifestFile {
         'manifest file timestamps must be non-negative',
       );
     }
+    if (inventoryUpdatedAt !=
+        _expectedInventoryUpdatedAt(this.entries, generatedAt)) {
+      throw KeychainManifestInvalidEntryException(
+        'manifest file inventory timestamp mismatch',
+      );
+    }
     for (final entry in this.entries) {
       if (entry.parentFingerprint != this.parentFingerprint) {
         throw KeychainManifestInvalidEntryException(
@@ -38,6 +44,23 @@ class KeychainManifestFile {
       }
     }
   }
+}
+
+int _expectedInventoryUpdatedAt(
+  List<KeychainManifestFileEntry> entries,
+  int generatedAt,
+) {
+  if (entries.isEmpty) return generatedAt;
+  var latest = 0;
+  for (final entry in entries) {
+    if (entry.updatedAt > latest) latest = entry.updatedAt;
+    for (final materialization in entry.materializations) {
+      if (materialization.updatedAt > latest) {
+        latest = materialization.updatedAt;
+      }
+    }
+  }
+  return latest;
 }
 
 class KeychainManifestFileEntry {

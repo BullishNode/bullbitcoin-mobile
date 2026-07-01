@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
@@ -12,19 +10,12 @@ class ParseKeychainManifestFileUsecase {
     this.registry = const Bip85RegistryFacade(),
   });
 
-  KeychainManifestImportPlan execute(String payload) {
-    try {
-      final manifestFile = const _KeychainManifestFileDecoder().decode(payload);
-      final entries = _entryIntents(manifestFile.entries);
-      return KeychainManifestImportPlan(
-        parentFingerprint: manifestFile.parentFingerprint,
-        entries: entries,
-      );
-    } on KeychainManifestException catch (e) {
-      throw KeychainManifestFileParseException(cause: e);
-    } catch (e) {
-      throw KeychainManifestFileParseException(cause: e);
-    }
+  KeychainManifestImportPlan execute(KeychainManifestFile manifestFile) {
+    final entries = _entryIntents(manifestFile.entries);
+    return KeychainManifestImportPlan(
+      parentFingerprint: manifestFile.parentFingerprint,
+      entries: entries,
+    );
   }
 
   List<KeychainManifestImportEntryIntent> _entryIntents(
@@ -35,15 +26,16 @@ class ParseKeychainManifestFileUsecase {
     final intents = <KeychainManifestImportEntryIntent>[];
     for (final entry in entries) {
       if (!entryIds.add(entry.entryId)) {
-        throw KeychainManifestInvalidEntryException(
-          'manifest file duplicate entry id',
+        throw KeychainManifestFileParseException(
+          reason: KeychainManifestFileParseFailureReason.duplicateEntry,
         );
       }
       final intent = _entryIntent(entry);
       for (final materialization in intent.walletMaterializations) {
         if (!walletIds.add(materialization.walletId)) {
-          throw KeychainManifestInvalidEntryException(
-            'manifest file duplicate wallet materialization',
+          throw KeychainManifestFileParseException(
+            reason: KeychainManifestFileParseFailureReason
+                .duplicateWalletMaterialization,
           );
         }
       }
@@ -57,21 +49,21 @@ class ParseKeychainManifestFileUsecase {
   ) {
     final reservation = registry.reservationById(entry.reservationId);
     if (reservation == null) {
-      throw KeychainManifestInvalidEntryException(
-        'manifest file reservation id is unknown',
+      throw KeychainManifestFileParseException(
+        reason: KeychainManifestFileParseFailureReason.unknownReservation,
       );
     }
     if (!reservation.scope.matchesExactPath(entry.bip85DerivationPath)) {
-      throw KeychainManifestInvalidEntryException(
-        'manifest file reservation path mismatch',
+      throw KeychainManifestFileParseException(
+        reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
     }
     if (reservation.owner.name != entry.ownerFeature ||
         reservation.purpose.name != entry.entryType ||
         reservation.application.number != entry.bip85Application ||
         reservation.scope.segmentValue('index') != entry.bip85Index) {
-      throw KeychainManifestInvalidEntryException(
-        'manifest file reservation metadata mismatch',
+      throw KeychainManifestFileParseException(
+        reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
     }
     return KeychainManifestImportEntryIntent.fromFileEntry(
@@ -91,139 +83,23 @@ class ParseKeychainManifestFileUsecase {
             entry: entry,
             materialization: materialization,
           );
-      final existing = materializations[intent.materializationKey];
+      final materializationKey = _materializationKey(intent);
+      final existing = materializations[materializationKey];
       if (existing == null) {
-        materializations[intent.materializationKey] = intent;
+        materializations[materializationKey] = intent;
       } else {
-        throw KeychainManifestInvalidEntryException(
-          'manifest file wallet materialization conflict',
+        throw KeychainManifestFileParseException(
+          reason: KeychainManifestFileParseFailureReason
+              .duplicateWalletMaterialization,
         );
       }
     }
     return materializations.values.toList(growable: false);
   }
-}
 
-class _KeychainManifestFileDecoder {
-  const _KeychainManifestFileDecoder();
-
-  KeychainManifestFile decode(String payload) {
-    try {
-      final decoded = jsonDecode(payload);
-      if (decoded is! Map<String, Object?>) {
-        throw KeychainManifestInvalidEntryException(
-          'manifest file payload must be a JSON object',
-        );
-      }
-      return _manifestFromJson(decoded);
-    } on KeychainManifestException {
-      rethrow;
-    } on FormatException catch (e) {
-      throw KeychainManifestInvalidEntryException(
-        'manifest file payload is not valid JSON: ${e.message}',
-      );
-    } catch (e) {
-      throw KeychainManifestInvalidEntryException(
-        'manifest file payload is invalid: $e',
-      );
-    }
-  }
-
-  KeychainManifestFile _manifestFromJson(Map<String, Object?> json) {
-    final parentFingerprint = _string(json, 'parentFingerprint');
-    return KeychainManifestFile(
-      version: _int(json, 'version'),
-      parentFingerprint: parentFingerprint,
-      generatedAt: _int(json, 'generatedAt'),
-      inventoryUpdatedAt: _int(json, 'inventoryUpdatedAt'),
-      entries: _list(json, 'entries')
-          .map(
-            (entry) => _entryFromJson(
-              _map(entry, 'entries item'),
-              parentFingerprint: parentFingerprint,
-            ),
-          )
-          .toList(growable: false),
-    );
-  }
-
-  KeychainManifestFileEntry _entryFromJson(
-    Map<String, Object?> json, {
-    required String parentFingerprint,
-  }) {
-    final entryId = _string(json, 'entryId');
-    return KeychainManifestFileEntry(
-      entryId: entryId,
-      parentFingerprint: parentFingerprint,
-      bip85DerivationPath: _string(json, 'bip85DerivationPath'),
-      reservationId: _string(json, 'reservationId'),
-      entryType: _string(json, 'entryType'),
-      ownerFeature: _string(json, 'ownerFeature'),
-      bip85Application: _int(json, 'bip85Application'),
-      bip85Index: _int(json, 'bip85Index'),
-      createdAt: _int(json, 'createdAt'),
-      updatedAt: _int(json, 'updatedAt'),
-      materializations: _list(json, 'materializations')
-          .map(
-            (materialization) => _materializationFromJson(
-              _map(materialization, 'materializations item'),
-              entryId: entryId,
-            ),
-          )
-          .toList(growable: false),
-    );
-  }
-
-  KeychainManifestFileWalletMaterialization _materializationFromJson(
-    Map<String, Object?> json, {
-    required String entryId,
-  }) {
-    final type = _string(json, 'type');
-    if (type != KeychainManifestFileWalletMaterialization.type) {
-      throw KeychainManifestInvalidEntryException(
-        'unsupported manifest materialization type: $type',
-      );
-    }
-    return KeychainManifestFileWalletMaterialization(
-      walletId: _string(json, 'walletId'),
-      entryId: entryId,
-      childSeedFingerprint: _string(json, 'childSeedFingerprint'),
-      network: _string(json, 'network'),
-      walletPurpose: _string(json, 'walletPurpose'),
-      scriptType: _string(json, 'scriptType'),
-      createdAt: _int(json, 'createdAt'),
-      updatedAt: _int(json, 'updatedAt'),
-    );
-  }
-
-  String _string(Map<String, Object?> json, String key) {
-    final value = json[key];
-    if (value is String) return value;
-    throw KeychainManifestInvalidEntryException(
-      'manifest file field "$key" must be a string',
-    );
-  }
-
-  int _int(Map<String, Object?> json, String key) {
-    final value = json[key];
-    if (value is int) return value;
-    throw KeychainManifestInvalidEntryException(
-      'manifest file field "$key" must be an integer',
-    );
-  }
-
-  List<Object?> _list(Map<String, Object?> json, String key) {
-    final value = json[key];
-    if (value is List<Object?>) return value;
-    throw KeychainManifestInvalidEntryException(
-      'manifest file field "$key" must be a list',
-    );
-  }
-
-  Map<String, Object?> _map(Object? value, String description) {
-    if (value is Map<String, Object?>) return value;
-    throw KeychainManifestInvalidEntryException(
-      'manifest file $description must be an object',
-    );
+  String _materializationKey(
+    KeychainManifestWalletMaterializationIntent intent,
+  ) {
+    return '${intent.entryId}:${intent.walletId}';
   }
 }

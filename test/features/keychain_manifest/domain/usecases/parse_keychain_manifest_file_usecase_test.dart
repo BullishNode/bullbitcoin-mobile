@@ -1,12 +1,14 @@
+import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   const usecase = ParseKeychainManifestFileUsecase();
+  const codec = KeychainManifestFileCodec();
 
   test('validates registered reservation metadata', () {
-    final plan = usecase.execute(_manifestPayload);
+    final plan = usecase.execute(codec.decode(_manifestPayload));
 
     expect(plan.parentFingerprint, 'fedcba98');
     expect(plan.entries.single.reservationId, 'btcpay_wallet_seed');
@@ -21,12 +23,12 @@ void main() {
     );
 
     expect(
-      () => usecase.execute(payload),
+      () => usecase.execute(codec.decode(payload)),
       throwsA(
         isA<KeychainManifestFileParseException>().having(
-          (error) => error.type,
-          'type',
-          KeychainManifestExceptionType.fileParse,
+          (error) => error.reason,
+          'reason',
+          KeychainManifestFileParseFailureReason.unknownReservation,
         ),
       ),
     );
@@ -39,8 +41,14 @@ void main() {
     );
 
     expect(
-      () => usecase.execute(payload),
-      throwsA(isA<KeychainManifestFileParseException>()),
+      () => usecase.execute(codec.decode(payload)),
+      throwsA(
+        isA<KeychainManifestFileParseException>().having(
+          (error) => error.reason,
+          'reason',
+          KeychainManifestFileParseFailureReason.invalidMetadata,
+        ),
+      ),
     );
   });
 
@@ -51,8 +59,14 @@ void main() {
     );
 
     expect(
-      () => usecase.execute(payload),
-      throwsA(isA<KeychainManifestFileParseException>()),
+      () => usecase.execute(codec.decode(payload)),
+      throwsA(
+        isA<KeychainManifestFileParseException>().having(
+          (error) => error.reason,
+          'reason',
+          KeychainManifestFileParseFailureReason.invalidMetadata,
+        ),
+      ),
     );
   });
 
@@ -68,8 +82,14 @@ void main() {
     );
 
     expect(
-      () => usecase.execute(payload),
-      throwsA(isA<KeychainManifestFileParseException>()),
+      () => usecase.execute(codec.decode(payload)),
+      throwsA(
+        isA<KeychainManifestFileParseException>().having(
+          (error) => error.reason,
+          'reason',
+          KeychainManifestFileParseFailureReason.duplicateWalletMaterialization,
+        ),
+      ),
     );
   });
 
@@ -89,8 +109,32 @@ void main() {
     );
 
     expect(
-      () => usecase.execute(payload),
-      throwsA(isA<KeychainManifestFileParseException>()),
+      () => usecase.execute(codec.decode(payload)),
+      throwsA(
+        isA<KeychainManifestFileParseException>().having(
+          (error) => error.reason,
+          'reason',
+          KeychainManifestFileParseFailureReason.duplicateEntry,
+        ),
+      ),
+    );
+  });
+
+  test('rejects stale inventory timestamps', () {
+    final payload = _manifestPayload.replaceFirst(
+      '"inventoryUpdatedAt":12',
+      '"inventoryUpdatedAt":10',
+    );
+
+    expect(
+      () => codec.decode(payload),
+      throwsA(
+        isA<KeychainManifestFileParseException>().having(
+          (error) => error.reason,
+          'reason',
+          KeychainManifestFileParseFailureReason.invalidMetadata,
+        ),
+      ),
     );
   });
 }
