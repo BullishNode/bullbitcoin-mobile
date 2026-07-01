@@ -183,6 +183,10 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
         BtcpayPairingFailure.invalidRequest,
       BtcpayPairingException(type: BtcpayPairingExceptionType.localSetup) =>
         BtcpayPairingFailure.localSetup,
+      BtcpayPairingException(
+        type: BtcpayPairingExceptionType.keychainConflict,
+      ) =>
+        BtcpayPairingFailure.keychainConflict,
       BtcpayPairingException(type: BtcpayPairingExceptionType.rejected) =>
         BtcpayPairingFailure.rejected,
       BtcpayPairingException(type: BtcpayPairingExceptionType.uncertain) =>

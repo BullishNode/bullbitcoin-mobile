@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -654,6 +655,69 @@ void main() {
         walletId: any(named: 'walletId'),
         hideOnHome: any(named: 'hideOnHome'),
         autoSweepEnabled: any(named: 'autoSweepEnabled'),
+      ),
+    );
+  });
+
+  test('reports manifest conflicts separately from retryable setup', () async {
+    final deterministicWallets = _MockDeterministicWalletsFacade();
+    final getSettings = _MockGetSettingsUsecase();
+    final pairingService = _MockSamRockPairingServicePort();
+    final connectionRepository = _MockBtcpayConnectionRepository();
+    final applyWalletBehaviorDefaults =
+        _MockApplyWalletBehaviorDefaultsUsecase();
+    final keychainManifest = _MockKeychainManifestFacade();
+    final preparedWallets = PreparedDeterministicWallets(
+      wallets: [
+        _wallet(
+          specId: BtcpayWalletConstants.bitcoinSpecId,
+          network: Network.bitcoinMainnet,
+          externalDescriptor: 'btc-desc',
+          created: true,
+        ),
+        _wallet(
+          specId: BtcpayWalletConstants.liquidSpecId,
+          network: Network.liquidMainnet,
+          externalDescriptor: 'lbtc-desc',
+          created: true,
+        ),
+      ],
+      parentFingerprint: 'fedcba98',
+      childSeedFingerprint: '0123abcd',
+      childSeedStoredDuringAttempt: true,
+    );
+    final usecase = CompleteBtcpaySamRockPairingUsecase(
+      getSettings: getSettings,
+      parser: const SamRockPairingRequestParser(),
+      deterministicWallets: deterministicWallets,
+      pairingService: pairingService,
+      connectionRepository: connectionRepository,
+      applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+      bip85Registry: const Bip85RegistryFacade(),
+      keychainManifest: keychainManifest,
+    );
+    when(() => getSettings.execute()).thenAnswer((_) async => settings);
+    when(
+      () => deterministicWallets.prepare(any()),
+    ).thenAnswer((_) async => preparedWallets);
+    when(() => keychainManifest.recordReservedDerivation(any())).thenThrow(
+      KeychainManifestEntryConflictException('conflicting manifest entry'),
+    );
+
+    await expectLater(
+      usecase.execute(pairingUrl: pairingUrl),
+      throwsA(
+        isA<BtcpayPairingException>().having(
+          (error) => error.type,
+          'type',
+          BtcpayPairingExceptionType.keychainConflict,
+        ),
+      ),
+    );
+    verifyNever(
+      () => pairingService.submitSetup(
+        request: any(named: 'request'),
+        payload: any(named: 'payload'),
       ),
     );
   });

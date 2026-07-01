@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/errors/bull_exception.dart';
 enum BtcpayPairingExceptionType {
   invalidRequest,
   localSetup,
+  keychainConflict,
   rejected,
   uncertain,
   generic,
@@ -36,6 +37,14 @@ final class BtcpayPairingException extends BtcpayError {
       BtcpayPairingExceptionType.localSetup,
       _safeMessage(message) ??
           'Dedicated BTCPay wallets were kept, but local setup did not finish',
+    );
+  }
+
+  factory BtcpayPairingException.keychainConflict([String? message]) {
+    return BtcpayPairingException._(
+      BtcpayPairingExceptionType.keychainConflict,
+      _safeMessage(message) ??
+          'Dedicated BTCPay wallets have conflicting recovery metadata',
     );
   }
 

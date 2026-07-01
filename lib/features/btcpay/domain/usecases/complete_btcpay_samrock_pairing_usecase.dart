@@ -120,6 +120,10 @@ class CompleteBtcpaySamRockPairingUsecase {
         trace: stack,
       );
       if (preparedWallets != null) {
+        if (e is KeychainManifestException &&
+            e.type == KeychainManifestExceptionType.conflict) {
+          throw BtcpayPairingException.keychainConflict();
+        }
         throw BtcpayPairingException.localSetup();
       }
       if (e is SamRockSetupPayloadException) {

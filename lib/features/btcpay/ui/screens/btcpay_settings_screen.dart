@@ -174,6 +174,8 @@ class _BtcpaySettingsScreenState extends State<BtcpaySettingsScreen> {
         context.loc.btcpayPairingInvalidRequestError,
       BtcpayPairingFailure.localSetup =>
         context.loc.btcpayPairingLocalSetupError,
+      BtcpayPairingFailure.keychainConflict =>
+        context.loc.btcpayPairingKeychainConflictError,
       BtcpayPairingFailure.rejected => context.loc.btcpayPairingRejectedError,
       BtcpayPairingFailure.uncertain => context.loc.btcpayPairingUncertainError,
       _ => context.loc.btcpayPairingGenericError,
