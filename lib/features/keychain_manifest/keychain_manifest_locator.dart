@@ -1,7 +1,10 @@
 import 'package:bb_mobile/core/storage/sqlite_database.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/drift_keychain_manifest_entry_repository.dart';
+import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
@@ -13,6 +16,9 @@ class KeychainManifestLocator {
       () => DriftKeychainManifestEntryRepository(
         database: locator<SqliteDatabase>(),
       ),
+    );
+    locator.registerLazySingleton<KeychainManifestNostrEncryptionRepository>(
+      () => const RecoverBullKeychainManifestNostrEncryptionRepository(),
     );
     locator.registerFactory<RecordKeychainManifestEntryUsecase>(
       () => RecordKeychainManifestEntryUsecase(
@@ -26,6 +32,13 @@ class KeychainManifestLocator {
     );
     locator.registerFactory<ParseKeychainManifestFileUsecase>(
       () => const ParseKeychainManifestFileUsecase(),
+    );
+    locator.registerFactory<BuildKeychainManifestNostrEncryptedContentUsecase>(
+      () => BuildKeychainManifestNostrEncryptedContentUsecase(
+        buildManifestFile: locator<BuildKeychainManifestFileUsecase>(),
+        encryptionRepository:
+            locator<KeychainManifestNostrEncryptionRepository>(),
+      ),
     );
     locator.registerFactory<KeychainManifestFacade>(
       () => KeychainManifestFacade(

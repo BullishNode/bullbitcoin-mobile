@@ -168,8 +168,19 @@ Public event metadata is intentionally minimal:
 
 Schema/version metadata lives inside the encrypted content as
 `bullbitcoin.keychain_manifest.v1`; it must not be published as public Nostr
-tags. The event draft carries opaque encrypted content only. Encrypting,
-signing, relay publishing, relay fetching, candidate selection, wallet restore,
+tags. The event draft carries opaque encrypted content only.
+
+The remote manifest snapshot content is encrypted with a RecoverBull-style
+encrypted backup envelope using a dedicated seed-derived BIP85 key at
+`1642'/0'/1'`. This key is separate from RecoverBull vault backup keys at app
+`1608` and separate from Nostr signing keys at app `9000`. The app derives it
+from the default wallet xprv at the point of use, encrypts the manifest
+snapshot payload, and does not persist or expose the raw encryption key. The
+stable `1642'/0'/1'` path is reserved in `bip85_registry` so restore can derive
+the decrypt key from the seed without publishing derivation-path metadata as a
+Nostr tag.
+
+Signing, relay publishing, relay fetching, candidate selection, wallet restore,
 product reactivation, and UI are separate later slices.
 
 The wallet manifest Nostr role must not be reused for Bullnym server

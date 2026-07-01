@@ -1,6 +1,16 @@
-enum Bip85ReservationOwner { btcpay, lightningAddress, paymentPage, nostr }
+enum Bip85ReservationOwner {
+  btcpay,
+  lightningAddress,
+  paymentPage,
+  nostr,
+  keychainManifest,
+}
 
-enum Bip85ReservationPurpose { walletSeed, nonWalletNostrKey }
+enum Bip85ReservationPurpose {
+  walletSeed,
+  nonWalletNostrKey,
+  manifestEncryptionKey,
+}
 
 enum Bip85AllocationPolicy { blockExactPath }
 

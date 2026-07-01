@@ -136,6 +136,26 @@ class Bip85Reservations {
     allocation: Bip85AllocationPolicy.blockExactPath,
   );
 
+  static const keychainManifestEncryptionKey = Bip85Reservation(
+    id: 'keychain_manifest_encryption_key',
+    deterministicAlias: 'Keychain Manifest Encryption',
+    owner: Bip85ReservationOwner.keychainManifest,
+    purpose: Bip85ReservationPurpose.manifestEncryptionKey,
+    application: Bip85ApplicationSpec(
+      number: 1642,
+      name: 'keychainManifestEncryption',
+      standard: false,
+    ),
+    scope: Bip85ReservationScope(
+      exactPath: "1642'/0'/1'",
+      segments: [
+        Bip85PathSegment(name: 'namespace', value: 0),
+        Bip85PathSegment(name: 'key', value: 1),
+      ],
+    ),
+    allocation: Bip85AllocationPolicy.blockExactPath,
+  );
+
   static const all = [
     btcpayWalletSeed,
     lightningAddressWalletSeed,
@@ -143,5 +163,6 @@ class Bip85Reservations {
     nostrWalletManifestKey,
     nostrBullnymServerAuthKey,
     nostrNip05PublicNymVerificationKey,
+    keychainManifestEncryptionKey,
   ];
 }
