@@ -1,15 +1,18 @@
 import 'dart:typed_data';
 
-import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
-import 'package:bb_mobile/features/lightning_address/application/usecases/delete_lightning_address_registration_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/application/usecases/lookup_lightning_address_registration_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/application/usecases/register_lightning_address_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_registration_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_registration_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:bip32_keys/bip32_keys.dart' as bip32;
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:test/test.dart';
+
+const _messageHashHex =
+    '000102030405060708090a0b0c0d0e0f'
+    '101112131415161718191a1b1c1d1e1f';
 
 void main() {
   late String xprv;
@@ -22,18 +25,13 @@ void main() {
     bullnym = _FakeBullnymFacade();
   });
 
-  test('register derives Bullnym auth handle and passes descriptor', () async {
-    final usecase = RegisterLightningAddressUsecase(
-      bullnym: bullnym,
-      nostrIdentity: nostrIdentity,
-    );
+  test('register builds Bullnym auth signer and passes descriptor', () async {
+    final usecase = RegisterLightningAddressUsecase(bullnym, nostrIdentity);
 
     final result = await usecase.execute(
-      RegisterLightningAddressCommand(
-        xprvBase58: xprv,
-        nym: 'alice',
-        ctDescriptor: 'ct-desc',
-      ),
+      xprvBase58: xprv,
+      nym: 'alice',
+      ctDescriptor: 'ct-desc',
     );
 
     expect(result.nym, 'alice');
@@ -42,24 +40,36 @@ void main() {
     expect(bullnym.registerCtDescriptor, 'ct-desc');
     expect(
       bullnym.registerNpubHex,
-      nostrIdentity.deriveBullnymServerAuthHandleFromXprv(xprv).publicKeyHex,
+      nostrIdentity.deriveBullnymServerAuthPublicKeyFromXprv(xprv),
+    );
+    expect(
+      bullnym.registerSignatureHex,
+      nostrIdentity.signBullnymServerAuthHashFromXprv(
+        xprvBase58: xprv,
+        messageHashHex: _messageHashHex,
+      ),
     );
   });
 
-  test('delete derives Bullnym auth handle and deletes nym', () async {
+  test('delete builds Bullnym auth signer and deletes nym', () async {
     final usecase = DeleteLightningAddressRegistrationUsecase(
-      bullnym: bullnym,
-      nostrIdentity: nostrIdentity,
+      bullnym,
+      nostrIdentity,
     );
 
-    await usecase.execute(
-      DeleteLightningAddressRegistrationCommand(xprvBase58: xprv, nym: 'alice'),
-    );
+    await usecase.execute(xprvBase58: xprv, nym: 'alice');
 
     expect(bullnym.deleteNym, 'alice');
     expect(
       bullnym.deleteNpubHex,
-      nostrIdentity.deriveBullnymServerAuthHandleFromXprv(xprv).publicKeyHex,
+      nostrIdentity.deriveBullnymServerAuthPublicKeyFromXprv(xprv),
+    );
+    expect(
+      bullnym.deleteSignatureHex,
+      nostrIdentity.signBullnymServerAuthHashFromXprv(
+        xprvBase58: xprv,
+        messageHashHex: _messageHashHex,
+      ),
     );
   });
 
@@ -70,19 +80,16 @@ void main() {
         nym: 'alice',
         active: true,
       );
-      final usecase = LookupLightningAddressRegistrationUsecase(
-        bullnym: bullnym,
-        nostrIdentity: nostrIdentity,
+      final usecase = LookupLightningAddressRegistrationUsecase(bullnym);
+      final npubHex = nostrIdentity.deriveBullnymServerAuthPublicKeyFromXprv(
+        xprv,
       );
 
-      final status = await usecase.execute(xprvBase58: xprv);
+      final status = await usecase.execute(npubHex: npubHex);
 
       expect(status.active, true);
       expect(status.nym, 'alice');
-      expect(
-        bullnym.lookupNpubHex,
-        nostrIdentity.deriveBullnymServerAuthHandleFromXprv(xprv).publicKeyHex,
-      );
+      expect(bullnym.lookupNpubHex, npubHex);
     },
   );
 
@@ -93,12 +100,12 @@ void main() {
         nym: 'alice',
         active: false,
       );
-      final usecase = LookupLightningAddressRegistrationUsecase(
-        bullnym: bullnym,
-        nostrIdentity: nostrIdentity,
+      final usecase = LookupLightningAddressRegistrationUsecase(bullnym);
+      final npubHex = nostrIdentity.deriveBullnymServerAuthPublicKeyFromXprv(
+        xprv,
       );
 
-      final status = await usecase.execute(xprvBase58: xprv);
+      final status = await usecase.execute(npubHex: npubHex);
 
       expect(status.active, false);
       expect(status.nym, 'alice');
@@ -108,18 +115,13 @@ void main() {
   test(
     'register rejects blank nym before deriving or calling Bullnym',
     () async {
-      final usecase = RegisterLightningAddressUsecase(
-        bullnym: bullnym,
-        nostrIdentity: nostrIdentity,
-      );
+      final usecase = RegisterLightningAddressUsecase(bullnym, nostrIdentity);
 
       expect(
         () => usecase.execute(
-          RegisterLightningAddressCommand(
-            xprvBase58: xprv,
-            nym: '   ',
-            ctDescriptor: 'ct-desc',
-          ),
+          xprvBase58: xprv,
+          nym: '   ',
+          ctDescriptor: 'ct-desc',
         ),
         throwsA(
           isA<LightningAddressException>().having(
@@ -135,14 +137,12 @@ void main() {
 
   test('delete rejects blank nym before deriving or calling Bullnym', () async {
     final usecase = DeleteLightningAddressRegistrationUsecase(
-      bullnym: bullnym,
-      nostrIdentity: nostrIdentity,
+      bullnym,
+      nostrIdentity,
     );
 
     expect(
-      () => usecase.execute(
-        DeleteLightningAddressRegistrationCommand(xprvBase58: xprv, nym: ''),
-      ),
+      () => usecase.execute(xprvBase58: xprv, nym: ''),
       throwsA(
         isA<LightningAddressException>().having(
           (e) => e.kind,
@@ -155,24 +155,16 @@ void main() {
   });
 
   test('maps Bullnym errors without leaking diagnostics', () async {
-    bullnym.registerError = const BullnymException(
-      kind: BullnymErrorKind.timeout,
-      code: 'Timeout',
+    bullnym.registerError = const BullnymException.timeout(
       diagnosticReason: 'server diagnostic',
-      retryable: true,
     );
-    final usecase = RegisterLightningAddressUsecase(
-      bullnym: bullnym,
-      nostrIdentity: nostrIdentity,
-    );
+    final usecase = RegisterLightningAddressUsecase(bullnym, nostrIdentity);
 
     expect(
       () => usecase.execute(
-        RegisterLightningAddressCommand(
-          xprvBase58: xprv,
-          nym: 'alice',
-          ctDescriptor: 'ct-desc',
-        ),
+        xprvBase58: xprv,
+        nym: 'alice',
+        ctDescriptor: 'ct-desc',
       ),
       throwsA(
         isA<LightningAddressException>()
@@ -182,14 +174,41 @@ void main() {
       ),
     );
   });
+
+  test('maps Bullnym invalid input without blaming local nym validation', () {
+    bullnym.registerError = const BullnymException.invalidInput(
+      'server diagnostic',
+    );
+    final usecase = RegisterLightningAddressUsecase(bullnym, nostrIdentity);
+
+    expect(
+      () => usecase.execute(
+        xprvBase58: xprv,
+        nym: 'alice',
+        ctDescriptor: 'ct-desc',
+      ),
+      throwsA(
+        isA<LightningAddressException>()
+            .having(
+              (e) => e.kind,
+              'kind',
+              LightningAddressErrorKind.invalidRegistrationInput,
+            )
+            .having((e) => e.code, 'code', 'InvalidInput')
+            .having((e) => e.retryable, 'retryable', false),
+      ),
+    );
+  });
 }
 
 class _FakeBullnymFacade implements BullnymFacade {
   String? registerNym;
   String? registerCtDescriptor;
   String? registerNpubHex;
+  String? registerSignatureHex;
   String? deleteNym;
   String? deleteNpubHex;
+  String? deleteSignatureHex;
   String? lookupNpubHex;
   BullnymLookupResult lookupResult = const BullnymLookupResult(
     nym: 'alice',
@@ -199,7 +218,7 @@ class _FakeBullnymFacade implements BullnymFacade {
 
   @override
   Future<BullnymRegisterResult> register({
-    required NostrKeychainHandle handle,
+    required BullnymAuthSigner signer,
     required String nym,
     required String ctDescriptor,
   }) async {
@@ -207,17 +226,19 @@ class _FakeBullnymFacade implements BullnymFacade {
     if (error != null) throw error;
     registerNym = nym;
     registerCtDescriptor = ctDescriptor;
-    registerNpubHex = handle.publicKeyHex;
+    registerNpubHex = signer.npubHex;
+    registerSignatureHex = await signer.signHashHex(_messageHashHex);
     return BullnymRegisterResult(nym: nym, lightningAddress: '$nym@bullpay.ca');
   }
 
   @override
   Future<void> deleteRegistration({
-    required NostrKeychainHandle handle,
+    required BullnymAuthSigner signer,
     required String nym,
   }) async {
     deleteNym = nym;
-    deleteNpubHex = handle.publicKeyHex;
+    deleteNpubHex = signer.npubHex;
+    deleteSignatureHex = await signer.signHashHex(_messageHashHex);
   }
 
   @override
