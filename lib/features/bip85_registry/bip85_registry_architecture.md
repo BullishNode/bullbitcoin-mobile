@@ -57,12 +57,9 @@ The exact app number and role segments are the locked namespace allocation;
 later Nostr behavior work may consume these ids and paths, but should not infer
 runtime semantics from this registry entry alone.
 
-Keychain Manifest reserves BIP85 path `1642'/0'/1'` as the primary encryption
-key for remote manifest snapshot payloads. This is a Bull-owned custom
-application namespace and must not be reused for RecoverBull vault backups,
-Nostr signing, Bullnym authentication, or wallet-seed materialization.
-`keychain_manifest` owns encryption and encrypted payload semantics; the
-registry only blocks and names the path.
+Keychain Manifest reserves BIP85 path `1642'/0'/1'` as the primary encryption key for remote manifest snapshot payloads.
+This is a Bull-owned custom application namespace and must not be reused for RecoverBull vault backups, Nostr signing, Bullnym authentication, or wallet-seed materialization.
+`keychain_manifest` owns encryption and encrypted payload semantics; the registry only blocks and names the path.
 
 Future reservations should add typed entries here only when a first-party
 feature needs a stable, blocked path. User-created ad hoc BIP85 outputs remain
