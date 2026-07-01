@@ -1,8 +1,9 @@
-import 'package:bb_mobile/features/deterministic_wallets/application/application_errors.dart';
-import 'package:bb_mobile/features/deterministic_wallets/application/prepare_deterministic_wallets_usecase.dart';
 import 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets.dart';
+import 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets_error.dart';
+import 'package:bb_mobile/features/deterministic_wallets/domain/prepare_deterministic_wallets_usecase.dart';
 
 export 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets.dart';
+export 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets_error.dart';
 
 class DeterministicWalletsFacade {
   final PrepareDeterministicWalletsUsecase _prepareWallets;

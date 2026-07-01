@@ -1,4 +1,3 @@
-import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_error.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
@@ -18,17 +17,17 @@ class SamRockSetupPayloadBuilder {
     final payload = <String, Object?>{};
 
     if (request.supportsBitcoinChain) {
-      final wallet = byNetwork[BtcpayWalletNetwork.bitcoin]?.wallet;
+      final wallet = byNetwork[BtcpayWalletNetwork.bitcoin];
       payload['BTC'] = {'Descriptor': _descriptorOrThrow(wallet, 'BTC')};
     }
 
     if (request.supportsLiquidChain) {
-      final wallet = byNetwork[BtcpayWalletNetwork.liquid]?.wallet;
+      final wallet = byNetwork[BtcpayWalletNetwork.liquid];
       payload['LBTC'] = {'Descriptor': _descriptorOrThrow(wallet, 'LBTC')};
     }
 
     if (request.supportsLightning) {
-      final wallet = byNetwork[BtcpayWalletNetwork.liquid]?.wallet;
+      final wallet = byNetwork[BtcpayWalletNetwork.liquid];
       payload['BTCLN'] = {
         'Type': 'Boltz',
         'LBTC': {'Descriptor': _descriptorOrThrow(wallet, 'BTCLN')},
@@ -43,7 +42,10 @@ class SamRockSetupPayloadBuilder {
     return payload;
   }
 
-  String _descriptorOrThrow(Wallet? wallet, String paymentMethod) {
+  String _descriptorOrThrow(
+    PreparedDeterministicWallet? wallet,
+    String paymentMethod,
+  ) {
     final descriptor = wallet?.externalPublicDescriptor.trim();
     if (descriptor == null || descriptor.isEmpty) {
       throw SamRockSetupPayloadException(

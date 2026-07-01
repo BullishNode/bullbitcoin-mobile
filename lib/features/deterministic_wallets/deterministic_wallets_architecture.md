@@ -2,9 +2,8 @@
 
 Deterministic Wallets owns reusable wallet materialization from reserved BIP85
 child mnemonics. It is product-neutral: BTCPay/SamRock is the first consumer,
-but later Get Paid products and manual deterministic wallet creation should use
-the same public facade rather than introducing product-specific derivation
-flows.
+and future products can reuse the same public facade when they need the same
+reserved-index materialization behavior.
 
 ## Scope
 
@@ -16,7 +15,9 @@ flows.
   descriptors for existing wallet IDs.
 - Store the child seed only when at least one requested wallet must be created.
 - Expose rollback for wallets created before an external product submits or
-  persists descriptors.
+  persists descriptors. This remains a public compensation operation for
+  best-effort local cleanup before a consumer starts remote descriptor
+  submission.
 
 ## Boundaries
 
@@ -27,9 +28,8 @@ flows.
   wallets are default wallets.
 - The feature does not own auto-sweep, hide-on-home, wallet display settings,
   payment products, Nostr, SamRock, or BTCPay connection state.
-- The feature does not automate recovery. A future recovery flow should pass
-  the same reserved-index request through the facade when the user chooses that
-  product or manual deterministic wallet type.
+- The feature does not automate recovery; recovery ownership remains outside
+  this feature.
 
 ## Public Contract
 
@@ -38,17 +38,24 @@ flows.
 and explicit wallet specs. The request must have a non-negative index,
 non-empty alias, at least one wallet spec, and unique non-empty spec IDs.
 
-The facade returns prepared wallet descriptors and creation flags only. It does
-not expose mnemonic words, seed bytes, or child seed objects to consuming
-features. Rollback is performed by passing the prepared result back to
-`rollbackCreatedWallets()`.
+The facade returns prepared deterministic-wallet DTOs containing wallet IDs,
+network/script metadata, labels, public descriptors, creation flags, and
+rollback metadata. It does not expose mnemonic words, seed bytes, or child seed
+objects to consuming features. Rollback is performed by passing the prepared
+result back to `rollbackCreatedWallets()`.
 
 ## Layers
 
-- `domain/`: request, wallet spec, and prepared wallet DTOs.
-- `application/`: `PrepareDeterministicWalletsUsecase`, request validation,
-  descriptor verification, child seed storage, rollback, and feature errors.
-- `public/`: facade used by BTCPay and future products.
+- `domain/`: request, wallet spec, prepared wallet DTOs, feature errors, and
+  `PrepareDeterministicWalletsUsecase` orchestration.
+- `domain/repositories/`: deterministic wallet repository contract consumed by
+  the use case.
+- `data/`: implementation that wraps core wallet/seed repositories, derives
+  expected metadata, verifies existing wallet descriptors, and maps core wallet
+  entities to deterministic wallet result DTOs.
+- `public/`: facade used by BTCPay and future products. It exports only
+  published domain request/result/error types. Its constructor is a DI/testing
+  surface and accepts the internal use case.
 - `deterministic_wallets_locator.dart`: DI registration after core BIP85,
   wallet, and seed repositories are available.
 
