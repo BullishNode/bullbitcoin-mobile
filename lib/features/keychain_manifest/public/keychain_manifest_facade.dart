@@ -29,6 +29,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_im
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/publish_keychain_manifest_nostr_event_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 
 class KeychainManifestFacade {
@@ -37,12 +38,15 @@ class KeychainManifestFacade {
   final RecordKeychainManifestEntryUsecase _recordEntry;
   final BuildKeychainManifestFileUsecase _buildManifestFile;
   final ParseKeychainManifestFileUsecase _parseManifestFile;
+  final PublishKeychainManifestNostrEventUsecase _publishNostrEvent;
 
   KeychainManifestFacade({
     required this._recordEntry,
     required this._buildManifestFile,
     required this._parseManifestFile,
-  });
+    required PublishKeychainManifestNostrEventUsecase publishNostrEvent,
+    // ignore: prefer_initializing_formals
+  }) : _publishNostrEvent = publishNostrEvent;
 
   Future<void> recordReservedDerivation(
     KeychainManifestReservedDerivationRequest request, {
@@ -113,6 +117,24 @@ class KeychainManifestFacade {
           trace: stack,
         );
       }
+      throw KeychainManifestException.fromInternal(e);
+    }
+  }
+
+  Future<void> publishEncryptedNostrSnapshot({
+    required String parentFingerprint,
+    required String xprvBase58,
+    required List<String> relayUrls,
+    DateTime? now,
+  }) async {
+    try {
+      await _publishNostrEvent.execute(
+        parentFingerprint: parentFingerprint,
+        xprvBase58: xprvBase58,
+        relayUrls: relayUrls,
+        now: now,
+      );
+    } catch (e) {
       throw KeychainManifestException.fromInternal(e);
     }
   }
