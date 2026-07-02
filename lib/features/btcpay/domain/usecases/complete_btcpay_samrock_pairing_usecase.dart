@@ -53,15 +53,10 @@ class CompleteBtcpaySamRockPairingUsecase {
       );
       await _recordBtcpayKeychainManifestEntries(preparedWallets);
 
-      final Map<String, Object?> payload;
-      try {
-        payload = const SamRockSetupPayloadBuilder().build(
-          request: request,
-          preparedWallets: preparedWallets,
-        );
-      } on SamRockSetupPayloadException {
-        rethrow;
-      }
+      final payload = const SamRockSetupPayloadBuilder().build(
+        request: request,
+        preparedWallets: preparedWallets,
+      );
 
       final now = DateTime.now().toUtc();
       submittedConnection = BtcpayConnection.fromPairing(
@@ -125,9 +120,6 @@ class CompleteBtcpaySamRockPairingUsecase {
           throw BtcpayPairingException.keychainConflict();
         }
         throw BtcpayPairingException.localSetup();
-      }
-      if (e is SamRockSetupPayloadException) {
-        throw BtcpayPairingException.generic(e.message);
       }
       throw BtcpayPairingException.generic();
     }

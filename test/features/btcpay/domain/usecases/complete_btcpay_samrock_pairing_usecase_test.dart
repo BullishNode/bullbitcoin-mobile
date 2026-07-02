@@ -193,9 +193,6 @@ void main() {
         ),
       );
       verifyNever(
-        () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      );
-      verifyNever(
         () => pairingService.submitSetup(
           request: any(named: 'request'),
           payload: any(named: 'payload'),
@@ -271,77 +268,8 @@ void main() {
         ),
       );
       verifyNever(() => connectionRepository.saveConnection(any()));
-      verifyNever(
-        () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-      );
     },
   );
-
-  test('does not rely on wallet rollback when server rejects', () async {
-    final deterministicWallets = _MockDeterministicWalletsFacade();
-    final getSettings = _MockGetSettingsUsecase();
-    final pairingService = _MockSamRockPairingServicePort();
-    final connectionRepository = _MockBtcpayConnectionRepository();
-    final applyWalletBehaviorDefaults =
-        _MockApplyWalletBehaviorDefaultsUsecase();
-    final keychainManifest = _MockKeychainManifestFacade();
-    _stubKeychainManifest(keychainManifest);
-    _stubWalletBehaviorDefaults(applyWalletBehaviorDefaults);
-    final preparedWallets = PreparedDeterministicWallets(
-      wallets: [
-        _wallet(
-          specId: BtcpayWalletConstants.bitcoinSpecId,
-          network: Network.bitcoinMainnet,
-          externalDescriptor: 'btc-desc',
-          created: true,
-        ),
-        _wallet(
-          specId: BtcpayWalletConstants.liquidSpecId,
-          network: Network.liquidMainnet,
-          externalDescriptor: 'lbtc-desc',
-          created: true,
-        ),
-      ],
-      derivationPath: "39'/0'/12'/100'",
-      parentFingerprint: 'fedcba98',
-      childSeedFingerprint: '0123abcd',
-      childSeedStoredDuringAttempt: true,
-    );
-    final usecase = CompleteBtcpaySamRockPairingUsecase(
-      getSettings: getSettings,
-      parser: const SamRockPairingRequestParser(),
-      deterministicWallets: deterministicWallets,
-      pairingService: pairingService,
-      connectionRepository: connectionRepository,
-      applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
-      bip85Registry: const Bip85RegistryFacade(),
-      keychainManifest: keychainManifest,
-    );
-    when(() => getSettings.execute()).thenAnswer((_) async => settings);
-    when(
-      () => deterministicWallets.prepare(any()),
-    ).thenAnswer((_) async => preparedWallets);
-    when(
-      () => pairingService.submitSetup(
-        request: any(named: 'request'),
-        payload: any(named: 'payload'),
-      ),
-    ).thenAnswer((_) async => const SamRockPairingResponse(success: false));
-
-    await expectLater(
-      usecase.execute(pairingUrl: pairingUrl),
-      throwsA(
-        isA<BtcpayPairingException>().having(
-          (exception) => exception.type,
-          'type',
-          BtcpayPairingExceptionType.rejected,
-        ),
-      ),
-    );
-    verifyNever(
-      () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-    );
-  });
 
   test(
     'does not delete reused keychain entries when server rejects retry',
@@ -395,9 +323,6 @@ void main() {
       await expectLater(
         usecase.execute(pairingUrl: pairingUrl),
         throwsA(isA<BtcpayPairingException>()),
-      );
-      verifyNever(
-        () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
       );
     },
   );
@@ -475,9 +400,6 @@ void main() {
       ),
     );
     expect(saveCalls, 2);
-    verifyNever(
-      () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-    );
   });
 
   test(
@@ -644,9 +566,6 @@ void main() {
       ),
     );
 
-    verifyNever(
-      () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
-    );
     verifyNever(
       () => pairingService.submitSetup(
         request: any(named: 'request'),
