@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 enum BtcpayRoute {
-  settings('btcpay');
+  btcpaySettings('btcpay');
 
   final String path;
 
@@ -16,8 +16,8 @@ class BtcpayRoutes {
   const BtcpayRoutes._();
 
   static final route = GoRoute(
-    name: BtcpayRoute.settings.name,
-    path: BtcpayRoute.settings.path,
+    name: BtcpayRoute.btcpaySettings.name,
+    path: BtcpayRoute.btcpaySettings.path,
     builder: (context, state) => BlocProvider(
       create: (_) => locator<BtcpayPairingCubit>(),
       child: const BtcpaySettingsScreen(),

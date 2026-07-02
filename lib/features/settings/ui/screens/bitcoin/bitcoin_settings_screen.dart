@@ -57,7 +57,8 @@ class BitcoinSettingsScreen extends StatelessWidget {
                 SettingsEntryItem(
                   icon: Icons.storefront,
                   title: context.loc.bitcoinSettingsBtcpayTitle,
-                  onTap: () => context.pushNamed(BtcpayRoute.settings.name),
+                  onTap: () =>
+                      context.pushNamed(BtcpayRoute.btcpaySettings.name),
                 ),
                 SettingsEntryItem(
                   icon: Icons.swap_horiz,
