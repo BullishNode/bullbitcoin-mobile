@@ -129,6 +129,54 @@ void main() {
     );
   });
 
+  test(
+    'treats stale row from another fingerprint as replaceable, not a conflict',
+    () async {
+      when(
+        () => bip85Repository.fingerprintFromXprv(xprv),
+      ).thenReturn('current-fingerprint');
+      when(() => bip85Repository.fetch(derivation)).thenAnswer(
+        (_) async =>
+            _derivation(alias: 'Other', xprvFingerprint: 'stale-fingerprint'),
+      );
+      when(
+        () => bip85Repository.deriveMnemonic(
+          xprvBase58: xprv,
+          length: bip39.MnemonicLength.words12,
+          index: 77,
+          alias: alias,
+        ),
+      ).thenAnswer((_) async => (derivation: derivation, mnemonic: mnemonic));
+
+      final result = await usecase.execute(index: 77, alias: alias);
+
+      expect(result.derivation, derivation);
+      verify(
+        () => bip85Repository.deriveMnemonic(
+          xprvBase58: xprv,
+          length: bip39.MnemonicLength.words12,
+          index: 77,
+          alias: alias,
+        ),
+      ).called(1);
+    },
+  );
+
+  test('throws distinct error when no default wallet exists', () async {
+    when(
+      () => walletRepository.getWallets(
+        environment: null,
+        onlyDefaults: true,
+        onlyBitcoin: true,
+      ),
+    ).thenAnswer((_) async => []);
+
+    expect(
+      () => usecase.execute(index: 77, alias: alias),
+      throwsA(isA<Bip85NoDefaultWalletException>()),
+    );
+  });
+
   test('filters default wallet by requested environment', () async {
     when(
       () => walletRepository.getWallets(

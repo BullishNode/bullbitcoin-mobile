@@ -47,14 +47,13 @@ class DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase {
       index: index,
     );
     final existing = await _bip85Repository.fetch(preview.derivation);
-    if (existing != null) {
-      _throwIfIncompatibleExistingDerivation(
-        existing,
-        xprvBase58: xprv,
-        alias: alias,
-      );
+    if (existing != null && _isForCurrentWallet(existing, xprvBase58: xprv)) {
+      _throwIfIncompatibleExistingDerivation(existing, alias: alias);
       return preview;
     }
+    // No row, or a stale row from a previous default wallet seed. A stale
+    // row's mnemonic can no longer be derived from the current seed, so it
+    // must not count as a conflict: re-derive and let storage replace it.
 
     return _bip85Repository.deriveMnemonic(
       xprvBase58: xprv,
@@ -64,19 +63,20 @@ class DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase {
     );
   }
 
-  void _throwIfIncompatibleExistingDerivation(
+  bool _isForCurrentWallet(
     Bip85DerivationEntity existing, {
     required String xprvBase58,
-    required String alias,
   }) {
     final expectedFingerprint = _bip85Repository.fingerprintFromXprv(
       xprvBase58,
     );
-    if (existing.xprvFingerprint != expectedFingerprint) {
-      throw Bip85DerivationConflictException(
-        'BIP85 derivation already exists for a different root fingerprint',
-      );
-    }
+    return existing.xprvFingerprint == expectedFingerprint;
+  }
+
+  void _throwIfIncompatibleExistingDerivation(
+    Bip85DerivationEntity existing, {
+    required String alias,
+  }) {
     if (existing.application != Bip85Application.bip39) {
       throw Bip85DerivationConflictException(
         'BIP85 derivation already exists for a different application',

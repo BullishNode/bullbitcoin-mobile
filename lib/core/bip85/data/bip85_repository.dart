@@ -66,25 +66,19 @@ class Bip85Repository {
     required String xprvBase58,
     required bip39.MnemonicLength length,
     required int index,
-  }) async {
-    try {
-      return await _datasource.deriveMnemonicPreview(
-        xprvBase58: xprvBase58,
-        length: length,
-        index: index,
-      );
-    } catch (e) {
-      rethrow;
-    }
+    bip39.Language language = bip39.Language.english,
+  }) {
+    return _datasource.deriveMnemonicPreview(
+      xprvBase58: xprvBase58,
+      length: length,
+      index: index,
+      language: language,
+    );
   }
 
   Future<Bip85DerivationEntity?> fetch(String path) async {
-    try {
-      final derivation = await _datasource.fetch(path);
-      return derivation?.toEntity();
-    } catch (e) {
-      rethrow;
-    }
+    final derivation = await _datasource.fetch(path);
+    return derivation?.toEntity();
   }
 
   String fingerprintFromXprv(String xprvBase58) {

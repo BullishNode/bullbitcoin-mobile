@@ -93,24 +93,20 @@ class Bip85Datasource {
     required int index,
     bip39.Language language = bip39.Language.english,
   }) async {
-    try {
-      const application = Bip85ApplicationColumn.bip39;
-      final derivationPath =
-          "${application.number}'/${language.toBip85Code()}'/${length.toBip85Code()}'/$index'";
+    const application = Bip85ApplicationColumn.bip39;
+    final derivationPath =
+        "${application.number}'/${language.toBip85Code()}'/${length.toBip85Code()}'/$index'";
 
-      bip32.Bip32Keys.fromBase58(xprvBase58);
+    bip32.Bip32Keys.fromBase58(xprvBase58);
 
-      final bip85Mnemonic = bip85.Bip85Entropy.deriveMnemonic(
-        xprvBase58: xprvBase58,
-        language: language,
-        length: length,
-        index: index,
-      );
+    final bip85Mnemonic = bip85.Bip85Entropy.deriveMnemonic(
+      xprvBase58: xprvBase58,
+      language: language,
+      length: length,
+      index: index,
+    );
 
-      return (derivation: derivationPath, mnemonic: bip85Mnemonic);
-    } catch (e) {
-      rethrow;
-    }
+    return (derivation: derivationPath, mnemonic: bip85Mnemonic);
   }
 
   Future<Bip85DerivationModel?> fetch(String path) async {
@@ -181,18 +177,27 @@ class Bip85Datasource {
 
   // We should not use _store without properly formatting the derivation path.
   Future<void> _store(Bip85DerivationModel bip85) async {
-    try {
-      await _sqlite.managers.bip85Derivations.create(
-        (b) => b(
-          path: bip85.path,
-          xprvFingerprint: bip85.xprvFingerprint,
-          alias: Value(bip85.alias),
-          status: bip85.status,
-          application: bip85.application,
-        ),
-      );
-    } catch (e) {
-      rethrow;
-    }
+    // `path` is the primary key of the derivations table. An existing row at
+    // the same path whose xprvFingerprint differs was derived from a previous
+    // default wallet seed: its material can no longer be reproduced, so the
+    // row is stale and safe to replace with the current wallet's derivation.
+    // Same-fingerprint collisions keep strict insert semantics so genuine
+    // duplicate inserts still fail loudly.
+    final existing = await _sqlite.managers.bip85Derivations
+        .filter((b) => b.path(bip85.path))
+        .getSingleOrNull();
+    final replaceStaleRow =
+        existing != null && existing.xprvFingerprint != bip85.xprvFingerprint;
+
+    await _sqlite.managers.bip85Derivations.create(
+      (b) => b(
+        path: bip85.path,
+        xprvFingerprint: bip85.xprvFingerprint,
+        alias: Value(bip85.alias),
+        status: bip85.status,
+        application: bip85.application,
+      ),
+      mode: replaceStaleRow ? InsertMode.insertOrReplace : InsertMode.insert,
+    );
   }
 }
