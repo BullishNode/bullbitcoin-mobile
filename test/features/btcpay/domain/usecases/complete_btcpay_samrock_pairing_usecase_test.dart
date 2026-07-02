@@ -10,6 +10,7 @@ import 'package:bb_mobile/features/btcpay/domain/samrock_setup_payload_builder.d
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
+import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -513,6 +514,10 @@ void main() {
 
     expect(capturedRequests, hasLength(1));
     final request = capturedRequests.single;
+    expect(
+      request.bip85Index,
+      const Bip85RegistryFacade().btcpayWalletSeed.walletIndex,
+    );
     expect(request.bip85Index, 100);
     expect(request.bip85Alias, 'BTCPay');
     expect(request.walletSpecs.map((spec) => spec.id), [
