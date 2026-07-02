@@ -3,7 +3,8 @@ export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_er
         KeychainManifestException,
         KeychainManifestExceptionType,
         KeychainManifestFileParseException,
-        KeychainManifestFileParseFailureReason;
+        KeychainManifestFileParseFailureReason,
+        KeychainManifestUnsupportedVersionException;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart'
     show
         KeychainManifestImportPlan,
