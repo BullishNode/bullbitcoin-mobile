@@ -20,6 +20,11 @@ the future keychain manifest.
 BTCPay reserves BIP85 path `39'/0'/12'/100'`, which is a BIP39 English
 12-word child mnemonic at child index `100`.
 
+Child index `100` superseded an interim development value of `77` that was
+used while the BTCPay pairing flow was being built and never shipped in a
+release. The registry value is the locked source of truth for this path; no
+migration from the interim value exists or is planned.
+
 Future reservations should add typed entries here only when a first-party
 feature needs a stable, blocked path. User-created ad hoc BIP85 outputs remain
 outside this registry unless they become a first-party reserved namespace.
