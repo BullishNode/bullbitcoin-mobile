@@ -25,7 +25,7 @@ class FetchAllBip85DerivationsWithEntropyUsecase {
       Bip85Failure
     >
   >
-  execute() async {
+  execute({Set<String> excludedPaths = const {}}) async {
     try {
       final defaultSeed = await _getDefaultSeedUsecase.execute();
       final xprvBase58 = Bip32Derivation.getXprvFromSeed(
@@ -37,13 +37,19 @@ class FetchAllBip85DerivationsWithEntropyUsecase {
         case Err(:final failure):
           return Err(failure);
         case Ok(:final value):
-          final derivationsWithEntropy = value.map((e) {
-            final entropy = bip85.Bip85Entropy.deriveFromHardenedPath(
-              xprvBase58: xprvBase58,
-              path: bip85.Bip85HardenedPath(e.path),
-            );
-            return (derivation: e, entropy: entropy);
-          }).toList();
+          // Never re-derive or expose the entropy of a reserved product
+          // wallet seed: drop those rows before entropy re-derivation so they
+          // never enter state, the text field, or the clipboard (KI-2).
+          final derivationsWithEntropy = value
+              .where((e) => !excludedPaths.contains(e.path))
+              .map((e) {
+                final entropy = bip85.Bip85Entropy.deriveFromHardenedPath(
+                  xprvBase58: xprvBase58,
+                  path: bip85.Bip85HardenedPath(e.path),
+                );
+                return (derivation: e, entropy: entropy);
+              })
+              .toList();
           return Ok(derivationsWithEntropy);
       }
     } catch (e, st) {
