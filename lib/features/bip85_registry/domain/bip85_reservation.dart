@@ -28,13 +28,15 @@ class Bip85PathSegment {
 }
 
 class Bip85ReservationScope {
-  final String exactPath;
+  final int applicationNumber;
   final List<Bip85PathSegment> segments;
+  final int walletIndex;
 
-  const Bip85ReservationScope({
-    required this.exactPath,
-    required this.segments,
-  });
+  Bip85ReservationScope._({required this.applicationNumber, required this.segments})
+    : walletIndex = _requiredSegmentValue(segments, 'index');
+
+  String get exactPath =>
+      "$applicationNumber'/${segments.map((segment) => "${segment.value}'").join('/')}";
 
   bool matchesExactPath(String path) => exactPath == path;
 
@@ -43,6 +45,18 @@ class Bip85ReservationScope {
       if (segment.name == name) return segment.value;
     }
     throw StateError('Unknown BIP85 reservation path segment: $name');
+  }
+
+  static int _requiredSegmentValue(
+    List<Bip85PathSegment> segments,
+    String name,
+  ) {
+    for (final segment in segments) {
+      if (segment.name == name) return segment.value;
+    }
+    throw ArgumentError(
+      "BIP85 reservation scope requires an '$name' path segment",
+    );
   }
 }
 
@@ -74,14 +88,19 @@ class Bip85Reservation {
   final Bip85ManifestPolicy manifest;
   final Bip85ReservationHints hints;
 
-  const Bip85Reservation({
+  Bip85Reservation({
     required this.id,
     required this.owner,
     required this.purpose,
     required this.application,
-    required this.scope,
+    required List<Bip85PathSegment> segments,
     required this.allocation,
     required this.manifest,
     required this.hints,
-  });
+  }) : scope = Bip85ReservationScope._(
+         applicationNumber: application.number,
+         segments: segments,
+       );
+
+  int get walletIndex => scope.walletIndex;
 }
