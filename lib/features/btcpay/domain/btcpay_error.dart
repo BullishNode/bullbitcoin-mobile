@@ -2,7 +2,11 @@ import 'package:bb_mobile/core/errors/bull_exception.dart';
 
 enum BtcpayPairingExceptionType { invalidRequest, rejected, uncertain, generic }
 
-class BtcpayPairingException extends BullException {
+sealed class BtcpayError extends BullException {
+  BtcpayError(super.message);
+}
+
+final class BtcpayPairingException extends BtcpayError {
   final BtcpayPairingExceptionType type;
 
   BtcpayPairingException._(this.type, super.message);
@@ -37,7 +41,7 @@ class BtcpayPairingException extends BullException {
   }
 }
 
-class SamRockSetupPayloadException extends BullException {
+final class SamRockSetupPayloadException extends BtcpayError {
   SamRockSetupPayloadException(super.message);
 }
 

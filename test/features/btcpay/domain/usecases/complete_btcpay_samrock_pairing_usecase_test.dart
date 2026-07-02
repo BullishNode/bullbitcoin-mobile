@@ -2,11 +2,11 @@ import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
-import 'package:bb_mobile/features/btcpay/application/application_errors.dart';
-import 'package:bb_mobile/features/btcpay/application/usecases/complete_btcpay_samrock_pairing_usecase.dart';
-import 'package:bb_mobile/features/btcpay/application/ports/btcpay_connection_store.dart';
-import 'package:bb_mobile/features/btcpay/application/ports/samrock_pairing_service_port.dart';
-import 'package:bb_mobile/features/btcpay/application/samrock_setup_payload_builder.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_error.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_connection_repository.dart';
+import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_service_port.dart';
+import 'package:bb_mobile/features/btcpay/domain/samrock_setup_payload_builder.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
@@ -22,8 +22,8 @@ class _MockGetSettingsUsecase extends Mock implements GetSettingsUsecase {}
 class _MockSamRockPairingServicePort extends Mock
     implements SamRockPairingServicePort {}
 
-class _MockBtcpayConnectionStore extends Mock
-    implements BtcpayConnectionStore {}
+class _MockBtcpayConnectionRepository extends Mock
+    implements BtcpayConnectionRepository {}
 
 void main() {
   const pairingUrl =
@@ -123,7 +123,7 @@ void main() {
       final deterministicWallets = _MockDeterministicWalletsFacade();
       final getSettings = _MockGetSettingsUsecase();
       final pairingService = _MockSamRockPairingServicePort();
-      final connectionStore = _MockBtcpayConnectionStore();
+      final connectionRepository = _MockBtcpayConnectionRepository();
       final preparedWallets = PreparedDeterministicWallets(
         wallets: [
           PreparedDeterministicWallet(
@@ -140,7 +140,7 @@ void main() {
         parser: const SamRockPairingRequestParser(),
         deterministicWallets: deterministicWallets,
         pairingService: pairingService,
-        connectionStore: connectionStore,
+        connectionRepository: connectionRepository,
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
@@ -172,7 +172,7 @@ void main() {
       final deterministicWallets = _MockDeterministicWalletsFacade();
       final getSettings = _MockGetSettingsUsecase();
       final pairingService = _MockSamRockPairingServicePort();
-      final connectionStore = _MockBtcpayConnectionStore();
+      final connectionRepository = _MockBtcpayConnectionRepository();
       final preparedWallets = PreparedDeterministicWallets(
         wallets: [
           PreparedDeterministicWallet(
@@ -200,14 +200,14 @@ void main() {
         parser: const SamRockPairingRequestParser(),
         deterministicWallets: deterministicWallets,
         pairingService: pairingService,
-        connectionStore: connectionStore,
+        connectionRepository: connectionRepository,
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
         () => deterministicWallets.prepare(any()),
       ).thenAnswer((_) async => preparedWallets);
       when(
-        () => connectionStore.saveConnection(any()),
+        () => connectionRepository.saveConnection(any()),
       ).thenAnswer((_) async {});
       when(
         () => pairingService.submitSetup(
@@ -220,7 +220,7 @@ void main() {
         usecase.execute(pairingUrl: pairingUrl),
         throwsA(isA<BtcpayPairingException>()),
       );
-      verifyNever(() => connectionStore.saveConnection(any()));
+      verifyNever(() => connectionRepository.saveConnection(any()));
       verifyNever(
         () => deterministicWallets.rollbackCreatedWallets(preparedWallets),
       );
@@ -231,7 +231,7 @@ void main() {
     final deterministicWallets = _MockDeterministicWalletsFacade();
     final getSettings = _MockGetSettingsUsecase();
     final pairingService = _MockSamRockPairingServicePort();
-    final connectionStore = _MockBtcpayConnectionStore();
+    final connectionRepository = _MockBtcpayConnectionRepository();
     final preparedWallets = PreparedDeterministicWallets(
       wallets: [
         PreparedDeterministicWallet(
@@ -259,14 +259,14 @@ void main() {
       parser: const SamRockPairingRequestParser(),
       deterministicWallets: deterministicWallets,
       pairingService: pairingService,
-      connectionStore: connectionStore,
+      connectionRepository: connectionRepository,
     );
     var saveCalls = 0;
     when(() => getSettings.execute()).thenAnswer((_) async => settings);
     when(
       () => deterministicWallets.prepare(any()),
     ).thenAnswer((_) async => preparedWallets);
-    when(() => connectionStore.saveConnection(any())).thenAnswer((_) async {
+    when(() => connectionRepository.saveConnection(any())).thenAnswer((_) async {
       saveCalls += 1;
       if (saveCalls == 1) throw Exception('disk full');
     });

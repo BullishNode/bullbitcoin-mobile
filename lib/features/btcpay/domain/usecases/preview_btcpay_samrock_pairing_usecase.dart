@@ -1,4 +1,4 @@
-import 'package:bb_mobile/features/btcpay/application/application_errors.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_error.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 

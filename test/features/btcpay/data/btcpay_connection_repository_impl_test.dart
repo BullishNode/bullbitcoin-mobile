@@ -1,15 +1,22 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/storage/data/datasources/key_value_storage/key_value_storage_datasource.dart';
+import 'package:bb_mobile/features/btcpay/data/btcpay_connection_repository_impl.dart';
+import 'package:bb_mobile/features/btcpay/data/datasources/btcpay_connection_datasource.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
-import 'package:bb_mobile/features/btcpay/frameworks/datasources/btcpay_connection_datasource.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  BtcpayConnectionRepositoryImpl repositoryWith(_MemoryStorage storage) {
+    return BtcpayConnectionRepositoryImpl(
+      datasource: BtcpayConnectionDatasource(storage: storage),
+    );
+  }
+
   test('stores BTCPay connection under the active environment', () async {
     final storage = _MemoryStorage();
-    final datasource = BtcpayConnectionDatasource(storage: storage);
+    final repository = repositoryWith(storage);
     final connection = BtcpayConnection(
       environment: Environment.mainnet,
       serverUrl: 'https://btcpay.example.com',
@@ -29,10 +36,10 @@ void main() {
       lastError: 'timeout',
     );
 
-    await datasource.saveConnection(connection);
+    await repository.saveConnection(connection);
 
-    final mainnet = await datasource.getConnection(Environment.mainnet);
-    final testnet = await datasource.getConnection(Environment.testnet);
+    final mainnet = await repository.getConnection(Environment.mainnet);
+    final testnet = await repository.getConnection(Environment.testnet);
     expect(mainnet, isNotNull);
     expect(mainnet!.environment, Environment.mainnet);
     expect(mainnet.storeId, 'store123');
@@ -40,6 +47,17 @@ void main() {
     expect(mainnet.supportsLightning, isTrue);
     expect(mainnet.lastError, 'timeout');
     expect(testnet, isNull);
+  });
+
+  test('treats malformed stored values as absent', () async {
+    final storage = _MemoryStorage();
+    final repository = repositoryWith(storage);
+    await storage.saveValue(
+      key: 'btcpay_connection_mainnet',
+      value: 'not-json',
+    );
+
+    expect(await repository.getConnection(Environment.mainnet), isNull);
   });
 }
 

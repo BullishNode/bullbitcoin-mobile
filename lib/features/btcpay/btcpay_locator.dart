@@ -1,24 +1,27 @@
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/storage/data/datasources/key_value_storage/key_value_storage_datasource.dart';
 import 'package:bb_mobile/core/utils/constants.dart';
-import 'package:bb_mobile/features/btcpay/application/usecases/complete_btcpay_samrock_pairing_usecase.dart';
-import 'package:bb_mobile/features/btcpay/application/usecases/get_btcpay_connection_usecase.dart';
-import 'package:bb_mobile/features/btcpay/application/ports/btcpay_connection_store.dart';
-import 'package:bb_mobile/features/btcpay/application/ports/samrock_pairing_service_port.dart';
-import 'package:bb_mobile/features/btcpay/application/usecases/preview_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/features/btcpay/data/btcpay_connection_repository_impl.dart';
+import 'package:bb_mobile/features/btcpay/data/datasources/btcpay_connection_datasource.dart';
+import 'package:bb_mobile/features/btcpay/data/datasources/samrock_pairing_datasource.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_connection_repository.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
-import 'package:bb_mobile/features/btcpay/frameworks/datasources/btcpay_connection_datasource.dart';
-import 'package:bb_mobile/features/btcpay/frameworks/datasources/samrock_pairing_datasource.dart';
+import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_service_port.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/preview_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_cubit.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
 import 'package:get_it/get_it.dart';
 
 class BtcpayLocator {
   static void setup(GetIt locator) {
-    locator.registerLazySingleton<BtcpayConnectionStore>(
-      () => BtcpayConnectionDatasource(
-        storage: locator<KeyValueStorageDatasource<String>>(
-          instanceName: LocatorInstanceNameConstants.secureStorageDatasource,
+    locator.registerLazySingleton<BtcpayConnectionRepository>(
+      () => BtcpayConnectionRepositoryImpl(
+        datasource: BtcpayConnectionDatasource(
+          storage: locator<KeyValueStorageDatasource<String>>(
+            instanceName: LocatorInstanceNameConstants.secureStorageDatasource,
+          ),
         ),
       ),
     );
@@ -31,7 +34,7 @@ class BtcpayLocator {
     locator.registerFactory<GetBtcpayConnectionUsecase>(
       () => GetBtcpayConnectionUsecase(
         getSettings: locator<GetSettingsUsecase>(),
-        store: locator<BtcpayConnectionStore>(),
+        connectionRepository: locator<BtcpayConnectionRepository>(),
       ),
     );
     locator.registerFactory<PreviewBtcpaySamRockPairingUsecase>(
@@ -45,7 +48,7 @@ class BtcpayLocator {
         parser: locator<SamRockPairingRequestParser>(),
         deterministicWallets: locator<DeterministicWalletsFacade>(),
         pairingService: locator<SamRockPairingServicePort>(),
-        connectionStore: locator<BtcpayConnectionStore>(),
+        connectionRepository: locator<BtcpayConnectionRepository>(),
       ),
     );
     locator.registerFactory<BtcpayPairingCubit>(

@@ -2,10 +2,10 @@ import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
-import 'package:bb_mobile/features/btcpay/application/application_errors.dart';
-import 'package:bb_mobile/features/btcpay/application/ports/btcpay_connection_store.dart';
-import 'package:bb_mobile/features/btcpay/application/ports/samrock_pairing_service_port.dart';
-import 'package:bb_mobile/features/btcpay/application/samrock_setup_payload_builder.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_error.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_connection_repository.dart';
+import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_service_port.dart';
+import 'package:bb_mobile/features/btcpay/domain/samrock_setup_payload_builder.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
@@ -16,14 +16,14 @@ class CompleteBtcpaySamRockPairingUsecase {
   final SamRockPairingRequestParser _parser;
   final DeterministicWalletsFacade _deterministicWallets;
   final SamRockPairingServicePort _pairingService;
-  final BtcpayConnectionStore _connectionStore;
+  final BtcpayConnectionRepository _connectionRepository;
 
   const CompleteBtcpaySamRockPairingUsecase({
     required this._getSettings,
     required this._parser,
     required this._deterministicWallets,
     required this._pairingService,
-    required this._connectionStore,
+    required this._connectionRepository,
   });
 
   Future<BtcpayConnection> execute({required String pairingUrl}) async {
@@ -122,7 +122,7 @@ class CompleteBtcpaySamRockPairingUsecase {
       updatedAt: pairedAt,
     );
     try {
-      await _connectionStore.saveConnection(connection);
+      await _connectionRepository.saveConnection(connection);
     } catch (e) {
       await _saveUncertainBestEffort(
         submittedConnection.copyWith(
@@ -139,7 +139,7 @@ class CompleteBtcpaySamRockPairingUsecase {
 
   Future<void> _saveUncertainBestEffort(BtcpayConnection connection) async {
     try {
-      await _connectionStore.saveConnection(
+      await _connectionRepository.saveConnection(
         connection.copyWith(status: BtcpayConnectionStatus.uncertain),
       );
     } catch (e, stack) {

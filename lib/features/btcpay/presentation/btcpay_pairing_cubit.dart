@@ -1,8 +1,8 @@
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/features/btcpay/application/application_errors.dart';
-import 'package:bb_mobile/features/btcpay/application/usecases/complete_btcpay_samrock_pairing_usecase.dart';
-import 'package:bb_mobile/features/btcpay/application/usecases/get_btcpay_connection_usecase.dart';
-import 'package:bb_mobile/features/btcpay/application/usecases/preview_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_error.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/preview_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_state.dart';

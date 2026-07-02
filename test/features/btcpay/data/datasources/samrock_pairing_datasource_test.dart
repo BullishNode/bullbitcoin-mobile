@@ -1,5 +1,5 @@
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
-import 'package:bb_mobile/features/btcpay/frameworks/datasources/samrock_pairing_datasource.dart';
+import 'package:bb_mobile/features/btcpay/data/datasources/samrock_pairing_datasource.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 

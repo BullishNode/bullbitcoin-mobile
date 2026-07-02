@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:bb_mobile/features/btcpay/application/ports/samrock_pairing_service_port.dart';
+import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_service_port.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:dio/dio.dart';
 

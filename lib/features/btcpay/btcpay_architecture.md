@@ -19,28 +19,36 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
 ## Boundaries
 
 - Settings may navigate to BTCPay through `public/btcpay_routes.dart`.
-- Settings must not import BTCPay domain, application, adapters, presentation,
-  or UI internals.
-- BTCPay pairing orchestration belongs in BTCPay application use cases under
-  `application/usecases/`.
+- Settings must not import BTCPay domain, data, presentation, or UI internals.
+- BTCPay pairing orchestration belongs in BTCPay use cases under
+  `domain/usecases/`.
 - BTCPay may consume `features/deterministic_wallets/public/` and must not
   import deterministic wallet internals.
 - BTCPay UI consumes presentation state and view models. It must not import
-  BTCPay application errors or domain entities directly.
+  BTCPay errors or domain entities directly.
 - BTCPay UI and Cubits must not create wallets, derive BIP85 material, submit
   descriptors, or decide rollback behavior directly.
-- BTCPay stores its pairing connection through the existing secure key-value
-  storage abstraction in `frameworks/datasources/`.
+- BTCPay stores its pairing connection through
+  `BtcpayConnectionRepository`, whose implementation persists a wire model
+  via the existing secure key-value storage abstraction. Datasources are
+  private members of their repository and are never reached from
+  presentation or UI.
 
 ## Layers
 
-- `domain/`: SamRock request parsing, BTCPay connection state, BTCPay wallet
-  policy constants, and network mapping.
-- `application/usecases/`: preview, connection fetch, and full SamRock pairing
+- `domain/`: SamRock request parsing, BTCPay connection entity, BTCPay wallet
+  policy constants, network mapping, the `BtcpayConnectionRepository`
+  contract, the `SamRockPairingServicePort` capability port, the SamRock
+  setup payload builder, and the sealed `BtcpayError` family in
+  `btcpay_error.dart`.
+- `domain/usecases/`: preview, connection fetch, and full SamRock pairing
   orchestration.
-- `application/ports/`: BTCPay connection storage and SamRock submission ports.
-- `frameworks/datasources/`: secure-storage connection datasource and HTTP
-  SamRock datasource.
+- `data/models/`: the `BtcpayConnectionModel` wire model owning JSON
+  encode/decode and the model <-> entity mapping.
+- `data/`: `BtcpayConnectionRepositoryImpl`, which owns its datasource and
+  maps wire models to domain entities.
+- `data/datasources/`: secure-storage connection datasource (returns wire
+  models only) and HTTP SamRock datasource.
 - `presentation/`: Cubit state, error mapping, loading/submitting/success
   states, and connection view models.
 - `ui/screens/`: settings and scanner screens.
