@@ -58,6 +58,7 @@ class PrepareDeterministicWalletsUsecase {
       final cleanupFailures = await _rollbackCreatedWallets(results);
       if (seedStoredDuringAttempt &&
           results.every((wallet) => wallet.created) &&
+          cleanupFailures.isEmpty &&
           !await _deleteChildSeed(childSeedPreview.masterFingerprint)) {
         cleanupFailures.add(childSeedPreview.masterFingerprint);
       }
@@ -84,6 +85,7 @@ class PrepareDeterministicWalletsUsecase {
   ) async {
     final cleanupFailures = await _rollbackCreatedWallets(result.wallets);
     if (result.shouldDeleteChildSeedOnRollback &&
+        cleanupFailures.isEmpty &&
         !await _deleteChildSeed(result.childSeedFingerprint)) {
       cleanupFailures.add(result.childSeedFingerprint);
     }

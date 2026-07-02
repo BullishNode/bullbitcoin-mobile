@@ -269,6 +269,54 @@ void main() {
     verify(
       () => walletRepository.deleteWallet(bitcoinWallet.walletId),
     ).called(1);
+    verifyNever(
+      () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
+    );
+  });
+
+  test('deletes child seed when automatic cleanup succeeds', () async {
+    when(
+      () => walletRepository.getMatchingWallet(
+        seedPreview: any(named: 'seedPreview'),
+        spec: request.walletSpecs.first,
+      ),
+    ).thenAnswer((_) async => null);
+    when(
+      () => walletRepository.getMatchingWallet(
+        seedPreview: any(named: 'seedPreview'),
+        spec: request.walletSpecs.last,
+      ),
+    ).thenAnswer((_) async => null);
+    when(
+      () => walletRepository.childSeedExists(childSeed.masterFingerprint),
+    ).thenAnswer((_) async => false);
+    when(
+      () => walletRepository.storeChildSeed(any()),
+    ).thenAnswer((_) async => childSeed);
+    when(
+      () => walletRepository.createWallet(
+        childSeed: any(named: 'childSeed'),
+        spec: request.walletSpecs.first,
+      ),
+    ).thenAnswer((_) async => bitcoinWallet.copyWithCreated(true));
+    when(
+      () => walletRepository.createWallet(
+        childSeed: any(named: 'childSeed'),
+        spec: request.walletSpecs.last,
+      ),
+    ).thenThrow(Exception('create failed'));
+    when(
+      () => walletRepository.deleteWallet(bitcoinWallet.walletId),
+    ).thenAnswer((_) async {});
+    when(
+      () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
+    ).thenAnswer((_) async {});
+
+    await expectLater(usecase.execute(request), throwsA(isA<Exception>()));
+
+    verify(
+      () => walletRepository.deleteWallet(bitcoinWallet.walletId),
+    ).called(1);
     verify(
       () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
     ).called(1);
@@ -314,46 +362,49 @@ void main() {
     );
   });
 
-  test('continues rollback after wallet cleanup failures', () async {
-    final result = PreparedDeterministicWallets(
-      wallets: [
-        bitcoinWallet.copyWithCreated(true),
-        liquidWallet.copyWithCreated(true),
-      ],
-      childSeedFingerprint: childSeed.masterFingerprint,
-      childSeedStoredDuringAttempt: true,
-    );
-    when(
-      () => walletRepository.deleteWallet(bitcoinWallet.walletId),
-    ).thenThrow(Exception('delete failed'));
-    when(
-      () => walletRepository.deleteWallet(liquidWallet.walletId),
-    ).thenAnswer((_) async {});
-    when(
-      () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
-    ).thenAnswer((_) async {});
+  test(
+    'keeps child seed when explicit rollback wallet cleanup fails',
+    () async {
+      final result = PreparedDeterministicWallets(
+        wallets: [
+          bitcoinWallet.copyWithCreated(true),
+          liquidWallet.copyWithCreated(true),
+        ],
+        childSeedFingerprint: childSeed.masterFingerprint,
+        childSeedStoredDuringAttempt: true,
+      );
+      when(
+        () => walletRepository.deleteWallet(bitcoinWallet.walletId),
+      ).thenThrow(Exception('delete failed'));
+      when(
+        () => walletRepository.deleteWallet(liquidWallet.walletId),
+      ).thenAnswer((_) async {});
+      when(
+        () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
+      ).thenAnswer((_) async {});
 
-    await expectLater(
-      usecase.rollbackCreatedWallets(result),
-      throwsA(
-        isA<DeterministicWalletException>().having(
-          (error) => error.type,
-          'type',
-          DeterministicWalletExceptionType.rollbackFailed,
+      await expectLater(
+        usecase.rollbackCreatedWallets(result),
+        throwsA(
+          isA<DeterministicWalletException>().having(
+            (error) => error.type,
+            'type',
+            DeterministicWalletExceptionType.rollbackFailed,
+          ),
         ),
-      ),
-    );
+      );
 
-    verify(
-      () => walletRepository.deleteWallet(bitcoinWallet.walletId),
-    ).called(1);
-    verify(
-      () => walletRepository.deleteWallet(liquidWallet.walletId),
-    ).called(1);
-    verify(
-      () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
-    ).called(1);
-  });
+      verify(
+        () => walletRepository.deleteWallet(bitcoinWallet.walletId),
+      ).called(1);
+      verify(
+        () => walletRepository.deleteWallet(liquidWallet.walletId),
+      ).called(1);
+      verifyNever(
+        () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
+      );
+    },
+  );
 }
 
 PreparedDeterministicWallet _wallet(
