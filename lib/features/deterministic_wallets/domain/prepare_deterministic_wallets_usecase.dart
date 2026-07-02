@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 
+import 'package:bb_mobile/core/bip85/domain/bip85_errors.dart';
 import 'package:bb_mobile/core/bip85/domain/derive_bip85_mnemonic_at_index_from_default_wallet_usecase.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/utils/uint_8_list_x.dart';
 import 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets.dart';
 import 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets_error.dart';
@@ -23,11 +25,16 @@ class PrepareDeterministicWalletsUsecase {
     DeterministicWalletsRequest request,
   ) async {
     _validateRequest(request);
-    final derived = await _deriveBip85.execute(
-      index: request.bip85Index,
-      alias: request.bip85Alias,
-      environment: request.environment,
-    );
+    final ({String derivation, bip39.Mnemonic mnemonic}) derived;
+    try {
+      derived = await _deriveBip85.execute(
+        index: request.bip85Index,
+        alias: request.bip85Alias,
+        environment: request.environment,
+      );
+    } on Bip85DerivationConflictException catch (e) {
+      throw DeterministicWalletException.derivationConflict(e.message);
+    }
     final childSeedPreview = _seedFromMnemonic(derived.mnemonic);
 
     final results = <PreparedDeterministicWallet>[];
@@ -160,16 +167,16 @@ class PrepareDeterministicWalletsUsecase {
   }
 
   Future<bool> _deleteChildSeed(String fingerprint) async {
-    try {
-      await _walletRepository.deleteChildSeed(fingerprint);
-      return true;
-    } catch (e, stack) {
-      log.warning(
-        'Deterministic wallet child seed rollback failed',
-        error: e,
-        trace: stack,
-      );
-      return false;
+    final result = await _walletRepository.deleteChildSeed(fingerprint);
+    switch (result) {
+      case Ok():
+        return true;
+      case Err(:final failure):
+        log.warning(
+          'Deterministic wallet child seed rollback failed',
+          error: failure,
+        );
+        return false;
     }
   }
 

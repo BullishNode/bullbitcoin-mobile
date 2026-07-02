@@ -1,5 +1,7 @@
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
+import 'package:bb_mobile/core/seed/domain/seed_failure.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_metadata_model.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
@@ -88,7 +90,7 @@ class DeterministicWalletRepositoryImpl
   }
 
   @override
-  Future<void> deleteChildSeed(String fingerprint) {
+  Future<Result<void, SeedDeleteFailure>> deleteChildSeed(String fingerprint) {
     return _seedRepository.delete(fingerprint);
   }
 

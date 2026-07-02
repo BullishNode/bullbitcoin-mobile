@@ -1,4 +1,6 @@
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
+import 'package:bb_mobile/core/seed/domain/seed_failure.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets.dart';
 
 abstract interface class DeterministicWalletRepository {
@@ -18,5 +20,5 @@ abstract interface class DeterministicWalletRepository {
 
   Future<void> deleteWallet(String walletId);
 
-  Future<void> deleteChildSeed(String fingerprint);
+  Future<Result<void, SeedDeleteFailure>> deleteChildSeed(String fingerprint);
 }

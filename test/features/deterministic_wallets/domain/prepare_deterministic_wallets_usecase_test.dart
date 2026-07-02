@@ -1,8 +1,11 @@
 import 'dart:typed_data';
 
+import 'package:bb_mobile/core/bip85/domain/bip85_errors.dart';
 import 'package:bb_mobile/core/bip85/domain/derive_bip85_mnemonic_at_index_from_default_wallet_usecase.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
+import 'package:bb_mobile/core/seed/domain/seed_failure.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/utils/uint_8_list_x.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/deterministic_wallets/domain/deterministic_wallets.dart';
@@ -155,7 +158,7 @@ void main() {
     ).thenAnswer((_) async {});
     when(
       () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((_) async => const Ok(null));
     await usecase.rollbackCreatedWallets(result);
     verify(
       () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
@@ -194,6 +197,31 @@ void main() {
       () => walletRepository.createWallet(
         childSeed: any(named: 'childSeed'),
         spec: any(named: 'spec'),
+      ),
+    );
+  });
+
+  test('maps BIP85 derivation conflicts to the feature error family', () async {
+    when(
+      () => deriveBip85.execute(
+        index: 77,
+        alias: 'Test Product',
+        environment: Environment.mainnet,
+      ),
+    ).thenThrow(
+      Bip85DerivationConflictException(
+        'BIP85 derivation already exists with a different alias',
+      ),
+    );
+
+    await expectLater(
+      usecase.execute(request),
+      throwsA(
+        isA<DeterministicWalletException>().having(
+          (error) => error.type,
+          'type',
+          DeterministicWalletExceptionType.derivationConflict,
+        ),
       ),
     );
   });
@@ -253,7 +281,7 @@ void main() {
     ).thenThrow(Exception('delete failed'));
     when(
       () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((_) async => const Ok(null));
 
     await expectLater(
       usecase.execute(request),
@@ -310,13 +338,69 @@ void main() {
     ).thenAnswer((_) async {});
     when(
       () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((_) async => const Ok(null));
 
     await expectLater(usecase.execute(request), throwsA(isA<Exception>()));
 
     verify(
       () => walletRepository.deleteWallet(bitcoinWallet.walletId),
     ).called(1);
+    verify(
+      () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
+    ).called(1);
+  });
+
+  test('surfaces rollback failure when child seed delete fails', () async {
+    when(
+      () => walletRepository.getMatchingWallet(
+        seedPreview: any(named: 'seedPreview'),
+        spec: request.walletSpecs.first,
+      ),
+    ).thenAnswer((_) async => null);
+    when(
+      () => walletRepository.getMatchingWallet(
+        seedPreview: any(named: 'seedPreview'),
+        spec: request.walletSpecs.last,
+      ),
+    ).thenAnswer((_) async => null);
+    when(
+      () => walletRepository.childSeedExists(childSeed.masterFingerprint),
+    ).thenAnswer((_) async => false);
+    when(
+      () => walletRepository.storeChildSeed(any()),
+    ).thenAnswer((_) async => childSeed);
+    when(
+      () => walletRepository.createWallet(
+        childSeed: any(named: 'childSeed'),
+        spec: request.walletSpecs.first,
+      ),
+    ).thenAnswer((_) async => bitcoinWallet.copyWithCreated(true));
+    when(
+      () => walletRepository.createWallet(
+        childSeed: any(named: 'childSeed'),
+        spec: request.walletSpecs.last,
+      ),
+    ).thenThrow(Exception('create failed'));
+    when(
+      () => walletRepository.deleteWallet(bitcoinWallet.walletId),
+    ).thenAnswer((_) async {});
+    when(
+      () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
+    ).thenAnswer((_) async => Err(SeedDeleteFailure('secure storage locked')));
+
+    // A failing child-seed delete must be surfaced as rollbackFailed, not
+    // silently swallowed as a successful cleanup.
+    await expectLater(
+      usecase.execute(request),
+      throwsA(
+        isA<DeterministicWalletException>().having(
+          (error) => error.type,
+          'type',
+          DeterministicWalletExceptionType.rollbackFailed,
+        ),
+      ),
+    );
+
     verify(
       () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
     ).called(1);
@@ -381,7 +465,7 @@ void main() {
       ).thenAnswer((_) async {});
       when(
         () => walletRepository.deleteChildSeed(childSeed.masterFingerprint),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((_) async => const Ok(null));
 
       await expectLater(
         usecase.rollbackCreatedWallets(result),

@@ -13490,6 +13490,10 @@
   "@btcpayPairNew": {
     "description": "Button text to pair another BTCPay Server"
   },
+  "deterministicWalletsGenericError": "Something went wrong preparing wallets.",
+  "@deterministicWalletsGenericError": {
+    "description": "Generic error message when deterministic wallet preparation fails"
+  },
   "exchangeSettingsDeleteAccountTitle": "Delete Account",
   "@exchangeSettingsDeleteAccountTitle": {
     "description": "Label for the delete account option in exchange settings"

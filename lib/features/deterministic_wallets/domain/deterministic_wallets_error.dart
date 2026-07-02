@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 enum DeterministicWalletExceptionType {
   invalidRequest,
   walletMismatch,
+  derivationConflict,
   rollbackFailed,
   generic,
 }
@@ -22,6 +23,10 @@ sealed class DeterministicWalletException extends BullException {
     return DeterministicWalletMismatchException(message);
   }
 
+  factory DeterministicWalletException.derivationConflict(String message) {
+    return DeterministicWalletDerivationConflictException(message);
+  }
+
   factory DeterministicWalletException.rollbackFailed() {
     return DeterministicWalletRollbackException();
   }
@@ -31,7 +36,7 @@ sealed class DeterministicWalletException extends BullException {
   }
 
   String toTranslated(BuildContext context) {
-    return context.loc.mempoolErrorUnexpected;
+    return context.loc.deterministicWalletsGenericError;
   }
 }
 
@@ -45,6 +50,12 @@ final class DeterministicWalletMismatchException
     extends DeterministicWalletException {
   DeterministicWalletMismatchException(String message)
     : super._(DeterministicWalletExceptionType.walletMismatch, message);
+}
+
+final class DeterministicWalletDerivationConflictException
+    extends DeterministicWalletException {
+  DeterministicWalletDerivationConflictException(String message)
+    : super._(DeterministicWalletExceptionType.derivationConflict, message);
 }
 
 final class DeterministicWalletRollbackException
