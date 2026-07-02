@@ -87,6 +87,7 @@ class PrepareDeterministicWalletsUsecase {
 
     return PreparedDeterministicWallets(
       wallets: results,
+      derivationPath: derived.derivation,
       parentFingerprint: derived.parentFingerprint,
       childSeedFingerprint: childSeedPreview.masterFingerprint,
       childSeedStoredDuringAttempt: seedStoredDuringAttempt,

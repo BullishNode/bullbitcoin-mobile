@@ -153,6 +153,8 @@ void main() {
     expect(_wallet(result, _bitcoinSpecId).walletId, bitcoinWallet.walletId);
     expect(_wallet(result, _liquidSpecId).walletId, liquidWallet.walletId);
     expect(result.wallets.every((wallet) => wallet.created), isTrue);
+    expect(result.derivationPath, "39'/0'/12'/77'");
+    expect(result.parentFingerprint, 'fedcba98');
     expect(result.shouldDeleteChildSeedOnRollback, isTrue);
     when(
       () => walletRepository.deleteWallet(bitcoinWallet.walletId),
@@ -458,6 +460,7 @@ void main() {
           bitcoinWallet.copyWithCreated(true),
           liquidWallet.copyWithCreated(true),
         ],
+        derivationPath: "39'/0'/12'/77'",
         parentFingerprint: 'fedcba98',
         childSeedFingerprint: childSeed.masterFingerprint,
         childSeedStoredDuringAttempt: true,
