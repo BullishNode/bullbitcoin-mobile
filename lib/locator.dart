@@ -11,6 +11,7 @@ import 'package:bb_mobile/features/autosweep/autosweep_locator.dart';
 import 'package:bb_mobile/features/autoswap/autoswap_locator.dart';
 import 'package:bb_mobile/features/backup_settings/backup_settings_locator.dart';
 import 'package:bb_mobile/features/bip85_entropy/locator.dart';
+import 'package:bb_mobile/features/bip85_registry/bip85_registry_locator.dart';
 import 'package:bb_mobile/features/bitbox/bitbox_locator.dart';
 import 'package:bb_mobile/features/bitcoin_price/bitcoin_price_locator.dart';
 import 'package:bb_mobile/features/broadcast_signed_tx/locator.dart';
@@ -85,6 +86,7 @@ class AppLocator {
     AutosweepLocator.setup(locator);
     WalletLocator.setup(locator);
     TransactionsLocator.registerAdapters(locator);
+    Bip85RegistryLocator.setup(locator);
     DeterministicWalletsLocator.setup(locator);
     BtcpayLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);

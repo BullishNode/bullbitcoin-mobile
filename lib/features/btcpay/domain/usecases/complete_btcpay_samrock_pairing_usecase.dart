@@ -29,7 +29,7 @@ class CompleteBtcpaySamRockPairingUsecase {
     required this._pairingService,
     required this._connectionRepository,
     required this._applyWalletBehaviorDefaults,
-    this._bip85Registry = const Bip85RegistryFacade(),
+    required this._bip85Registry,
   });
 
   Future<BtcpayConnection> execute({required String pairingUrl}) async {

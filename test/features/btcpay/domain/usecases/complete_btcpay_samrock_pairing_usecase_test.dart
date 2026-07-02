@@ -153,6 +153,7 @@ void main() {
         pairingService: pairingService,
         connectionRepository: connectionRepository,
         applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+        bip85Registry: const Bip85RegistryFacade(),
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
@@ -212,6 +213,7 @@ void main() {
         pairingService: pairingService,
         connectionRepository: connectionRepository,
         applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+        bip85Registry: const Bip85RegistryFacade(),
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
@@ -270,6 +272,7 @@ void main() {
       pairingService: pairingService,
       connectionRepository: connectionRepository,
       applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+      bip85Registry: const Bip85RegistryFacade(),
     );
     var saveCalls = 0;
     when(() => getSettings.execute()).thenAnswer((_) async => settings);
@@ -344,6 +347,7 @@ void main() {
         pairingService: pairingService,
         connectionRepository: connectionRepository,
         applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+        bip85Registry: const Bip85RegistryFacade(),
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
@@ -419,6 +423,7 @@ void main() {
         pairingService: pairingService,
         connectionRepository: connectionRepository,
         applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+        bip85Registry: const Bip85RegistryFacade(),
       );
       final savedConnections = <BtcpayConnection>[];
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
@@ -487,6 +492,7 @@ void main() {
       pairingService: pairingService,
       connectionRepository: connectionRepository,
       applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+      bip85Registry: const Bip85RegistryFacade(),
     );
     when(() => getSettings.execute()).thenAnswer((_) async => settings);
     when(() => deterministicWallets.prepare(any())).thenAnswer((invocation) {

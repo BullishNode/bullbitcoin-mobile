@@ -4,6 +4,7 @@ import 'package:bb_mobile/core/utils/constants.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
+import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/btcpay/data/btcpay_connection_repository_impl.dart';
 import 'package:bb_mobile/features/btcpay/data/datasources/btcpay_connection_datasource.dart';
 import 'package:bb_mobile/features/btcpay/data/datasources/samrock_pairing_datasource.dart';
@@ -60,6 +61,7 @@ class BtcpayLocator {
         connectionRepository: locator<BtcpayConnectionRepository>(),
         applyWalletBehaviorDefaults:
             locator<ApplyWalletBehaviorDefaultsUsecase>(),
+        bip85Registry: locator<Bip85RegistryFacade>(),
       ),
     );
     locator.registerFactory<BtcpayPairingCubit>(
