@@ -48,11 +48,8 @@ class KeychainManifestFacade {
       }
       return KeychainManifestFilePayload._(
         payload: const _KeychainManifestFileEncoder().encode(manifestFile),
-        entryCount: manifestFile.entries.length,
-        materializationCount: manifestFile.entries.fold<int>(
-          0,
-          (count, entry) => count + entry.materializations.length,
-        ),
+        entryCount: manifestFile.entryCount,
+        materializationCount: manifestFile.materializationCount,
         generatedAt: manifestFile.generatedAt,
         inventoryUpdatedAt: manifestFile.inventoryUpdatedAt,
       );
@@ -93,6 +90,8 @@ class _KeychainManifestFileEncoder {
       'parentFingerprint': manifestFile.parentFingerprint,
       'generatedAt': manifestFile.generatedAt,
       'inventoryUpdatedAt': manifestFile.inventoryUpdatedAt,
+      'entryCount': manifestFile.entryCount,
+      'materializationCount': manifestFile.materializationCount,
       'entries': manifestFile.entries.map(_entryToJson).toList(growable: false),
     };
   }
