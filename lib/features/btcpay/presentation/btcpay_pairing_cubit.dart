@@ -96,7 +96,7 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
       );
     } catch (e) {
       if (isClosed) return;
-      final connection = await _connectionAfterUncertainFailure(e);
+      final connection = await _connectionAfterPairingFailure();
       emit(
         state.copyWith(
           status: BtcpayPairingStatus.failure,
@@ -132,23 +132,20 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
     };
   }
 
-  Future<BtcpayConnection?> _connectionAfterUncertainFailure(
-    Object error,
-  ) async {
-    if (error case BtcpayPairingException(
-      type: BtcpayPairingExceptionType.uncertain,
-    )) {
-      try {
-        return _getConnection.execute();
-      } on Exception catch (e, stack) {
-        log.warning(
-          'Failed to load uncertain BTCPay connection',
-          error: e,
-          trace: stack,
-        );
-      }
+  /// A failed pairing attempt must not hide a connection that storage still
+  /// holds: storage only changes on success or on uncertain outcomes, so the
+  /// stored connection stays authoritative after every failure type.
+  Future<BtcpayConnection?> _connectionAfterPairingFailure() async {
+    try {
+      return await _getConnection.execute();
+    } on Exception catch (e, stack) {
+      log.warning(
+        'Failed to load stored BTCPay connection after pairing failure',
+        error: e,
+        trace: stack,
+      );
+      return null;
     }
-    return null;
   }
 
   BtcpayConnectionViewModel _connectionView(BtcpayConnection connection) {
