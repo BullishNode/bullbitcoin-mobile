@@ -384,6 +384,75 @@ void main() {
     },
   );
 
+  test(
+    'completes pairing as paired when defaults application fails',
+    () async {
+      final deterministicWallets = _MockDeterministicWalletsFacade();
+      final getSettings = _MockGetSettingsUsecase();
+      final pairingService = _MockSamRockPairingServicePort();
+      final connectionRepository = _MockBtcpayConnectionRepository();
+      final applyWalletBehaviorDefaults =
+          _MockApplyWalletBehaviorDefaultsUsecase();
+      final preparedWallets = PreparedDeterministicWallets(
+        wallets: [
+          _wallet(
+            specId: BtcpayWalletConstants.bitcoinSpecId,
+            network: Network.bitcoinMainnet,
+            externalDescriptor: 'btc-desc',
+            created: true,
+          ),
+          _wallet(
+            specId: BtcpayWalletConstants.liquidSpecId,
+            network: Network.liquidMainnet,
+            externalDescriptor: 'lbtc-desc',
+            created: true,
+          ),
+        ],
+        childSeedFingerprint: '0123abcd',
+        childSeedStoredDuringAttempt: true,
+      );
+      final usecase = CompleteBtcpaySamRockPairingUsecase(
+        getSettings: getSettings,
+        parser: const SamRockPairingRequestParser(),
+        deterministicWallets: deterministicWallets,
+        pairingService: pairingService,
+        connectionRepository: connectionRepository,
+        applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+      );
+      final savedConnections = <BtcpayConnection>[];
+      when(() => getSettings.execute()).thenAnswer((_) async => settings);
+      when(
+        () => deterministicWallets.prepare(any()),
+      ).thenAnswer((_) async => preparedWallets);
+      when(() => connectionRepository.saveConnection(any())).thenAnswer((
+        invocation,
+      ) async {
+        savedConnections.add(
+          invocation.positionalArguments.single as BtcpayConnection,
+        );
+      });
+      when(
+        () => pairingService.submitSetup(
+          request: any(named: 'request'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async => const SamRockPairingResponse(success: true));
+      when(
+        () => applyWalletBehaviorDefaults.execute(
+          walletId: any(named: 'walletId'),
+          hideOnHome: any(named: 'hideOnHome'),
+          autoSweepEnabled: any(named: 'autoSweepEnabled'),
+        ),
+      ).thenThrow(Exception('metadata store unavailable'));
+
+      final connection = await usecase.execute(pairingUrl: pairingUrl);
+
+      expect(connection.isPaired, isTrue);
+      expect(savedConnections, hasLength(1));
+      expect(savedConnections.single.status, BtcpayConnectionStatus.paired);
+    },
+  );
+
   test('prepares BTCPay wallets from the registry reservation', () async {
     final deterministicWallets = _MockDeterministicWalletsFacade();
     final getSettings = _MockGetSettingsUsecase();

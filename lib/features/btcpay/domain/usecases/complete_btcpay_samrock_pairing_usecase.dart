@@ -211,16 +211,27 @@ class CompleteBtcpaySamRockPairingUsecase {
     };
   }
 
+  /// Applies the BTCPay wallet behavior defaults best-effort: the server has
+  /// already accepted the descriptors at this point, so a local
+  /// defaults-application failure must not degrade a successful pairing.
   Future<void> _applyBtcpayWalletBehaviorDefaults(
     PreparedDeterministicWallets preparedWallets,
   ) async {
     for (final prepared in preparedWallets.wallets) {
       final network = BtcpayWalletNetwork.fromSpecId(prepared.specId);
-      await _applyWalletBehaviorDefaults.execute(
-        walletId: prepared.walletId,
-        hideOnHome: network == BtcpayWalletNetwork.liquid,
-        autoSweepEnabled: network == BtcpayWalletNetwork.liquid,
-      );
+      try {
+        await _applyWalletBehaviorDefaults.execute(
+          walletId: prepared.walletId,
+          hideOnHome: network == BtcpayWalletNetwork.liquid,
+          autoSweepEnabled: network == BtcpayWalletNetwork.liquid,
+        );
+      } catch (e, stack) {
+        log.warning(
+          'BTCPay wallet behavior defaults could not be applied',
+          error: e,
+          trace: stack,
+        );
+      }
     }
   }
 }
