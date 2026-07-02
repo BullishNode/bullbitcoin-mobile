@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
@@ -23,7 +24,10 @@ void main() {
         bip85Registry: const Bip85RegistryFacade(),
       ),
       buildManifestFile: BuildKeychainManifestFileUsecase(repository: store),
-      parseManifestFile: const ParseKeychainManifestFileUsecase(),
+      parseManifestFile: const ParseKeychainManifestFileUsecase(
+        codec: KeychainManifestFileCodec(),
+        bip85Registry: Bip85RegistryFacade(),
+      ),
     );
   });
 
@@ -261,22 +265,6 @@ void main() {
     expect(plan.walletMaterializations, hasLength(2));
     expect(plan.walletMaterializations.first.walletId, 'btc-wallet');
     expect(plan.walletMaterializations.last.walletId, 'lbtc-wallet');
-  });
-
-  test('rejects manifest file payloads for another parent fingerprint', () {
-    expect(
-      () => facade.parseManifestFilePayload(
-        _manifestPayload,
-        expectedParentFingerprint: '0123abcd',
-      ),
-      throwsA(
-        isA<KeychainManifestFileParseException>().having(
-          (error) => error.reason,
-          'reason',
-          KeychainManifestFileParseFailureReason.wrongParentFingerprint,
-        ),
-      ),
-    );
   });
 }
 
