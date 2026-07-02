@@ -16,16 +16,4 @@ class Bip85RegistryFacade {
     }
     return null;
   }
-
-  Bip85Reservation? reservationByExactPath(String path) {
-    for (final reservation in reservations) {
-      if (reservation.scope.matchesExactPath(path)) return reservation;
-    }
-    return null;
-  }
-
-  bool isExactPathReservedForManualAllocation(String path) {
-    final reservation = reservationByExactPath(path);
-    return reservation?.allocation == Bip85AllocationPolicy.blockExactPath;
-  }
 }

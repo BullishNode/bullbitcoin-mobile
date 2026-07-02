@@ -23,3 +23,11 @@ BTCPay reserves BIP85 path `39'/0'/12'/100'`, which is a BIP39 English
 Future reservations should add typed entries here only when a first-party
 feature needs a stable, blocked path. User-created ad hoc BIP85 outputs remain
 outside this registry unless they become a first-party reserved namespace.
+
+## Reservations Outside This Registry
+
+The registry currently covers BTCPay only. Ark and RecoverBull hold BIP85
+reservations outside this registry (Ark at hex application index `11811`;
+RecoverBull at application `1608'`). Before any manual or custom allocation
+feature is built on top of this registry, a collision audit against those
+external reservations is required.

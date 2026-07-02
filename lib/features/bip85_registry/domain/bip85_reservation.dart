@@ -2,22 +2,10 @@ enum Bip85ReservationOwner { btcpay }
 
 enum Bip85ReservationPurpose { walletSeed }
 
-enum Bip85AllocationPolicy { blockExactPath }
-
-enum Bip85ManifestPolicy { includeWhenMaterialized }
-
-enum Bip85NetworkFamily { bitcoin, liquid }
-
 class Bip85ApplicationSpec {
   final int number;
-  final String name;
-  final bool standard;
 
-  const Bip85ApplicationSpec({
-    required this.number,
-    required this.name,
-    required this.standard,
-  });
+  const Bip85ApplicationSpec({required this.number});
 }
 
 class Bip85PathSegment {
@@ -60,33 +48,12 @@ class Bip85ReservationScope {
   }
 }
 
-class Bip85WalletHint {
-  final String id;
-  final Bip85NetworkFamily networkFamily;
-  final String purpose;
-
-  const Bip85WalletHint({
-    required this.id,
-    required this.networkFamily,
-    required this.purpose,
-  });
-}
-
-class Bip85ReservationHints {
-  final List<Bip85WalletHint> wallets;
-
-  const Bip85ReservationHints({this.wallets = const []});
-}
-
 class Bip85Reservation {
   final String id;
   final Bip85ReservationOwner owner;
   final Bip85ReservationPurpose purpose;
   final Bip85ApplicationSpec application;
   final Bip85ReservationScope scope;
-  final Bip85AllocationPolicy allocation;
-  final Bip85ManifestPolicy manifest;
-  final Bip85ReservationHints hints;
 
   Bip85Reservation({
     required this.id,
@@ -94,9 +61,6 @@ class Bip85Reservation {
     required this.purpose,
     required this.application,
     required List<Bip85PathSegment> segments,
-    required this.allocation,
-    required this.manifest,
-    required this.hints,
   }) : scope = Bip85ReservationScope._(
          applicationNumber: application.number,
          segments: segments,
