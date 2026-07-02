@@ -580,12 +580,6 @@ void main() {
         [Network.bitcoinMainnet, Network.liquidMainnet],
       );
       expect(
-        materializations.map(
-          (materialization) => materialization.walletPurpose,
-        ),
-        [BtcpayWalletNetwork.bitcoin.name, BtcpayWalletNetwork.liquid.name],
-      );
-      expect(
         materializations.every(
           (materialization) => materialization.scriptType == ScriptType.bip84,
         ),

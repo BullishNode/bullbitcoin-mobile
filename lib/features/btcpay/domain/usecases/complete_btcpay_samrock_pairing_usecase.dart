@@ -190,12 +190,10 @@ class CompleteBtcpaySamRockPairingUsecase {
       derivationPath: preparedWallets.derivationPath,
       materializations: preparedWallets.wallets
           .map((prepared) {
-            final network = BtcpayWalletNetwork.fromSpecId(prepared.specId);
             return KeychainManifestWalletMaterializationRequest(
               walletId: prepared.walletId,
               childSeedFingerprint: preparedWallets.childSeedFingerprint,
               network: prepared.network,
-              walletPurpose: network.name,
               scriptType: prepared.scriptType,
             );
           })
