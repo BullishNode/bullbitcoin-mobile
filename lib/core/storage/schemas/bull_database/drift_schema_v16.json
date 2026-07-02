@@ -1998,16 +1998,6 @@
             "dsl_features": []
           },
           {
-            "name": "wallet_purpose",
-            "getter_name": "walletPurpose",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
             "name": "script_type",
             "getter_name": "scriptType",
             "moor_type": "string",
@@ -2048,6 +2038,145 @@
     },
     {
       "id": 15,
+      "references": [],
+      "type": "table",
+      "data": {
+        "name": "wallet_backup_states",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "id",
+            "getter_name": "id",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": "const CustomExpression('1')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "enabled",
+            "getter_name": "enabled",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"enabled\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"enabled\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "dirty",
+            "getter_name": "dirty",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"dirty\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"dirty\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "dirty_revision",
+            "getter_name": "dirtyRevision",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "last_attempted_at",
+            "getter_name": "lastAttemptedAt",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "last_succeeded_at",
+            "getter_name": "lastSucceededAt",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "remote_generation",
+            "getter_name": "remoteGeneration",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "remote_etag",
+            "getter_name": "remoteEtag",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "content_hash",
+            "getter_name": "contentHash",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "unsupported_version",
+            "getter_name": "unsupportedVersion",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "recovery_blocked",
+            "getter_name": "recoveryBlocked",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"recovery_blocked\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"recovery_blocked\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "id"
+        ]
+      }
+    },
+    {
+      "id": 16,
       "references": [],
       "type": "table",
       "data": {
@@ -2101,7 +2230,7 @@
       }
     },
     {
-      "id": 16,
+      "id": 17,
       "references": [],
       "type": "table",
       "data": {
@@ -2239,7 +2368,7 @@
       }
     },
     {
-      "id": 17,
+      "id": 18,
       "references": [],
       "type": "table",
       "data": {
@@ -2288,7 +2417,7 @@
       }
     },
     {
-      "id": 18,
+      "id": 19,
       "references": [],
       "type": "table",
       "data": {
@@ -2457,7 +2586,16 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"keychain_manifest_wallet_bindings\" (\"wallet_id\" TEXT NOT NULL, \"entry_id\" TEXT NOT NULL, \"child_seed_fingerprint\" TEXT NOT NULL, \"network\" TEXT NOT NULL, \"wallet_purpose\" TEXT NOT NULL, \"script_type\" TEXT NOT NULL, \"created_at\" INTEGER NOT NULL, \"updated_at\" INTEGER NOT NULL, PRIMARY KEY (\"wallet_id\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"keychain_manifest_wallet_bindings\" (\"wallet_id\" TEXT NOT NULL, \"entry_id\" TEXT NOT NULL, \"child_seed_fingerprint\" TEXT NOT NULL, \"network\" TEXT NOT NULL, \"script_type\" TEXT NOT NULL, \"created_at\" INTEGER NOT NULL, \"updated_at\" INTEGER NOT NULL, PRIMARY KEY (\"wallet_id\"));"
+        }
+      ]
+    },
+    {
+      "name": "wallet_backup_states",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"wallet_backup_states\" (\"id\" INTEGER NOT NULL DEFAULT 1, \"enabled\" INTEGER NOT NULL DEFAULT 0 CHECK (\"enabled\" IN (0, 1)), \"dirty\" INTEGER NOT NULL DEFAULT 0 CHECK (\"dirty\" IN (0, 1)), \"dirty_revision\" INTEGER NOT NULL DEFAULT 0, \"last_attempted_at\" INTEGER NULL, \"last_succeeded_at\" INTEGER NULL, \"remote_generation\" INTEGER NOT NULL DEFAULT 0, \"remote_etag\" TEXT NULL, \"content_hash\" TEXT NULL, \"unsupported_version\" INTEGER NULL, \"recovery_blocked\" INTEGER NOT NULL DEFAULT 0 CHECK (\"recovery_blocked\" IN (0, 1)), PRIMARY KEY (\"id\"));"
         }
       ]
     },

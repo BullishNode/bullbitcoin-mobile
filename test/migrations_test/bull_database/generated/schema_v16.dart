@@ -7809,14 +7809,6 @@ class KeychainManifestWalletBindings extends Table
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL',
   );
-  late final GeneratedColumn<String> walletPurpose = GeneratedColumn<String>(
-    'wallet_purpose',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
-  );
   late final GeneratedColumn<String> scriptType = GeneratedColumn<String>(
     'script_type',
     aliasedName,
@@ -7847,7 +7839,6 @@ class KeychainManifestWalletBindings extends Table
     entryId,
     childSeedFingerprint,
     network,
-    walletPurpose,
     scriptType,
     createdAt,
     updatedAt,
@@ -7882,10 +7873,6 @@ class KeychainManifestWalletBindings extends Table
         DriftSqlType.string,
         data['${effectivePrefix}network'],
       )!,
-      walletPurpose: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}wallet_purpose'],
-      )!,
       scriptType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}script_type'],
@@ -7918,7 +7905,6 @@ class KeychainManifestWalletBindingsData extends DataClass
   final String entryId;
   final String childSeedFingerprint;
   final String network;
-  final String walletPurpose;
   final String scriptType;
   final int createdAt;
   final int updatedAt;
@@ -7927,7 +7913,6 @@ class KeychainManifestWalletBindingsData extends DataClass
     required this.entryId,
     required this.childSeedFingerprint,
     required this.network,
-    required this.walletPurpose,
     required this.scriptType,
     required this.createdAt,
     required this.updatedAt,
@@ -7939,7 +7924,6 @@ class KeychainManifestWalletBindingsData extends DataClass
     map['entry_id'] = Variable<String>(entryId);
     map['child_seed_fingerprint'] = Variable<String>(childSeedFingerprint);
     map['network'] = Variable<String>(network);
-    map['wallet_purpose'] = Variable<String>(walletPurpose);
     map['script_type'] = Variable<String>(scriptType);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -7952,7 +7936,6 @@ class KeychainManifestWalletBindingsData extends DataClass
       entryId: Value(entryId),
       childSeedFingerprint: Value(childSeedFingerprint),
       network: Value(network),
-      walletPurpose: Value(walletPurpose),
       scriptType: Value(scriptType),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -7971,7 +7954,6 @@ class KeychainManifestWalletBindingsData extends DataClass
         json['childSeedFingerprint'],
       ),
       network: serializer.fromJson<String>(json['network']),
-      walletPurpose: serializer.fromJson<String>(json['walletPurpose']),
       scriptType: serializer.fromJson<String>(json['scriptType']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
@@ -7985,7 +7967,6 @@ class KeychainManifestWalletBindingsData extends DataClass
       'entryId': serializer.toJson<String>(entryId),
       'childSeedFingerprint': serializer.toJson<String>(childSeedFingerprint),
       'network': serializer.toJson<String>(network),
-      'walletPurpose': serializer.toJson<String>(walletPurpose),
       'scriptType': serializer.toJson<String>(scriptType),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
@@ -7997,7 +7978,6 @@ class KeychainManifestWalletBindingsData extends DataClass
     String? entryId,
     String? childSeedFingerprint,
     String? network,
-    String? walletPurpose,
     String? scriptType,
     int? createdAt,
     int? updatedAt,
@@ -8006,7 +7986,6 @@ class KeychainManifestWalletBindingsData extends DataClass
     entryId: entryId ?? this.entryId,
     childSeedFingerprint: childSeedFingerprint ?? this.childSeedFingerprint,
     network: network ?? this.network,
-    walletPurpose: walletPurpose ?? this.walletPurpose,
     scriptType: scriptType ?? this.scriptType,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -8021,9 +8000,6 @@ class KeychainManifestWalletBindingsData extends DataClass
           ? data.childSeedFingerprint.value
           : this.childSeedFingerprint,
       network: data.network.present ? data.network.value : this.network,
-      walletPurpose: data.walletPurpose.present
-          ? data.walletPurpose.value
-          : this.walletPurpose,
       scriptType: data.scriptType.present
           ? data.scriptType.value
           : this.scriptType,
@@ -8039,7 +8015,6 @@ class KeychainManifestWalletBindingsData extends DataClass
           ..write('entryId: $entryId, ')
           ..write('childSeedFingerprint: $childSeedFingerprint, ')
           ..write('network: $network, ')
-          ..write('walletPurpose: $walletPurpose, ')
           ..write('scriptType: $scriptType, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -8053,7 +8028,6 @@ class KeychainManifestWalletBindingsData extends DataClass
     entryId,
     childSeedFingerprint,
     network,
-    walletPurpose,
     scriptType,
     createdAt,
     updatedAt,
@@ -8066,7 +8040,6 @@ class KeychainManifestWalletBindingsData extends DataClass
           other.entryId == this.entryId &&
           other.childSeedFingerprint == this.childSeedFingerprint &&
           other.network == this.network &&
-          other.walletPurpose == this.walletPurpose &&
           other.scriptType == this.scriptType &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -8078,7 +8051,6 @@ class KeychainManifestWalletBindingsCompanion
   final Value<String> entryId;
   final Value<String> childSeedFingerprint;
   final Value<String> network;
-  final Value<String> walletPurpose;
   final Value<String> scriptType;
   final Value<int> createdAt;
   final Value<int> updatedAt;
@@ -8088,7 +8060,6 @@ class KeychainManifestWalletBindingsCompanion
     this.entryId = const Value.absent(),
     this.childSeedFingerprint = const Value.absent(),
     this.network = const Value.absent(),
-    this.walletPurpose = const Value.absent(),
     this.scriptType = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -8099,7 +8070,6 @@ class KeychainManifestWalletBindingsCompanion
     required String entryId,
     required String childSeedFingerprint,
     required String network,
-    required String walletPurpose,
     required String scriptType,
     required int createdAt,
     required int updatedAt,
@@ -8108,7 +8078,6 @@ class KeychainManifestWalletBindingsCompanion
        entryId = Value(entryId),
        childSeedFingerprint = Value(childSeedFingerprint),
        network = Value(network),
-       walletPurpose = Value(walletPurpose),
        scriptType = Value(scriptType),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
@@ -8117,7 +8086,6 @@ class KeychainManifestWalletBindingsCompanion
     Expression<String>? entryId,
     Expression<String>? childSeedFingerprint,
     Expression<String>? network,
-    Expression<String>? walletPurpose,
     Expression<String>? scriptType,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
@@ -8129,7 +8097,6 @@ class KeychainManifestWalletBindingsCompanion
       if (childSeedFingerprint != null)
         'child_seed_fingerprint': childSeedFingerprint,
       if (network != null) 'network': network,
-      if (walletPurpose != null) 'wallet_purpose': walletPurpose,
       if (scriptType != null) 'script_type': scriptType,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -8142,7 +8109,6 @@ class KeychainManifestWalletBindingsCompanion
     Value<String>? entryId,
     Value<String>? childSeedFingerprint,
     Value<String>? network,
-    Value<String>? walletPurpose,
     Value<String>? scriptType,
     Value<int>? createdAt,
     Value<int>? updatedAt,
@@ -8153,7 +8119,6 @@ class KeychainManifestWalletBindingsCompanion
       entryId: entryId ?? this.entryId,
       childSeedFingerprint: childSeedFingerprint ?? this.childSeedFingerprint,
       network: network ?? this.network,
-      walletPurpose: walletPurpose ?? this.walletPurpose,
       scriptType: scriptType ?? this.scriptType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -8178,9 +8143,6 @@ class KeychainManifestWalletBindingsCompanion
     if (network.present) {
       map['network'] = Variable<String>(network.value);
     }
-    if (walletPurpose.present) {
-      map['wallet_purpose'] = Variable<String>(walletPurpose.value);
-    }
     if (scriptType.present) {
       map['script_type'] = Variable<String>(scriptType.value);
     }
@@ -8203,11 +8165,574 @@ class KeychainManifestWalletBindingsCompanion
           ..write('entryId: $entryId, ')
           ..write('childSeedFingerprint: $childSeedFingerprint, ')
           ..write('network: $network, ')
-          ..write('walletPurpose: $walletPurpose, ')
           ..write('scriptType: $scriptType, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class WalletBackupStates extends Table
+    with TableInfo<WalletBackupStates, WalletBackupStatesData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  WalletBackupStates(this.attachedDatabase, [this._alias]);
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 1',
+    defaultValue: const CustomExpression('1'),
+  );
+  late final GeneratedColumn<int> enabled = GeneratedColumn<int>(
+    'enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
+  late final GeneratedColumn<int> dirty = GeneratedColumn<int>(
+    'dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (dirty IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
+  late final GeneratedColumn<int> dirtyRevision = GeneratedColumn<int>(
+    'dirty_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
+  late final GeneratedColumn<int> lastAttemptedAt = GeneratedColumn<int>(
+    'last_attempted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
+  late final GeneratedColumn<int> lastSucceededAt = GeneratedColumn<int>(
+    'last_succeeded_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
+  late final GeneratedColumn<int> remoteGeneration = GeneratedColumn<int>(
+    'remote_generation',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
+  late final GeneratedColumn<String> remoteEtag = GeneratedColumn<String>(
+    'remote_etag',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
+  late final GeneratedColumn<int> unsupportedVersion = GeneratedColumn<int>(
+    'unsupported_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
+  late final GeneratedColumn<int> recoveryBlocked = GeneratedColumn<int>(
+    'recovery_blocked',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (recovery_blocked IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    enabled,
+    dirty,
+    dirtyRevision,
+    lastAttemptedAt,
+    lastSucceededAt,
+    remoteGeneration,
+    remoteEtag,
+    contentHash,
+    unsupportedVersion,
+    recoveryBlocked,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'wallet_backup_states';
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WalletBackupStatesData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WalletBackupStatesData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      enabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}enabled'],
+      )!,
+      dirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}dirty'],
+      )!,
+      dirtyRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}dirty_revision'],
+      )!,
+      lastAttemptedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_attempted_at'],
+      ),
+      lastSucceededAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_succeeded_at'],
+      ),
+      remoteGeneration: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_generation'],
+      )!,
+      remoteEtag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_etag'],
+      ),
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      ),
+      unsupportedVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}unsupported_version'],
+      ),
+      recoveryBlocked: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}recovery_blocked'],
+      )!,
+    );
+  }
+
+  @override
+  WalletBackupStates createAlias(String alias) {
+    return WalletBackupStates(attachedDatabase, alias);
+  }
+
+  @override
+  List<String> get customConstraints => const ['PRIMARY KEY(id)'];
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class WalletBackupStatesData extends DataClass
+    implements Insertable<WalletBackupStatesData> {
+  final int id;
+  final int enabled;
+  final int dirty;
+  final int dirtyRevision;
+  final int? lastAttemptedAt;
+  final int? lastSucceededAt;
+  final int remoteGeneration;
+  final String? remoteEtag;
+  final String? contentHash;
+  final int? unsupportedVersion;
+  final int recoveryBlocked;
+  const WalletBackupStatesData({
+    required this.id,
+    required this.enabled,
+    required this.dirty,
+    required this.dirtyRevision,
+    this.lastAttemptedAt,
+    this.lastSucceededAt,
+    required this.remoteGeneration,
+    this.remoteEtag,
+    this.contentHash,
+    this.unsupportedVersion,
+    required this.recoveryBlocked,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['enabled'] = Variable<int>(enabled);
+    map['dirty'] = Variable<int>(dirty);
+    map['dirty_revision'] = Variable<int>(dirtyRevision);
+    if (!nullToAbsent || lastAttemptedAt != null) {
+      map['last_attempted_at'] = Variable<int>(lastAttemptedAt);
+    }
+    if (!nullToAbsent || lastSucceededAt != null) {
+      map['last_succeeded_at'] = Variable<int>(lastSucceededAt);
+    }
+    map['remote_generation'] = Variable<int>(remoteGeneration);
+    if (!nullToAbsent || remoteEtag != null) {
+      map['remote_etag'] = Variable<String>(remoteEtag);
+    }
+    if (!nullToAbsent || contentHash != null) {
+      map['content_hash'] = Variable<String>(contentHash);
+    }
+    if (!nullToAbsent || unsupportedVersion != null) {
+      map['unsupported_version'] = Variable<int>(unsupportedVersion);
+    }
+    map['recovery_blocked'] = Variable<int>(recoveryBlocked);
+    return map;
+  }
+
+  WalletBackupStatesCompanion toCompanion(bool nullToAbsent) {
+    return WalletBackupStatesCompanion(
+      id: Value(id),
+      enabled: Value(enabled),
+      dirty: Value(dirty),
+      dirtyRevision: Value(dirtyRevision),
+      lastAttemptedAt: lastAttemptedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastAttemptedAt),
+      lastSucceededAt: lastSucceededAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSucceededAt),
+      remoteGeneration: Value(remoteGeneration),
+      remoteEtag: remoteEtag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteEtag),
+      contentHash: contentHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contentHash),
+      unsupportedVersion: unsupportedVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(unsupportedVersion),
+      recoveryBlocked: Value(recoveryBlocked),
+    );
+  }
+
+  factory WalletBackupStatesData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WalletBackupStatesData(
+      id: serializer.fromJson<int>(json['id']),
+      enabled: serializer.fromJson<int>(json['enabled']),
+      dirty: serializer.fromJson<int>(json['dirty']),
+      dirtyRevision: serializer.fromJson<int>(json['dirtyRevision']),
+      lastAttemptedAt: serializer.fromJson<int?>(json['lastAttemptedAt']),
+      lastSucceededAt: serializer.fromJson<int?>(json['lastSucceededAt']),
+      remoteGeneration: serializer.fromJson<int>(json['remoteGeneration']),
+      remoteEtag: serializer.fromJson<String?>(json['remoteEtag']),
+      contentHash: serializer.fromJson<String?>(json['contentHash']),
+      unsupportedVersion: serializer.fromJson<int?>(json['unsupportedVersion']),
+      recoveryBlocked: serializer.fromJson<int>(json['recoveryBlocked']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'enabled': serializer.toJson<int>(enabled),
+      'dirty': serializer.toJson<int>(dirty),
+      'dirtyRevision': serializer.toJson<int>(dirtyRevision),
+      'lastAttemptedAt': serializer.toJson<int?>(lastAttemptedAt),
+      'lastSucceededAt': serializer.toJson<int?>(lastSucceededAt),
+      'remoteGeneration': serializer.toJson<int>(remoteGeneration),
+      'remoteEtag': serializer.toJson<String?>(remoteEtag),
+      'contentHash': serializer.toJson<String?>(contentHash),
+      'unsupportedVersion': serializer.toJson<int?>(unsupportedVersion),
+      'recoveryBlocked': serializer.toJson<int>(recoveryBlocked),
+    };
+  }
+
+  WalletBackupStatesData copyWith({
+    int? id,
+    int? enabled,
+    int? dirty,
+    int? dirtyRevision,
+    Value<int?> lastAttemptedAt = const Value.absent(),
+    Value<int?> lastSucceededAt = const Value.absent(),
+    int? remoteGeneration,
+    Value<String?> remoteEtag = const Value.absent(),
+    Value<String?> contentHash = const Value.absent(),
+    Value<int?> unsupportedVersion = const Value.absent(),
+    int? recoveryBlocked,
+  }) => WalletBackupStatesData(
+    id: id ?? this.id,
+    enabled: enabled ?? this.enabled,
+    dirty: dirty ?? this.dirty,
+    dirtyRevision: dirtyRevision ?? this.dirtyRevision,
+    lastAttemptedAt: lastAttemptedAt.present
+        ? lastAttemptedAt.value
+        : this.lastAttemptedAt,
+    lastSucceededAt: lastSucceededAt.present
+        ? lastSucceededAt.value
+        : this.lastSucceededAt,
+    remoteGeneration: remoteGeneration ?? this.remoteGeneration,
+    remoteEtag: remoteEtag.present ? remoteEtag.value : this.remoteEtag,
+    contentHash: contentHash.present ? contentHash.value : this.contentHash,
+    unsupportedVersion: unsupportedVersion.present
+        ? unsupportedVersion.value
+        : this.unsupportedVersion,
+    recoveryBlocked: recoveryBlocked ?? this.recoveryBlocked,
+  );
+  WalletBackupStatesData copyWithCompanion(WalletBackupStatesCompanion data) {
+    return WalletBackupStatesData(
+      id: data.id.present ? data.id.value : this.id,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      dirty: data.dirty.present ? data.dirty.value : this.dirty,
+      dirtyRevision: data.dirtyRevision.present
+          ? data.dirtyRevision.value
+          : this.dirtyRevision,
+      lastAttemptedAt: data.lastAttemptedAt.present
+          ? data.lastAttemptedAt.value
+          : this.lastAttemptedAt,
+      lastSucceededAt: data.lastSucceededAt.present
+          ? data.lastSucceededAt.value
+          : this.lastSucceededAt,
+      remoteGeneration: data.remoteGeneration.present
+          ? data.remoteGeneration.value
+          : this.remoteGeneration,
+      remoteEtag: data.remoteEtag.present
+          ? data.remoteEtag.value
+          : this.remoteEtag,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
+      unsupportedVersion: data.unsupportedVersion.present
+          ? data.unsupportedVersion.value
+          : this.unsupportedVersion,
+      recoveryBlocked: data.recoveryBlocked.present
+          ? data.recoveryBlocked.value
+          : this.recoveryBlocked,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WalletBackupStatesData(')
+          ..write('id: $id, ')
+          ..write('enabled: $enabled, ')
+          ..write('dirty: $dirty, ')
+          ..write('dirtyRevision: $dirtyRevision, ')
+          ..write('lastAttemptedAt: $lastAttemptedAt, ')
+          ..write('lastSucceededAt: $lastSucceededAt, ')
+          ..write('remoteGeneration: $remoteGeneration, ')
+          ..write('remoteEtag: $remoteEtag, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('unsupportedVersion: $unsupportedVersion, ')
+          ..write('recoveryBlocked: $recoveryBlocked')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    enabled,
+    dirty,
+    dirtyRevision,
+    lastAttemptedAt,
+    lastSucceededAt,
+    remoteGeneration,
+    remoteEtag,
+    contentHash,
+    unsupportedVersion,
+    recoveryBlocked,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WalletBackupStatesData &&
+          other.id == this.id &&
+          other.enabled == this.enabled &&
+          other.dirty == this.dirty &&
+          other.dirtyRevision == this.dirtyRevision &&
+          other.lastAttemptedAt == this.lastAttemptedAt &&
+          other.lastSucceededAt == this.lastSucceededAt &&
+          other.remoteGeneration == this.remoteGeneration &&
+          other.remoteEtag == this.remoteEtag &&
+          other.contentHash == this.contentHash &&
+          other.unsupportedVersion == this.unsupportedVersion &&
+          other.recoveryBlocked == this.recoveryBlocked);
+}
+
+class WalletBackupStatesCompanion
+    extends UpdateCompanion<WalletBackupStatesData> {
+  final Value<int> id;
+  final Value<int> enabled;
+  final Value<int> dirty;
+  final Value<int> dirtyRevision;
+  final Value<int?> lastAttemptedAt;
+  final Value<int?> lastSucceededAt;
+  final Value<int> remoteGeneration;
+  final Value<String?> remoteEtag;
+  final Value<String?> contentHash;
+  final Value<int?> unsupportedVersion;
+  final Value<int> recoveryBlocked;
+  const WalletBackupStatesCompanion({
+    this.id = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.dirtyRevision = const Value.absent(),
+    this.lastAttemptedAt = const Value.absent(),
+    this.lastSucceededAt = const Value.absent(),
+    this.remoteGeneration = const Value.absent(),
+    this.remoteEtag = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.unsupportedVersion = const Value.absent(),
+    this.recoveryBlocked = const Value.absent(),
+  });
+  WalletBackupStatesCompanion.insert({
+    this.id = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.dirtyRevision = const Value.absent(),
+    this.lastAttemptedAt = const Value.absent(),
+    this.lastSucceededAt = const Value.absent(),
+    this.remoteGeneration = const Value.absent(),
+    this.remoteEtag = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.unsupportedVersion = const Value.absent(),
+    this.recoveryBlocked = const Value.absent(),
+  });
+  static Insertable<WalletBackupStatesData> custom({
+    Expression<int>? id,
+    Expression<int>? enabled,
+    Expression<int>? dirty,
+    Expression<int>? dirtyRevision,
+    Expression<int>? lastAttemptedAt,
+    Expression<int>? lastSucceededAt,
+    Expression<int>? remoteGeneration,
+    Expression<String>? remoteEtag,
+    Expression<String>? contentHash,
+    Expression<int>? unsupportedVersion,
+    Expression<int>? recoveryBlocked,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (enabled != null) 'enabled': enabled,
+      if (dirty != null) 'dirty': dirty,
+      if (dirtyRevision != null) 'dirty_revision': dirtyRevision,
+      if (lastAttemptedAt != null) 'last_attempted_at': lastAttemptedAt,
+      if (lastSucceededAt != null) 'last_succeeded_at': lastSucceededAt,
+      if (remoteGeneration != null) 'remote_generation': remoteGeneration,
+      if (remoteEtag != null) 'remote_etag': remoteEtag,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (unsupportedVersion != null) 'unsupported_version': unsupportedVersion,
+      if (recoveryBlocked != null) 'recovery_blocked': recoveryBlocked,
+    });
+  }
+
+  WalletBackupStatesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? enabled,
+    Value<int>? dirty,
+    Value<int>? dirtyRevision,
+    Value<int?>? lastAttemptedAt,
+    Value<int?>? lastSucceededAt,
+    Value<int>? remoteGeneration,
+    Value<String?>? remoteEtag,
+    Value<String?>? contentHash,
+    Value<int?>? unsupportedVersion,
+    Value<int>? recoveryBlocked,
+  }) {
+    return WalletBackupStatesCompanion(
+      id: id ?? this.id,
+      enabled: enabled ?? this.enabled,
+      dirty: dirty ?? this.dirty,
+      dirtyRevision: dirtyRevision ?? this.dirtyRevision,
+      lastAttemptedAt: lastAttemptedAt ?? this.lastAttemptedAt,
+      lastSucceededAt: lastSucceededAt ?? this.lastSucceededAt,
+      remoteGeneration: remoteGeneration ?? this.remoteGeneration,
+      remoteEtag: remoteEtag ?? this.remoteEtag,
+      contentHash: contentHash ?? this.contentHash,
+      unsupportedVersion: unsupportedVersion ?? this.unsupportedVersion,
+      recoveryBlocked: recoveryBlocked ?? this.recoveryBlocked,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<int>(enabled.value);
+    }
+    if (dirty.present) {
+      map['dirty'] = Variable<int>(dirty.value);
+    }
+    if (dirtyRevision.present) {
+      map['dirty_revision'] = Variable<int>(dirtyRevision.value);
+    }
+    if (lastAttemptedAt.present) {
+      map['last_attempted_at'] = Variable<int>(lastAttemptedAt.value);
+    }
+    if (lastSucceededAt.present) {
+      map['last_succeeded_at'] = Variable<int>(lastSucceededAt.value);
+    }
+    if (remoteGeneration.present) {
+      map['remote_generation'] = Variable<int>(remoteGeneration.value);
+    }
+    if (remoteEtag.present) {
+      map['remote_etag'] = Variable<String>(remoteEtag.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (unsupportedVersion.present) {
+      map['unsupported_version'] = Variable<int>(unsupportedVersion.value);
+    }
+    if (recoveryBlocked.present) {
+      map['recovery_blocked'] = Variable<int>(recoveryBlocked.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WalletBackupStatesCompanion(')
+          ..write('id: $id, ')
+          ..write('enabled: $enabled, ')
+          ..write('dirty: $dirty, ')
+          ..write('dirtyRevision: $dirtyRevision, ')
+          ..write('lastAttemptedAt: $lastAttemptedAt, ')
+          ..write('lastSucceededAt: $lastSucceededAt, ')
+          ..write('remoteGeneration: $remoteGeneration, ')
+          ..write('remoteEtag: $remoteEtag, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('unsupportedVersion: $unsupportedVersion, ')
+          ..write('recoveryBlocked: $recoveryBlocked')
           ..write(')'))
         .toString();
   }
@@ -9446,6 +9971,7 @@ class DatabaseAtV16 extends GeneratedDatabase {
       KeychainManifestEntries(this);
   late final KeychainManifestWalletBindings keychainManifestWalletBindings =
       KeychainManifestWalletBindings(this);
+  late final WalletBackupStates walletBackupStates = WalletBackupStates(this);
   late final Recoverbull recoverbull = Recoverbull(this);
   late final Prices prices = Prices(this);
   late final FrozenUtxos frozenUtxos = FrozenUtxos(this);
@@ -9471,6 +9997,7 @@ class DatabaseAtV16 extends GeneratedDatabase {
     bip85Derivations,
     keychainManifestEntries,
     keychainManifestWalletBindings,
+    walletBackupStates,
     recoverbull,
     prices,
     frozenUtxos,

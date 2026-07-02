@@ -7588,7 +7588,6 @@ final class Schema16 extends i0.VersionedSchema {
         _column_259,
         _column_182,
         _column_260,
-        _column_261,
         _column_165,
         _column_258,
       ],
@@ -7763,8 +7762,6 @@ class Shape46 extends i0.VersionedTable {
       columnsByName['child_seed_fingerprint']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<String> get network =>
       columnsByName['network']! as i1.GeneratedColumn<String>;
-  i1.GeneratedColumn<String> get walletPurpose =>
-      columnsByName['wallet_purpose']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<String> get scriptType =>
       columnsByName['script_type']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<int> get createdAt =>
@@ -7782,14 +7779,6 @@ i1.GeneratedColumn<String> _column_259(String aliasedName) =>
       $customConstraints: 'NOT NULL',
     );
 i1.GeneratedColumn<String> _column_260(String aliasedName) =>
-    i1.GeneratedColumn<String>(
-      'wallet_purpose',
-      aliasedName,
-      false,
-      type: i1.DriftSqlType.string,
-      $customConstraints: 'NOT NULL',
-    );
-i1.GeneratedColumn<String> _column_261(String aliasedName) =>
     i1.GeneratedColumn<String>(
       'script_type',
       aliasedName,
