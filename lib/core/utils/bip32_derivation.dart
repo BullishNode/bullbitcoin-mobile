@@ -30,6 +30,15 @@ class Bip32Derivation {
     return root.toBase58();
   }
 
+  /// Serializes the root key with canonical xprv version bytes.
+  ///
+  /// BIP85 application derivations are seed-bound, not Bitcoin-network-bound.
+  /// Their parsers therefore consume the same canonical root xprv on mainnet
+  /// and testnet instead of a testnet tprv serialization.
+  static String getCanonicalRootXprvFromSeed(Uint8List seedBytes) {
+    return bip32.Bip32Keys.fromSeed(seedBytes).toBase58();
+  }
+
   static bip32.Bip32Keys getBip32Xpub(String xpub) {
     final decoded = base58.decode(xpub);
     final keyBytes = decoded.sublist(4); // Remove xpub version bytes
