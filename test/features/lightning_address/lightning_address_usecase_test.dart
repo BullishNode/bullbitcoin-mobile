@@ -85,6 +85,7 @@ void main() {
       bullnym.lookupResult = const BullnymLookupResult(
         nym: 'alice',
         active: true,
+        lightningAddress: 'alice@bullpay.ca',
       );
       final usecase = LookupLightningAddressRegistrationUsecase(bullnym);
       final npubHex = nostrIdentity.deriveBullnymServerAuthPublicKeyFromXprv(
@@ -95,6 +96,7 @@ void main() {
 
       expect(status.active, true);
       expect(status.nym, 'alice');
+      expect(status.lightningAddress, 'alice@bullpay.ca');
       expect(bullnym.lookupNpubHex, npubHex);
     },
   );
@@ -115,6 +117,7 @@ void main() {
 
       expect(status.active, false);
       expect(status.nym, 'alice');
+      expect(status.lightningAddress, isNull);
     },
   );
 
