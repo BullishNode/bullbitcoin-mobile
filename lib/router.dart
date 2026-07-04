@@ -29,6 +29,7 @@ import 'package:bb_mobile/features/psbt_flow/psbt_router.dart';
 import 'package:bb_mobile/features/receive/ui/receive_router.dart';
 import 'package:bb_mobile/features/recoverbull/router.dart';
 import 'package:bb_mobile/features/recoverbull_google_drive/router.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_routes.dart';
 import 'package:bb_mobile/features/replace_by_fee/router.dart';
 import 'package:bb_mobile/features/sell/ui/sell_router.dart';
 import 'package:bb_mobile/features/send/ui/send_router.dart';
@@ -177,6 +178,7 @@ class AppRouter {
       ArkRouter.route,
       ...ImportQrDeviceRouter.routes,
       RecoverBullRouter.route,
+      RemoteKeychainRecoveryRoutes.route,
       RecoverBullGoogleDriveRouter.route,
       LabelsRouter.route,
       StatusCheckRouter.route,

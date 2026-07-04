@@ -6,7 +6,7 @@ import 'package:bb_mobile/core/widgets/loading/fading_linear_progress.dart';
 import 'package:bb_mobile/core/widgets/mnemonic_widget.dart';
 import 'package:bb_mobile/features/onboarding/presentation/bloc/onboarding_bloc.dart';
 import 'package:bb_mobile/features/onboarding/ui/widgets/app_bar.dart';
-import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_routes.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -41,7 +41,13 @@ class _OnboardingPhysicalRecoveryState extends State<OnboardingPhysicalRecovery>
           listener: (context, state) {
             if (state.step == OnboardingStep.recover &&
                 state.onboardingStepStatus == OnboardingStepStatus.success) {
-              context.goNamed(WalletRoute.walletHome.name);
+              // Route through Get Paid recovery so a recovered wallet also
+              // recovers its Get Paid wallets (the locked consent promise). The
+              // recovery screen exits to wallet home on every terminal path.
+              context.goNamed(
+                RemoteKeychainRecoveryRoute.getPaidRecovery.name,
+                queryParameters: const {'from': 'onboarding'},
+              );
             }
           },
           child: BlocBuilder<OnboardingBloc, OnboardingState>(

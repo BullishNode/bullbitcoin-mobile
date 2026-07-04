@@ -1,8 +1,12 @@
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/presentation/get_paid_settings_cubit.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_cubit.dart';
 import 'package:bb_mobile/features/bip85_entropy/router.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
@@ -36,6 +40,13 @@ Future<void> main({bool isInitialized = false}) async {
     expect(() => locator<DeterministicWalletsFacade>(), returnsNormally);
     expect(() => locator<WalletRepository>(), returnsNormally);
     expect(() => locator<SettingsCubit>(), returnsNormally);
+    // PR23 wiring (R2-AD10b): the Get Paid settings + remote recovery graphs
+    // resolve once, and the Lightning Address facade now carries the heal
+    // method.
+    expect(() => locator<GetPaidSettingsFacade>(), returnsNormally);
+    expect(() => locator<GetPaidSettingsCubit>(), returnsNormally);
+    expect(() => locator<LightningAddressFacade>(), returnsNormally);
+    expect(() => locator<RemoteKeychainRecoveryCubit>(), returnsNormally);
   });
 
   test('the app router graph constructs against the booted locator', () {
