@@ -4868,6 +4868,26 @@
   "@getPaidSettingsGenericError": {
     "description": "Generic Get Paid settings failure message"
   },
+  "getPaidAutomatedBackupConsentTitle": "Automated backup",
+  "@getPaidAutomatedBackupConsentTitle": {
+    "description": "Title of the automated backup consent dialog"
+  },
+  "getPaidAutomatedBackupConsentBody": "An encrypted backup of your wallet metadata will be created and published anonymously on NOSTR so that when you recover your wallet, the BULL app will automatically recover your Get Paid wallet. Your private keys never leave the device. This is highly recommended and does not compromise your privacy or security.",
+  "@getPaidAutomatedBackupConsentBody": {
+    "description": "Locked consent body shown before the first Get Paid wallet creation"
+  },
+  "getPaidAutomatedBackupToggleLabel": "Automated backup",
+  "@getPaidAutomatedBackupToggleLabel": {
+    "description": "Label for the automated backup toggle"
+  },
+  "getPaidAutomatedBackupConsentContinue": "Continue",
+  "@getPaidAutomatedBackupConsentContinue": {
+    "description": "Continue action on the automated backup consent dialog"
+  },
+  "getPaidAutomatedBackupOffWarning": "You will need to manually re-enable the Get Paid feature you are activating now to recover funds you received with this feature.",
+  "@getPaidAutomatedBackupOffWarning": {
+    "description": "Locked warning shown while the automated backup toggle is off"
+  },
   "dcaSetRecurringBuyTitle": "Set Recurring Buy",
   "@dcaSetRecurringBuyTitle": {
     "description": "AppBar title for the main DCA setup screen"
