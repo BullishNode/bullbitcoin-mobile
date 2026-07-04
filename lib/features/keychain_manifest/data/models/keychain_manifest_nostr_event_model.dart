@@ -46,13 +46,11 @@ class KeychainManifestNostrSnapshotCodec {
         contentType: contentType,
         manifestFile: manifestFile,
       );
-    } on KeychainManifestNostrEventException {
+    } on KeychainManifestException {
+      // Nostr-envelope shape errors and inner manifest-file parse errors are
+      // both sealed-family exceptions now (I13); propagate them unchanged
+      // instead of re-wrapping a sealed error into a standalone one.
       rethrow;
-    } on KeychainManifestException catch (e) {
-      throw KeychainManifestNostrEventException(
-        'keychain manifest Nostr snapshot manifest file is invalid',
-        cause: e,
-      );
     } on FormatException catch (e) {
       throw KeychainManifestNostrEventException(
         'keychain manifest Nostr snapshot is malformed',

@@ -1,8 +1,17 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_event_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// A base64 blob just long enough to pass the ciphertext length gate.
+final _wellShapedCiphertext = base64.encode(
+  Uint8List(KeychainManifestNostrCiphertext.minimumByteLength),
+);
 
 void main() {
   const codec = KeychainManifestNostrSnapshotCodec();
@@ -58,7 +67,10 @@ void main() {
     );
   });
 
-  test('wraps invalid nested manifest files as Nostr snapshot failures', () {
+  test('propagates invalid nested manifest file errors unchanged', () {
+    // I13: the inner manifest-file parse error is already a sealed-family
+    // exception, so the codec must let it propagate rather than re-wrap a
+    // sealed error into a standalone one and hide its meaning.
     final payload = _nostrSnapshotPayload.replaceFirst(
       '"manifestFile":{"version":1',
       '"manifestFile":{"version":2',
@@ -66,13 +78,7 @@ void main() {
 
     expect(
       () => codec.decode(payload),
-      throwsA(
-        isA<KeychainManifestNostrEventException>().having(
-          (error) => error.cause,
-          'cause',
-          isA<KeychainManifestUnsupportedVersionException>(),
-        ),
-      ),
+      throwsA(isA<KeychainManifestUnsupportedVersionException>()),
     );
   });
 
@@ -80,7 +86,7 @@ void main() {
     final event = KeychainManifestNostrEventDraft(
       authorPublicKeyHex:
           'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      encryptedContent: 'encrypted-payload',
+      encryptedContent: KeychainManifestNostrCiphertext(_wellShapedCiphertext),
       createdAt: 123,
     );
 
@@ -92,14 +98,16 @@ void main() {
       event.tags.expand((tag) => tag),
       isNot(contains(keychainManifestNostrSnapshotContentType)),
     );
-    expect(event.encryptedContent, 'encrypted-payload');
+    expect(event.encryptedContent.value, _wellShapedCiphertext);
   });
 
-  test('validates event author, content, and timestamp', () {
+  test('validates event author and timestamp', () {
     expect(
       () => KeychainManifestNostrEventDraft(
         authorPublicKeyHex: 'not-a-key',
-        encryptedContent: 'encrypted-payload',
+        encryptedContent: KeychainManifestNostrCiphertext(
+          _wellShapedCiphertext,
+        ),
         createdAt: 123,
       ),
       throwsA(isA<KeychainManifestNostrEventException>()),
@@ -108,20 +116,57 @@ void main() {
       () => KeychainManifestNostrEventDraft(
         authorPublicKeyHex:
             'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        encryptedContent: ' ',
-        createdAt: 123,
-      ),
-      throwsA(isA<KeychainManifestNostrEventException>()),
-    );
-    expect(
-      () => KeychainManifestNostrEventDraft(
-        authorPublicKeyHex:
-            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        encryptedContent: 'encrypted-payload',
+        encryptedContent: KeychainManifestNostrCiphertext(
+          _wellShapedCiphertext,
+        ),
         createdAt: -1,
       ),
       throwsA(isA<KeychainManifestNostrEventException>()),
     );
+  });
+
+  group('KeychainManifestNostrCiphertext', () {
+    test('accepts a well-shaped ciphertext blob', () {
+      final ciphertext = KeychainManifestNostrCiphertext(_wellShapedCiphertext);
+
+      expect(ciphertext.value, _wellShapedCiphertext);
+    });
+
+    test('rejects the plaintext snapshot codec output', () {
+      // AD-5: the exact plaintext the snapshot codec produces must never pass
+      // as ciphertext - it is JSON, not base64.
+      final plaintextSnapshot = codec.encode(
+        KeychainManifestNostrSnapshot(manifestFile: _manifestFile()),
+      );
+
+      expect(
+        () => KeychainManifestNostrCiphertext(plaintextSnapshot),
+        throwsA(isA<KeychainManifestNostrEventException>()),
+      );
+    });
+
+    test('rejects arbitrary JSON', () {
+      expect(
+        () => KeychainManifestNostrCiphertext('{"foo":"bar"}'),
+        throwsA(isA<KeychainManifestNostrEventException>()),
+      );
+    });
+
+    test('rejects blank content', () {
+      expect(
+        () => KeychainManifestNostrCiphertext('   '),
+        throwsA(isA<KeychainManifestNostrEventException>()),
+      );
+    });
+
+    test('rejects a base64 blob shorter than a ciphertext', () {
+      final tooShort = base64.encode(Uint8List(32));
+
+      expect(
+        () => KeychainManifestNostrCiphertext(tooShort),
+        throwsA(isA<KeychainManifestNostrEventException>()),
+      );
+    });
   });
 }
 
