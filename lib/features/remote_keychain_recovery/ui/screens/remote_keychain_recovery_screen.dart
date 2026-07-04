@@ -149,7 +149,12 @@ class _RemoteKeychainRecoveryScreenState
         actionLabel: context.loc.remoteKeychainRecoveryRetryAction,
         onAction: cubit.start,
       ),
-      RemoteKeychainRecoveryStatus.skipped => _progress(context, ''),
+      RemoteKeychainRecoveryStatus.skipped => _message(
+        context,
+        context.loc.remoteKeychainRecoverySkipped,
+        actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
+        onAction: _exit,
+      ),
     };
   }
 
