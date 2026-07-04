@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 
 class CompleteBtcpaySamRockPairingUsecase {
@@ -23,6 +24,7 @@ class CompleteBtcpaySamRockPairingUsecase {
   final ApplyWalletBehaviorDefaultsUsecase _applyWalletBehaviorDefaults;
   final Bip85RegistryFacade _bip85Registry;
   final KeychainManifestFacade _keychainManifest;
+  final GetPaidSettingsFacade _getPaidSettings;
 
   const CompleteBtcpaySamRockPairingUsecase({
     required this._getSettings,
@@ -33,6 +35,7 @@ class CompleteBtcpaySamRockPairingUsecase {
     required this._applyWalletBehaviorDefaults,
     required this._bip85Registry,
     required this._keychainManifest,
+    required this._getPaidSettings,
   });
 
   Future<BtcpayConnection> execute({required String pairingUrl}) async {
@@ -44,110 +47,122 @@ class CompleteBtcpaySamRockPairingUsecase {
     }
 
     var submitAttempted = false;
+    var manifestRecorded = false;
     PreparedDeterministicWallets? preparedWallets;
     BtcpayConnection? submittedConnection;
     try {
-      final settings = await _getSettings.execute();
-      preparedWallets = await _deterministicWallets.prepare(
-        _btcpayWalletsRequest(settings.environment),
-      );
-      await _recordBtcpayKeychainManifestEntries(preparedWallets);
+      try {
+        final settings = await _getSettings.execute();
+        preparedWallets = await _deterministicWallets.prepare(
+          _btcpayWalletsRequest(settings.environment),
+        );
+        await _recordBtcpayKeychainManifestEntries(preparedWallets);
+        // The manifest record is durable from here: even when pairing later
+        // fails (wallets are kept for retry / uncertain), funds can arrive, so
+        // the backup snapshot must publish on every path that recorded. The
+        // finally publishes best-effort (it can never change this outcome).
+        manifestRecorded = true;
 
-      final payload = const SamRockSetupPayloadBuilder().build(
-        request: request,
-        preparedWallets: preparedWallets,
-      );
+        final payload = const SamRockSetupPayloadBuilder().build(
+          request: request,
+          preparedWallets: preparedWallets,
+        );
 
-      final now = DateTime.now().toUtc();
-      submittedConnection = BtcpayConnection.fromPairing(
-        environment: settings.environment,
+        final now = DateTime.now().toUtc();
+        submittedConnection = BtcpayConnection.fromPairing(
+          environment: settings.environment,
+          request: request,
+          walletNetworks: _walletNetworks(preparedWallets),
+          walletIds: _walletIds(preparedWallets),
+          status: BtcpayConnectionStatus.uncertain,
+          updatedAt: now,
+        );
+        submitAttempted = true;
+        final response = await _pairingService.submitSetup(
+          request: request,
+          payload: payload,
+        );
+        if (!response.success) {
+          if (response.serverFailure) {
+            await _saveUncertainBestEffort(
+              submittedConnection.copyWith(
+                updatedAt: DateTime.now().toUtc(),
+                lastError: _safeUncertainMessage,
+              ),
+            );
+            throw BtcpayPairingException.uncertain(response.message);
+          }
+          throw BtcpayPairingException.rejected(response.message);
+        }
+        await _applyBtcpayWalletBehaviorDefaults(preparedWallets);
+      } on BtcpayPairingException {
+        rethrow;
+      } catch (e, stack) {
+        if (submitAttempted) {
+          if (submittedConnection != null) {
+            log.warning(
+              'BTCPay setup was submitted but completion failed',
+              error: e,
+              trace: stack,
+            );
+            await _saveUncertainBestEffort(
+              submittedConnection.copyWith(
+                updatedAt: DateTime.now().toUtc(),
+                lastError: _safeUncertainMessage,
+              ),
+            );
+          }
+          throw BtcpayPairingException.uncertain(
+            'BTCPay setup was submitted, but completion could not be confirmed',
+          );
+        }
+        log.warning(
+          preparedWallets == null
+              ? 'BTCPay pairing failed before wallet materialization completed'
+              : 'BTCPay pairing failed before descriptor submission; '
+                    'prepared wallets were kept for retry',
+          error: e,
+          trace: stack,
+        );
+        if (preparedWallets != null) {
+          if (e is KeychainManifestException &&
+              e.type == KeychainManifestExceptionType.conflict) {
+            throw BtcpayPairingException.keychainConflict();
+          }
+          throw BtcpayPairingException.localSetup();
+        }
+        throw BtcpayPairingException.generic();
+      }
+
+      final pairedAt = DateTime.now().toUtc();
+      final connection = BtcpayConnection.fromPairing(
+        environment: submittedConnection.environment,
         request: request,
         walletNetworks: _walletNetworks(preparedWallets),
         walletIds: _walletIds(preparedWallets),
-        status: BtcpayConnectionStatus.uncertain,
-        updatedAt: now,
+        status: BtcpayConnectionStatus.paired,
+        pairedAt: pairedAt,
+        updatedAt: pairedAt,
       );
-      submitAttempted = true;
-      final response = await _pairingService.submitSetup(
-        request: request,
-        payload: payload,
-      );
-      if (!response.success) {
-        if (response.serverFailure) {
-          await _saveUncertainBestEffort(
-            submittedConnection.copyWith(
-              updatedAt: DateTime.now().toUtc(),
-              lastError: _safeUncertainMessage,
-            ),
-          );
-          throw BtcpayPairingException.uncertain(response.message);
-        }
-        throw BtcpayPairingException.rejected(response.message);
-      }
-      await _applyBtcpayWalletBehaviorDefaults(preparedWallets);
-    } on BtcpayPairingException {
-      rethrow;
-    } catch (e, stack) {
-      if (submitAttempted) {
-        if (submittedConnection != null) {
-          log.warning(
-            'BTCPay setup was submitted but completion failed',
-            error: e,
-            trace: stack,
-          );
-          await _saveUncertainBestEffort(
-            submittedConnection.copyWith(
-              updatedAt: DateTime.now().toUtc(),
-              lastError: _safeUncertainMessage,
-            ),
-          );
-        }
+      try {
+        await _connectionRepository.saveConnection(connection);
+      } catch (e) {
+        await _saveUncertainBestEffort(
+          submittedConnection.copyWith(
+            updatedAt: DateTime.now().toUtc(),
+            lastError: _safeLocalSaveMessage,
+          ),
+        );
         throw BtcpayPairingException.uncertain(
-          'BTCPay setup was submitted, but completion could not be confirmed',
+          'BTCPay setup was submitted, but local pairing state could not be saved',
         );
       }
-      log.warning(
-        preparedWallets == null
-            ? 'BTCPay pairing failed before wallet materialization completed'
-            : 'BTCPay pairing failed before descriptor submission; '
-                  'prepared wallets were kept for retry',
-        error: e,
-        trace: stack,
-      );
-      if (preparedWallets != null) {
-        if (e is KeychainManifestException &&
-            e.type == KeychainManifestExceptionType.conflict) {
-          throw BtcpayPairingException.keychainConflict();
-        }
-        throw BtcpayPairingException.localSetup();
+      return connection;
+    } finally {
+      if (manifestRecorded) {
+        await _getPaidSettings.publishBackupSnapshotIfEnabled();
       }
-      throw BtcpayPairingException.generic();
     }
-
-    final pairedAt = DateTime.now().toUtc();
-    final connection = BtcpayConnection.fromPairing(
-      environment: submittedConnection.environment,
-      request: request,
-      walletNetworks: _walletNetworks(preparedWallets),
-      walletIds: _walletIds(preparedWallets),
-      status: BtcpayConnectionStatus.paired,
-      pairedAt: pairedAt,
-      updatedAt: pairedAt,
-    );
-    try {
-      await _connectionRepository.saveConnection(connection);
-    } catch (e) {
-      await _saveUncertainBestEffort(
-        submittedConnection.copyWith(
-          updatedAt: DateTime.now().toUtc(),
-          lastError: _safeLocalSaveMessage,
-        ),
-      );
-      throw BtcpayPairingException.uncertain(
-        'BTCPay setup was submitted, but local pairing state could not be saved',
-      );
-    }
-    return connection;
   }
 
   Future<void> _saveUncertainBestEffort(BtcpayConnection connection) async {

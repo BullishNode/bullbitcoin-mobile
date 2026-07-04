@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,6 +34,18 @@ class _MockApplyWalletBehaviorDefaultsUsecase extends Mock
 
 class _MockKeychainManifestFacade extends Mock
     implements KeychainManifestFacade {}
+
+class _MockGetPaidSettingsFacade extends Mock
+    implements GetPaidSettingsFacade {}
+
+// A no-op backup publisher for the existing pairing tests, which do not assert
+// the post-commitment publish. The publish-trigger behaviour has dedicated
+// tests below.
+_MockGetPaidSettingsFacade _stubbedGetPaidSettings() {
+  final facade = _MockGetPaidSettingsFacade();
+  when(() => facade.publishBackupSnapshotIfEnabled()).thenAnswer((_) async {});
+  return facade;
+}
 
 void main() {
   const pairingUrl =
@@ -152,6 +165,7 @@ void main() {
       final applyWalletBehaviorDefaults =
           _MockApplyWalletBehaviorDefaultsUsecase();
       final keychainManifest = _MockKeychainManifestFacade();
+      final getPaidSettings = _stubbedGetPaidSettings();
       _stubKeychainManifest(keychainManifest);
       _stubWalletBehaviorDefaults(applyWalletBehaviorDefaults);
       final preparedWallets = PreparedDeterministicWallets(
@@ -176,7 +190,8 @@ void main() {
         connectionRepository: connectionRepository,
         applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
         bip85Registry: const Bip85RegistryFacade(),
-      keychainManifest: keychainManifest,
+        keychainManifest: keychainManifest,
+        getPaidSettings: getPaidSettings,
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
@@ -211,6 +226,7 @@ void main() {
       final applyWalletBehaviorDefaults =
           _MockApplyWalletBehaviorDefaultsUsecase();
       final keychainManifest = _MockKeychainManifestFacade();
+      final getPaidSettings = _stubbedGetPaidSettings();
       _stubKeychainManifest(keychainManifest);
       _stubWalletBehaviorDefaults(applyWalletBehaviorDefaults);
       final preparedWallets = PreparedDeterministicWallets(
@@ -241,7 +257,8 @@ void main() {
         connectionRepository: connectionRepository,
         applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
         bip85Registry: const Bip85RegistryFacade(),
-      keychainManifest: keychainManifest,
+        keychainManifest: keychainManifest,
+        getPaidSettings: getPaidSettings,
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
@@ -281,6 +298,7 @@ void main() {
       final applyWalletBehaviorDefaults =
           _MockApplyWalletBehaviorDefaultsUsecase();
       final keychainManifest = _MockKeychainManifestFacade();
+      final getPaidSettings = _stubbedGetPaidSettings();
       when(
         () => keychainManifest.recordReservedDerivation(any()),
       ).thenAnswer((_) async {});
@@ -307,7 +325,8 @@ void main() {
         connectionRepository: connectionRepository,
         applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
         bip85Registry: const Bip85RegistryFacade(),
-      keychainManifest: keychainManifest,
+        keychainManifest: keychainManifest,
+        getPaidSettings: getPaidSettings,
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
@@ -335,6 +354,7 @@ void main() {
     final applyWalletBehaviorDefaults =
         _MockApplyWalletBehaviorDefaultsUsecase();
     final keychainManifest = _MockKeychainManifestFacade();
+    final getPaidSettings = _stubbedGetPaidSettings();
     _stubKeychainManifest(keychainManifest);
     final preparedWallets = PreparedDeterministicWallets(
       wallets: [
@@ -365,13 +385,16 @@ void main() {
       applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
       bip85Registry: const Bip85RegistryFacade(),
       keychainManifest: keychainManifest,
+      getPaidSettings: getPaidSettings,
     );
     var saveCalls = 0;
     when(() => getSettings.execute()).thenAnswer((_) async => settings);
     when(
       () => deterministicWallets.prepare(any()),
     ).thenAnswer((_) async => preparedWallets);
-    when(() => connectionRepository.saveConnection(any())).thenAnswer((_) async {
+    when(() => connectionRepository.saveConnection(any())).thenAnswer((
+      _,
+    ) async {
       saveCalls += 1;
       if (saveCalls == 1) throw Exception('disk full');
     });
@@ -412,6 +435,7 @@ void main() {
       final applyWalletBehaviorDefaults =
           _MockApplyWalletBehaviorDefaultsUsecase();
       final keychainManifest = _MockKeychainManifestFacade();
+      final getPaidSettings = _stubbedGetPaidSettings();
       final events = <String>[];
       late KeychainManifestReservedDerivationRequest capturedRequest;
       when(() => keychainManifest.recordReservedDerivation(any())).thenAnswer((
@@ -450,7 +474,8 @@ void main() {
         connectionRepository: connectionRepository,
         applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
         bip85Registry: const Bip85RegistryFacade(),
-      keychainManifest: keychainManifest,
+        keychainManifest: keychainManifest,
+        getPaidSettings: getPaidSettings,
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
@@ -518,6 +543,7 @@ void main() {
     final applyWalletBehaviorDefaults =
         _MockApplyWalletBehaviorDefaultsUsecase();
     final keychainManifest = _MockKeychainManifestFacade();
+    final getPaidSettings = _stubbedGetPaidSettings();
     final preparedWallets = PreparedDeterministicWallets(
       wallets: [
         _wallet(
@@ -547,6 +573,7 @@ void main() {
       applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
       bip85Registry: const Bip85RegistryFacade(),
       keychainManifest: keychainManifest,
+      getPaidSettings: getPaidSettings,
     );
     when(
       () => keychainManifest.recordReservedDerivation(any()),
@@ -589,6 +616,7 @@ void main() {
     final applyWalletBehaviorDefaults =
         _MockApplyWalletBehaviorDefaultsUsecase();
     final keychainManifest = _MockKeychainManifestFacade();
+    final getPaidSettings = _stubbedGetPaidSettings();
     final preparedWallets = PreparedDeterministicWallets(
       wallets: [
         _wallet(
@@ -618,6 +646,7 @@ void main() {
       applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
       bip85Registry: const Bip85RegistryFacade(),
       keychainManifest: keychainManifest,
+      getPaidSettings: getPaidSettings,
     );
     when(() => getSettings.execute()).thenAnswer((_) async => settings);
     when(
@@ -645,80 +674,79 @@ void main() {
     );
   });
 
-  test(
-    'completes pairing as paired when defaults application fails',
-    () async {
-      final deterministicWallets = _MockDeterministicWalletsFacade();
-      final getSettings = _MockGetSettingsUsecase();
-      final pairingService = _MockSamRockPairingServicePort();
-      final connectionRepository = _MockBtcpayConnectionRepository();
-      final applyWalletBehaviorDefaults =
-          _MockApplyWalletBehaviorDefaultsUsecase();
-      final keychainManifest = _MockKeychainManifestFacade();
-      _stubKeychainManifest(keychainManifest);
-      final preparedWallets = PreparedDeterministicWallets(
-        wallets: [
-          _wallet(
-            specId: BtcpayWalletConstants.bitcoinSpecId,
-            network: Network.bitcoinMainnet,
-            externalDescriptor: 'btc-desc',
-            created: true,
-          ),
-          _wallet(
-            specId: BtcpayWalletConstants.liquidSpecId,
-            network: Network.liquidMainnet,
-            externalDescriptor: 'lbtc-desc',
-            created: true,
-          ),
-        ],
-        derivationPath: "39'/0'/12'/100'",
-        parentFingerprint: 'fedcba98',
-        childSeedFingerprint: '0123abcd',
-        childSeedStoredDuringAttempt: true,
-      );
-      final usecase = CompleteBtcpaySamRockPairingUsecase(
-        getSettings: getSettings,
-        parser: const SamRockPairingRequestParser(),
-        deterministicWallets: deterministicWallets,
-        pairingService: pairingService,
-        connectionRepository: connectionRepository,
-        applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
-        bip85Registry: const Bip85RegistryFacade(),
-        keychainManifest: keychainManifest,
-      );
-      final savedConnections = <BtcpayConnection>[];
-      when(() => getSettings.execute()).thenAnswer((_) async => settings);
-      when(
-        () => deterministicWallets.prepare(any()),
-      ).thenAnswer((_) async => preparedWallets);
-      when(() => connectionRepository.saveConnection(any())).thenAnswer((
-        invocation,
-      ) async {
-        savedConnections.add(
-          invocation.positionalArguments.single as BtcpayConnection,
-        );
-      });
-      when(
-        () => pairingService.submitSetup(
-          request: any(named: 'request'),
-          payload: any(named: 'payload'),
+  test('completes pairing as paired when defaults application fails', () async {
+    final deterministicWallets = _MockDeterministicWalletsFacade();
+    final getSettings = _MockGetSettingsUsecase();
+    final pairingService = _MockSamRockPairingServicePort();
+    final connectionRepository = _MockBtcpayConnectionRepository();
+    final applyWalletBehaviorDefaults =
+        _MockApplyWalletBehaviorDefaultsUsecase();
+    final keychainManifest = _MockKeychainManifestFacade();
+    final getPaidSettings = _stubbedGetPaidSettings();
+    _stubKeychainManifest(keychainManifest);
+    final preparedWallets = PreparedDeterministicWallets(
+      wallets: [
+        _wallet(
+          specId: BtcpayWalletConstants.bitcoinSpecId,
+          network: Network.bitcoinMainnet,
+          externalDescriptor: 'btc-desc',
+          created: true,
         ),
-      ).thenAnswer((_) async => const SamRockPairingResponse(success: true));
-      when(
-        () => applyWalletBehaviorDefaults.execute(
-          walletId: any(named: 'walletId'),
-          hideOnHome: any(named: 'hideOnHome'),
-          autoSweepEnabled: any(named: 'autoSweepEnabled'),
+        _wallet(
+          specId: BtcpayWalletConstants.liquidSpecId,
+          network: Network.liquidMainnet,
+          externalDescriptor: 'lbtc-desc',
+          created: true,
         ),
-      ).thenThrow(Exception('metadata store unavailable'));
+      ],
+      derivationPath: "39'/0'/12'/100'",
+      parentFingerprint: 'fedcba98',
+      childSeedFingerprint: '0123abcd',
+      childSeedStoredDuringAttempt: true,
+    );
+    final usecase = CompleteBtcpaySamRockPairingUsecase(
+      getSettings: getSettings,
+      parser: const SamRockPairingRequestParser(),
+      deterministicWallets: deterministicWallets,
+      pairingService: pairingService,
+      connectionRepository: connectionRepository,
+      applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+      bip85Registry: const Bip85RegistryFacade(),
+      keychainManifest: keychainManifest,
+      getPaidSettings: getPaidSettings,
+    );
+    final savedConnections = <BtcpayConnection>[];
+    when(() => getSettings.execute()).thenAnswer((_) async => settings);
+    when(
+      () => deterministicWallets.prepare(any()),
+    ).thenAnswer((_) async => preparedWallets);
+    when(() => connectionRepository.saveConnection(any())).thenAnswer((
+      invocation,
+    ) async {
+      savedConnections.add(
+        invocation.positionalArguments.single as BtcpayConnection,
+      );
+    });
+    when(
+      () => pairingService.submitSetup(
+        request: any(named: 'request'),
+        payload: any(named: 'payload'),
+      ),
+    ).thenAnswer((_) async => const SamRockPairingResponse(success: true));
+    when(
+      () => applyWalletBehaviorDefaults.execute(
+        walletId: any(named: 'walletId'),
+        hideOnHome: any(named: 'hideOnHome'),
+        autoSweepEnabled: any(named: 'autoSweepEnabled'),
+      ),
+    ).thenThrow(Exception('metadata store unavailable'));
 
-      final connection = await usecase.execute(pairingUrl: pairingUrl);
+    final connection = await usecase.execute(pairingUrl: pairingUrl);
 
-      expect(connection.isPaired, isTrue);
-      expect(savedConnections, hasLength(1));
-      expect(savedConnections.single.status, BtcpayConnectionStatus.paired);
-    },
-  );
+    expect(connection.isPaired, isTrue);
+    expect(savedConnections, hasLength(1));
+    expect(savedConnections.single.status, BtcpayConnectionStatus.paired);
+  });
 
   test(
     'applies BTCPay wallet behavior defaults after server accepts',
@@ -730,6 +758,7 @@ void main() {
       final applyWalletBehaviorDefaults =
           _MockApplyWalletBehaviorDefaultsUsecase();
       final keychainManifest = _MockKeychainManifestFacade();
+      final getPaidSettings = _stubbedGetPaidSettings();
       final events = <String>[];
       _stubKeychainManifest(keychainManifest);
       final preparedWallets = PreparedDeterministicWallets(
@@ -760,7 +789,8 @@ void main() {
         connectionRepository: connectionRepository,
         applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
         bip85Registry: const Bip85RegistryFacade(),
-      keychainManifest: keychainManifest,
+        keychainManifest: keychainManifest,
+        getPaidSettings: getPaidSettings,
       );
       when(() => getSettings.execute()).thenAnswer((_) async => settings);
       when(
@@ -816,6 +846,7 @@ void main() {
     final applyWalletBehaviorDefaults =
         _MockApplyWalletBehaviorDefaultsUsecase();
     final keychainManifest = _MockKeychainManifestFacade();
+    final getPaidSettings = _stubbedGetPaidSettings();
     _stubKeychainManifest(keychainManifest);
     final preparedWallets = PreparedDeterministicWallets(
       wallets: [
@@ -847,6 +878,7 @@ void main() {
       applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
       bip85Registry: const Bip85RegistryFacade(),
       keychainManifest: keychainManifest,
+      getPaidSettings: getPaidSettings,
     );
     when(() => getSettings.execute()).thenAnswer((_) async => settings);
     when(() => deterministicWallets.prepare(any())).thenAnswer((invocation) {
@@ -859,7 +891,9 @@ void main() {
         payload: any(named: 'payload'),
       ),
     ).thenAnswer((_) async => const SamRockPairingResponse(success: true));
-    when(() => connectionRepository.saveConnection(any())).thenAnswer((_) async {});
+    when(
+      () => connectionRepository.saveConnection(any()),
+    ).thenAnswer((_) async {});
     when(
       () => applyWalletBehaviorDefaults.execute(
         walletId: any(named: 'walletId'),
@@ -883,6 +917,207 @@ void main() {
       BtcpayWalletConstants.liquidSpecId,
     ]);
   });
+
+  test(
+    'publishes the backup snapshot once after a successful pairing',
+    () async {
+      final deterministicWallets = _MockDeterministicWalletsFacade();
+      final getSettings = _MockGetSettingsUsecase();
+      final pairingService = _MockSamRockPairingServicePort();
+      final connectionRepository = _MockBtcpayConnectionRepository();
+      final applyWalletBehaviorDefaults =
+          _MockApplyWalletBehaviorDefaultsUsecase();
+      final keychainManifest = _MockKeychainManifestFacade();
+      final getPaidSettings = _MockGetPaidSettingsFacade();
+      when(
+        () => getPaidSettings.publishBackupSnapshotIfEnabled(),
+      ).thenAnswer((_) async {});
+      _stubKeychainManifest(keychainManifest);
+      _stubWalletBehaviorDefaults(applyWalletBehaviorDefaults);
+      final preparedWallets = PreparedDeterministicWallets(
+        wallets: [
+          _wallet(
+            specId: BtcpayWalletConstants.bitcoinSpecId,
+            network: Network.bitcoinMainnet,
+            externalDescriptor: 'btc-desc',
+            created: true,
+          ),
+          _wallet(
+            specId: BtcpayWalletConstants.liquidSpecId,
+            network: Network.liquidMainnet,
+            externalDescriptor: 'lbtc-desc',
+            created: true,
+          ),
+        ],
+        derivationPath: "39'/0'/12'/100'",
+        parentFingerprint: 'fedcba98',
+        childSeedFingerprint: '0123abcd',
+        childSeedStoredDuringAttempt: true,
+      );
+      final usecase = CompleteBtcpaySamRockPairingUsecase(
+        getSettings: getSettings,
+        parser: const SamRockPairingRequestParser(),
+        deterministicWallets: deterministicWallets,
+        pairingService: pairingService,
+        connectionRepository: connectionRepository,
+        applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+        bip85Registry: const Bip85RegistryFacade(),
+        keychainManifest: keychainManifest,
+        getPaidSettings: getPaidSettings,
+      );
+      when(() => getSettings.execute()).thenAnswer((_) async => settings);
+      when(
+        () => deterministicWallets.prepare(any()),
+      ).thenAnswer((_) async => preparedWallets);
+      when(
+        () => connectionRepository.saveConnection(any()),
+      ).thenAnswer((_) async {});
+      when(
+        () => pairingService.submitSetup(
+          request: any(named: 'request'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async => const SamRockPairingResponse(success: true));
+
+      final connection = await usecase.execute(pairingUrl: pairingUrl);
+
+      // The publish is post-commitment: the pairing outcome is unchanged and the
+      // snapshot publishes exactly once.
+      expect(connection.status, BtcpayConnectionStatus.paired);
+      verify(() => getPaidSettings.publishBackupSnapshotIfEnabled()).called(1);
+    },
+  );
+
+  test(
+    'publishes on a post-record failure path (server rejects submission)',
+    () async {
+      final deterministicWallets = _MockDeterministicWalletsFacade();
+      final getSettings = _MockGetSettingsUsecase();
+      final pairingService = _MockSamRockPairingServicePort();
+      final connectionRepository = _MockBtcpayConnectionRepository();
+      final applyWalletBehaviorDefaults =
+          _MockApplyWalletBehaviorDefaultsUsecase();
+      final keychainManifest = _MockKeychainManifestFacade();
+      final getPaidSettings = _MockGetPaidSettingsFacade();
+      when(
+        () => getPaidSettings.publishBackupSnapshotIfEnabled(),
+      ).thenAnswer((_) async {});
+      _stubKeychainManifest(keychainManifest);
+      final preparedWallets = PreparedDeterministicWallets(
+        wallets: [
+          _wallet(
+            specId: BtcpayWalletConstants.bitcoinSpecId,
+            network: Network.bitcoinMainnet,
+            externalDescriptor: 'btc-desc',
+            created: true,
+          ),
+          _wallet(
+            specId: BtcpayWalletConstants.liquidSpecId,
+            network: Network.liquidMainnet,
+            externalDescriptor: 'lbtc-desc',
+            created: true,
+          ),
+        ],
+        derivationPath: "39'/0'/12'/100'",
+        parentFingerprint: 'fedcba98',
+        childSeedFingerprint: '0123abcd',
+        childSeedStoredDuringAttempt: true,
+      );
+      final usecase = CompleteBtcpaySamRockPairingUsecase(
+        getSettings: getSettings,
+        parser: const SamRockPairingRequestParser(),
+        deterministicWallets: deterministicWallets,
+        pairingService: pairingService,
+        connectionRepository: connectionRepository,
+        applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
+        bip85Registry: const Bip85RegistryFacade(),
+        keychainManifest: keychainManifest,
+        getPaidSettings: getPaidSettings,
+      );
+      when(() => getSettings.execute()).thenAnswer((_) async => settings);
+      when(
+        () => deterministicWallets.prepare(any()),
+      ).thenAnswer((_) async => preparedWallets);
+      when(
+        () => pairingService.submitSetup(
+          request: any(named: 'request'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            const SamRockPairingResponse(success: false, message: 'no'),
+      );
+
+      await expectLater(
+        () => usecase.execute(pairingUrl: pairingUrl),
+        throwsA(isA<BtcpayPairingException>()),
+      );
+
+      verify(() => getPaidSettings.publishBackupSnapshotIfEnabled()).called(1);
+    },
+  );
+
+  test(
+    'does not publish when parsing fails before the manifest record',
+    () async {
+      final getPaidSettings = _MockGetPaidSettingsFacade();
+      when(
+        () => getPaidSettings.publishBackupSnapshotIfEnabled(),
+      ).thenAnswer((_) async {});
+      final usecase = CompleteBtcpaySamRockPairingUsecase(
+        getSettings: _MockGetSettingsUsecase(),
+        parser: const SamRockPairingRequestParser(),
+        deterministicWallets: _MockDeterministicWalletsFacade(),
+        pairingService: _MockSamRockPairingServicePort(),
+        connectionRepository: _MockBtcpayConnectionRepository(),
+        applyWalletBehaviorDefaults: _MockApplyWalletBehaviorDefaultsUsecase(),
+        bip85Registry: const Bip85RegistryFacade(),
+        keychainManifest: _MockKeychainManifestFacade(),
+        getPaidSettings: getPaidSettings,
+      );
+
+      await expectLater(
+        () => usecase.execute(pairingUrl: 'not-a-valid-samrock-url'),
+        throwsA(isA<BtcpayPairingException>()),
+      );
+
+      verifyNever(() => getPaidSettings.publishBackupSnapshotIfEnabled());
+    },
+  );
+
+  test(
+    'does not publish when wallet preparation fails before the record',
+    () async {
+      final deterministicWallets = _MockDeterministicWalletsFacade();
+      final getSettings = _MockGetSettingsUsecase();
+      final getPaidSettings = _MockGetPaidSettingsFacade();
+      when(
+        () => getPaidSettings.publishBackupSnapshotIfEnabled(),
+      ).thenAnswer((_) async {});
+      final usecase = CompleteBtcpaySamRockPairingUsecase(
+        getSettings: getSettings,
+        parser: const SamRockPairingRequestParser(),
+        deterministicWallets: deterministicWallets,
+        pairingService: _MockSamRockPairingServicePort(),
+        connectionRepository: _MockBtcpayConnectionRepository(),
+        applyWalletBehaviorDefaults: _MockApplyWalletBehaviorDefaultsUsecase(),
+        bip85Registry: const Bip85RegistryFacade(),
+        keychainManifest: _MockKeychainManifestFacade(),
+        getPaidSettings: getPaidSettings,
+      );
+      when(() => getSettings.execute()).thenAnswer((_) async => settings);
+      when(
+        () => deterministicWallets.prepare(any()),
+      ).thenThrow(Exception('preparation failed'));
+
+      await expectLater(
+        () => usecase.execute(pairingUrl: pairingUrl),
+        throwsA(isA<BtcpayPairingException>()),
+      );
+
+      verifyNever(() => getPaidSettings.publishBackupSnapshotIfEnabled());
+    },
+  );
 }
 
 void _stubKeychainManifest(_MockKeychainManifestFacade keychainManifest) {

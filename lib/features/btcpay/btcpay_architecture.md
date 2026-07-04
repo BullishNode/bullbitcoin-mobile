@@ -47,6 +47,12 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
   keychain manifest internals. Keychain Manifest records local derivation
   metadata for app-created BIP85 materializations; it never stores mnemonic
   words, seeds, private keys, or descriptors.
+- BTCPay may consume `features/get_paid_settings/public/`: the pairing UI runs
+  the shared automated-backup consent gate before submitting, and the pairing
+  use case triggers a best-effort backup publish once the keychain manifest
+  record is durable. This publish is post-commitment (AD-3) — it runs in a
+  `finally` after the record and can never change the pairing outcome. BTCPay
+  does not own the backup preference, the publish gate, or relay transport.
 - BTCPay may consume wallet behavior use cases to apply and edit settings for
   its own wallets. The wallet layer owns the flags and persistence.
 - BTCPay does not own the auto-sweep runner. It only enables the generic
