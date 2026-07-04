@@ -6,16 +6,19 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_wa
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet_registration.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/prepare_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 
 class RegisterWalletOwnedLightningAddressUsecase {
   final LightningAddressDefaultWalletXprvPort _defaultWalletXprv;
   final PrepareLightningAddressWalletUsecase _prepareWallet;
   final RegisterLightningAddressUsecase _register;
+  final GetPaidSettingsFacade _getPaidSettings;
 
   const RegisterWalletOwnedLightningAddressUsecase({
     required this._defaultWalletXprv,
     required this._prepareWallet,
     required this._register,
+    required this._getPaidSettings,
   });
 
   Future<WalletOwnedLightningAddressRegistration> execute({
@@ -23,28 +26,40 @@ class RegisterWalletOwnedLightningAddressUsecase {
   }) async {
     validateLightningAddressNym(nym);
 
-    final xprvBase58 = await _deriveDefaultWalletXprv();
-    final preparedWallet = await _prepareLightningAddressWallet();
-    late final LightningAddressRegistration registration;
+    var walletPrepared = false;
     try {
-      registration = await _register.execute(
-        xprvBase58: xprvBase58,
-        nym: nym,
-        ctDescriptor: preparedWallet.ctDescriptor,
-      );
-    } on LightningAddressException catch (e) {
-      throw WalletOwnedLightningAddressRegistrationException.registrationSubmission(
-        cause: e,
+      final xprvBase58 = await _deriveDefaultWalletXprv();
+      final preparedWallet = await _prepareLightningAddressWallet();
+      // The manifest record is durable once prepare returns — even when the
+      // server registration then fails, funds can arrive at the wallet — so the
+      // backup must publish. Post-commitment (AD-3): the finally publishes
+      // best-effort and never changes this flow's outcome.
+      walletPrepared = true;
+      late final LightningAddressRegistration registration;
+      try {
+        registration = await _register.execute(
+          xprvBase58: xprvBase58,
+          nym: nym,
+          ctDescriptor: preparedWallet.ctDescriptor,
+        );
+      } on LightningAddressException catch (e) {
+        throw WalletOwnedLightningAddressRegistrationException.registrationSubmission(
+          cause: e,
+          walletId: preparedWallet.walletId,
+          walletCreated: preparedWallet.created,
+        );
+      }
+
+      return WalletOwnedLightningAddressRegistration(
+        registration: registration,
         walletId: preparedWallet.walletId,
         walletCreated: preparedWallet.created,
       );
+    } finally {
+      if (walletPrepared) {
+        await _getPaidSettings.publishBackupSnapshotIfEnabled();
+      }
     }
-
-    return WalletOwnedLightningAddressRegistration(
-      registration: registration,
-      walletId: preparedWallet.walletId,
-      walletCreated: preparedWallet.created,
-    );
   }
 
   Future<String> _deriveDefaultWalletXprv() async {

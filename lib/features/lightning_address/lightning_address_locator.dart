@@ -6,6 +6,7 @@ import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_usecase.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/lightning_address/data/default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_default_wallet_xprv_port.dart';
@@ -54,6 +55,7 @@ class LightningAddressLocator {
         defaultWalletXprv: locator<LightningAddressDefaultWalletXprvPort>(),
         prepareWallet: locator<PrepareLightningAddressWalletUsecase>(),
         register: locator<RegisterLightningAddressUsecase>(),
+        getPaidSettings: locator<GetPaidSettingsFacade>(),
       ),
     );
     locator
