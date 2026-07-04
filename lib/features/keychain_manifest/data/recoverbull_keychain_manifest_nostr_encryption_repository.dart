@@ -2,7 +2,6 @@ import 'package:bb_mobile/features/keychain_manifest/data/datasources/keychain_m
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_event_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_nostr_encryption.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_encryption_repository.dart';
 
@@ -42,30 +41,5 @@ class RecoverBullKeychainManifestNostrEncryptionRepository
       key: key,
     );
     return snapshotCodec.decode(plaintext);
-  }
-
-  @override
-  KeychainManifestNostrSnapshot decryptSnapshot({
-    required String encryptedPayload,
-    required KeychainManifestNostrEncryptionKey key,
-  }) {
-    try {
-      final encryptedContent =
-          KeychainManifestNostrEncryptedContentModel.fromJsonString(
-            encryptedPayload,
-          ).toEntity();
-      final plaintext = encryptionDatasource.decrypt(
-        encryptedContent: encryptedContent.encryptedContent,
-        key: key,
-      );
-      return snapshotCodec.decode(plaintext);
-    } on KeychainManifestException {
-      rethrow;
-    } catch (e) {
-      throw KeychainManifestNostrEncryptionException(
-        'failed to decrypt manifest content',
-        cause: e,
-      );
-    }
   }
 }

@@ -6,6 +6,7 @@ enum KeychainManifestNostrImportStatus {
   noManifestFound,
   relaysUnavailable,
   noRecoverableManifest,
+  unsupportedNewerManifest,
 }
 
 class KeychainManifestNostrImportResult {
@@ -54,4 +55,14 @@ class KeychainManifestNostrImportResult {
 
   const KeychainManifestNostrImportResult.noRecoverableManifest()
     : this._(status: KeychainManifestNostrImportStatus.noRecoverableManifest);
+
+  /// An authentic event (author-filtered, Schnorr-verified) exists but is a
+  /// decryptable-newer-version or authentic-but-unreadable manifest, with no
+  /// older candidate recovering. Under our own seed-derived key an authentic
+  /// unreadable payload is overwhelmingly a format newer than this app, so this
+  /// maps to "update the app" (KC2b), never "no backup found".
+  const KeychainManifestNostrImportResult.unsupportedNewerManifest()
+    : this._(
+        status: KeychainManifestNostrImportStatus.unsupportedNewerManifest,
+      );
 }

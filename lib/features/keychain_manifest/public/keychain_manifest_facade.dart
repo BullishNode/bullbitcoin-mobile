@@ -149,7 +149,18 @@ class KeychainManifestFacade {
     required String parentFingerprint,
     required String xprvBase58,
     required List<String> relayUrls,
+    required bool acceptedThirdPartyRelayDisclosure,
   }) async {
+    // P21c: the fetch API reaches third-party public relays, so it is
+    // unreachable without the caller's consent acknowledgement. The gating
+    // consumer (decision [3]) passes its checked value through, making that
+    // gate structurally non-bypassable.
+    if (!acceptedThirdPartyRelayDisclosure) {
+      throw KeychainManifestConsentRequiredException(
+        'third-party relay disclosure must be accepted before fetching '
+        'encrypted manifests',
+      );
+    }
     try {
       return await _fetchNostrImportPlan.execute(
         parentFingerprint: parentFingerprint,

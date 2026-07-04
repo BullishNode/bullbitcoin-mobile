@@ -1,12 +1,17 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/data/datasources/keychain_manifest_nostr_encryption_datasource.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
+import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_event_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_nostr_encryption.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_relay.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_nostr_import.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_relay_repository.dart';
@@ -108,47 +113,224 @@ void main() {
       );
     },
   );
+
+  test(
+    'KC1: an empty newer manifest never masks a populated older one',
+    () async {
+      relayRepository.events = [
+        _emptyEvent(createdAt: 30),
+        _event(createdAt: 20, walletId: 'btc-wallet-populated'),
+      ];
+
+      final result = await usecase.execute(
+        parentFingerprint: _parentFingerprint,
+        xprvBase58: _xprv,
+        relayUrls: const ['wss://relay.example'],
+      );
+
+      // The empty newest is non-recoverable and skipped - it must NOT raise a
+      // "newest failed" alarm; the populated older is the latest recoverable.
+      expect(
+        result.status,
+        KeychainManifestNostrImportStatus.latestRecoverable,
+      );
+      expect(
+        result.importPlan?.walletMaterializations.single.walletId,
+        'btc-wallet-populated',
+      );
+    },
+  );
+
+  test(
+    'KC1: selection uses authenticated inventoryUpdatedAt, not the clock',
+    () async {
+      // The stale-clock event is newest by createdAt but its manifest is older by
+      // inventoryUpdatedAt; the populated event with the newer inventory wins.
+      relayRepository.events = [
+        _event(
+          createdAt: 99,
+          walletId: 'btc-wallet-stale',
+          inventoryUpdatedAt: 5,
+        ),
+        _event(
+          createdAt: 20,
+          walletId: 'btc-wallet-fresh',
+          inventoryUpdatedAt: 50,
+        ),
+      ];
+
+      final result = await usecase.execute(
+        parentFingerprint: _parentFingerprint,
+        xprvBase58: _xprv,
+        relayUrls: const ['wss://relay.example'],
+      );
+
+      expect(
+        result.status,
+        KeychainManifestNostrImportStatus.latestRecoverable,
+      );
+      expect(
+        result.importPlan?.walletMaterializations.single.walletId,
+        'btc-wallet-fresh',
+      );
+    },
+  );
+
+  test('KC1: equal inventory falls back to the createdAt tiebreak', () async {
+    relayRepository.events = [
+      _event(
+        createdAt: 20,
+        walletId: 'btc-wallet-older',
+        inventoryUpdatedAt: 10,
+      ),
+      _event(
+        createdAt: 40,
+        walletId: 'btc-wallet-newer',
+        inventoryUpdatedAt: 10,
+      ),
+    ];
+
+    final result = await usecase.execute(
+      parentFingerprint: _parentFingerprint,
+      xprvBase58: _xprv,
+      relayUrls: const ['wss://relay.example'],
+    );
+
+    expect(result.status, KeychainManifestNostrImportStatus.latestRecoverable);
+    expect(
+      result.importPlan?.walletMaterializations.single.walletId,
+      'btc-wallet-newer',
+    );
+  });
+
+  test('KC2b: a newer inner-version manifest reports update-the-app', () async {
+    relayRepository.events = [_unsupportedVersionEvent(createdAt: 30)];
+
+    final result = await usecase.execute(
+      parentFingerprint: _parentFingerprint,
+      xprvBase58: _xprv,
+      relayUrls: const ['wss://relay.example'],
+    );
+
+    expect(
+      result.status,
+      KeychainManifestNostrImportStatus.unsupportedNewerManifest,
+    );
+  });
+
+  test(
+    'KC2b: an authentic unreadable newest with no fallback is not "no backup"',
+    () async {
+      relayRepository.events = [_invalidEvent(createdAt: 30)];
+
+      final result = await usecase.execute(
+        parentFingerprint: _parentFingerprint,
+        xprvBase58: _xprv,
+        relayUrls: const ['wss://relay.example'],
+      );
+
+      expect(
+        result.status,
+        KeychainManifestNostrImportStatus.unsupportedNewerManifest,
+      );
+    },
+  );
+}
+
+KeychainManifestNostrEncryptionKey get _encryptionKey =>
+    const DeriveKeychainManifestNostrEncryptionKeyUsecase().execute(
+      xprvBase58: _xprv,
+      expectedParentFingerprint: _parentFingerprint,
+    );
+
+KeychainManifestNostrSignedEvent _eventWithContent({
+  required int createdAt,
+  required KeychainManifestNostrCiphertext content,
+}) {
+  return KeychainManifestNostrSignedEvent.fromDraft(
+    draft: KeychainManifestNostrEventDraft(
+      authorPublicKeyHex: _authorPublicKeyHex,
+      encryptedContent: content,
+      createdAt: createdAt,
+    ),
+    signatureHex: _signatureHex,
+  );
 }
 
 KeychainManifestNostrSignedEvent _event({
   required int createdAt,
   required String walletId,
+  int inventoryUpdatedAt = 10,
 }) {
-  final encryptionKey = const DeriveKeychainManifestNostrEncryptionKeyUsecase()
-      .execute(
-        xprvBase58: _xprv,
-        expectedParentFingerprint: _parentFingerprint,
+  final content = const RecoverBullKeychainManifestNostrEncryptionRepository()
+      .encryptSnapshot(
+        snapshot: KeychainManifestNostrSnapshot(
+          manifestFile: _manifestFile(
+            walletId: walletId,
+            inventoryUpdatedAt: inventoryUpdatedAt,
+          ),
+        ),
+        key: _encryptionKey,
       );
-  final encryptedContent =
-      const RecoverBullKeychainManifestNostrEncryptionRepository()
-          .encryptSnapshot(
-            snapshot: KeychainManifestNostrSnapshot(
-              manifestFile: _manifestFile(walletId: walletId),
-            ),
-            key: encryptionKey,
-          );
-  return KeychainManifestNostrSignedEvent.fromDraft(
-    draft: KeychainManifestNostrEventDraft(
-      authorPublicKeyHex: _authorPublicKeyHex,
-      encryptedContent: encryptedContent,
-      createdAt: createdAt,
-    ),
-    signatureHex: _signatureHex,
-  );
+  return _eventWithContent(createdAt: createdAt, content: content);
 }
 
+/// An authentic event whose (populated) manifest is empty of entries -
+/// decryptable but non-recoverable (must never trigger a "newest failed" alarm).
+KeychainManifestNostrSignedEvent _emptyEvent({required int createdAt}) {
+  final content = const RecoverBullKeychainManifestNostrEncryptionRepository()
+      .encryptSnapshot(
+        snapshot: KeychainManifestNostrSnapshot(manifestFile: _emptyManifest()),
+        key: _encryptionKey,
+      );
+  return _eventWithContent(createdAt: createdAt, content: content);
+}
+
+/// An authentic event whose content is a well-shaped ciphertext that does not
+/// decrypt under our key (wrong/newer format) - authentic-but-unreadable.
 KeychainManifestNostrSignedEvent _invalidEvent({required int createdAt}) {
-  return KeychainManifestNostrSignedEvent.fromDraft(
-    draft: KeychainManifestNostrEventDraft(
-      authorPublicKeyHex: _authorPublicKeyHex,
-      encryptedContent: '{"not":"decryptable"}',
-      createdAt: createdAt,
-    ),
-    signatureHex: _signatureHex,
+  final content = KeychainManifestNostrCiphertext(base64.encode(Uint8List(64)));
+  return _eventWithContent(createdAt: createdAt, content: content);
+}
+
+/// An authentic event that decrypts cleanly but whose inner manifest file
+/// declares a newer format version than this app understands (KC2b(a)).
+KeychainManifestNostrSignedEvent _unsupportedVersionEvent({
+  required int createdAt,
+}) {
+  const snapshotCodec = KeychainManifestNostrSnapshotCodec();
+  final plaintext = snapshotCodec
+      .encode(
+        KeychainManifestNostrSnapshot(
+          manifestFile: _manifestFile(walletId: 'btc-wallet'),
+        ),
+      )
+      .replaceFirst(
+        '"manifestFile":{"version":1',
+        '"manifestFile":{"version":2',
+      );
+  final blob = const KeychainManifestNostrEncryptionDatasource().encrypt(
+    plaintext: plaintext,
+    key: _encryptionKey,
+  );
+  return _eventWithContent(
+    createdAt: createdAt,
+    content: KeychainManifestNostrCiphertext(blob),
   );
 }
 
-KeychainManifestFile _manifestFile({required String walletId}) {
+KeychainManifestFile _emptyManifest() {
+  return KeychainManifestFile(
+    parentFingerprint: _parentFingerprint,
+    generatedAt: 20,
+    entries: const [],
+  );
+}
+
+KeychainManifestFile _manifestFile({
+  required String walletId,
+  int inventoryUpdatedAt = 10,
+}) {
   final entryId = "$_parentFingerprint:39'/0'/12'/100'";
   return KeychainManifestFile(
     parentFingerprint: _parentFingerprint,
@@ -163,7 +345,7 @@ KeychainManifestFile _manifestFile({required String walletId}) {
         bip85Application: 39,
         bip85Index: 100,
         createdAt: 10,
-        updatedAt: 10,
+        updatedAt: inventoryUpdatedAt,
         materializations: [
           KeychainManifestFileWalletMaterialization(
             walletId: walletId,
@@ -172,7 +354,7 @@ KeychainManifestFile _manifestFile({required String walletId}) {
             network: Network.bitcoinMainnet.name,
             scriptType: ScriptType.bip84.name,
             createdAt: 10,
-            updatedAt: 10,
+            updatedAt: inventoryUpdatedAt,
           ),
         ],
       ),
