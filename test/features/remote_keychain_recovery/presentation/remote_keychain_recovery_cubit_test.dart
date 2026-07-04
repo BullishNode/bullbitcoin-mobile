@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_error.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
@@ -141,10 +144,86 @@ void main() {
     expect(restoreManifest.restoreCount, 1);
   });
 
-  test('maps missing default wallet to unavailable state', () async {
-    checkRecovery.error = const RemoteKeychainRecoveryException(
-      RemoteKeychainRecoveryErrorKind.defaultWalletUnavailable,
+  test('maps a zero-outcome restore to nothingToRestore (P22a)', () async {
+    checkRecovery.result =
+        RemoteKeychainRecoveryCheckResult.latestManifestReady(
+          manifestResult: KeychainManifestNostrImportResult.latestRecoverable(
+            importPlan: _importPlan,
+            eventCreatedAt: _manifestEvent.createdAt,
+          ),
+        );
+    restoreManifest.summary = const RemoteKeychainRecoveryRestoreSummary(
+      restoredCount: 0,
+      failedCount: 0,
+      hasProductReactivationRequired: false,
     );
+
+    await cubit.acceptRelayDisclosure();
+
+    expect(cubit.state.status, RemoteKeychainRecoveryStatus.nothingToRestore);
+  });
+
+  test('maps unsupportedNewerManifest to a dedicated state (P22c)', () async {
+    checkRecovery.result =
+        const RemoteKeychainRecoveryCheckResult.unsupportedNewerManifest();
+
+    await cubit.acceptRelayDisclosure();
+
+    expect(
+      cubit.state.status,
+      RemoteKeychainRecoveryStatus.unsupportedNewerManifest,
+    );
+    expect(restoreManifest.restoreCount, 0);
+  });
+
+  test('maps relaysUnavailable and noRecoverableManifest checks', () async {
+    checkRecovery.result =
+        const RemoteKeychainRecoveryCheckResult.relaysUnavailable();
+    await cubit.acceptRelayDisclosure();
+    expect(cubit.state.status, RemoteKeychainRecoveryStatus.relaysUnavailable);
+
+    checkRecovery.result =
+        const RemoteKeychainRecoveryCheckResult.noRecoverableManifest();
+    await cubit.acceptRelayDisclosure();
+    expect(
+      cubit.state.status,
+      RemoteKeychainRecoveryStatus.noRecoverableManifest,
+    );
+  });
+
+  test('carries staleness markers onto an older restore (P22d)', () async {
+    checkRecovery.result =
+        RemoteKeychainRecoveryCheckResult.olderManifestAvailable(
+          manifestResult:
+              KeychainManifestNostrImportResult.newestFailedOlderRecoverable(
+                importPlan: _importPlan,
+                selectedEventCreatedAt: 20,
+                newestEventCreatedAt: 30,
+              ),
+        );
+
+    await cubit.acceptRelayDisclosure();
+    await cubit.restoreOlderManifest();
+
+    expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
+    expect(cubit.state.isOlderRestore, isTrue);
+    expect(cubit.state.selectedEventCreatedAt, 20);
+    expect(cubit.state.newestEventCreatedAt, 30);
+  });
+
+  test('surfaces the typed failure without a raw error (P22b)', () async {
+    checkRecovery.error = DefaultWalletUnavailableRecoveryException();
+
+    await cubit.acceptRelayDisclosure();
+
+    expect(
+      cubit.state.failure,
+      isA<DefaultWalletUnavailableRecoveryException>(),
+    );
+  });
+
+  test('maps missing default wallet to unavailable state', () async {
+    checkRecovery.error = DefaultWalletUnavailableRecoveryException();
 
     await cubit.acceptRelayDisclosure();
 
@@ -176,6 +255,10 @@ void main() {
   });
 }
 
+final _wellShapedCiphertext = base64.encode(
+  Uint8List(KeychainManifestNostrCiphertext.minimumByteLength),
+);
+
 final _importPlan = KeychainManifestImportPlan(
   parentFingerprint: 'fedcba98',
   entries: [],
@@ -185,7 +268,7 @@ final _manifestEvent = KeychainManifestNostrSignedEvent.fromDraft(
   draft: KeychainManifestNostrEventDraft(
     authorPublicKeyHex:
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    encryptedContent: 'encrypted',
+    encryptedContent: KeychainManifestNostrCiphertext(_wellShapedCiphertext),
     createdAt: 20,
   ),
   signatureHex:
@@ -197,7 +280,7 @@ final _newerManifestEvent = KeychainManifestNostrSignedEvent.fromDraft(
   draft: KeychainManifestNostrEventDraft(
     authorPublicKeyHex:
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    encryptedContent: 'newer-encrypted',
+    encryptedContent: KeychainManifestNostrCiphertext(_wellShapedCiphertext),
     createdAt: 30,
   ),
   signatureHex:

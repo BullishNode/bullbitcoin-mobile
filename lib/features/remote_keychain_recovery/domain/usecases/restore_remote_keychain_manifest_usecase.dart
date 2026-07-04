@@ -15,14 +15,21 @@ class RestoreRemoteKeychainManifestUsecase {
   Future<RemoteKeychainRecoveryRestoreSummary> execute(
     KeychainManifestImportPlan importPlan,
   ) async {
+    // P22a: reject an empty plan defensively before the restore loop - it has
+    // nothing to materialize, so it returns a zero-outcome summary (mapped to
+    // nothingToRestore) rather than driving the recovery flow.
+    if (importPlan.walletMaterializations.isEmpty) {
+      return const RemoteKeychainRecoveryRestoreSummary(
+        restoredCount: 0,
+        failedCount: 0,
+        hasProductReactivationRequired: false,
+      );
+    }
     try {
       final result = await _keychainRecovery.restoreWallets(importPlan);
       return RemoteKeychainRecoveryRestoreSummary.fromResult(result);
     } catch (e) {
-      throw RemoteKeychainRecoveryException(
-        RemoteKeychainRecoveryErrorKind.restoreFailed,
-        cause: e,
-      );
+      throw RestoreFailedRecoveryException(cause: e);
     }
   }
 }

@@ -36,14 +36,15 @@ class CheckRemoteKeychainRecoveryUsecase {
         relayUrls: policy.defaultRelays
             .map((relay) => relay.url)
             .toList(growable: false),
+        // The relay-disclosure gate above has already been satisfied to reach
+        // here; pass the checked consent value through the (P21c) fetch gate so
+        // it stays structurally non-bypassable.
+        acceptedThirdPartyRelayDisclosure: acceptedThirdPartyRelayDisclosure,
       );
     } on RemoteKeychainRecoveryException {
       rethrow;
     } catch (e) {
-      throw RemoteKeychainRecoveryException(
-        RemoteKeychainRecoveryErrorKind.manifestCheckFailed,
-        cause: e,
-      );
+      throw ManifestCheckFailedRecoveryException(cause: e);
     }
     return switch (manifestResult.status) {
       KeychainManifestNostrImportStatus.latestRecoverable =>
@@ -60,6 +61,8 @@ class CheckRemoteKeychainRecoveryUsecase {
         const RemoteKeychainRecoveryCheckResult.relaysUnavailable(),
       KeychainManifestNostrImportStatus.noRecoverableManifest =>
         const RemoteKeychainRecoveryCheckResult.noRecoverableManifest(),
+      KeychainManifestNostrImportStatus.unsupportedNewerManifest =>
+        const RemoteKeychainRecoveryCheckResult.unsupportedNewerManifest(),
     };
   }
 }

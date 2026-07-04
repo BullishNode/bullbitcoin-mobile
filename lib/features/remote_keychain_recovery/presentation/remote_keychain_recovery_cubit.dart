@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_initializing_formals
 
+import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_error.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
@@ -13,6 +14,8 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
   final RestoreRemoteKeychainManifestUsecase _restoreManifest;
 
   KeychainManifestImportPlan? _pendingOlderImportPlan;
+  int? _pendingOlderNewestEventCreatedAt;
+  int? _pendingOlderSelectedEventCreatedAt;
   int _operationId = 0;
 
   RemoteKeychainRecoveryCubit({
@@ -24,7 +27,7 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
 
   Future<void> start({bool acceptedThirdPartyRelayDisclosure = false}) async {
     final operationId = ++_operationId;
-    _pendingOlderImportPlan = null;
+    _clearPendingOlder();
     emit(
       const RemoteKeychainRecoveryState(
         status: RemoteKeychainRecoveryStatus.checking,
@@ -52,9 +55,17 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
             );
             return;
           }
-          await _restore(importPlan, operationId);
+          await _restore(
+            importPlan,
+            operationId,
+            newestEventCreatedAt: result.newestEventCreatedAt,
+            selectedEventCreatedAt: result.selectedEventCreatedAt,
+            isOlderRestore: false,
+          );
         case RemoteKeychainRecoveryCheckStatus.olderManifestAvailable:
           _pendingOlderImportPlan = result.importPlan;
+          _pendingOlderNewestEventCreatedAt = result.newestEventCreatedAt;
+          _pendingOlderSelectedEventCreatedAt = result.selectedEventCreatedAt;
           emit(
             RemoteKeychainRecoveryState(
               status: RemoteKeychainRecoveryStatus.olderManifestAvailable,
@@ -80,20 +91,26 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
               status: RemoteKeychainRecoveryStatus.noRecoverableManifest,
             ),
           );
+        case RemoteKeychainRecoveryCheckStatus.unsupportedNewerManifest:
+          emit(
+            const RemoteKeychainRecoveryState(
+              status: RemoteKeychainRecoveryStatus.unsupportedNewerManifest,
+            ),
+          );
       }
     } on RemoteKeychainRecoveryException catch (e) {
       if (!_isActive(operationId)) return;
-      _pendingOlderImportPlan = null;
+      _clearPendingOlder();
       emit(_failureState(e));
-    } catch (e) {
-      if (!_isActive(operationId)) return;
-      _pendingOlderImportPlan = null;
-      emit(
-        RemoteKeychainRecoveryState(
-          status: RemoteKeychainRecoveryStatus.failed,
-          error: e,
-        ),
+    } catch (e, stack) {
+      log.warning(
+        'Remote keychain recovery check failed',
+        error: e,
+        trace: stack,
       );
+      if (!_isActive(operationId)) return;
+      _clearPendingOlder();
+      emit(_failureState(ManifestCheckFailedRecoveryException(cause: e)));
     }
   }
 
@@ -112,13 +129,21 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
       );
       return;
     }
-    _pendingOlderImportPlan = null;
-    await _restore(importPlan, operationId);
+    final newestEventCreatedAt = _pendingOlderNewestEventCreatedAt;
+    final selectedEventCreatedAt = _pendingOlderSelectedEventCreatedAt;
+    _clearPendingOlder();
+    await _restore(
+      importPlan,
+      operationId,
+      newestEventCreatedAt: newestEventCreatedAt,
+      selectedEventCreatedAt: selectedEventCreatedAt,
+      isOlderRestore: true,
+    );
   }
 
   void skip() {
     _operationId++;
-    _pendingOlderImportPlan = null;
+    _clearPendingOlder();
     emit(
       const RemoteKeychainRecoveryState(
         status: RemoteKeychainRecoveryStatus.skipped,
@@ -128,8 +153,11 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
 
   Future<void> _restore(
     KeychainManifestImportPlan importPlan,
-    int operationId,
-  ) async {
+    int operationId, {
+    required int? newestEventCreatedAt,
+    required int? selectedEventCreatedAt,
+    required bool isOlderRestore,
+  }) async {
     emit(
       const RemoteKeychainRecoveryState(
         status: RemoteKeychainRecoveryStatus.restoring,
@@ -145,23 +173,32 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
           failedCount: summary.failedCount,
           hasProductReactivationRequired:
               summary.hasProductReactivationRequired,
+          newestEventCreatedAt: newestEventCreatedAt,
+          selectedEventCreatedAt: selectedEventCreatedAt,
+          isOlderRestore: isOlderRestore,
         ),
       );
     } on RemoteKeychainRecoveryException catch (e) {
       if (!_isActive(operationId)) return;
       emit(_failureState(e));
-    } catch (e) {
-      if (!_isActive(operationId)) return;
-      emit(
-        RemoteKeychainRecoveryState(
-          status: RemoteKeychainRecoveryStatus.failed,
-          error: e,
-        ),
+    } catch (e, stack) {
+      log.warning(
+        'Remote keychain recovery restore failed',
+        error: e,
+        trace: stack,
       );
+      if (!_isActive(operationId)) return;
+      emit(_failureState(RestoreFailedRecoveryException(cause: e)));
     }
   }
 
   bool _isActive(int operationId) => !isClosed && operationId == _operationId;
+
+  void _clearPendingOlder() {
+    _pendingOlderImportPlan = null;
+    _pendingOlderNewestEventCreatedAt = null;
+    _pendingOlderSelectedEventCreatedAt = null;
+  }
 
   RemoteKeychainRecoveryState _failureState(
     RemoteKeychainRecoveryException error,
@@ -175,7 +212,7 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
         RemoteKeychainRecoveryErrorKind.manifestCheckFailed =>
           RemoteKeychainRecoveryStatus.failed,
       },
-      error: error,
+      failure: error,
     );
   }
 
@@ -187,6 +224,11 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
     }
     if (summary.failedCount > 0) {
       return RemoteKeychainRecoveryStatus.partiallyRestored;
+    }
+    // P22a: zero restored and zero failed is not success - it is an empty
+    // outcome, surfaced distinctly so no success screen shows zero wallets.
+    if (summary.restoredCount == 0) {
+      return RemoteKeychainRecoveryStatus.nothingToRestore;
     }
     return RemoteKeychainRecoveryStatus.restored;
   }
