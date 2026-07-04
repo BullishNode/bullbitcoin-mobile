@@ -358,6 +358,9 @@ void main() {
           ),
       registerWalletOwned: ({required nym}) => walletOwned.execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
+      ensureRegistrationLive: () async => const LightningAddressHealOutcome(
+        liveness: LightningAddressRegistrationLiveness.live,
+      ),
     );
 
     final result = await facade.registerWalletOwned(nym: 'alice');
@@ -378,6 +381,9 @@ void main() {
       registerWalletOwned: ({required nym}) =>
           _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
+      ensureRegistrationLive: () async => const LightningAddressHealOutcome(
+        liveness: LightningAddressRegistrationLiveness.live,
+      ),
     );
 
     final result = await facade.lookupWalletOwnedRegistration();
