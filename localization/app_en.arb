@@ -4876,6 +4876,10 @@
   "@anErrorOccurred": {
     "description": "Generic error message"
   },
+  "getPaidSettingsGenericError": "Something went wrong. Please try again.",
+  "@getPaidSettingsGenericError": {
+    "description": "Generic Get Paid settings failure message"
+  },
   "dcaSetRecurringBuyTitle": "Set Recurring Buy",
   "@dcaSetRecurringBuyTitle": {
     "description": "AppBar title for the main DCA setup screen"

@@ -10,6 +10,7 @@ import 'package:bb_mobile/core/storage/tables/bip85_derivations_table.dart';
 import 'package:bb_mobile/core/storage/tables/electrum_servers_table.dart';
 import 'package:bb_mobile/core/storage/tables/electrum_settings_table.dart';
 import 'package:bb_mobile/core/storage/tables/frozen_utxos_table.dart';
+import 'package:bb_mobile/core/storage/tables/get_paid_settings_table.dart';
 import 'package:bb_mobile/core/storage/tables/keychain_manifest_entries_table.dart';
 import 'package:bb_mobile/core/storage/tables/labels_table.dart';
 import 'package:bb_mobile/core/storage/tables/mempool_servers_table.dart';
@@ -51,6 +52,7 @@ part 'sqlite_database.g.dart';
     KeychainManifestWalletBindings,
     Recoverbull,
     Prices,
+    GetPaidSettings,
     FrozenUtxos,
   ],
 )
@@ -98,10 +100,12 @@ class SqliteDatabase extends _$SqliteDatabase {
   SqliteDatabase([QueryExecutor? executor])
     : super(executor ?? _openConnection());
 
-  /// Current drift schema version. Bump in lockstep with adding a new
   /// `Schema<N-1>To<N>.migrate` step in [migration] and regenerating the
-  /// schema snapshots (`make drift-migrations`).
-  static const int currentSchemaVersion = 15;
+  /// schema snapshots (`make drift-migrations`). `Report.init`
+  /// asserts that an entry for this number exists in the
+  /// schema → app-version map so a future bump can't silently
+  /// misclassify upgrade events.
+  static const int currentSchemaVersion = 16;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -159,6 +163,7 @@ class SqliteDatabase extends _$SqliteDatabase {
         from12To13: _reportingMigration('from12To13', Schema12To13.migrate),
         from13To14: _reportingMigration('from13To14', Schema13To14.migrate),
         from14To15: _reportingMigration('from14To15', Schema14To15.migrate),
+        from15To16: _reportingMigration('from15To16', Schema15To16.migrate),
       ),
       // Backfills `Report.fromVersion` for installs that predate the
       // `_lastVersionKey` SharedPreferences marker (added in v6.6.0).
