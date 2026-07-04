@@ -34,15 +34,14 @@ void main() {
     expect(KeychainManifestReservationSupport.supportsV1Export(ln), true);
     expect(KeychainManifestReservationSupport.supportsV1Export(page), true);
 
-    // Recoverable at this stack level: BTCPay (pr06) and Lightning Address
-    // (added by pr11). Payment Page recovery is still deferred to PR23.
+    // Recoverable at this stack level: BTCPay (pr06), Lightning Address (pr11),
+    // and Payment Page (added by pr23).
     expect(KeychainManifestReservationSupport.supportsV1Recovery(btcpay), true);
     expect(KeychainManifestReservationSupport.supportsV1Recovery(ln), true);
-    expect(KeychainManifestReservationSupport.supportsV1Recovery(page), false);
+    expect(KeychainManifestReservationSupport.supportsV1Recovery(page), true);
 
     // The reactivation-on-recovery intent is recorded for the bullnym-backed
-    // products: LN uses it now (requiresProductReactivation); PR23 upgrades it
-    // to the DG-3 auto-heal and extends it to Payment Page.
+    // products: LN and Payment Page carry the DG-3 auto-heal intent.
     expect(
       KeychainManifestReservationSupport.classificationFor(
         ln,

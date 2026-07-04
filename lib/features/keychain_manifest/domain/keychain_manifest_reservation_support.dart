@@ -43,21 +43,26 @@ class KeychainManifestReservationClassification {
 /// dropping it from backups (KC-3) or from recovery.
 ///
 /// Recoverability lands per owning PR: BTCPay at pr06, Lightning Address at
-/// pr11 (recoverableV1 flips true here, with the requiresProductReactivation
-/// flow + KC-6 posture re-applied). Payment Page (102) stays exportable but NOT
-/// recoverable through this cascade; POS (103) is a future reservation.
+/// pr11, and Payment Page (102) at pr23 (recoverableV1 flips true here, with
+/// the requiresProductReactivation flow + KC-6 posture re-applied). POS (103)
+/// is a future reservation.
 ///
-/// PR23 FORWARD-OBLIGATION (DG-3, decisions [3]/[A]/[D]/[E]), remote recovery
-/// being dormant/unwired until then, PR23 MUST:
-///   (a) UPGRADE requiresProductReactivation into the DG-3 auto-heal for the
-///       bullnym-backed products (101/102/103) - verify the registration by
-///       seed-derived npub and silently re-register if missing (keyed off
-///       [KeychainManifestReactivationOnRecovery.autoHealOnRecoveryPr23]),
-///       replacing the unconditional-reactivation precursor;
-///   (b) add Payment Page (102) recovery (flip its recoverableV1);
-///   (c) add POS (103) recovery once that reservation lands;
-///   (d) re-apply the KC-6 hidden + autosweep posture to those newly
-///       recoverable products (as pr06/pr11 already do for BTCPay/LN).
+/// PR23 DISCHARGED (a), (b) and (d) of its forward-obligation (DG-3,
+/// decisions [3]/[A]/[D]/[E]):
+///   (a) requiresProductReactivation is UPGRADED into the DG-3 auto-heal for
+///       the bullnym-backed products (verify the registration by seed-derived
+///       npub and silently re-register if missing, keyed off
+///       [KeychainManifestReactivationOnRecovery.autoHealOnRecoveryPr23])
+///       rather than an unconditional reactivation prompt;
+///   (b) Payment Page (102) recovery is added (its recoverableV1 is now true);
+///   (d) the KC-6 hidden + autosweep posture is re-applied generically to all
+///       restored wallet-seed wallets, so 102 inherits it.
+/// Still future:
+///   (c) POS (103) recovery lands with the POS reservation (pr28).
+/// Note: 102 has no product client surface until the Payment Page PRs, so its
+/// autoHealOnRecoveryPr23 reactivation signal is recovered wallet-only for now
+/// (the recovered wallet + funds materialize with posture; there is no page to
+/// re-save yet).
 class KeychainManifestReservationSupport {
   const KeychainManifestReservationSupport._();
 
@@ -78,9 +83,13 @@ class KeychainManifestReservationSupport {
               reactivationOnRecovery:
                   KeychainManifestReactivationOnRecovery.autoHealOnRecoveryPr23,
             ),
+        // Payment Page recovery is added by this PR (pr23): recoverableV1 flips
+        // to true. Its registration cannot be proven live on restore, so it is
+        // flagged autoHealOnRecoveryPr23 (recovered wallet-only until a page
+        // client surface exists).
         'payment_page_wallet_seed': KeychainManifestReservationClassification(
           exportableV1: true,
-          recoverableV1: false,
+          recoverableV1: true,
           reactivationOnRecovery:
               KeychainManifestReactivationOnRecovery.autoHealOnRecoveryPr23,
         ),
@@ -115,7 +124,8 @@ class KeychainManifestReservationSupport {
       classificationFor(reservation)?.exportableV1 ?? false;
 
   /// Whether the reserved seed is materialized when restoring from a v1
-  /// manifest at this stack level (btcpay only; LN/page recovery is PR23).
+  /// manifest at this stack level (btcpay + lightning_address + payment_page;
+  /// POS (103) recovery is future).
   static bool supportsV1Recovery(Bip85Reservation reservation) =>
       classificationFor(reservation)?.recoverableV1 ?? false;
 
