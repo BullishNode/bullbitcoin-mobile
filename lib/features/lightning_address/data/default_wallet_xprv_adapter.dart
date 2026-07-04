@@ -32,7 +32,10 @@ class DefaultWalletXprvAdapter
         retryable: false,
       );
     }
-    final defaultWallet = wallets.first;
+    // Fail loud if more than one default bitcoin wallet exists: the identity
+    // is derived from THE default wallet, so an ambiguous set must not silently
+    // bind to an arbitrary one. Matches the prepare path's `.single` (R2-P12b).
+    final defaultWallet = wallets.single;
     final seed = await _seedRepository.get(defaultWallet.masterFingerprint);
     final xprv = Bip32Derivation.getCanonicalRootXprvFromSeed(seed.bytes);
     final actualFingerprint = bip32.Bip32Keys.fromBase58(xprv).fingerprintHex;
