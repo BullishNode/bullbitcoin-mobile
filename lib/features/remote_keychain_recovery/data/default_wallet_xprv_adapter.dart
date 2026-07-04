@@ -32,9 +32,7 @@ class RemoteKeychainRecoveryDefaultWalletXprvAdapter
       onlyBitcoin: true,
     );
     if (wallets.isEmpty) {
-      throw const RemoteKeychainRecoveryException(
-        RemoteKeychainRecoveryErrorKind.defaultWalletUnavailable,
-      );
+      throw DefaultWalletUnavailableRecoveryException();
     }
     final defaultWallet = wallets.first;
     final seed = await _seedRepository.get(defaultWallet.masterFingerprint);
