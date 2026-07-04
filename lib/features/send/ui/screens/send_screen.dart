@@ -1810,6 +1810,9 @@ class SendSucessScreen extends StatelessWidget {
     final isLnSwap = lnSwap != null;
     final isChainSwap = chainSwap != null;
     final isSwap = isLnSwap || isChainSwap;
+    final paidViaLiquidDirect = context.select(
+      (SendCubit cubit) => cubit.state.paidViaLiquidDirect,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -1938,6 +1941,15 @@ class SendSucessScreen extends StatelessWidget {
                     maxLines: 4,
                     textAlign: .center,
                   ),
+                  if (paidViaLiquidDirect) ...[
+                    const Gap(8),
+                    BBText(
+                      context.loc.sendLud22PaidDirectly,
+                      style: context.font.labelSmall,
+                      color: context.appColors.secondary,
+                      textAlign: .center,
+                    ),
+                  ],
                 ],
               ),
             ),
