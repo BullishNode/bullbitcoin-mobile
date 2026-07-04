@@ -1,6 +1,4 @@
 import 'package:bb_mobile/core/errors/bull_exception.dart';
-import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:flutter/widgets.dart';
 
 enum KeychainManifestExceptionType {
   invalidEntry,
@@ -32,25 +30,6 @@ sealed class KeychainManifestException extends BullException {
       _ => KeychainManifestGenericException(cause: error),
     };
   }
-
-  String toTranslated(BuildContext context) {
-    return switch (this) {
-      KeychainManifestUnsupportedVersionException() =>
-        context.loc.keychainManifestUnsupportedFileError,
-      KeychainManifestFileParseException(reason: final reason) =>
-        switch (reason) {
-          KeychainManifestFileParseFailureReason.malformedFile =>
-            context.loc.keychainManifestMalformedFileError,
-          KeychainManifestFileParseFailureReason.wrongParentFingerprint =>
-            context.loc.keychainManifestWrongWalletFileError,
-          KeychainManifestFileParseFailureReason.unknownReservation =>
-            context.loc.keychainManifestIncompatibleFileError,
-          KeychainManifestFileParseFailureReason.invalidMetadata =>
-            context.loc.keychainManifestInvalidFileError,
-        },
-      _ => context.loc.keychainManifestGenericError,
-    };
-  }
 }
 
 final class KeychainManifestInvalidEntryException
@@ -80,6 +59,12 @@ final class KeychainManifestFileParseException
       );
 }
 
+/// A well-formed manifest written by a NEWER format version than this app
+/// understands. Consumers MUST present this as "this backup needs a newer app
+/// version - update the app", never as "no backup found": the backup exists and
+/// is intact, the app simply cannot read it yet. Surfacing it as "no backup"
+/// would steer a user with a real backup toward creating a new one and losing
+/// recovery of the old funds (KC-2).
 final class KeychainManifestUnsupportedVersionException
     extends KeychainManifestException {
   final int version;
