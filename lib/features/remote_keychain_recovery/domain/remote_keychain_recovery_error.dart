@@ -19,13 +19,16 @@ sealed class RemoteKeychainRecoveryException extends BullException {
     : super(message);
 
   String toTranslated(BuildContext context) {
+    // Feature-specific copy per variant (the pr22 placeholder is discharged
+    // here); the sealed switch guarantees every variant has a user-facing
+    // message and the raw cause stays in logs.
     return switch (this) {
-      // The feature is unwired at this stage (PR23 renders the final copy); the
-      // sealed switch guarantees every variant has a user-facing message and
-      // never leaks the raw cause.
-      DefaultWalletUnavailableRecoveryException() ||
-      ManifestCheckFailedRecoveryException() ||
-      RestoreFailedRecoveryException() => context.loc.anErrorOccurred,
+      DefaultWalletUnavailableRecoveryException() =>
+        context.loc.remoteKeychainRecoveryDefaultWalletUnavailable,
+      ManifestCheckFailedRecoveryException() =>
+        context.loc.remoteKeychainRecoveryCheckFailed,
+      RestoreFailedRecoveryException() =>
+        context.loc.remoteKeychainRecoveryRestoreFailed,
     };
   }
 }
