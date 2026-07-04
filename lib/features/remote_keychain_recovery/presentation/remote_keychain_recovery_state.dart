@@ -1,3 +1,4 @@
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_error.dart';
 
 enum RemoteKeychainRecoveryStatus {
@@ -37,6 +38,12 @@ class RemoteKeychainRecoveryState {
   /// (P22b).
   final RemoteKeychainRecoveryException? failure;
 
+  /// The DG-3 auto-heal interpretation the UI renders for recovered
+  /// bullnym-backed products. Uses the Lightning Address feature's exported
+  /// contract type (charter A3). Null when nothing was healed;
+  /// [hasProductReactivationRequired] stays the raw restore signal.
+  final LightningAddressHealOutcome? healOutcome;
+
   const RemoteKeychainRecoveryState({
     this.status = RemoteKeychainRecoveryStatus.idle,
     this.restoredCount = 0,
@@ -46,5 +53,6 @@ class RemoteKeychainRecoveryState {
     this.selectedEventCreatedAt,
     this.isOlderRestore = false,
     this.failure,
+    this.healOutcome,
   });
 }
