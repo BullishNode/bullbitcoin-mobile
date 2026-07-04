@@ -239,7 +239,7 @@ void main() {
       createdAt: 123,
       kind: keychainManifestNostrEventKind,
       tags: tags,
-      encryptedContent: 'encrypted-payload',
+      encryptedContent: _wellShapedCiphertext,
     );
 
     final signed = KeychainManifestNostrSignedEvent.fromRelay(
@@ -249,7 +249,7 @@ void main() {
       createdAt: 123,
       kind: keychainManifestNostrEventKind,
       tags: tags,
-      encryptedContent: 'encrypted-payload',
+      encryptedContent: _wellShapedCiphertext,
       signatureHex: _signatureHex,
     );
 

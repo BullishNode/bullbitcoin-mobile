@@ -11,6 +11,7 @@ enum KeychainManifestExceptionType {
   conflict,
   duplicate,
   nostrEvent,
+  consentRequired,
   generic,
 }
 
@@ -144,6 +145,15 @@ final class KeychainManifestNostrPublishException
     extends KeychainManifestException {
   KeychainManifestNostrPublishException(String message, {Object? cause})
     : super._(KeychainManifestExceptionType.generic, message, cause: cause);
+}
+
+/// The caller tried to reach third-party public relays without the user's
+/// Automated-backup consent (P21c). The fetch API is unreachable ungated: the
+/// gate (decision [3]) becomes structurally non-bypassable.
+final class KeychainManifestConsentRequiredException
+    extends KeychainManifestException {
+  KeychainManifestConsentRequiredException(String message)
+    : super._(KeychainManifestExceptionType.consentRequired, message);
 }
 
 final class KeychainManifestGenericException extends KeychainManifestException {

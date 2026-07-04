@@ -9,6 +9,12 @@ typedef KeychainManifestNostrRelayConnector =
     WebSocketChannel Function(Uri uri);
 
 class KeychainManifestNostrRelayDatasource {
+  /// Reject any relay frame larger than this before deserializing or
+  /// decrypting it (P21b). Comfortably above any real manifest event, but
+  /// bounded so a hostile relay cannot stream oversize payloads to exhaust
+  /// memory/CPU (sha256 + bip340 per event) during recovery.
+  static const int maxEventFrameBytes = 256 * 1024;
+
   final KeychainManifestNostrRelayConnector connect;
 
   const KeychainManifestNostrRelayDatasource({
@@ -65,6 +71,8 @@ class KeychainManifestNostrRelayDatasource {
         );
         if (!hasMessage) break;
         final message = iterator.current;
+        // P21b: reject oversize frames before deserialize/verify/decrypt work.
+        if (message is String && message.length > maxEventFrameBytes) continue;
         final parsed = _message(message);
         if (parsed == null) continue;
         switch (parsed.messageType) {
@@ -73,6 +81,9 @@ class KeychainManifestNostrRelayDatasource {
             if (event is nostr.Event &&
                 event.subscriptionId == subscriptionId) {
               events.add(event);
+              // P21b: `limit` is only a REQ hint; enforce the ceiling
+              // client-side so a relay cannot stream past it to timeout.
+              if (events.length >= limit) reachedEndOfStoredEvents = true;
             }
           case nostr.MessageType.eose:
             final eose = parsed.message;

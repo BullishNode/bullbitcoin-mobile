@@ -172,7 +172,8 @@ class PrepareLightningAddressWalletUsecase {
       KeychainManifestExceptionType.unsupportedFileVersion ||
       KeychainManifestExceptionType.conflict ||
       KeychainManifestExceptionType.duplicate ||
-      KeychainManifestExceptionType.nostrEvent => false,
+      KeychainManifestExceptionType.nostrEvent ||
+      KeychainManifestExceptionType.consentRequired => false,
     };
   }
 }

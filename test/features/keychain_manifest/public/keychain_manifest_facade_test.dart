@@ -45,6 +45,18 @@ void main() {
     );
   });
 
+  test('refuses to fetch without third-party relay consent (P21c)', () async {
+    await expectLater(
+      facade.fetchEncryptedNostrImportPlan(
+        parentFingerprint: 'fedcba98',
+        xprvBase58: 'xprv',
+        relayUrls: const ['wss://relay.example'],
+        acceptedThirdPartyRelayDisclosure: false,
+      ),
+      throwsA(isA<KeychainManifestConsentRequiredException>()),
+    );
+  });
+
   test('rejects unknown reservation ids at the public boundary', () async {
     await expectLater(
       facade.recordReservedDerivation(
