@@ -20,6 +20,7 @@ BTCPay owns the SamRock pairing surface exposed from Bitcoin Settings.
 - BTCPay may consume `features/deterministic_wallets/public/` and must not import deterministic wallet internals.
 - BTCPay may consume `features/bip85_registry/public/` and must not import registry internals or duplicate the reserved index.
 - BTCPay may consume `features/keychain_manifest/public/` and must not import keychain manifest internals. Keychain Manifest stores local derivation metadata only; it never stores mnemonic words, seeds, private keys, or descriptors.
+- BTCPay may consume `features/get_paid_settings/public/`: the UI runs the shared automated-backup consent gate before submission, and pairing triggers a best-effort snapshot publish after the manifest record is durable. Publication is post-commitment and cannot change the pairing result.
 - BTCPay may consume wallet behavior use cases to apply and edit settings for its own wallets. The wallet layer owns those flags and their persistence; BTCPay does not own the auto-sweep runner.
 - BTCPay UI consumes presentation state and view models. It must not import BTCPay domain entities directly. Typed failures are translated only by the presentation-owned localization extension.
 - BTCPay UI and Cubits must not create wallets, derive BIP85 material, submit descriptors, or decide rollback behavior directly.
