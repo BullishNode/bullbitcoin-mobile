@@ -5,7 +5,6 @@ import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/utils/recoverbull_bip85.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
-import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_event_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
@@ -18,8 +17,6 @@ import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_re
 import 'package:bip32_keys/bip32_keys.dart' as bip32;
 import 'package:bip39_mnemonic/bip39_mnemonic.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hex/hex.dart';
-import 'package:recoverbull/recoverbull.dart';
 
 void main() {
   late _InMemoryKeychainManifestStore store;
@@ -66,55 +63,57 @@ void main() {
         RecoverbullBip85Utils.deriveBackupKey(_xprv, "1608'/0'/586053381'"),
       ),
     );
+    // KI3: pin the literal derived key for a fixed xprv at m/83696968'/1642'/0'/1'.
+    // This is the only recovery-gating derivation; without a literal vector a
+    // bip85/bip32 upgrade could silently change it and brick decrypt of every
+    // published snapshot with tests still green. Append-only.
+    expect(
+      first,
+      'ea5ba82f8ba700987153a9a320330a00b7ea1e002fb25c2ff0dc8c5fc6248219',
+    );
   });
 
-  test(
-    'encrypts manifest snapshot content with recoverbull envelope',
-    () async {
-      await _recordInventory(store);
+  test('publishes a bare ciphertext blob with no cleartext markers', () async {
+    await _recordInventory(store);
 
-      final encrypted = await usecase.execute(
-        parentFingerprint: _parentFingerprint,
-        xprvBase58: _xprv,
-        now: DateTime.fromMillisecondsSinceEpoch(20000, isUtc: true),
-      );
+    final encrypted = await usecase.execute(
+      parentFingerprint: _parentFingerprint,
+      xprvBase58: _xprv,
+      now: DateTime.fromMillisecondsSinceEpoch(20000, isUtc: true),
+    );
 
-      expect(encrypted.encryptedContent, isNot(contains(_parentFingerprint)));
-      expect(encrypted.encryptedContent, isNot(contains('btc-wallet')));
-      expect(encrypted.encryptedContent, isNot(contains('btcpay_wallet_seed')));
-      expect(encrypted.encryptedContent, isNot(contains('manifestFile')));
+    // AD5b: the published content is bare base64(nonce ‖ ct ‖ hmac) - it
+    // decodes as base64 and carries neither manifest cleartext nor any
+    // recoverbull/bullbitcoin envelope marker a relay could classify.
+    final blob = encrypted.value;
+    expect(() => base64.decode(blob), returnsNormally);
+    expect(blob, isNot(contains('{')));
+    expect(blob, isNot(contains('bullbitcoin')));
+    expect(blob, isNot(contains('recoverbull')));
+    expect(blob, isNot(contains(_parentFingerprint)));
+    expect(blob, isNot(contains('btc-wallet')));
+    expect(blob, isNot(contains('btcpay_wallet_seed')));
+    expect(blob, isNot(contains('manifestFile')));
 
-      final key = const DeriveKeychainManifestNostrEncryptionKeyUsecase()
-          .execute(
-            xprvBase58: _xprv,
-            expectedParentFingerprint: _parentFingerprint,
-          );
-      final encryptedJson =
-          jsonDecode(encrypted.encryptedContent) as Map<String, Object?>;
-      final backup = BullBackup.fromJson(
-        encryptedJson['encryptedContent']! as String,
-      );
-      final decryptedPayload = utf8.decode(
-        RecoverBull.restoreBackup(
-          backup: backup,
-          backupKey: HEX.decode(key.hex),
-        ),
-      );
-      final snapshot = const KeychainManifestNostrSnapshotCodec().decode(
-        decryptedPayload,
-      );
+    // Round-trips symmetrically through the repository's decrypt seam.
+    final key = const DeriveKeychainManifestNostrEncryptionKeyUsecase().execute(
+      xprvBase58: _xprv,
+      expectedParentFingerprint: _parentFingerprint,
+    );
+    final snapshot =
+        const RecoverBullKeychainManifestNostrEncryptionRepository()
+            .decryptSnapshot(ciphertext: encrypted, key: key);
 
-      expect(snapshot.manifestFile.parentFingerprint, _parentFingerprint);
-      expect(
-        snapshot.manifestFile.entries.single.reservationId,
-        'btcpay_wallet_seed',
-      );
-      expect(
-        snapshot.manifestFile.entries.single.materializations.single.walletId,
-        'btc-wallet',
-      );
-    },
-  );
+    expect(snapshot.manifestFile.parentFingerprint, _parentFingerprint);
+    expect(
+      snapshot.manifestFile.entries.single.reservationId,
+      'btcpay_wallet_seed',
+    );
+    expect(
+      snapshot.manifestFile.entries.single.materializations.single.walletId,
+      'btc-wallet',
+    );
+  });
 
   test(
     'requires explicit caller decision before encrypting empty inventory',
