@@ -1,6 +1,6 @@
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_nostr_encryption.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/derive_keychain_manifest_nostr_encryption_key_usecase.dart';
@@ -17,7 +17,7 @@ class BuildKeychainManifestNostrEncryptedContentUsecase {
         const DeriveKeychainManifestNostrEncryptionKeyUsecase(),
   });
 
-  Future<KeychainManifestNostrEncryptedContent> execute({
+  Future<KeychainManifestNostrCiphertext> execute({
     required String parentFingerprint,
     required String xprvBase58,
     bool allowEmpty = false,
@@ -35,12 +35,12 @@ class BuildKeychainManifestNostrEncryptedContentUsecase {
         xprvBase58: xprvBase58,
         expectedParentFingerprint: manifestFile.parentFingerprint,
       );
-      final encryptedContent = encryptionRepository.encryptSnapshot(
+      // The repository returns the opaque ciphertext value object; pass it
+      // straight through so serialization stays a single step at the event
+      // boundary and the content can never be re-wrapped.
+      return encryptionRepository.encryptSnapshot(
         snapshot: KeychainManifestNostrSnapshot(manifestFile: manifestFile),
         key: encryptionKey,
-      );
-      return KeychainManifestNostrEncryptedContent(
-        encryptedContent: encryptedContent,
       );
     } on KeychainManifestException {
       rethrow;
