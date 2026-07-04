@@ -10,6 +10,7 @@ enum KeychainManifestExceptionType {
   reservationMismatch,
   conflict,
   duplicate,
+  nostrEvent,
   generic,
 }
 
@@ -114,6 +115,17 @@ final class KeychainManifestDuplicateException
     extends KeychainManifestException {
   KeychainManifestDuplicateException(String message, {Object? cause})
     : super._(KeychainManifestExceptionType.duplicate, message, cause: cause);
+}
+
+/// A violation of the Nostr manifest event/snapshot contract (malformed
+/// snapshot envelope, wrong version/content type, or a non-ciphertext payload).
+/// Folded into the sealed family (I13) so it carries a `type` and participates
+/// in `toTranslated` instead of being a standalone exception the codec had to
+/// re-wrap sealed-family errors into.
+final class KeychainManifestNostrEventException
+    extends KeychainManifestException {
+  KeychainManifestNostrEventException(String message, {Object? cause})
+    : super._(KeychainManifestExceptionType.nostrEvent, message, cause: cause);
 }
 
 final class KeychainManifestGenericException extends KeychainManifestException {

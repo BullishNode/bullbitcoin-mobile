@@ -1,19 +1,11 @@
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 
 const int keychainManifestNostrEventKind = 30078;
 const String keychainManifestNostrDTag = 'manifest';
 const String keychainManifestNostrSnapshotContentType =
     'bullbitcoin.keychain_manifest.v1';
-
-final class KeychainManifestNostrEventException implements Exception {
-  final String message;
-  final Object? cause;
-
-  const KeychainManifestNostrEventException(this.message, {this.cause});
-
-  @override
-  String toString() => 'KeychainManifestNostrEventException: $message';
-}
 
 class KeychainManifestNostrSnapshot {
   static const currentVersion = 1;
@@ -44,7 +36,7 @@ class KeychainManifestNostrEventDraft {
   static final _xOnlyPublicKeyPattern = RegExp(r'^[0-9a-fA-F]{64}$');
 
   final String authorPublicKeyHex;
-  final String encryptedContent;
+  final KeychainManifestNostrCiphertext encryptedContent;
   final int createdAt;
 
   KeychainManifestNostrEventDraft({
@@ -55,11 +47,6 @@ class KeychainManifestNostrEventDraft {
     if (!_xOnlyPublicKeyPattern.hasMatch(this.authorPublicKeyHex)) {
       throw KeychainManifestNostrEventException(
         'author public key must be a 32-byte x-only hex key',
-      );
-    }
-    if (encryptedContent.trim().isEmpty) {
-      throw KeychainManifestNostrEventException(
-        'encrypted Nostr event content is required',
       );
     }
     if (createdAt < 0) {
