@@ -14830,6 +14830,24 @@
   },
   "lightningAddressGenericError": "Lightning Address setup failed. Please try again.",
   "@lightningAddressGenericError": {
+  },
+  "sendLud22DirectPayFailed": "Direct Liquid payment could not be completed.",
+  "@sendLud22DirectPayFailed": {
+  },
+  "sendLud22InvalidProof": "This payment could not be verified. Please try again.",
+  "@sendLud22InvalidProof": {
+  },
+  "sendLud22UtxoUnavailable": "The coins used for this payment are no longer available.",
+  "@sendLud22UtxoUnavailable": {
+  },
+  "sendLud22NymNotFound": "This Lightning address could not be found.",
+  "@sendLud22NymNotFound": {
+  },
+  "sendLud22MinValue": "This payment needs a Liquid coin worth at least {minSat} sats.",
+  "@sendLud22MinValue": {
+      "minSat": {
+      }
+    }
   "bitcoinPriceExchangeRateUnavailable": "Exchange rate unavailable. Please try again later.",
   "@bitcoinPriceExchangeRateUnavailable": {
     "description": "Error shown when exchange rate cannot be fetched"
