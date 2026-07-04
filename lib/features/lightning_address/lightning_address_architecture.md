@@ -25,7 +25,14 @@ Lightning Address consumes only public facades:
 - `features/bullnym/public/bullnym_facade.dart`;
 - `features/deterministic_wallets/public/deterministic_wallets_facade.dart`;
 - `features/keychain_manifest/public/keychain_manifest_facade.dart`;
-- `features/nostr_identity/public/nostr_identity_facade.dart`.
+- `features/nostr_identity/public/nostr_identity_facade.dart`;
+- `features/get_paid_settings/public/`: the activation UI runs the shared
+  automated-backup consent gate before submitting, and the wallet-owned
+  registration use case triggers a best-effort backup publish once the wallet
+  is prepared (its manifest record is durable). This publish is
+  post-commitment (AD-3) and never changes the activation outcome. Lightning
+  Address does not own the backup preference, the publish gate, or relay
+  transport.
 
 It does not import Bullnym internals, Bullnym signing helpers, Bullnym HTTP adapters, or raw Nostr derivation paths.
 Registration and delete derive the Bullnym server-auth public key and signing operation through the role-named Nostr Identity facade methods.
