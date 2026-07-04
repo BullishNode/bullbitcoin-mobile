@@ -7,6 +7,7 @@ import 'package:bb_mobile/core/widgets/settings_entry_item.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_cubit.dart';
 import 'package:bb_mobile/features/exchange/ui/exchange_router.dart';
 import 'package:bb_mobile/features/exchange_support_chat/ui/exchange_support_chat_router.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_routes.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:bb_mobile/features/settings/ui/settings_router.dart';
 import 'package:bb_mobile/features/status_check/presentation/cubit.dart';
@@ -107,6 +108,15 @@ class _AllSettingsScreenState extends State<AllSettingsScreen> {
                   title: context.loc.settingsWalletBackupTitle,
                   onTap: () {
                     context.pushNamed(SettingsRoute.backupSettings.name);
+                  },
+                ),
+                SettingsEntryItem(
+                  icon: Icons.storefront,
+                  title: context.loc.settingsGetPaidTitle,
+                  onTap: () {
+                    context.pushNamed(
+                      GetPaidSettingsRoute.getPaidSettings.name,
+                    );
                   },
                 ),
                 SettingsEntryItem(

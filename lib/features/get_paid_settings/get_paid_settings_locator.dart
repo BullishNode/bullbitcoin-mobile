@@ -10,6 +10,7 @@ import 'package:bb_mobile/features/get_paid_settings/domain/usecases/acknowledge
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_settings_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/publish_automated_keychain_backup_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/set_automated_backup_enabled_usecase.dart';
+import 'package:bb_mobile/features/get_paid_settings/presentation/get_paid_settings_cubit.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/nostr_relay_policy/public/nostr_relay_policy_facade.dart';
@@ -61,6 +62,12 @@ class GetPaidSettingsLocator {
         acknowledgeDisclosure:
             locator<AcknowledgeAutomatedBackupDisclosureUsecase>(),
         publishBackup: locator<PublishAutomatedKeychainBackupUsecase>(),
+      ),
+    );
+    locator.registerFactory<GetPaidSettingsCubit>(
+      () => GetPaidSettingsCubit(
+        getSettings: locator<GetGetPaidSettingsUsecase>(),
+        setAutomatedBackupEnabled: locator<SetAutomatedBackupEnabledUsecase>(),
       ),
     );
   }
