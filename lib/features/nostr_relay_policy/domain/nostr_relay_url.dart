@@ -1,3 +1,5 @@
+import 'package:bb_mobile/features/nostr_relay_policy/domain/nostr_relay_policy_error.dart';
+
 final class NostrRelayUrl {
   final Uri uri;
 
@@ -9,13 +11,13 @@ final class NostrRelayUrl {
     final trimmed = value.trim();
     final uri = Uri.tryParse(trimmed);
     if (uri == null || uri.scheme.toLowerCase() != 'wss') {
-      throw const NostrRelayUrlException('Nostr relay URL must use wss');
+      throw NostrRelayUrlException('Nostr relay URL must use wss');
     }
     if (uri.host.isEmpty) {
-      throw const NostrRelayUrlException('Nostr relay URL must include a host');
+      throw NostrRelayUrlException('Nostr relay URL must include a host');
     }
     if (uri.hasFragment || uri.hasQuery || uri.userInfo.isNotEmpty) {
-      throw const NostrRelayUrlException(
+      throw NostrRelayUrlException(
         'Nostr relay URL must not include user info, query, or fragment',
       );
     }
@@ -38,13 +40,4 @@ final class NostrRelayUrl {
 
   @override
   String toString() => 'NostrRelayUrl(url: $url)';
-}
-
-final class NostrRelayUrlException implements Exception {
-  final String message;
-
-  const NostrRelayUrlException(this.message);
-
-  @override
-  String toString() => 'NostrRelayUrlException: $message';
 }
