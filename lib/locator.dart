@@ -111,7 +111,6 @@ class AppLocator {
     KeychainManifestLocator.setup(locator);
     KeychainRecoveryLocator.setup(locator);
     BullnymLocator.setup(locator);
-    NostrIdentityLocator.setup(locator);
     LightningAddressLocator.setup(locator);
     BtcpayLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);
