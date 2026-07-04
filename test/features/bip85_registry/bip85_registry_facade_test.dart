@@ -39,6 +39,15 @@ void main() {
     expect(reservation.scope.exactPath, "39'/0'/12'/100'");
   });
 
+  test('exposes the reserved wallet-seed exclusion sets for the allocator', () {
+    // The dev screen and the next-index allocator consume these to never
+    // allocate, re-derive, or expose a product spend seed (KI-1/KI-2). At this
+    // stack level only BTCPay (index 100) is reserved; LN/page (101/102) are
+    // added by later PRs and must show up here automatically.
+    expect(registry.reservedWalletSeedIndices, {100});
+    expect(registry.reservedWalletSeedPaths, {"39'/0'/12'/100'"});
+  });
+
   group('against the core BIP85 datasource', () {
     late SqliteDatabase database;
     late Bip85Datasource datasource;

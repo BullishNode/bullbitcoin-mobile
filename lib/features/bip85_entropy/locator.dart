@@ -7,6 +7,7 @@ import 'package:bb_mobile/core/bip85/domain/fetch_all_bip85_derivations_with_ent
 import 'package:bb_mobile/core/bip85/domain/revoke_bip85_derivation_usecase.dart';
 import 'package:bb_mobile/core/seed/domain/usecases/get_default_seed_usecase.dart';
 import 'package:bb_mobile/features/bip85_entropy/presentation/cubit.dart';
+import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:get_it/get_it.dart';
 
 class Bip85EntropyLocator {
@@ -30,6 +31,7 @@ class Bip85EntropyLocator {
         revokeBip85DerivationUsecase: locator<RevokeBip85DerivationUsecase>(),
         activateBip85DerivationUsecase:
             locator<ActivateBip85DerivationUsecase>(),
+        registry: const Bip85RegistryFacade(),
       ),
     );
   }

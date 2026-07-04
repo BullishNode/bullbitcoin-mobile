@@ -118,8 +118,9 @@ class Bip85Datasource {
   }
 
   Future<int> fetchNextIndexForApplication(
-    Bip85ApplicationColumn application,
-  ) async {
+    Bip85ApplicationColumn application, {
+    Set<int> excludedIndices = const {},
+  }) async {
     final rows = await _sqlite.managers.bip85Derivations
         .filter((b) => b.application(application))
         .get();
@@ -131,6 +132,13 @@ class Bip85Datasource {
     int nextIndex = 0;
     for (final model in models) {
       if (model.index >= nextIndex) nextIndex = model.index + 1;
+    }
+
+    // Never hand back a reserved wallet-seed index: allocating one would derive
+    // and expose a product spend seed and permanently block that product's
+    // activation/recovery at the same index (KI-1/KC-5).
+    while (excludedIndices.contains(nextIndex)) {
+      nextIndex++;
     }
 
     return nextIndex;

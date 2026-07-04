@@ -23,6 +23,7 @@ class DeriveNextBip85HexFromDefaultWalletUsecase {
   Future<Result<({String derivation, String hex}), Bip85Failure>> execute({
     required int length,
     String? alias,
+    Set<int> excludedIndices = const {},
   }) async {
     try {
       final wallets = await _walletRepository.getWallets(
@@ -44,6 +45,7 @@ class DeriveNextBip85HexFromDefaultWalletUsecase {
       const application = Bip85Application.hex;
       final indexResult = await _bip85Repository.fetchNextIndexForApplication(
         application,
+        excludedIndices: excludedIndices,
       );
       switch (indexResult) {
         case Err(:final failure):

@@ -4,6 +4,7 @@ import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/storage/tables/wallet_metadata_table.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/utils/uint_8_list_x.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_metadata_model.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -156,7 +157,7 @@ void main() {
     ).thenAnswer((_) async => seed);
     when(
       () => seedRepository.delete(seed.masterFingerprint),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((_) async => const Ok(null));
     when(
       () => walletRepository.deleteWallet(walletId: wallet.id),
     ).thenAnswer((_) async {});

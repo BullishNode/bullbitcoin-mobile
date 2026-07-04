@@ -25,6 +25,7 @@ class DeriveNextBip85MnemonicFromDefaultWalletUsecase {
   execute({
     bip39.MnemonicLength length = bip39.MnemonicLength.words12,
     String? alias,
+    Set<int> excludedIndices = const {},
   }) async {
     try {
       final wallets = await _walletRepository.getWallets(
@@ -46,6 +47,7 @@ class DeriveNextBip85MnemonicFromDefaultWalletUsecase {
       const application = Bip85Application.bip39;
       final indexResult = await _bip85Repository.fetchNextIndexForApplication(
         application,
+        excludedIndices: excludedIndices,
       );
       switch (indexResult) {
         case Err(:final failure):

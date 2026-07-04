@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/bip85/data/bip85_datasource.dart';
 import 'package:bb_mobile/core/storage/sqlite_database.dart';
+import 'package:bb_mobile/core/storage/tables/bip85_derivations_table.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -136,5 +137,48 @@ void main() {
       );
       expect(preview.derivation, "39'/0'/24'/0'");
     });
+  });
+
+  group('fetchNextIndexForApplication reserved-index exclusion', () {
+    test(
+      'skips a reserved index instead of allocating a product spend seed',
+      () async {
+        // A dev derivation already occupies index 99.
+        await datasource.deriveMnemonic(
+          xprvBase58: _masterXprv,
+          length: bip39.MnemonicLength.words12,
+          index: 99,
+          alias: 'Dev 99',
+        );
+
+        // Without an exclusion set the allocator would hand back index 100 — the
+        // reserved BTCPay wallet-seed index (KI-1/KC-5).
+        expect(
+          await datasource.fetchNextIndexForApplication(
+            Bip85ApplicationColumn.bip39,
+          ),
+          100,
+        );
+
+        // With 100 excluded it must skip to the next free non-reserved slot.
+        expect(
+          await datasource.fetchNextIndexForApplication(
+            Bip85ApplicationColumn.bip39,
+            excludedIndices: const {100},
+          ),
+          101,
+        );
+
+        // Multiple reserved indices in a row are all skipped (extended at pr07 to
+        // {100,101,102}).
+        expect(
+          await datasource.fetchNextIndexForApplication(
+            Bip85ApplicationColumn.bip39,
+            excludedIndices: const {100, 101, 102},
+          ),
+          103,
+        );
+      },
+    );
   });
 }

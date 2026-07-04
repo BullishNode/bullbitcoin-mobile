@@ -7,6 +7,7 @@ import 'package:bb_mobile/core/bip85/domain/fetch_all_bip85_derivations_with_ent
 import 'package:bb_mobile/core/bip85/domain/revoke_bip85_derivation_usecase.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bip85_entropy/presentation/state.dart';
+import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class Bip85EntropyCubit extends Cubit<Bip85EntropyState> {
@@ -19,6 +20,10 @@ class Bip85EntropyCubit extends Cubit<Bip85EntropyState> {
   final AliasBip85DerivationUsecase _aliasBip85DerivationUsecase;
   final RevokeBip85DerivationUsecase _revokeBip85DerivationUsecase;
   final ActivateBip85DerivationUsecase _activateBip85DerivationUsecase;
+  // Pure in-memory reservation registry; supplies the reserved wallet-seed
+  // exclusion sets so this dev screen never allocates, re-derives, or exposes a
+  // product spend seed (KI-1/KI-2).
+  final Bip85RegistryFacade _registry;
 
   Bip85EntropyCubit({
     required this._fetchAllBip85DerivationsWithEntropyUsecase,
@@ -27,6 +32,7 @@ class Bip85EntropyCubit extends Cubit<Bip85EntropyState> {
     required this._aliasBip85DerivationUsecase,
     required this._revokeBip85DerivationUsecase,
     required this._activateBip85DerivationUsecase,
+    required this._registry,
   }) : super(const Bip85EntropyState()) {
     init();
   }
@@ -37,7 +43,12 @@ class Bip85EntropyCubit extends Cubit<Bip85EntropyState> {
 
   Future<void> fetchAllDerivations() async {
     emit(state.copyWith(isLoading: true));
-    switch (await _fetchAllBip85DerivationsWithEntropyUsecase.execute()) {
+    // Never re-derive or expose the entropy of a reserved product wallet seed:
+    // exclude those paths before entropy re-derivation so they never enter
+    // state, the text field, or the clipboard (KI-2).
+    switch (await _fetchAllBip85DerivationsWithEntropyUsecase.execute(
+      excludedPaths: _registry.reservedWalletSeedPaths,
+    )) {
       case Err(:final failure):
         emit(state.copyWith(failure: failure, isLoading: false));
       case Ok(:final value):
@@ -49,9 +60,10 @@ class Bip85EntropyCubit extends Cubit<Bip85EntropyState> {
 
   Future<void> deriveNextMnemonic() async {
     emit(state.copyWith(isLoading: true, failure: null));
-    switch (
-      await _deriveNextBip85MnemonicFromDefaultWalletUsecase.execute()
-    ) {
+    switch (await _deriveNextBip85MnemonicFromDefaultWalletUsecase.execute(
+      // Never allocate a reserved product wallet-seed index (KI-1).
+      excludedIndices: _registry.reservedWalletSeedIndices,
+    )) {
       case Err(:final failure):
         emit(state.copyWith(failure: failure, isLoading: false));
       case Ok():
@@ -61,9 +73,9 @@ class Bip85EntropyCubit extends Cubit<Bip85EntropyState> {
 
   Future<void> deriveNextHex() async {
     emit(state.copyWith(isLoading: true, failure: null));
-    switch (
-      await _deriveNextBip85HexFromDefaultWalletUsecase.execute(length: 30)
-    ) {
+    switch (await _deriveNextBip85HexFromDefaultWalletUsecase.execute(
+      length: 30,
+    )) {
       case Err(:final failure):
         emit(state.copyWith(failure: failure, isLoading: false));
       case Ok():
@@ -75,12 +87,10 @@ class Bip85EntropyCubit extends Cubit<Bip85EntropyState> {
     Bip85DerivationEntity derivation,
     String alias,
   ) async {
-    switch (
-      await _aliasBip85DerivationUsecase.execute(
-        derivation: derivation,
-        alias: alias,
-      )
-    ) {
+    switch (await _aliasBip85DerivationUsecase.execute(
+      derivation: derivation,
+      alias: alias,
+    )) {
       case Err(:final failure):
         emit(state.copyWith(failure: failure));
       case Ok():
