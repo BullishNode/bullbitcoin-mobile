@@ -7,6 +7,7 @@ import 'package:bb_mobile/features/autoswap/ui/screens/autoswap_settings_screen.
 import 'package:bb_mobile/features/backup_settings/ui/backup_settings_router.dart';
 import 'package:bb_mobile/features/backup_settings/ui/screens/backup_settings_screen.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_routes.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_routes.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_cubit.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_state.dart';
 import 'package:bb_mobile/features/exchange/ui/exchange_router.dart';
@@ -236,6 +237,7 @@ class SettingsRouter {
           TestWalletBackupRouter.route,
         ],
       ),
+      GetPaidSettingsRoutes.route,
       GoRoute(
         name: SettingsRoute.autoswapSettings.name,
         path: SettingsRoute.autoswapSettings.path,

@@ -4900,6 +4900,14 @@
   "@getPaidAutomatedBackupOffWarning": {
     "description": "Locked warning shown while the automated backup toggle is off"
   },
+  "getPaidSettingsScreenTitle": "Get Paid",
+  "@getPaidSettingsScreenTitle": {
+    "description": "AppBar title of the Get Paid settings screen"
+  },
+  "settingsGetPaidTitle": "Get Paid",
+  "@settingsGetPaidTitle": {
+    "description": "Get Paid row title in the main settings hub"
+  },
   "dcaSetRecurringBuyTitle": "Set Recurring Buy",
   "@dcaSetRecurringBuyTitle": {
     "description": "AppBar title for the main DCA setup screen"
