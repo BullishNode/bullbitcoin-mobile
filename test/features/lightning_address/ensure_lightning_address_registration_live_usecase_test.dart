@@ -29,12 +29,15 @@ class _FakeRegister implements RegisterWalletOwnedLightningAddressUsecase {
 
   Object? error;
   final List<String> nyms = [];
+  final List<bool> publishFlags = [];
 
   @override
   Future<WalletOwnedLightningAddressRegistration> execute({
     required String nym,
+    bool publishBackupSnapshot = true,
   }) async {
     nyms.add(nym);
+    publishFlags.add(publishBackupSnapshot);
     final error = this.error;
     if (error != null) throw error;
     return WalletOwnedLightningAddressRegistration(
@@ -83,6 +86,9 @@ void main() {
 
     expect(outcome.liveness, LightningAddressRegistrationLiveness.reregistered);
     expect(register.nyms, ['alice']);
+    // The heal must NOT publish — it passes publishBackupSnapshot: false so a
+    // catch-up snapshot can't clobber a newer unreadable manifest (T-NOCLOBBER).
+    expect(register.publishFlags, [false]);
   });
 
   test('a rejected re-register (e.g. NymTaken) needs re-activation', () async {

@@ -4965,6 +4965,10 @@
   "@remoteKeychainRecoverySkipAction": {
     "description": "Action to skip recovery"
   },
+  "remoteKeychainRecoverySkipped": "Get Paid recovery skipped. You can recover later from Get Paid settings.",
+  "@remoteKeychainRecoverySkipped": {
+    "description": "Terminal message shown when Get Paid recovery was skipped or declined"
+  },
   "remoteKeychainRecoveryRetryAction": "Try again",
   "@remoteKeychainRecoveryRetryAction": {
     "description": "Action to retry recovery"

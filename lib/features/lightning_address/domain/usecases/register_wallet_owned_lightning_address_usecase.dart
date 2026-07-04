@@ -23,6 +23,7 @@ class RegisterWalletOwnedLightningAddressUsecase {
 
   Future<WalletOwnedLightningAddressRegistration> execute({
     required String nym,
+    bool publishBackupSnapshot = true,
   }) async {
     validateLightningAddressNym(nym);
 
@@ -56,7 +57,13 @@ class RegisterWalletOwnedLightningAddressUsecase {
         walletCreated: preparedWallet.created,
       );
     } finally {
-      if (walletPrepared) {
+      // The recovery-path auto-heal passes publishBackupSnapshot: false so the
+      // silent re-register does NOT publish. Otherwise, after an approved older
+      // restore, this finally would fire a fresh NIP-33 event that replaces a
+      // newer (unreadable-by-this-binary) manifest on the relays — the
+      // T-NOCLOBBER side channel. On the recovery path the cubit is the sole
+      // publisher, gated by its older/newer republish suppression.
+      if (walletPrepared && publishBackupSnapshot) {
         await _getPaidSettings.publishBackupSnapshotIfEnabled();
       }
     }

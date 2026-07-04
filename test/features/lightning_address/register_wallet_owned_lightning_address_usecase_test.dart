@@ -250,6 +250,16 @@ void main() {
       expect(getPaidSettings.publishCalls, 1);
     });
 
+    test('does not publish when publishBackupSnapshot is false (heal path)',
+        () async {
+      // The recovery-path DG-3 auto-heal re-registers a lapsed address with
+      // publishBackupSnapshot: false, so it never republishes — otherwise it
+      // would clobber a newer unreadable manifest on the relays (T-NOCLOBBER).
+      await usecase.execute(nym: 'alice', publishBackupSnapshot: false);
+
+      expect(getPaidSettings.publishCalls, 0);
+    });
+
     test('publishes when registration fails after the wallet is prepared',
         () async {
       register.error = const LightningAddressTimeoutException(
@@ -546,6 +556,7 @@ class _FakeRegisterWalletOwnedLightningAddressUsecase
   @override
   Future<WalletOwnedLightningAddressRegistration> execute({
     required String nym,
+    bool publishBackupSnapshot = true,
   }) async {
     nyms.add(nym);
     return WalletOwnedLightningAddressRegistration(

@@ -65,7 +65,14 @@ class EnsureLightningAddressRegistrationLiveUsecase {
     // full existing path (prepare returns the already-restored wallet + its
     // ctDescriptor, so the registered descriptor is derivation-equal).
     try {
-      final registration = await _register.execute(nym: status.nym);
+      // Do NOT publish from the heal path: the recovery cubit is the sole
+      // recovery-path publisher and suppresses republish after an older-approved
+      // restore. Publishing here would clobber a newer unreadable manifest on
+      // the relays (the T-NOCLOBBER side channel).
+      final registration = await _register.execute(
+        nym: status.nym,
+        publishBackupSnapshot: false,
+      );
       return LightningAddressHealOutcome(
         liveness: LightningAddressRegistrationLiveness.reregistered,
         nym: registration.registration.nym,
