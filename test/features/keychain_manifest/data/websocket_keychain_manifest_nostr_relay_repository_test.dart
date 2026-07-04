@@ -55,6 +55,47 @@ void main() {
     expect(result, isTrue);
   });
 
+  test('publish frame carries only clean public metadata', () async {
+    // P18a: the last boundary before the wire. The serialized ['EVENT', ...]
+    // frame must expose only public Nostr metadata - kind 30078, the d-tag
+    // 'manifest', author pubkey and createdAt - with the content field a bare
+    // base64 ciphertext and no bullbitcoin/recoverbull marker anywhere.
+    final datasource = _FakeKeychainManifestNostrRelayDatasource({
+      'wss://accepted.example': true,
+    });
+    final repository = WebSocketKeychainManifestNostrRelayRepository(
+      datasource: datasource,
+    );
+
+    await repository.publish(
+      event: _signedEvent(),
+      relayUrls: [KeychainManifestNostrRelayUrl('wss://accepted.example')],
+    );
+
+    final frame = datasource.eventMessages.single;
+    expect(frame, isNot(contains('bullbitcoin')));
+    expect(frame, isNot(contains('recoverbull')));
+
+    final decoded = jsonDecode(frame) as List<Object?>;
+    expect(decoded.first, 'EVENT');
+    final event = decoded[1]! as Map<String, Object?>;
+    expect(event.keys.toSet(), {
+      'id',
+      'pubkey',
+      'created_at',
+      'kind',
+      'tags',
+      'content',
+      'sig',
+    });
+    expect(event['kind'], keychainManifestNostrEventKind);
+    expect(event['tags'], [
+      ['d', keychainManifestNostrDTag],
+    ]);
+    expect(event['content'], _wellShapedCiphertext);
+    expect(() => base64.decode(event['content']! as String), returnsNormally);
+  });
+
   test('fails when no relay accepts', () async {
     final datasource = _FakeKeychainManifestNostrRelayDatasource({
       'wss://failed.example': false,
