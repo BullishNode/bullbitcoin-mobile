@@ -8,6 +8,7 @@ import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
@@ -77,7 +78,7 @@ void main() {
         index: 77,
         alias: alias,
       ),
-    ).thenAnswer((_) async => (derivation: derivation, mnemonic: mnemonic));
+    ).thenAnswer((_) async => Ok((derivation: derivation, mnemonic: mnemonic)));
 
     final result = await usecase.execute(index: 77, alias: alias);
 
@@ -146,7 +147,9 @@ void main() {
           index: 77,
           alias: alias,
         ),
-      ).thenAnswer((_) async => (derivation: derivation, mnemonic: mnemonic));
+      ).thenAnswer(
+        (_) async => Ok((derivation: derivation, mnemonic: mnemonic)),
+      );
 
       final result = await usecase.execute(index: 77, alias: alias);
 
@@ -184,7 +187,9 @@ void main() {
         onlyDefaults: true,
         onlyBitcoin: true,
       ),
-    ).thenAnswer((_) async => [_defaultWallet(network: Network.bitcoinTestnet)]);
+    ).thenAnswer(
+      (_) async => [_defaultWallet(network: Network.bitcoinTestnet)],
+    );
     final testnetXprv = Bip32Derivation.getXprvFromSeed(
       seed.bytes,
       Network.bitcoinTestnet,
@@ -204,7 +209,7 @@ void main() {
         index: 77,
         alias: alias,
       ),
-    ).thenAnswer((_) async => (derivation: derivation, mnemonic: mnemonic));
+    ).thenAnswer((_) async => Ok((derivation: derivation, mnemonic: mnemonic)));
 
     final result = await usecase.execute(
       index: 77,
