@@ -21,8 +21,15 @@ Rules:
 - Relay URL canonicalization lowercases scheme and host, removes the default
   `:443` port, and removes an empty trailing slash.
 - Exact canonical duplicate relay URLs are removed.
-- The policy marks whether defaults are third-party public relays. This metadata
-  informs product flows, but it is not a consent gate.
+- The policy marks whether defaults are third-party public relays via
+  `usesThirdPartyPublicRelays`. When that flag is set, consumers MUST gate any
+  publish or fetch against those relays on the user's Automated-backup consent
+  (the persisted Get Paid settings toggle plus the one-time consent dialog —
+  decision [3]); the flag marks where that gate is required, it does not grant
+  consent itself. Decision [3] supersedes the earlier request to rename the flag
+  to `requiresThirdPartyRelayDisclosure`: the real consent feature replaces a
+  bare disclosure, so the flag name is kept and this supersession closes the
+  locked-term deviation in writing.
 - Seed-recovery flows may use these defaults automatically to check for remote
   encrypted manifests. Normal app startup, periodic background scans, and
   ordinary wallet operation must not use them implicitly.
