@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
@@ -5,6 +6,7 @@ import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
@@ -12,6 +14,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychai
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_signed_keychain_manifest_nostr_event_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/derive_keychain_manifest_nostr_encryption_key_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:bip32_keys/bip32_keys.dart' as bip32;
@@ -60,6 +63,47 @@ void main() {
     expect(nostrIdentity.publicKeyXprvs, [_xprv]);
     expect(nostrIdentity.signXprvs, [_xprv]);
     expect(nostrIdentity.signedHashes.single, event.id);
+  });
+
+  test('event content is exactly the opaque ciphertext blob', () async {
+    // P17b: the signed event's content must be the ciphertext blob itself -
+    // bare base64 that decrypts back to the manifest, carrying no plaintext
+    // topology or envelope markers a relay could read.
+    await _recordInventory(store);
+
+    final event = await usecase.execute(
+      parentFingerprint: _parentFingerprint,
+      xprvBase58: _xprv,
+      now: DateTime.fromMillisecondsSinceEpoch(20000, isUtc: true),
+    );
+
+    final content = event.encryptedContent;
+    expect(() => base64.decode(content), returnsNormally);
+    expect(content, isNot(contains('{')));
+    expect(content, isNot(contains('bullbitcoin')));
+    expect(content, isNot(contains('recoverbull')));
+    expect(content, isNot(contains(_parentFingerprint)));
+    expect(content, isNot(contains('btc-wallet')));
+    expect(event.tags, [
+      ['d', keychainManifestNostrDTag],
+    ]);
+
+    // Byte-for-byte the ciphertext payload: it decrypts back to the manifest.
+    final key = const DeriveKeychainManifestNostrEncryptionKeyUsecase().execute(
+      xprvBase58: _xprv,
+      expectedParentFingerprint: _parentFingerprint,
+    );
+    final snapshot =
+        const RecoverBullKeychainManifestNostrEncryptionRepository()
+            .decryptSnapshot(
+              ciphertext: KeychainManifestNostrCiphertext(content),
+              key: key,
+            );
+    expect(snapshot.manifestFile.parentFingerprint, _parentFingerprint);
+    expect(
+      snapshot.manifestFile.entries.single.materializations.single.walletId,
+      'btc-wallet',
+    );
   });
 
   test('keeps empty inventory as an explicit caller decision', () async {
