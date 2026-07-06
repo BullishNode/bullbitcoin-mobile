@@ -43,9 +43,8 @@ class KeychainManifestReservationClassification {
 /// dropping it from backups (KC-3) or from recovery.
 ///
 /// Recoverability lands per owning PR: BTCPay at pr06, Lightning Address at
-/// pr11, and Payment Page (102) at pr23 (recoverableV1 flips true here, with
-/// the requiresProductReactivation flow + KC-6 posture re-applied). POS (103)
-/// is a future reservation.
+/// pr11, Payment Page (102) at pr23, and POS (103) at pr26 (recoverableV1 flips
+/// true here, with the DG-3 auto-heal + KC-6 posture re-applied).
 ///
 /// PR23 DISCHARGED (a), (b) and (d) of its forward-obligation (DG-3,
 /// decisions [3]/[A]/[D]/[E]):
@@ -57,8 +56,8 @@ class KeychainManifestReservationClassification {
 ///   (b) Payment Page (102) recovery is added (its recoverableV1 is now true);
 ///   (d) the KC-6 hidden + autosweep posture is re-applied generically to all
 ///       restored wallet-seed wallets, so 102 inherits it.
-/// Still future:
-///   (c) POS (103) recovery lands with the POS reservation (pr28).
+///   (c) POS (103) recovery lands with the POS reservation (pr26): its
+///       recoverableV1 is true and it carries the same DG-3 auto-heal intent.
 /// Note: 102 has no product client surface until the Payment Page PRs, so its
 /// autoHealOnRecoveryPr23 reactivation signal is recovered wallet-only for now
 /// (the recovered wallet + funds materialize with posture; there is no page to
@@ -93,6 +92,17 @@ class KeychainManifestReservationSupport {
           reactivationOnRecovery:
               KeychainManifestReactivationOnRecovery.autoHealOnRecoveryPr23,
         ),
+        // POS (103) recovery is added by this PR (pr26): recoverableV1 is true
+        // so the funded POS wallet is backed up AND restored with the KC-6
+        // posture and the DG-3 read-only auto-heal, exactly like the page
+        // (102). A POS is a money wallet; classifying it recoverableV1 false
+        // would ship a fundable wallet that recovery silently drops.
+        'pos_wallet_seed': KeychainManifestReservationClassification(
+          exportableV1: true,
+          recoverableV1: true,
+          reactivationOnRecovery:
+              KeychainManifestReactivationOnRecovery.autoHealOnRecoveryPr23,
+        ),
       };
 
   /// The classification for a wallet-seed reservation, or null for a
@@ -119,13 +129,13 @@ class KeychainManifestReservationSupport {
   }
 
   /// Whether the reserved seed is written into the v1 manifest backup
-  /// (btcpay + lightning_address + payment_page - R2-KC3, decision [B]).
+  /// (btcpay + lightning_address + payment_page + pos - R2-KC3, decision [B]).
   static bool supportsV1Export(Bip85Reservation reservation) =>
       classificationFor(reservation)?.exportableV1 ?? false;
 
   /// Whether the reserved seed is materialized when restoring from a v1
-  /// manifest at this stack level (btcpay + lightning_address + payment_page;
-  /// POS (103) recovery is future).
+  /// manifest at this stack level (btcpay + lightning_address + payment_page +
+  /// pos).
   static bool supportsV1Recovery(Bip85Reservation reservation) =>
       classificationFor(reservation)?.recoverableV1 ?? false;
 
