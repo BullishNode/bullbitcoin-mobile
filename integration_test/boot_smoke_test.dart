@@ -8,6 +8,8 @@ import 'package:bb_mobile/features/lightning_address/public/lightning_address_fa
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
+import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
+import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_cubit.dart';
 import 'package:bb_mobile/features/send/domain/ports/liquid_direct_pay_port.dart';
 import 'package:bb_mobile/features/send/domain/usecases/build_bullpay_proof_usecase.dart';
@@ -55,6 +57,10 @@ Future<void> main({bool isInitialized = false}) async {
     // recovery cubit's heal usecase now depends on the Payment Page facade.
     expect(() => locator<PaymentPageFacade>(), returnsNormally);
     expect(() => locator<PaymentPageCubit>(), returnsNormally);
+    // PR26 wiring (AD-10): the Point of Sale facade + cubit resolve once, and the
+    // recovery cubit's heal usecase now also depends on the POS facade.
+    expect(() => locator<PosFacade>(), returnsNormally);
+    expect(() => locator<PosCubit>(), returnsNormally);
     expect(() => locator<RemoteKeychainRecoveryCubit>(), returnsNormally);
     // PR24 wiring (SPEC-BOOT-01+): the LUD-22 direct-pay port + usecases
     // resolve once from the real graph (the SendCubit consumes them).
