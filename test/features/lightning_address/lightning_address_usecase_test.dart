@@ -259,6 +259,39 @@ class _FakeBullnymFacade implements BullnymFacade {
     lookupNpubHex = npubHex;
     return lookupResult;
   }
+
+  // Donation-page surface — not exercised by the Lightning Address usecases.
+  @override
+  Future<BullnymDonationPage> getDonationPage({
+    required String nym,
+    required String kind,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymDonationPage> saveDonationPage({
+    required BullnymAuthSigner signer,
+    required String nym,
+    required String ctDescriptor,
+    required String header,
+    required String description,
+    required String displayCurrency,
+    required String website,
+    required String twitter,
+    required String instagram,
+    required bool enabled,
+    required String kind,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymDonationPage> archiveDonationPage({
+    required BullnymAuthSigner signer,
+    required String nym,
+    required String kind,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymSupportedCurrencies> getSupportedCurrencies() =>
+      throw UnimplementedError();
 }
 
 String _zeroMnemonicXprv() {
