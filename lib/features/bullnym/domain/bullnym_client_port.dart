@@ -1,3 +1,4 @@
+import 'package:bb_mobile/features/bullnym/domain/bullnym_donation_page.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_registration.dart';
 
 abstract interface class BullnymClientPort {
@@ -6,6 +7,23 @@ abstract interface class BullnymClientPort {
   Future<void> deleteRegistration(BullnymDeleteRegistrationRequest request);
 
   Future<BullnymLookupResult> lookupRegistration({required String npubHex});
+
+  /// Public read of the current donation-page row for `nym`/`kind`. Throws a
+  /// `serverRejectedRequest` with code `DonationPageNotFound` when absent.
+  Future<BullnymDonationPage> getDonationPage({
+    required String nym,
+    required String kind,
+  });
+
+  Future<BullnymDonationPage> saveDonationPage(
+    BullnymSaveDonationPageRequest request,
+  );
+
+  Future<BullnymDonationPage> archiveDonationPage(
+    BullnymArchiveDonationPageRequest request,
+  );
+
+  Future<BullnymSupportedCurrencies> getSupportedCurrencies();
 }
 
 class BullnymRegisterRequest {
