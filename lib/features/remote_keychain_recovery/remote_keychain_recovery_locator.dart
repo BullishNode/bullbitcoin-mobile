@@ -7,6 +7,7 @@ import 'package:bb_mobile/features/keychain_recovery/public/keychain_recovery_fa
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/nostr_relay_policy/public/nostr_relay_policy_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
+import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/data/default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/check_remote_keychain_recovery_usecase.dart';
@@ -51,6 +52,7 @@ class RemoteKeychainRecoveryLocator {
       () => HealRecoveredProductsUsecase(
         locator<LightningAddressFacade>(),
         locator<PaymentPageFacade>(),
+        locator<PosFacade>(),
       ),
     );
     locator.registerFactory<RemoteKeychainRecoveryCubit>(

@@ -211,6 +211,7 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
           isOlderRestore: isOlderRestore,
           healOutcome: healOutcome?.lightningAddress,
           paymentPageHealOutcome: healOutcome?.paymentPage,
+          posHealOutcome: healOutcome?.pos,
         ),
       );
 

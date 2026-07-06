@@ -1,5 +1,6 @@
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
+import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_error.dart';
 
 enum RemoteKeychainRecoveryStatus {
@@ -49,6 +50,10 @@ class RemoteKeychainRecoveryState {
   /// Null when the page was not flagged for reactivation.
   final PaymentPageHealOutcome? paymentPageHealOutcome;
 
+  /// The DG-3 auto-heal interpretation for the recovered Point of Sale (103).
+  /// Null when the POS was not flagged for reactivation.
+  final PosHealOutcome? posHealOutcome;
+
   const RemoteKeychainRecoveryState({
     this.status = RemoteKeychainRecoveryStatus.idle,
     this.restoredCount = 0,
@@ -60,5 +65,6 @@ class RemoteKeychainRecoveryState {
     this.failure,
     this.healOutcome,
     this.paymentPageHealOutcome,
+    this.posHealOutcome,
   });
 }
