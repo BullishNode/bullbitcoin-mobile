@@ -61,6 +61,9 @@ class FakeBullnymClient implements BullnymClientPort {
     BullnymSupportedCurrency(code: 'EUR', precision: 2),
   ];
 
+  int get totalDonationWriteCalls =>
+      saveDonationPageCalls.length + archiveDonationPageCalls.length;
+
   String get _lightningAddress => '$nym@example.invalid';
 
   String _pageKey(String nym, String kind) => '$nym|$kind';

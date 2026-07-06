@@ -3,6 +3,8 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/automated_backup_consent.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_routes.dart';
+import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
+import 'package:bb_mobile/features/payment_page/public/payment_page_routes.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_cubit.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_state.dart';
 import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
@@ -276,10 +278,20 @@ class _RemoteKeychainRecoveryScreenState
     );
   }
 
-  // DG-3 rendering: live/reregistered/null render NOTHING (no prompt, no
-  // affordance); needsReactivation offers a re-activate route; unreachable
-  // degrades loudly without an auto-prompt.
+  // DG-3 rendering: live/reregistered/archivedByUser/null render NOTHING (no
+  // prompt, no affordance); needsReactivation offers a re-activate route;
+  // unreachable degrades loudly without an auto-prompt.
   List<Widget> _healRows(
+    BuildContext context,
+    RemoteKeychainRecoveryState state,
+  ) {
+    return [
+      ..._lightningAddressHealRows(context, state),
+      ..._paymentPageHealRows(context, state),
+    ];
+  }
+
+  List<Widget> _lightningAddressHealRows(
     BuildContext context,
     RemoteKeychainRecoveryState state,
   ) {
@@ -312,6 +324,44 @@ class _RemoteKeychainRecoveryScreenState
           const SizedBox(height: 16),
           Text(
             context.loc.remoteKeychainRecoveryHealUnreachable,
+            style: TextStyle(color: context.appColors.error),
+            textAlign: TextAlign.center,
+          ),
+        ];
+    }
+  }
+
+  List<Widget> _paymentPageHealRows(
+    BuildContext context,
+    RemoteKeychainRecoveryState state,
+  ) {
+    final outcome = state.paymentPageHealOutcome;
+    if (outcome == null) return const [];
+    switch (outcome.liveness) {
+      case PaymentPageLiveness.live:
+      case PaymentPageLiveness.archivedByUser:
+        return const [];
+      case PaymentPageLiveness.needsReactivation:
+        return [
+          const SizedBox(height: 16),
+          Text(
+            context.loc.paymentPageHealNeedsReactivation,
+            style: TextStyle(color: context.appColors.error),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => context.goNamed(
+              PaymentPageRoute.paymentPageSettings.name,
+            ),
+            child: Text(context.loc.paymentPageHealNeedsReactivationAction),
+          ),
+        ];
+      case PaymentPageLiveness.unreachable:
+        return [
+          const SizedBox(height: 16),
+          Text(
+            context.loc.paymentPageHealUnreachable,
             style: TextStyle(color: context.appColors.error),
             textAlign: TextAlign.center,
           ),

@@ -1,4 +1,5 @@
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_error.dart';
 
 enum RemoteKeychainRecoveryStatus {
@@ -44,6 +45,10 @@ class RemoteKeychainRecoveryState {
   /// [hasProductReactivationRequired] stays the raw restore signal.
   final LightningAddressHealOutcome? healOutcome;
 
+  /// The DG-3 auto-heal interpretation for the recovered Donation Page (102).
+  /// Null when the page was not flagged for reactivation.
+  final PaymentPageHealOutcome? paymentPageHealOutcome;
+
   const RemoteKeychainRecoveryState({
     this.status = RemoteKeychainRecoveryStatus.idle,
     this.restoredCount = 0,
@@ -54,5 +59,6 @@ class RemoteKeychainRecoveryState {
     this.isOlderRestore = false,
     this.failure,
     this.healOutcome,
+    this.paymentPageHealOutcome,
   });
 }
