@@ -31,10 +31,6 @@ enum FakeDonationPageMode {
   /// GET returns the stored row marked archived.
   archived,
 
-  /// Save fails with AuthError — the pre-migration-034 server emulation
-  /// (signature includes `kind`, old server rebuilds without it → mismatch).
-  saveAuthError,
-
   /// Every donation-page call fails with a retryable server error.
   serverUnreachable,
 }
@@ -145,14 +141,6 @@ class FakeBullnymClient implements BullnymClientPort {
     saveDonationPageCalls.add(request);
     if (donationPageMode == FakeDonationPageMode.serverUnreachable) {
       throw _serverUnreachable();
-    }
-    if (donationPageMode == FakeDonationPageMode.saveAuthError) {
-      throw const BullnymException.serverRejectedRequest(
-        code: 'AuthError',
-        diagnosticReason: 'signature verification failed',
-        statusCode: 401,
-        retryable: false,
-      );
     }
     final page = BullnymDonationPage(
       nym: request.nym,
