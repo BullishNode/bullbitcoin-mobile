@@ -9,6 +9,7 @@ import 'package:bb_mobile/features/lightning_address/public/lightning_address_fa
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_error.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/check_remote_keychain_recovery_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/recovered_products_heal_outcome.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/heal_recovered_products_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/load_automated_backup_consent_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/publish_restored_keychain_backup_usecase.dart';
@@ -316,8 +317,10 @@ void main() {
       hasProductReactivationRequired: true,
       reactivationReservationIds: {'lightning_address_wallet_seed'},
     );
-    heal.outcome = const LightningAddressHealOutcome(
-      liveness: LightningAddressRegistrationLiveness.reregistered,
+    heal.outcome = const RecoveredProductsHealOutcome(
+      lightningAddress: LightningAddressHealOutcome(
+        liveness: LightningAddressRegistrationLiveness.reregistered,
+      ),
     );
 
     await cubit.acceptRelayDisclosure();
@@ -466,10 +469,10 @@ class _FakeLoadConsent implements LoadAutomatedBackupConsentUsecase {
 class _FakeHeal implements HealRecoveredProductsUsecase {
   Set<String>? receivedIds;
   int calls = 0;
-  LightningAddressHealOutcome? outcome;
+  RecoveredProductsHealOutcome outcome = const RecoveredProductsHealOutcome();
 
   @override
-  Future<LightningAddressHealOutcome?> execute(
+  Future<RecoveredProductsHealOutcome> execute(
     Set<String> reactivationReservationIds,
   ) async {
     calls++;

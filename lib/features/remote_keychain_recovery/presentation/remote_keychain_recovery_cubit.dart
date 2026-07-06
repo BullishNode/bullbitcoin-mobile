@@ -2,10 +2,10 @@
 
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
-import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_error.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/check_remote_keychain_recovery_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/recovered_products_heal_outcome.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/heal_recovered_products_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/load_automated_backup_consent_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/publish_restored_keychain_backup_usecase.dart';
@@ -191,7 +191,7 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
       // DG-3 interpretation the UI renders; hasProductReactivationRequired
       // stays the raw restore signal.
       final restoredSomething = summary.restoredCount > 0;
-      LightningAddressHealOutcome? healOutcome;
+      RecoveredProductsHealOutcome? healOutcome;
       if (restoredSomething) {
         healOutcome = await _healRecoveredProducts.execute(
           summary.reactivationReservationIds,
@@ -209,7 +209,8 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
           newestEventCreatedAt: newestEventCreatedAt,
           selectedEventCreatedAt: selectedEventCreatedAt,
           isOlderRestore: isOlderRestore,
-          healOutcome: healOutcome,
+          healOutcome: healOutcome?.lightningAddress,
+          paymentPageHealOutcome: healOutcome?.paymentPage,
         ),
       );
 

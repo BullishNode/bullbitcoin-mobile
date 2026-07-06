@@ -25,6 +25,9 @@ const skip = {
   'all_test.dart',
   'payjoin_test.dart',
   'get_paid_backup_roundtrip_test.dart',
+  // SPEC-PP-01: same app-process non-determinism as the backup round-trip; the
+  // deterministic Donation Page gates are the L0 usecase/cubit suites.
+  'payment_page_lifecycle_test.dart',
 };
 
 void main() {
