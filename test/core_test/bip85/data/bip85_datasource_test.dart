@@ -169,14 +169,14 @@ void main() {
           101,
         );
 
-        // Multiple reserved indices in a row are all skipped (extended at pr07 to
-        // {100,101,102}).
+        // Multiple reserved indices in a row are all skipped (extended at pr26 to
+        // {100,101,102,103}).
         expect(
           await datasource.fetchNextIndexForApplication(
             Bip85ApplicationColumn.bip39,
-            excludedIndices: const {100, 101, 102},
+            excludedIndices: const {100, 101, 102, 103},
           ),
-          103,
+          104,
         );
       },
     );
