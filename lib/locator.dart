@@ -31,6 +31,7 @@ import 'package:bb_mobile/features/exchange/exchange_locator.dart';
 import 'package:bb_mobile/features/exchange_settings/exchange_settings_locator.dart';
 import 'package:bb_mobile/features/mempool_settings/mempool_settings_locator.dart';
 import 'package:bb_mobile/features/fund_exchange/fund_exchange_locator.dart';
+import 'package:bb_mobile/features/get_paid/get_paid_locator.dart';
 import 'package:bb_mobile/features/import_mnemonic/locator.dart';
 import 'package:bb_mobile/features/import_watch_only_wallet/import_watch_only_locator.dart';
 import 'package:bb_mobile/features/invoices/invoices_locator.dart';
@@ -123,6 +124,7 @@ class AppLocator {
     InvoicesLocator.setup(locator);
     RemoteKeychainRecoveryLocator.setup(locator);
     BtcpayLocator.setup(locator);
+    GetPaidLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);
     TransactionsLocator.registerBlocs(locator);
     ReceiveLocator.setup(locator);
