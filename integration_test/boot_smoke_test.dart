@@ -3,6 +3,9 @@ import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/presentation/get_paid_settings_cubit.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/invoices/presentation/invoice_create_cubit.dart';
+import 'package:bb_mobile/features/invoices/presentation/invoices_list_cubit.dart';
+import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
@@ -61,6 +64,11 @@ Future<void> main({bool isInitialized = false}) async {
     // recovery cubit's heal usecase now also depends on the POS facade.
     expect(() => locator<PosFacade>(), returnsNormally);
     expect(() => locator<PosCubit>(), returnsNormally);
+    // PR27 wiring (AD-10): the Invoices facade + list/create cubits resolve once
+    // (the detail cubit is built at the route with its invoice id).
+    expect(() => locator<InvoicesFacade>(), returnsNormally);
+    expect(() => locator<InvoicesListCubit>(), returnsNormally);
+    expect(() => locator<InvoiceCreateCubit>(), returnsNormally);
     expect(() => locator<RemoteKeychainRecoveryCubit>(), returnsNormally);
     // PR24 wiring (SPEC-BOOT-01+): the LUD-22 direct-pay port + usecases
     // resolve once from the real graph (the SendCubit consumes them).
