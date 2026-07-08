@@ -12,6 +12,10 @@ workspace:
   # lockfile resolves it; the app NEVER lists bull_ui_catalogue as a
   # dependency, so it is not compiled into the APK (zero build impact).
   - packages/bull_ui_catalogue
+  # Fork-only QA-matrix engine (overlay branch only). Pure Dart, imported
+  # by the integration_test/qa_matrix specs as a dev_dependency, so it is
+  # never compiled into the APK (zero build impact). Not on the upstream path.
+  - packages/qa_matrix_engine
 
 dependencies:
   flutter:
@@ -174,6 +178,9 @@ dev_dependencies:
   flutter_gen_runner: any
   drift_dev: ^2.29.0
   melos: ^7.8.1
+  # Fork-only QA-matrix engine (overlay branch only); drives the combinatorial
+  # failure-matrix specs under integration_test/qa_matrix. Dev-only: not shipped.
+  qa_matrix_engine:
 
 # Melos monorepo workspace. Today the app is a single package living at the repo
 # root (useRootAsPackage), so this is a skeleton: no workspace members yet. As

@@ -9,6 +9,15 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 /// `(author, kind, d)`), replays matching stored events for a REQ, and captures
 /// every inbound EVENT frame verbatim for the wire-format assertions. Hostile
 /// modes drive the robustness matrix (ISS-T-06). Fake relays only (G3).
+/// Thrown by [FakeNostrRelay.connect] when the relay is toggled offline, so the
+/// datasource sees an unreachable socket rather than an empty result.
+class SocketConnectException implements Exception {
+  const SocketConnectException(this.message);
+  final String message;
+  @override
+  String toString() => 'SocketConnectException: $message';
+}
+
 class FakeNostrRelay {
   final List<String> capturedEventFrames = [];
   final Map<String, Map<String, dynamic>> _store = {};
@@ -22,9 +31,22 @@ class FakeNostrRelay {
   bool tamperStoredContent = false;
   Map<String, dynamic>? forgedEvent;
 
+  /// E12 (network-toggle, GETPAID-APP-E2E-FAILURE-MATRIX §7.2): when true,
+  /// [connect] throws as if the socket could not be opened at all. Unlike
+  /// [dropAfterConnect] (which opens then closes, so the datasource still
+  /// counts the relay as contacted and reports `noManifestFound`), a connect
+  /// failure leaves the relay UNcontacted, which is what makes the fetch report
+  /// `relaysUnavailable` — the distinct "unreachable ≠ absent" outcome (P2).
+  bool offline = false;
+
   int get storedEventCount => _store.length;
 
-  WebSocketChannel connect(Uri uri) => _FakeRelayChannel(this);
+  WebSocketChannel connect(Uri uri) {
+    if (offline) {
+      throw const SocketConnectException('fake relay is offline');
+    }
+    return _FakeRelayChannel(this);
+  }
 
   void _handleFrame(String frame, void Function(String) respond) {
     final Object? decoded;
