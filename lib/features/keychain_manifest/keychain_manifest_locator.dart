@@ -63,6 +63,7 @@ class KeychainManifestLocator {
         buildEncryptedContent:
             locator<BuildKeychainManifestNostrEncryptedContentUsecase>(),
         nostrIdentity: locator<NostrIdentityFacade>(),
+        clock: locator<Clock>(),
       ),
     );
     locator.registerFactory<PublishKeychainManifestNostrEventUsecase>(
