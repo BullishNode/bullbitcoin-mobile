@@ -15,25 +15,27 @@ import 'dart:io';
 // itself, plus any test with no callable main(isInitialized:) (e.g. payjoin is
 // commented out and needs funded testnet wallets).
 //
-// get_paid_backup_roundtrip_test.dart is authored-but-CI-only: it exercises the
-// Get Paid money path against the app-process DI graph, but the live startup
-// timers/blocs make an app-process pump non-deterministic in the aggregated
-// suite. The deterministic money-path gate is the domain-layer round-trip
-// (test/features/get_paid_settings/get_paid_backup_wire_roundtrip_test.dart);
-// this file is kept for a dedicated CI job with a per-test relay-only harness.
+// The Get Paid lifecycle specs exercise the app-process DI graph, but the live
+// startup timers/blocs make them non-deterministic in this single-process
+// aggregate. They are covered by the explicit per-spec Linux lane:
+// `make get-paid-lifecycle-test` (or getpaid-e2e's matching harness target).
 const skip = {
   'all_test.dart',
   'payjoin_test.dart',
+  // Live funded-testnet UTXO assertions. Run explicitly via
+  // `make coins-funded-testnet-test`; missing/unfunded fixtures fail that lane.
+  'coins_funded_testnet_test.dart',
   'get_paid_backup_roundtrip_test.dart',
-  // SPEC-PP-01: same app-process non-determinism as the backup round-trip; the
-  // deterministic Donation Page gates are the L0 usecase/cubit suites.
+  // SPEC-PP-01: run via the explicit Get Paid lifecycle lane above.
   'payment_page_lifecycle_test.dart',
-  // SPEC-POS-01: same app-process non-determinism; the deterministic Point of
-  // Sale gates are the L0 usecase/cubit suites.
+  // SPEC-POS-01: run via the explicit Get Paid lifecycle lane above.
   'pos_lifecycle_test.dart',
-  // SPEC-INV-01: same app-process non-determinism; the deterministic Invoices
-  // gates are the L0 usecase/cubit suites.
+  // SPEC-INV-01: run via the explicit Get Paid lifecycle lane above.
   'invoices_lifecycle_test.dart',
+  // S-REAL-PROD-LIVE-NOPAY: production Bullnym/Nostr + real seed fixtures.
+  // This is an explicit external lane only; never include it in the default
+  // aggregate integration run.
+  'get_paid_live_nopay_test.dart',
 };
 
 void main() {

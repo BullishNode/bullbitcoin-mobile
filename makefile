@@ -1,4 +1,4 @@
-.PHONY: all setup clean deps deps-update bootstrap analyze build-runner translations hooks ios-pod-update drift-migrations devcontainer devcontainer-up container-tools container-app android release debug beta verify test unit-test integration-test catalogue fvm-check
+.PHONY: all setup clean deps deps-update bootstrap analyze build-runner translations hooks ios-pod-update drift-migrations devcontainer devcontainer-up container-tools container-app android release debug beta verify test unit-test integration-test coins-funded-testnet-test get-paid-lifecycle-test live-nopay-test catalogue fvm-check
 
 fvm-check:
 	@echo "🔍 Checking FVM"
@@ -262,6 +262,13 @@ devcontainer-up:
 
 test: unit-test integration-test
 
+INTEGRATION_DEVICE ?= linux
+GET_PAID_LIFECYCLE_SPECS := \
+	integration_test/get_paid_backup_roundtrip_test.dart \
+	integration_test/payment_page_lifecycle_test.dart \
+	integration_test/pos_lifecycle_test.dart \
+	integration_test/invoices_lifecycle_test.dart
+
 unit-test:
 	@echo "🏃‍ running unit tests"
 	@fvm flutter test test/ --reporter=compact
@@ -281,9 +288,24 @@ unit-test:
 # tools/gen_all_test.dart regenerates it from disk below, so adding a test file
 # needs no manual wiring.
 integration-test:
-	@echo "🧪 integration tests"
+	@echo "🧪 integration tests ($(INTEGRATION_DEVICE))"
 	@fvm dart run tools/gen_all_test.dart
-	@fvm flutter test integration_test/all_test.dart --reporter=expanded
+	@fvm flutter test integration_test/all_test.dart -d $(INTEGRATION_DEVICE) --reporter=expanded
+
+coins-funded-testnet-test:
+	@echo "🧪 funded testnet coin integration specs ($(INTEGRATION_DEVICE))"
+	@fvm flutter test integration_test/coins_funded_testnet_test.dart -d $(INTEGRATION_DEVICE) --reporter=expanded
+
+get-paid-lifecycle-test:
+	@echo "🧪 Get Paid lifecycle integration specs ($(INTEGRATION_DEVICE))"
+	@set -e; for spec in $(GET_PAID_LIFECYCLE_SPECS); do \
+		echo ">>> $$spec"; \
+		fvm flutter test "$$spec" -d $(INTEGRATION_DEVICE) --reporter=expanded; \
+	done
+
+live-nopay-test:
+	@echo "🧪 live no-pay Get Paid integration test ($(INTEGRATION_DEVICE))"
+	@fvm flutter test integration_test/get_paid_live_nopay_test.dart -d $(INTEGRATION_DEVICE) --reporter=expanded
 
 # Build & render the bull_ui design-system catalogue (Widgetbook) locally in the
 # browser. Dev-only tooling — never shipped in the app. Regenerates the
