@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
@@ -6,10 +7,12 @@ import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.d
 class BuildSignedKeychainManifestNostrEventUsecase {
   final BuildKeychainManifestNostrEncryptedContentUsecase buildEncryptedContent;
   final NostrIdentityFacade nostrIdentity;
+  final Clock _clock;
 
   const BuildSignedKeychainManifestNostrEventUsecase({
     required this.buildEncryptedContent,
     required this.nostrIdentity,
+    this._clock = const SystemClock(),
   });
 
   Future<KeychainManifestNostrSignedEvent> execute({
@@ -19,7 +22,7 @@ class BuildSignedKeychainManifestNostrEventUsecase {
     DateTime? now,
   }) async {
     try {
-      final effectiveNow = now ?? DateTime.now().toUtc();
+      final effectiveNow = now ?? _clock.nowUtc();
       final timestamp = effectiveNow.millisecondsSinceEpoch ~/ 1000;
       final authorPublicKeyHex = nostrIdentity
           .deriveWalletManifestPublicKeyFromXprv(xprvBase58);
