@@ -6,7 +6,12 @@ export 'package:bb_mobile/features/nostr_relay_policy/domain/nostr_relay_url.dar
 import 'package:bb_mobile/features/nostr_relay_policy/domain/nostr_relay_policy.dart';
 import 'package:bb_mobile/features/nostr_relay_policy/domain/nostr_relay_url.dart';
 
+const nostrRelayUrlsEnvironmentKey = 'NOSTR_RELAY_URLS';
+
 class NostrRelayPolicyFacade {
+  static const _relayUrlsOverride = String.fromEnvironment(
+    nostrRelayUrlsEnvironmentKey,
+  );
   static const _defaultRelayValues = [
     'wss://relay.damus.io',
     'wss://nos.lol',
@@ -17,15 +22,28 @@ class NostrRelayPolicyFacade {
     'wss://nostr.wine',
   ];
 
-  const NostrRelayPolicyFacade();
+  final String _relayUrlsOverrideValue;
+
+  const NostrRelayPolicyFacade({String relayUrlsOverride = _relayUrlsOverride})
+    : _relayUrlsOverrideValue = relayUrlsOverride;
 
   NostrRelayPolicy getPolicy() {
+    final relayValues = _configuredRelayValues();
     return NostrRelayPolicy(
-      defaultRelays: _defaultRelayValues
+      defaultRelays: relayValues
           .map(NostrRelayUrl.new)
           .toSet()
           .toList(growable: false),
       usesThirdPartyPublicRelays: true,
     );
+  }
+
+  Iterable<String> _configuredRelayValues() {
+    final configured = _relayUrlsOverrideValue.trim();
+    if (configured.isEmpty) return _defaultRelayValues;
+    return configured
+        .split(',')
+        .map((relay) => relay.trim())
+        .where((relay) => relay.isNotEmpty);
   }
 }

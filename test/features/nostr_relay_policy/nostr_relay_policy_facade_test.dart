@@ -36,6 +36,28 @@ void main() {
     );
   });
 
+  test('uses comma-separated relay override when provided', () {
+    final policy = const NostrRelayPolicyFacade(
+      relayUrlsOverride: ' wss://relay.example , wss://relay2.example/ ',
+    ).getPolicy();
+
+    expect(policy.defaultRelays.map((relay) => relay.url), [
+      'wss://relay.example',
+      'wss://relay2.example',
+    ]);
+    expect(policy.usesThirdPartyPublicRelays, isTrue);
+  });
+
+  test('deduplicates configured relay overrides after canonicalization', () {
+    final policy = const NostrRelayPolicyFacade(
+      relayUrlsOverride: 'wss://relay.example,wss://relay.example:443/',
+    ).getPolicy();
+
+    expect(policy.defaultRelays.map((relay) => relay.url), [
+      'wss://relay.example',
+    ]);
+  });
+
   test('rejects unsupported relay URL forms', () {
     expect(
       () => NostrRelayUrl('ws://relay.example'),
