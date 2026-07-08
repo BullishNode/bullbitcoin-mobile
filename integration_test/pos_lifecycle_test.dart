@@ -37,6 +37,7 @@ Future<void> main({bool isInitialized = false}) async {
     final bullnym = FakeBullnymClient();
     await wipeAppState(locator);
     await overrideBoundariesForTest(locator, relay: relay, bullnym: bullnym);
+    await overrideClockForTest(locator);
     await locator<CreateDefaultWalletsUsecase>().execute(
       mnemonicWords: getPaidFixtureMnemonicWords,
     );
@@ -109,6 +110,7 @@ Future<void> main({bool isInitialized = false}) async {
     final bullnym = FakeBullnymClient();
     await wipeAppState(locator);
     await overrideBoundariesForTest(locator, relay: relay, bullnym: bullnym);
+    await overrideClockForTest(locator);
     await locator<CreateDefaultWalletsUsecase>().execute(
       mnemonicWords: getPaidFixtureMnemonicWords,
     );
