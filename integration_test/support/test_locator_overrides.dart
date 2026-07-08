@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_client_port.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/datasources/keychain_manifest_nostr_relay_datasource.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/websocket_keychain_manifest_nostr_relay_repository.dart';
@@ -5,6 +6,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychai
 import 'package:get_it/get_it.dart';
 
 import 'fake_bullnym_client.dart';
+import 'fake_clock.dart';
 import 'fake_nostr_relay.dart';
 
 /// Overrides ONLY the network-boundary types (HARNESS §2.6): the relay
@@ -31,4 +33,21 @@ Future<void> overrideBoundariesForTest(
 
   await locator.unregister<BullnymClientPort>();
   locator.registerLazySingleton<BullnymClientPort>(() => bullnym);
+}
+
+/// Freezes the injectable [Clock] over the real [SystemClock] so every
+/// wall-clock-stamped path (the manifest `generatedAt`, entry timestamps, the
+/// Nostr event `created_at`) is deterministic across a wipe/recover. Register
+/// it in the SAME window as [overrideBoundariesForTest] — right after
+/// `Bull.init()` and BEFORE any facade is resolved — because the usecases that
+/// read the clock are `registerFactory` and capture it at construction. Returns
+/// the [FakeClock] so a spec can skew it if it needs to drive clock-skew paths.
+Future<FakeClock> overrideClockForTest(
+  GetIt locator, {
+  FakeClock? clock,
+}) async {
+  final fakeClock = clock ?? FakeClock.baseline();
+  await locator.unregister<Clock>();
+  locator.registerLazySingleton<Clock>(() => fakeClock);
+  return fakeClock;
 }

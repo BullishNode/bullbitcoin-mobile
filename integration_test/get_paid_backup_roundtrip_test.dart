@@ -45,8 +45,46 @@ class _FakePairingService implements SamRockPairingServicePort {
   }
 }
 
+// A structural view of a manifest payload for a readable semantic diff: the
+// identity-bearing fields that MUST survive a wipe/recover round-trip, minus
+// the wall-clock timestamps (which the frozen clock already pins). A real
+// future regression then fails on the specific field rather than on an opaque
+// "bytes differ".
+Map<String, Object?> _semanticManifest(String payload) {
+  final json = jsonDecode(payload) as Map<String, dynamic>;
+  final entries = (json['entries'] as List).cast<Map<String, dynamic>>();
+  return {
+    'parentFingerprint': json['parentFingerprint'],
+    'entryCount': json['entryCount'],
+    'materializationCount': json['materializationCount'],
+    'entries': entries
+        .map(
+          (e) => {
+            'entryId': e['entryId'],
+            'bip85DerivationPath': e['bip85DerivationPath'],
+            'bip85Application': e['bip85Application'],
+            'bip85Index': e['bip85Index'],
+            'materializations': (e['materializations'] as List)
+                .cast<Map<String, dynamic>>()
+                .map(
+                  (m) => {
+                    'childSeedFingerprint': m['childSeedFingerprint'],
+                    'network': m['network'],
+                    'scriptType': m['scriptType'],
+                  },
+                )
+                .toList(),
+          },
+        )
+        .toList(),
+  };
+}
+
 Future<void> _installBoundaries(FakeNostrRelay relay, FakeBullnymClient bullnym) async {
   await overrideBoundariesForTest(locator, relay: relay, bullnym: bullnym);
+  // Freeze the clock: the manifest embeds wall-clock timestamps, so without a
+  // frozen clock the wiped-then-rebuilt payload is never byte-identical.
+  await overrideClockForTest(locator);
   await locator.unregister<SamRockPairingServicePort>();
   locator.registerLazySingleton<SamRockPairingServicePort>(
     () => _FakePairingService(),
@@ -169,7 +207,13 @@ Future<void> main({bool isInitialized = false}) async {
             .buildManifestFilePayload(restoredDefault.masterFingerprint))
         .payload;
 
-    // [F] freeze: the rebuilt manifest is byte-identical to the published one.
+    // Semantic equality FIRST (readable diff on a real regression): entry ids,
+    // BIP85 derivation paths, child-seed fingerprints, networks, script types,
+    // and the integrity counts all survive the round-trip identically.
+    expect(_semanticManifest(bytesAfter), _semanticManifest(bytesBefore));
+
+    // [F] freeze: with the clock frozen, the rebuilt manifest is additionally
+    // byte-identical to the published one.
     expect(bytesAfter, bytesBefore);
   });
 }
