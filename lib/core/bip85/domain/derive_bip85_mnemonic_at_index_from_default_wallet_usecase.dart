@@ -1,9 +1,11 @@
 import 'package:bb_mobile/core/bip85/data/bip85_repository.dart';
 import 'package:bb_mobile/core/bip85/domain/bip85_derivation_entity.dart';
 import 'package:bb_mobile/core/bip85/domain/bip85_errors.dart';
+import 'package:bb_mobile/core/errors/bull_exception.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 
@@ -55,12 +57,19 @@ class DeriveBip85MnemonicAtIndexFromDefaultWalletUsecase {
     // row's mnemonic can no longer be derived from the current seed, so it
     // must not count as a conflict: re-derive and let storage replace it.
 
-    return _bip85Repository.deriveMnemonic(
+    final derivedResult = await _bip85Repository.deriveMnemonic(
       xprvBase58: xprv,
       length: length,
       index: index,
       alias: alias,
     );
+    final derived = switch (derivedResult) {
+      Ok(:final value) => value,
+      Err(:final failure) => throw BullException(
+        failure.logMessage ?? 'Failed to derive BIP85 mnemonic',
+      ),
+    };
+    return (derivation: derived.derivation, mnemonic: derived.mnemonic);
   }
 
   bool _isForCurrentWallet(
