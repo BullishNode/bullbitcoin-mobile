@@ -27,6 +27,7 @@ import 'package:bb_mobile/features/exchange_settings/exchange_settings_locator.d
 import 'package:bb_mobile/features/mempool_settings/mempool_settings_locator.dart';
 import 'package:bb_mobile/features/fund_exchange/fund_exchange_locator.dart';
 import 'package:bb_mobile/features/get_paid/get_paid_locator.dart';
+import 'package:bb_mobile/features/get_paid_settings/get_paid_settings_locator.dart';
 import 'package:bb_mobile/features/import_mnemonic/locator.dart';
 import 'package:bb_mobile/features/import_watch_only_wallet/import_watch_only_locator.dart';
 import 'package:bb_mobile/features/invoices/invoices_locator.dart';
@@ -104,6 +105,7 @@ class AppLocator {
     WalletBackupLocator.setup(locator);
     KeychainRecoveryLocator.setup(locator);
     BullnymLocator.setup(locator);
+    GetPaidSettingsLocator.setup(locator);
     LightningAddressLocator.setup(locator);
     PaymentPageLocator.setup(locator);
     PosLocator.setup(locator);
