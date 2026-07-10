@@ -2,7 +2,10 @@ import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
+import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
+import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
+import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/automated_backup_consent.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_state.dart';
@@ -65,13 +68,25 @@ class _LightningAddressActivationScreenState
             appBar: AppBar(title: Text(context.loc.lightningAddressTitle)),
             body: SafeArea(
               child: state.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          LoadingBoxContent(height: 72),
+                          LoadingLineContent(),
+                          LoadingLineContent(width: 220),
+                        ],
+                      ),
+                    )
                   : state.isRegistered
                   ? _RegisteredView(
                       nym: state.nym,
                       lightningAddress: state.registeredAddress!,
                       receiveReady: state.receiveReady,
                       autoSweepConfirmed: state.autoSweepConfirmed,
+                      walletBehavior: state.walletBehavior,
+                      walletBehaviorSaving: state.walletBehaviorSaving,
                     )
                   : state.isActive
                   ? _ActiveView(
@@ -79,6 +94,8 @@ class _LightningAddressActivationScreenState
                       lightningAddress: state.registeredAddress,
                       receiveReady: state.receiveReady,
                       autoSweepConfirmed: state.autoSweepConfirmed,
+                      walletBehavior: state.walletBehavior,
+                      walletBehaviorSaving: state.walletBehaviorSaving,
                     )
                   : state.isActiveLocalSetupFailed
                   ? _ActiveLocalSetupFailedView(
@@ -88,6 +105,8 @@ class _LightningAddressActivationScreenState
                       onCheckStatus: context
                           .read<LightningAddressActivationCubit>()
                           .load,
+                      walletBehavior: state.walletBehavior,
+                      walletBehaviorSaving: state.walletBehaviorSaving,
                     )
                   : state.isInactive
                   ? _InactiveKnownView(
@@ -108,6 +127,8 @@ class _LightningAddressActivationScreenState
                       onRegister: context
                           .read<LightningAddressActivationCubit>()
                           .showRegistrationForm,
+                      walletBehavior: state.walletBehavior,
+                      walletBehaviorSaving: state.walletBehaviorSaving,
                     )
                   : state.failure ==
                         LightningAddressActivationFailure.noDefaultBitcoinWallet
@@ -118,6 +139,8 @@ class _LightningAddressActivationScreenState
                       onCheckStatus: context
                           .read<LightningAddressActivationCubit>()
                           .load,
+                      walletBehavior: state.walletBehavior,
+                      walletBehaviorSaving: state.walletBehaviorSaving,
                     )
                   : _RegistrationForm(
                       formKey: _formKey,
@@ -287,10 +310,14 @@ class _NoDefaultBitcoinWalletView extends StatelessWidget {
 class _LookupFailureView extends StatelessWidget {
   final VoidCallback onCheckStatus;
   final VoidCallback onRegister;
+  final GetPaidWalletBehavior? walletBehavior;
+  final bool walletBehaviorSaving;
 
   const _LookupFailureView({
     required this.onCheckStatus,
     required this.onRegister,
+    required this.walletBehavior,
+    required this.walletBehaviorSaving,
   });
 
   @override
@@ -322,6 +349,13 @@ class _LookupFailureView extends StatelessWidget {
           bgColor: context.appColors.primary,
           textColor: context.appColors.onPrimary,
         ),
+        // The behavior controls only need the local wallet, so they stay
+        // reachable even while the server status lookup is failing.
+        if (walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: walletBehavior!,
+            saving: walletBehaviorSaving,
+          ),
       ],
     );
   }
@@ -329,8 +363,14 @@ class _LookupFailureView extends StatelessWidget {
 
 class _UncertainSubmissionView extends StatelessWidget {
   final VoidCallback onCheckStatus;
+  final GetPaidWalletBehavior? walletBehavior;
+  final bool walletBehaviorSaving;
 
-  const _UncertainSubmissionView({required this.onCheckStatus});
+  const _UncertainSubmissionView({
+    required this.onCheckStatus,
+    required this.walletBehavior,
+    required this.walletBehaviorSaving,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -351,6 +391,11 @@ class _UncertainSubmissionView extends StatelessWidget {
           bgColor: context.appColors.secondary,
           textColor: context.appColors.onSecondary,
         ),
+        if (walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: walletBehavior!,
+            saving: walletBehaviorSaving,
+          ),
       ],
     );
   }
@@ -405,12 +450,16 @@ class _ActiveView extends StatelessWidget {
   final String? lightningAddress;
   final bool receiveReady;
   final bool autoSweepConfirmed;
+  final GetPaidWalletBehavior? walletBehavior;
+  final bool walletBehaviorSaving;
 
   const _ActiveView({
     required this.nym,
     required this.lightningAddress,
     required this.receiveReady,
     required this.autoSweepConfirmed,
+    required this.walletBehavior,
+    required this.walletBehaviorSaving,
   });
 
   @override
@@ -444,6 +493,11 @@ class _ActiveView extends StatelessWidget {
             autoSweepConfirmed: autoSweepConfirmed,
           ),
         ),
+        if (walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: walletBehavior!,
+            saving: walletBehaviorSaving,
+          ),
       ],
     );
   }
@@ -454,12 +508,16 @@ class _ActiveLocalSetupFailedView extends StatelessWidget {
   final String? lightningAddress;
   final bool localSetupRetryable;
   final VoidCallback onCheckStatus;
+  final GetPaidWalletBehavior? walletBehavior;
+  final bool walletBehaviorSaving;
 
   const _ActiveLocalSetupFailedView({
     required this.nym,
     required this.lightningAddress,
     required this.localSetupRetryable,
     required this.onCheckStatus,
+    required this.walletBehavior,
+    required this.walletBehaviorSaving,
   });
 
   @override
@@ -495,6 +553,11 @@ class _ActiveLocalSetupFailedView extends StatelessWidget {
             textColor: context.appColors.onSecondary,
           ),
         ],
+        if (walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: walletBehavior!,
+            saving: walletBehaviorSaving,
+          ),
       ],
     );
   }
@@ -505,12 +568,16 @@ class _RegisteredView extends StatelessWidget {
   final String lightningAddress;
   final bool receiveReady;
   final bool autoSweepConfirmed;
+  final GetPaidWalletBehavior? walletBehavior;
+  final bool walletBehaviorSaving;
 
   const _RegisteredView({
     required this.nym,
     required this.lightningAddress,
     required this.receiveReady,
     required this.autoSweepConfirmed,
+    required this.walletBehavior,
+    required this.walletBehaviorSaving,
   });
 
   @override
@@ -540,6 +607,11 @@ class _RegisteredView extends StatelessWidget {
             autoSweepConfirmed: autoSweepConfirmed,
           ),
         ),
+        if (walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: walletBehavior!,
+            saving: walletBehaviorSaving,
+          ),
       ],
     );
   }
@@ -559,6 +631,51 @@ String _receiveReadinessCopy(
   return autoSweepConfirmed
       ? context.loc.lightningAddressReceiveReady
       : context.loc.lightningAddressReceiveReadyNoAutosweep;
+}
+
+/// Reserved-wallet behavior controls (auto-sweep + hide-on-home) for wallet 101.
+/// Mirrors BTCPay's `_BtcpayWalletBehaviorTile`; the safe defaults are applied
+/// at wallet creation, these rows only let the user review and change them.
+class _WalletBehaviorControls extends StatelessWidget {
+  final GetPaidWalletBehavior behavior;
+  final bool saving;
+
+  const _WalletBehaviorControls({required this.behavior, required this.saving});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<LightningAddressActivationCubit>();
+    return Card(
+      margin: const EdgeInsets.only(top: 24),
+      child: Column(
+        children: [
+          ListTile(title: Text(context.loc.getPaidWalletSettingsSectionTitle)),
+          SwitchListTile(
+            value: behavior.autoSweepEnabled,
+            onChanged: saving
+                ? null
+                : (value) => cubit.updateWalletBehavior(
+                    walletId: behavior.walletId,
+                    autoSweepEnabled: value,
+                  ),
+            title: Text(context.loc.getPaidWalletAutoSweepLabel),
+            subtitle: Text(context.loc.getPaidWalletAutoSweepInfo),
+          ),
+          SwitchListTile(
+            value: behavior.hideOnHome,
+            onChanged: saving
+                ? null
+                : (value) => cubit.updateWalletBehavior(
+                    walletId: behavior.walletId,
+                    hideOnHome: value,
+                  ),
+            title: Text(context.loc.getPaidWalletHideOnHomeLabel),
+            subtitle: Text(context.loc.getPaidWalletHideOnHomeInfo),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _StatusNotice extends StatelessWidget {

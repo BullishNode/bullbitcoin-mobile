@@ -5604,6 +5604,26 @@
   "@getPaidRecoverRowTitle": {
     "description": "Get Paid settings row that opens remote recovery"
   },
+  "getPaidWalletSettingsSectionTitle": "Wallet settings",
+  "@getPaidWalletSettingsSectionTitle": {
+    "description": "Section header for a Get Paid product's reserved wallet behavior controls"
+  },
+  "getPaidWalletAutoSweepLabel": "Auto-sweep",
+  "@getPaidWalletAutoSweepLabel": {
+    "description": "Label for the reserved wallet auto-sweep toggle"
+  },
+  "getPaidWalletAutoSweepInfo": "Automatically transfers funds received on this wallet to your main wallet.",
+  "@getPaidWalletAutoSweepInfo": {
+    "description": "Subtitle describing what the auto-sweep toggle does"
+  },
+  "getPaidWalletHideOnHomeLabel": "Hide on home",
+  "@getPaidWalletHideOnHomeLabel": {
+    "description": "Label for the reserved wallet hide-on-home toggle"
+  },
+  "getPaidWalletHideOnHomeInfo": "Keeps this wallet off your home screen wallet list.",
+  "@getPaidWalletHideOnHomeInfo": {
+    "description": "Subtitle describing what the hide-on-home toggle does"
+  },
   "getPaidDashboardTitle": "Get Paid",
   "@getPaidDashboardTitle": {
     "description": "Title of the Get Paid hub screen"
@@ -5744,6 +5764,10 @@
   "remoteKeychainRecoveryRestoredFromOlderNote": "Restored from an older backup.",
   "@remoteKeychainRecoveryRestoredFromOlderNote": {
     "description": "Note appended when an older backup was restored"
+  },
+  "remoteKeychainRecoveryRestoredDefaultsNote": "Get Paid wallets are restored with safe defaults: hidden from your home screen with auto-sweep on. You can review these in Get Paid → Settings.",
+  "@remoteKeychainRecoveryRestoredDefaultsNote": {
+    "description": "Calm note shown after recovery explaining Get Paid wallet defaults"
   },
   "remoteKeychainRecoveryDefaultWalletUnavailable": "No wallet is available to recover a Get Paid backup for.",
   "@remoteKeychainRecoveryDefaultWalletUnavailable": {
