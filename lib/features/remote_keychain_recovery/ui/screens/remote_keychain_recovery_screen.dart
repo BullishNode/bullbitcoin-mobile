@@ -241,6 +241,14 @@ class _RemoteKeychainRecoveryScreenState
             textAlign: TextAlign.center,
           ),
         ],
+        const SizedBox(height: 8),
+        Text(
+          context.loc.remoteKeychainRecoveryRestoredDefaultsNote,
+          style: context.font.bodySmall?.copyWith(
+            color: context.appColors.textMuted,
+          ),
+          textAlign: TextAlign.center,
+        ),
         ..._healRows(context, state),
         const SizedBox(height: 24),
         FilledButton(
@@ -263,6 +271,14 @@ class _RemoteKeychainRecoveryScreenState
           context.loc.remoteKeychainRecoveryPartiallyRestored(
             state.restoredCount,
             state.failedCount,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          context.loc.remoteKeychainRecoveryRestoredDefaultsNote,
+          style: context.font.bodySmall?.copyWith(
+            color: context.appColors.textMuted,
           ),
           textAlign: TextAlign.center,
         ),

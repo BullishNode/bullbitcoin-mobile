@@ -2,12 +2,14 @@ import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/storage/sqlite_database.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/data/drift_get_paid_settings_repository.dart';
 import 'package:bb_mobile/features/get_paid_settings/data/get_paid_settings_default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/get_paid_settings_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/repositories/get_paid_settings_repository.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/acknowledge_automated_backup_disclosure_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_settings_usecase.dart';
+import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/publish_automated_keychain_backup_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/set_automated_backup_enabled_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/presentation/get_paid_settings_cubit.dart';
@@ -34,6 +36,13 @@ class GetPaidSettingsLocator {
     locator.registerFactory<GetGetPaidSettingsUsecase>(
       () => GetGetPaidSettingsUsecase(
         repository: locator<GetPaidSettingsRepository>(),
+      ),
+    );
+    // Read-only resolver for reserved product wallets (LA/PP/POS), consumed by
+    // each product screen's cubit to drive its per-wallet behavior controls.
+    locator.registerFactory<GetGetPaidWalletBehaviorsUsecase>(
+      () => GetGetPaidWalletBehaviorsUsecase(
+        getWallets: locator<GetWalletsUsecase>(),
       ),
     );
     locator.registerFactory<PublishAutomatedKeychainBackupUsecase>(
