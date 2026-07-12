@@ -60,6 +60,29 @@ abstract interface class BullnymClientPort {
   /// Public, UNSIGNED status/detail poll by id
   /// (`GET /api/v1/invoices/:id/status`). Anyone holding the id can poll it.
   Future<BullnymInvoiceStatus> getInvoiceStatus({required String invoiceId});
+
+  /// List the signing npub's recoverable (stuck) chain swaps — signed
+  /// `invoice-recovery-list`, `GET /api/v1/invoices/recoverable`. npub-keyed,
+  /// empty nym, zero payload fields. ALWAYS available behind auth regardless of
+  /// the server recover flag; the response's `recoveryEnabled` reports that
+  /// flag so the UI can offer "Recover now" vs "Contact support". This is the
+  /// sole detection signal — the public status endpoint never carries recovery
+  /// state.
+  Future<BullnymRecoverableSwapList> listRecoverableChainSwaps({
+    required BullnymAuthSigner signer,
+  });
+
+  /// Recover a stuck chain swap's stranded BTC to [btcAddress] (signed
+  /// `invoice-recover`, linked-only `POST /api/v1/:nym/invoices/:id/recover`).
+  /// [nym] is REQUIRED (signed into `nym_or_empty`) and comes from the
+  /// recoverable row. The destination is first-write-wins server-side; a retry
+  /// after success is idempotent and returns the same txid.
+  Future<BullnymRecoverChainSwapResponse> recoverChainSwap({
+    required BullnymAuthSigner signer,
+    required String nym,
+    required String invoiceId,
+    required String btcAddress,
+  });
 }
 
 class BullnymRegisterRequest {

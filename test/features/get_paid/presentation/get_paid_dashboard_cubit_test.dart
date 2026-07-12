@@ -6,6 +6,8 @@ import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart'
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../payment_recovery/support/recovery_test_doubles.dart';
+
 // The public facades are callback-injected, so the tests wire real facade
 // instances to plain closures — no mocking framework needed.
 
@@ -104,6 +106,7 @@ GetPaidDashboardCubit _cubit({
     paymentPage: _pageFacade(pageFind ?? ({required String nym}) async => null),
     pos: _posFacade(posFind ?? ({required String nym}) async => null),
     btcpay: _btcpayFacade(connection ?? () async => null),
+    recovery: noopPaymentRecoveryFacade(),
   );
 }
 

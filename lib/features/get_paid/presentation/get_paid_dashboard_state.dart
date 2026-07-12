@@ -16,6 +16,18 @@ class GetPaidDashboardState {
   final BtcpayConnection? btcpayConnection;
   final String? error;
 
+  /// Count of payments needing recovery attention (stuck chain swaps), from the
+  /// last detection scan. Drives the POS card warning badge + hub banner.
+  final int stuckPaymentCount;
+
+  /// Server `chain_swap_merchant_recovery` flag from the last scan — whether
+  /// the recover action is offered (detection is always-on regardless).
+  final bool recoveryActionEnabled;
+
+  /// True iff the recoverable set exceeded the server cap (operator incident →
+  /// "contact support").
+  final bool recoverableHasMore;
+
   const GetPaidDashboardState({
     this.isLoading = false,
     this.lightningAddress,
@@ -24,7 +36,12 @@ class GetPaidDashboardState {
     this.posTerminal,
     this.btcpayConnection,
     this.error,
+    this.stuckPaymentCount = 0,
+    this.recoveryActionEnabled = false,
+    this.recoverableHasMore = false,
   });
+
+  bool get hasStuckPayments => stuckPaymentCount > 0;
 
   bool get hasLightningAddress =>
       lightningAddress != null && lightningAddress!.isNotEmpty;
@@ -55,6 +72,9 @@ class GetPaidDashboardState {
     bool clearBtcpayConnection = false,
     String? error,
     bool clearError = false,
+    int? stuckPaymentCount,
+    bool? recoveryActionEnabled,
+    bool? recoverableHasMore,
   }) {
     return GetPaidDashboardState(
       isLoading: isLoading ?? this.isLoading,
@@ -68,6 +88,10 @@ class GetPaidDashboardState {
           ? null
           : btcpayConnection ?? this.btcpayConnection,
       error: clearError ? null : error ?? this.error,
+      stuckPaymentCount: stuckPaymentCount ?? this.stuckPaymentCount,
+      recoveryActionEnabled:
+          recoveryActionEnabled ?? this.recoveryActionEnabled,
+      recoverableHasMore: recoverableHasMore ?? this.recoverableHasMore,
     );
   }
 }

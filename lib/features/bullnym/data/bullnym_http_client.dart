@@ -11,6 +11,10 @@ import 'package:dio/dio.dart';
 
 const Duration bullnymConnectTimeout = Duration(seconds: 10);
 const Duration bullnymReceiveTimeout = Duration(seconds: 15);
+// The recover endpoint signs AND broadcasts a real BTC refund inside the
+// request, so it can legitimately take longer than a read. A premature client
+// timeout is the main source of avoidable `RecoveryInProgress` retries.
+const Duration bullnymRecoverReceiveTimeout = Duration(seconds: 30);
 
 class BullnymHttpClient implements BullnymClientPort {
   BullnymHttpClient({
@@ -267,6 +271,69 @@ class BullnymHttpClient implements BullnymClientPort {
       '/api/v1/invoices/${Uri.encodeComponent(invoiceId)}/status',
     );
     return _parseInvoiceStatusResponse(response);
+  }
+
+  @override
+  Future<BullnymRecoverableSwapList> listRecoverableChainSwaps({
+    required BullnymAuthSigner signer,
+  }) async {
+    final timestamp = _nowSecs();
+    // npub-keyed, empty nym, ZERO payload fields (identity-wide detection).
+    final signatureHex = await _signInvoiceAction(
+      signer: signer,
+      action: bullpayActionInvoiceRecoveryList,
+      nymOrEmpty: '',
+      payloadFields: buildInvoiceRecoveryListPayloadFields(),
+      timestampSecs: timestamp,
+    );
+    final response = await _getMap(
+      '/api/v1/invoices/recoverable',
+      queryParameters: {
+        'npub': signer.npubHex,
+        'timestamp': timestamp,
+        'signature': signatureHex,
+      },
+    );
+    return _parseRecoverableListResponse(response);
+  }
+
+  @override
+  Future<BullnymRecoverChainSwapResponse> recoverChainSwap({
+    required BullnymAuthSigner signer,
+    required String nym,
+    required String invoiceId,
+    required String btcAddress,
+  }) async {
+    final timestamp = _nowSecs();
+    // Linked-only: `nym_or_empty` is the NON-EMPTY path nym; the signed fields
+    // are [invoice_id, btc_address] with the address signed RAW so the verified
+    // bytes equal the POSTed bytes.
+    final signatureHex = await _signInvoiceAction(
+      signer: signer,
+      action: bullpayActionInvoiceRecover,
+      nymOrEmpty: nym,
+      payloadFields: buildInvoiceRecoverPayloadFields(
+        invoiceId: invoiceId,
+        btcAddress: btcAddress,
+      ),
+      timestampSecs: timestamp,
+    );
+    final response = await _requestMap(
+      () => _dio.post<dynamic>(
+        '/api/v1/${Uri.encodeComponent(nym)}/invoices/${Uri.encodeComponent(invoiceId)}/recover',
+        data: {
+          'npub': signer.npubHex,
+          'timestamp': timestamp,
+          'signature': signatureHex,
+          'btc_address': btcAddress,
+        },
+        options: Options(receiveTimeout: bullnymRecoverReceiveTimeout),
+      ),
+    );
+    return BullnymRecoverChainSwapResponse(
+      status: _requiredString(response, 'status'),
+      txid: _requiredString(response, 'txid'),
+    );
   }
 
   // `nym == null` → the unlinked collection; a nym → the linked collection.
@@ -592,6 +659,62 @@ class BullnymHttpClient implements BullnymClientPort {
       paidVia: _optionalString(json, 'paid_via'),
       paidAtUnix: _optionalInt(json, 'paid_at_unix'),
       paidAmountSat: _optionalInt(json, 'paid_amount_sat'),
+    );
+  }
+
+  // Tolerant reader: parse KNOWN keys with type checks; unknown keys ignored.
+  BullnymRecoverableSwapList _parseRecoverableListResponse(
+    Map<String, dynamic> json,
+  ) {
+    final rawItems = json['items'];
+    if (rawItems is! List) {
+      throw BullnymException.invalidServerResponse(
+        diagnosticReason: 'Server response is missing recoverable items list',
+      );
+    }
+    final items = <BullnymRecoverableSwap>[];
+    for (final raw in rawItems) {
+      if (raw is! Map<String, dynamic>) {
+        throw BullnymException.invalidServerResponse(
+          diagnosticReason: 'Server recoverable entry has an unexpected shape',
+        );
+      }
+      items.add(_parseRecoverableSwap(raw));
+    }
+    return BullnymRecoverableSwapList(
+      recoveryEnabled: _requiredBool(json, 'recovery_enabled'),
+      items: items,
+      count: _requiredInt(json, 'count'),
+      hasMore: _requiredBool(json, 'has_more'),
+    );
+  }
+
+  BullnymRecoverableSwap _parseRecoverableSwap(Map<String, dynamic> json) {
+    final rawInvoice = json['invoice'];
+    if (rawInvoice is! Map<String, dynamic>) {
+      throw BullnymException.invalidServerResponse(
+        diagnosticReason:
+            'Server recoverable entry is missing invoice context',
+      );
+    }
+    return BullnymRecoverableSwap(
+      invoiceId: _requiredString(json, 'invoice_id'),
+      nym: _requiredString(json, 'nym'),
+      recoveryStatus: _requiredString(json, 'recovery_status'),
+      userLockAmountSat: _requiredInt(json, 'user_lock_amount_sat'),
+      serverLockAmountSat: _requiredInt(json, 'server_lock_amount_sat'),
+      lockupAddress: _requiredString(json, 'lockup_address'),
+      refundAddress: _optionalString(json, 'refund_address'),
+      refundTxid: _optionalString(json, 'refund_txid'),
+      swapCreatedAtUnix: _requiredInt(json, 'swap_created_at_unix'),
+      swapUpdatedAtUnix: _requiredInt(json, 'swap_updated_at_unix'),
+      invoiceStatus: _requiredString(rawInvoice, 'status'),
+      invoiceAmountSat: _requiredInt(rawInvoice, 'amount_sat'),
+      fiatAmountMinor: _optionalInt(rawInvoice, 'fiat_amount_minor'),
+      fiatCurrency: _optionalString(rawInvoice, 'fiat_currency'),
+      publicDescription: _optionalString(rawInvoice, 'public_description'),
+      invoiceNumber: _optionalString(rawInvoice, 'invoice_number'),
+      invoiceCreatedAtUnix: _requiredInt(rawInvoice, 'created_at_unix'),
     );
   }
 

@@ -173,43 +173,32 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     PaymentPageState state,
     PaymentPageCubit cubit,
   ) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _StatusNotice(
-          icon: Icons.pause_circle_outline,
-          title: context.loc.paymentPageArchivedTitle,
-          body: context.loc.paymentPageArchivedBody,
-        ),
-        const Gap(24),
-        if (state.publicUrl != null) _shareRow(context, state.publicUrl!),
-        const Gap(24),
-        BBButton.big(
-          label: context.loc.paymentPagePublishButton,
-          onPressed: () => _save(cubit),
-          disabled: state.submitting,
-          bgColor: context.appColors.primary,
-          textColor: context.appColors.onPrimary,
-        ),
-      ],
-    );
+    return _editorForm(context, state, cubit, isArchived: true);
   }
 
   Widget _editorForm(
     BuildContext context,
     PaymentPageState state,
-    PaymentPageCubit cubit,
-  ) {
+    PaymentPageCubit cubit, {
+    bool isArchived = false,
+  }) {
     final isCreate = state.status == PaymentPageStatus.create;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(
-          context.loc.paymentPageRoutingNotice,
-          style: context.font.bodySmall?.copyWith(
-            color: context.appColors.textMuted,
+        if (isArchived) ...[
+          _StatusNotice(
+            icon: Icons.pause_circle_outline,
+            title: context.loc.paymentPageArchivedTitle,
+            body: context.loc.paymentPageArchivedBody,
           ),
-        ),
+        ] else
+          Text(
+            context.loc.paymentPageRoutingNotice,
+            style: context.font.bodySmall?.copyWith(
+              color: context.appColors.textMuted,
+            ),
+          ),
         const Gap(20),
         if (state.submissionUncertain) ...[
           _Banner(
@@ -229,16 +218,14 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           onChanged: cubit.headerChanged,
         ),
         const Gap(16),
-        _byteCountedField(
+        _characterCountedDescriptionField(
           context: context,
           controller: _description,
           label: context.loc.paymentPageDescriptionLabel,
           hint: context.loc.paymentPageDescriptionHint,
           value: state.description,
-          maxBytes: paymentPageDescriptionMaxBytes,
           enabled: !state.submitting,
           onChanged: cubit.descriptionChanged,
-          maxLines: 4,
         ),
         const Gap(16),
         _currencyField(context, state, cubit),
@@ -286,6 +273,8 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
         BBButton.big(
           label: state.submitting
               ? context.loc.paymentPageSubmitting
+              : isArchived
+              ? context.loc.paymentPagePublishButton
               : isCreate
               ? context.loc.paymentPageCreateButton
               : context.loc.paymentPageSaveButton,
@@ -294,7 +283,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           bgColor: context.appColors.primary,
           textColor: context.appColors.onPrimary,
         ),
-        if (!isCreate) ...[
+        if (!isCreate && !isArchived) ...[
           const Gap(12),
           BBButton.big(
             label: context.loc.paymentPageDeactivateButton,
@@ -339,7 +328,9 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
       if (state.displayCurrency.isNotEmpty) state.displayCurrency,
     }.toList();
     return DropdownButtonFormField<String>(
-      initialValue: state.displayCurrency.isEmpty ? null : state.displayCurrency,
+      initialValue: state.displayCurrency.isEmpty
+          ? null
+          : state.displayCurrency,
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
         labelText: context.loc.paymentPageCurrencyLabel,
@@ -379,6 +370,40 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
         counterText: context.loc.paymentPageByteCounter(
           paymentPageByteLength(value),
           maxBytes,
+        ),
+      ),
+    );
+  }
+
+  Widget _characterCountedDescriptionField({
+    required BuildContext context,
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required String value,
+    required bool enabled,
+    required ValueChanged<String> onChanged,
+  }) {
+    final byteCount = paymentPageByteLength(value);
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      maxLines: 3,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        border: const OutlineInputBorder(),
+        labelText: label,
+        helperText: hint,
+        errorText: byteCount > paymentPageDescriptionMaxBytes
+            ? context.loc.paymentPageDescriptionByteLimit(
+                byteCount,
+                paymentPageDescriptionMaxBytes,
+              )
+            : null,
+        errorMaxLines: 2,
+        counterText: context.loc.paymentPageByteCounter(
+          paymentPageCharacterLength(value),
+          paymentPageDescriptionMaxCharacters,
         ),
       ),
     );

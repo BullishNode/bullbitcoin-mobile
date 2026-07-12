@@ -506,6 +506,246 @@ void main() {
       expect(request.queryParameters.containsKey('npub'), isFalse);
     });
   });
+
+  group('T-RECOVER-SIGN invoice-recover byte layout', () {
+    test('pins the recover layout: [invoice_id, btc_address], nym in nym slot',
+        () {
+      expect(bullpayActionInvoiceRecover, 'invoice-recover');
+      final oracle = _oracleMessageBytes(
+        action: 'invoice-recover',
+        npubHex: 'npub',
+        nymOrEmpty: 'alice',
+        payloadFields: const ['inv-1', 'bc1qexample'],
+        timestampSecs: timestamp,
+      );
+      expect(
+        buildBullpaySchnorrMessage(
+          action: bullpayActionInvoiceRecover,
+          npubHex: 'npub',
+          // UNLIKE list/recovery-list, recover signs the NON-EMPTY path nym.
+          nymOrEmpty: 'alice',
+          payloadFields: buildInvoiceRecoverPayloadFields(
+            invoiceId: 'inv-1',
+            btcAddress: 'bc1qexample',
+          ),
+          timestampSecs: timestamp,
+        ),
+        oracle,
+      );
+    });
+  });
+
+  group('T-RECOVER-SIGN invoice-recovery-list byte layout', () {
+    test('pins the recovery-list layout: ZERO fields, nym slot EMPTY', () {
+      expect(bullpayActionInvoiceRecoveryList, 'invoice-recovery-list');
+      // Tripwire: adding a param is a wire-breaking change (mirrors the
+      // server's recovery_list_payload_field_order unit test).
+      expect(buildInvoiceRecoveryListPayloadFields(), const <String>[]);
+      final oracle = _oracleMessageBytes(
+        action: 'invoice-recovery-list',
+        npubHex: 'npub',
+        nymOrEmpty: '',
+        payloadFields: const [],
+        timestampSecs: timestamp,
+      );
+      // The empty-nym field still emits its trailing NUL, then the timestamp
+      // appends with no trailing NUL:
+      // `bullpay-la-v2\0invoice-recovery-list\0<npub>\0\0<timestamp>`.
+      expect(
+        buildBullpaySchnorrMessage(
+          action: bullpayActionInvoiceRecoveryList,
+          npubHex: 'npub',
+          nymOrEmpty: '',
+          payloadFields: buildInvoiceRecoveryListPayloadFields(),
+          timestampSecs: timestamp,
+        ),
+        oracle,
+      );
+    });
+  });
+
+  group('T-RECOVER-DTO recoverable-list parse round-trips', () {
+    Map<String, dynamic> recoverableView({
+      String recoveryStatus = 'refund_due',
+      String? refundAddress,
+      String? refundTxid,
+      String lockupAddress = 'bc1qlockup',
+    }) {
+      return {
+        'invoice_id': 'inv-1',
+        'nym': 'alice',
+        'recovery_status': recoveryStatus,
+        'user_lock_amount_sat': 105000,
+        'server_lock_amount_sat': 100000,
+        'lockup_address': lockupAddress,
+        'refund_address': refundAddress,
+        'refund_txid': refundTxid,
+        'swap_created_at_unix': 1767000000,
+        'swap_updated_at_unix': 1767003600,
+        'invoice': {
+          'status': 'expired',
+          'amount_sat': 100000,
+          'fiat_amount_minor': 5000,
+          'fiat_currency': 'CAD',
+          'public_description': 'Order 123',
+          'invoice_number': 'INV-42',
+          'created_at_unix': 1766990000,
+          'unknown_nested_key': 'ignored',
+        },
+        'unknown_top_key': true,
+      };
+    }
+
+    test('flattens invoice context, one row per swap, tolerant of unknown keys',
+        () async {
+      final stub = _stubDio([
+        {
+          'recovery_enabled': true,
+          'count': 2,
+          'has_more': false,
+          'items': [
+            recoverableView(lockupAddress: 'bc1qlockA'),
+            recoverableView(
+              recoveryStatus: 'refunded',
+              refundAddress: 'bc1qdest',
+              refundTxid: 'tx-1',
+              lockupAddress: 'bc1qlockB',
+            ),
+          ],
+        },
+      ]);
+      final client = BullnymHttpClient.withDio(stub.dio, nowSecs: () => timestamp);
+      final result = await client.listRecoverableChainSwaps(signer: signer);
+
+      expect(result.recoveryEnabled, isTrue);
+      expect(result.count, 2);
+      expect(result.hasMore, isFalse);
+      expect(result.items, hasLength(2));
+      final first = result.items.first;
+      expect(first.invoiceId, 'inv-1');
+      expect(first.nym, 'alice');
+      expect(first.recoveryStatus, 'refund_due');
+      expect(first.userLockAmountSat, 105000);
+      expect(first.serverLockAmountSat, 100000);
+      expect(first.lockupAddress, 'bc1qlockA');
+      expect(first.refundAddress, isNull);
+      expect(first.refundTxid, isNull);
+      expect(first.invoiceStatus, 'expired');
+      expect(first.invoiceAmountSat, 100000);
+      expect(first.fiatCurrency, 'CAD');
+      expect(first.publicDescription, 'Order 123');
+      final second = result.items.last;
+      expect(second.recoveryStatus, 'refunded');
+      expect(second.refundAddress, 'bc1qdest');
+      expect(second.refundTxid, 'tx-1');
+      expect(second.lockupAddress, 'bc1qlockB');
+    });
+
+    test('empty recoverable set parses to zero items', () async {
+      final stub = _stubDio([
+        {'recovery_enabled': false, 'count': 0, 'has_more': false, 'items': []},
+      ]);
+      final client = BullnymHttpClient.withDio(stub.dio, nowSecs: () => timestamp);
+      final result = await client.listRecoverableChainSwaps(signer: signer);
+      expect(result.recoveryEnabled, isFalse);
+      expect(result.items, isEmpty);
+      expect(result.count, 0);
+    });
+  });
+
+  group('T-RECOVER-CLIENT recover', () {
+    test('POSTs the per-nym recover path, signs [invoice_id, btc_address]',
+        () async {
+      final stub = _stubDio([
+        {'status': 'recovered', 'txid': 'txid-abc'},
+      ]);
+      final client = BullnymHttpClient.withDio(stub.dio, nowSecs: () => timestamp);
+
+      final response = await client.recoverChainSwap(
+        signer: signer,
+        nym: 'alice',
+        invoiceId: 'inv-1',
+        btcAddress: 'bc1qexample',
+      );
+      expect(response.status, 'recovered');
+      expect(response.txid, 'txid-abc');
+
+      final request = stub.captured.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/api/v1/alice/invoices/inv-1/recover');
+      final body = request.data as Map<String, dynamic>;
+      expect(body.keys.toSet(), {
+        'npub',
+        'timestamp',
+        'signature',
+        'btc_address',
+      });
+      expect(body['btc_address'], 'bc1qexample');
+
+      _expectSignatureValid(
+        handle: handle,
+        signatureHex: body['signature'] as String,
+        action: bullpayActionInvoiceRecover,
+        nymOrEmpty: 'alice',
+        payloadFields: buildInvoiceRecoverPayloadFields(
+          invoiceId: 'inv-1',
+          btcAddress: 'bc1qexample',
+        ),
+        timestampSecs: timestamp,
+      );
+    });
+
+    test('maps the RecoveryInProgress envelope to a typed rejection', () {
+      final stub = _stubDio([
+        {
+          'status': 'ERROR',
+          'code': 'RecoveryInProgress',
+          'reason': 'recovery already in flight for invoice inv-1',
+        },
+      ]);
+      final client = BullnymHttpClient.withDio(stub.dio, nowSecs: () => timestamp);
+      expect(
+        () => client.recoverChainSwap(
+          signer: signer,
+          nym: 'alice',
+          invoiceId: 'inv-1',
+          btcAddress: 'bc1qexample',
+        ),
+        throwsA(
+          isA<BullnymException>()
+              .having((e) => e.code, 'code', 'RecoveryInProgress'),
+        ),
+      );
+    });
+  });
+
+  group('T-RECOVER-CLIENT recoverable list', () {
+    test('GETs /api/v1/invoices/recoverable with npub+ts+sig, no page params',
+        () async {
+      final stub = _stubDio([
+        {'recovery_enabled': true, 'count': 0, 'has_more': false, 'items': []},
+      ]);
+      final client = BullnymHttpClient.withDio(stub.dio, nowSecs: () => timestamp);
+
+      await client.listRecoverableChainSwaps(signer: signer);
+
+      final request = stub.captured.requests.single;
+      expect(request.method, 'GET');
+      expect(request.path, '/api/v1/invoices/recoverable');
+      final query = request.queryParameters;
+      expect(query.keys.toSet(), {'npub', 'timestamp', 'signature'});
+      expect(query.containsKey('page'), isFalse);
+
+      _expectSignatureValid(
+        handle: handle,
+        signatureHex: query['signature'] as String,
+        action: bullpayActionInvoiceRecoveryList,
+        nymOrEmpty: '',
+        payloadFields: buildInvoiceRecoveryListPayloadFields(),
+        timestampSecs: timestamp,
+      );
+    });
+  });
 }
 
 NostrKeychainHandle _bullnymAuthHandle() {

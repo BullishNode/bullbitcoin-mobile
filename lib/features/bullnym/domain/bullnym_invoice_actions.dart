@@ -7,6 +7,10 @@ import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
 const String bullpayActionInvoiceCreate = 'invoice-create';
 const String bullpayActionInvoiceCancel = 'invoice-cancel';
 const String bullpayActionInvoiceList = 'invoice-list';
+// Chain-swap recovery (server `src/invoice.rs` ACTION_RECOVER /
+// ACTION_RECOVERY_LIST). Same `bullpay-la-v2` signer as the invoice actions.
+const String bullpayActionInvoiceRecover = 'invoice-recover';
+const String bullpayActionInvoiceRecoveryList = 'invoice-recovery-list';
 
 /// The signed `invoice-create` payload fields, in the server's FIXED order
 /// (`create_payload_fields` in `src/invoice.rs`). All 13 fields are ALWAYS
@@ -48,3 +52,21 @@ List<String> buildInvoiceListPayloadFields({
 }) {
   return [page.toString(), pageSize.toString(), status ?? ''];
 }
+
+/// The signed `invoice-recover` payload: `[invoice_id, btc_address]`
+/// (`recover_payload_fields`, server `src/invoice.rs:1815`). The address is
+/// signed RAW (no trim/normalize) — the verified bytes must equal the POSTed
+/// bytes. UNLIKE `invoice-list`, the `nym_or_empty` slot is the NON-EMPTY path
+/// nym (the recover endpoint is linked-only).
+List<String> buildInvoiceRecoverPayloadFields({
+  required String invoiceId,
+  required String btcAddress,
+}) => [invoiceId, btcAddress];
+
+/// The signed `invoice-recovery-list` payload: ZERO fields
+/// (`recovery_list_payload_fields() == []`, server `src/invoice.rs`). Like
+/// `invoice-list`, the `nym_or_empty` slot is EMPTY (identity-wide). If the
+/// server ever adds a parameter it MUST be appended here in lockstep — the
+/// contract test pins this empty layout, mirroring the server's
+/// `recovery_list_payload_field_order` unit test.
+List<String> buildInvoiceRecoveryListPayloadFields() => const [];

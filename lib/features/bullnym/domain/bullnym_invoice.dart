@@ -186,3 +186,82 @@ class BullnymInvoiceStatus {
     required this.acceptLiquid,
   });
 }
+
+/// The `invoice-recover` response (`RecoverResponse`): `status` is always
+/// "recovered" on success and `txid` is the broadcast recovery transaction id.
+/// A retried request after success is idempotent and returns the same txid.
+class BullnymRecoverChainSwapResponse {
+  final String status;
+  final String txid;
+
+  const BullnymRecoverChainSwapResponse({
+    required this.status,
+    required this.txid,
+  });
+}
+
+/// One recoverable chain swap (server `RecoverableItem`). ONE PER SWAP — an
+/// invoice with two stuck swaps yields two of these, distinguished by
+/// [lockupAddress]. [recoveryStatus] is the chain-swap lifecycle string
+/// (`refund_due` | `refunding` | `refunded`). [refundAddress]/[refundTxid] are
+/// the committed first-write-wins destination and broadcast txid — the
+/// post-reinstall reconciliation echo (null until committed/refunded).
+class BullnymRecoverableSwap {
+  final String invoiceId;
+  final String nym; // build the per-nym recover URL from THIS value
+  final String recoveryStatus;
+  final int userLockAmountSat;
+  final int serverLockAmountSat; // effective (renegotiation-aware)
+  final String lockupAddress; // swap identity within an invoice
+  final String? refundAddress;
+  final String? refundTxid;
+  final int swapCreatedAtUnix;
+  final int swapUpdatedAtUnix;
+  // Flattened invoice context (server nested `invoice` object):
+  final String invoiceStatus;
+  final int invoiceAmountSat;
+  final int? fiatAmountMinor;
+  final String? fiatCurrency;
+  final String? publicDescription;
+  final String? invoiceNumber;
+  final int invoiceCreatedAtUnix;
+
+  const BullnymRecoverableSwap({
+    required this.invoiceId,
+    required this.nym,
+    required this.recoveryStatus,
+    required this.userLockAmountSat,
+    required this.serverLockAmountSat,
+    required this.lockupAddress,
+    this.refundAddress,
+    this.refundTxid,
+    required this.swapCreatedAtUnix,
+    required this.swapUpdatedAtUnix,
+    required this.invoiceStatus,
+    required this.invoiceAmountSat,
+    this.fiatAmountMinor,
+    this.fiatCurrency,
+    this.publicDescription,
+    this.invoiceNumber,
+    required this.invoiceCreatedAtUnix,
+  });
+}
+
+/// The `invoice-recovery-list` response (`RecoverableListResponse`).
+/// [recoveryEnabled] is the server's `chain_swap_merchant_recovery` flag —
+/// detection is always-on behind auth, but the flag drives whether the recover
+/// action is offered. [hasMore] true means the server cap (100) was hit and the
+/// client should route to "contact support" rather than paginate.
+class BullnymRecoverableSwapList {
+  final bool recoveryEnabled;
+  final List<BullnymRecoverableSwap> items;
+  final int count;
+  final bool hasMore;
+
+  const BullnymRecoverableSwapList({
+    required this.recoveryEnabled,
+    required this.items,
+    required this.count,
+    required this.hasMore,
+  });
+}

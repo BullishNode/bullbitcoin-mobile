@@ -95,6 +95,33 @@ enum FakeInvoiceMode {
   featureDisabled,
 }
 
+/// Drives the `recoverChainSwap` outcome so one instance can exercise the whole
+/// §9 recovery error matrix. Detection (`listRecoverableChainSwaps`) is driven
+/// separately by [FakeBullnymClient.recoverableSwaps] / [recoverEnabled] /
+/// [recoverableRouteAbsent].
+enum FakeRecoveryMode {
+  /// Recover succeeds → `{status: "recovered", txid}`.
+  available,
+
+  /// Idempotent success on a retry-after-success (same txid).
+  alreadyRecoveredSameAddress,
+
+  /// `RecoveryInProgress` — broadcast already in flight; the client polls.
+  inProgress,
+
+  /// `RecoveryNotAvailable` "already recovered (to a different address)".
+  alreadyRecoveredDifferentAddress,
+
+  /// `RecoveryNotAvailable` "no recoverable chain swap".
+  notAvailable,
+
+  /// `RecoveryAddressInvalid` — should be impossible for own-wallet mainnet.
+  addressInvalid,
+
+  /// The recover route is absent (server flag off / pre-deploy): 404.
+  routeAbsent404,
+}
+
 class _FakeInvoice {
   final String id;
   final String ownerNpub;
@@ -122,6 +149,19 @@ class FakeBullnymClient implements BullnymClientPort {
   FakePosMode posMode = FakePosMode.normal;
   FakeInvoiceMode invoiceMode = FakeInvoiceMode.normal;
   String nym = 'alice';
+
+  // Recovery detection + action controls (chain-swap recovery, PR29).
+  // `recoverableSwaps` is the exact set the detection endpoint returns;
+  // `recoverEnabled` is the server `chain_swap_merchant_recovery` flag surfaced
+  // to the client; `recoverableRouteAbsent` emulates a pre-deploy server where
+  // the detection endpoint 404s; `recoveryMode` drives the recover outcome.
+  List<BullnymRecoverableSwap> recoverableSwaps = const [];
+  bool recoverEnabled = true;
+  bool recoverableRouteAbsent = false;
+  FakeRecoveryMode recoveryMode = FakeRecoveryMode.available;
+  String recoveredTxid = 'ab' * 32;
+  final List<({String npub, String nym, String invoiceId, String btcAddress})>
+  recoverCalls = [];
 
   final List<String> registeredNyms = [];
   final List<BullnymSaveDonationPageRequest> saveDonationPageCalls = [];
@@ -462,6 +502,60 @@ class FakeBullnymClient implements BullnymClientPort {
     );
   }
 
+  @override
+  Future<BullnymRecoverableSwapList> listRecoverableChainSwaps({
+    required BullnymAuthSigner signer,
+  }) async {
+    // Pre-deploy server: the detection route is absent → fail closed (no rows).
+    if (recoverableRouteAbsent) {
+      throw const BullnymException.unexpectedHttpStatus(statusCode: 404);
+    }
+    final items = recoverableSwaps;
+    return BullnymRecoverableSwapList(
+      recoveryEnabled: recoverEnabled,
+      items: items,
+      count: items.length,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<BullnymRecoverChainSwapResponse> recoverChainSwap({
+    required BullnymAuthSigner signer,
+    required String nym,
+    required String invoiceId,
+    required String btcAddress,
+  }) async {
+    recoverCalls.add((
+      npub: signer.npubHex,
+      nym: nym,
+      invoiceId: invoiceId,
+      btcAddress: btcAddress,
+    ));
+    switch (recoveryMode) {
+      case FakeRecoveryMode.available:
+      case FakeRecoveryMode.alreadyRecoveredSameAddress:
+        return BullnymRecoverChainSwapResponse(
+          status: 'recovered',
+          txid: recoveredTxid,
+        );
+      case FakeRecoveryMode.inProgress:
+        throw _recoveryInProgress();
+      case FakeRecoveryMode.alreadyRecoveredDifferentAddress:
+        throw _recoveryNotAvailable(
+          'invoice already recovered (to a different address)',
+        );
+      case FakeRecoveryMode.notAvailable:
+        throw _recoveryNotAvailable(
+          'no recoverable chain swap for invoice $invoiceId',
+        );
+      case FakeRecoveryMode.addressInvalid:
+        throw _recoveryAddressInvalid();
+      case FakeRecoveryMode.routeAbsent404:
+        throw const BullnymException.unexpectedHttpStatus(statusCode: 404);
+    }
+  }
+
   BullnymInvoiceListItem _toListItem(_FakeInvoice i) {
     final f = i.fields;
     return BullnymInvoiceListItem(
@@ -526,6 +620,30 @@ class FakeBullnymClient implements BullnymClientPort {
         diagnosticReason: 'invoice create rate limit exceeded',
         statusCode: 200,
         retryable: true,
+      );
+
+  BullnymException _recoveryInProgress() =>
+      const BullnymException.serverRejectedRequest(
+        code: 'RecoveryInProgress',
+        diagnosticReason: 'recovery already in flight for invoice',
+        statusCode: 200,
+        retryable: true,
+      );
+
+  BullnymException _recoveryNotAvailable(String reason) =>
+      BullnymException.serverRejectedRequest(
+        code: 'RecoveryNotAvailable',
+        diagnosticReason: reason,
+        statusCode: 200,
+        retryable: false,
+      );
+
+  BullnymException _recoveryAddressInvalid() =>
+      const BullnymException.serverRejectedRequest(
+        code: 'RecoveryAddressInvalid',
+        diagnosticReason: 'address is not valid on Bitcoin mainnet',
+        statusCode: 200,
+        retryable: false,
       );
 
   BullnymException _notFound() => const BullnymException.serverRejectedRequest(

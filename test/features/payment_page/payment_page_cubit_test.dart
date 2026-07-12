@@ -13,10 +13,13 @@ void main() {
   PaymentPageCubit build() =>
       PaymentPageCubit(facade: facade, lightningAddress: la);
 
-  PaymentPage buildPage({bool archived = false}) => PaymentPage(
+  PaymentPage buildPage({
+    bool archived = false,
+    String description = 'Support my work',
+  }) => PaymentPage(
     nym: 'alice',
     header: 'Tip me',
-    description: 'Support my work',
+    description: description,
     displayCurrency: 'USD',
     enabled: true,
     isArchived: archived,
@@ -91,18 +94,20 @@ void main() {
       expect(cubit.state.status, PaymentPageStatus.loadFailed);
     });
 
-    test('currency fetch failure degrades but still reaches the form',
-        () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
-      facade.page = null;
-      facade.currenciesError = const PaymentPageException.network();
-      final cubit = build();
+    test(
+      'currency fetch failure degrades but still reaches the form',
+      () async {
+        la.status = const LightningAddressStatus(nym: 'alice', active: true);
+        facade.page = null;
+        facade.currenciesError = const PaymentPageException.network();
+        final cubit = build();
 
-      await cubit.load();
+        await cubit.load();
 
-      expect(cubit.state.status, PaymentPageStatus.create);
-      expect(cubit.state.currenciesUnavailable, isTrue);
-    });
+        expect(cubit.state.status, PaymentPageStatus.create);
+        expect(cubit.state.currenciesUnavailable, isTrue);
+      },
+    );
   });
 
   test('createNym delegates to the LA registration then reloads', () async {
@@ -173,6 +178,28 @@ void main() {
       expect(facade.saveCallCount, 0);
       expect(cubit.state.failure?.kind, PaymentPageErrorKind.invalidInput);
     });
+
+    test(
+      'legacy archived content can be corrected before reactivation',
+      () async {
+        la.status = const LightningAddressStatus(nym: 'alice', active: true);
+        facade.page = buildPage(archived: true, description: 'a' * 121);
+        final cubit = build();
+        await cubit.load();
+
+        expect(cubit.state.status, PaymentPageStatus.archived);
+        expect(cubit.state.canSubmit, isFalse);
+        await cubit.save();
+        expect(facade.saveCallCount, 0);
+
+        cubit.descriptionChanged('A new short description');
+        facade.savedPage = buildPage(description: 'A new short description');
+        await cubit.save();
+
+        expect(facade.saveCallCount, 1);
+        expect(cubit.state.status, PaymentPageStatus.edit);
+      },
+    );
 
     test('a double-tap yields exactly one wire call', () async {
       la.status = const LightningAddressStatus(nym: 'alice', active: true);

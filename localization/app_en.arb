@@ -1121,11 +1121,11 @@
   "@paymentPageHeaderHint": {
     "description": "Hint for the Donation Page title field"
   },
-  "paymentPageDescriptionLabel": "Description",
+  "paymentPageDescriptionLabel": "Short description",
   "@paymentPageDescriptionLabel": {
     "description": "Label for the Donation Page description field"
   },
-  "paymentPageDescriptionHint": "Tell visitors what their support funds",
+  "paymentPageDescriptionHint": "Shown on your Donation Page and when its link is shared.",
   "@paymentPageDescriptionHint": {
     "description": "Hint for the Donation Page description field"
   },
@@ -1147,7 +1147,15 @@
   },
   "paymentPageByteCounter": "{count}/{max}",
   "@paymentPageByteCounter": {
-    "description": "Byte counter shown under a Donation Page text field",
+    "description": "Current and maximum length counter shown under a Donation Page text field",
+    "placeholders": {
+      "count": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "paymentPageDescriptionByteLimit": "Some characters use extra space. Shorten this description ({count}/{max} bytes).",
+  "@paymentPageDescriptionByteLimit": {
+    "description": "Error shown when a short Donation Page description exceeds the UTF-8 safety ceiling despite fitting the visible-character limit",
     "placeholders": {
       "count": {"type": "int"},
       "max": {"type": "int"}
@@ -16036,5 +16044,103 @@
   "coinsErrorUnexpected": "Something went wrong. Please try again.",
   "@coinsErrorUnexpected": {
     "description": "Generic Coins error message for unexpected failures"
+  },
+  "stuckPaymentsBannerLabel": "{count, plural, =1{1 payment needs attention} other{{count} payments need attention}}",
+  "@stuckPaymentsBannerLabel": {
+    "description": "Get Paid hub banner: number of payments needing recovery",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stuckPaymentsBannerBody": "A Bitcoin payment got stuck in transit. The funds are safe — tap to recover them to your wallet.",
+  "@stuckPaymentsBannerBody": {
+    "description": "Get Paid hub stuck-payment banner subtitle"
+  },
+  "stuckPaymentsScreenTitle": "Payments needing attention",
+  "@stuckPaymentsScreenTitle": {
+    "description": "AppBar title of the stuck-payments list screen"
+  },
+  "stuckPaymentsEmpty": "No payments need attention",
+  "@stuckPaymentsEmpty": {
+    "description": "Empty state on the stuck-payments list"
+  },
+  "stuckPaymentsContactSupport": "Recovery isn't available in the app yet — your funds are safe on the server. Please contact support to recover them.",
+  "@stuckPaymentsContactSupport": {
+    "description": "Shown when recovery is unavailable (server flag off or too many rows)"
+  },
+  "stuckPaymentChipNeedsRecovery": "Needs recovery",
+  "@stuckPaymentChipNeedsRecovery": {
+    "description": "State chip: a payment can be recovered"
+  },
+  "stuckPaymentChipRecovering": "Recovering…",
+  "@stuckPaymentChipRecovering": {
+    "description": "State chip: recovery broadcast in flight"
+  },
+  "stuckPaymentChipRecovered": "Recovered",
+  "@stuckPaymentChipRecovered": {
+    "description": "State chip: recovery complete"
+  },
+  "stuckPaymentChipAttention": "Attention",
+  "@stuckPaymentChipAttention": {
+    "description": "State chip: a failed recovery attempt needs attention"
+  },
+  "stuckPaymentChipProcessing": "Processing",
+  "@stuckPaymentChipProcessing": {
+    "description": "State chip: an unknown/newer server recovery status"
+  },
+  "stuckPaymentChipDismissed": "Dismissed",
+  "@stuckPaymentChipDismissed": {
+    "description": "State chip: a dismissed/no-longer-recoverable payment"
+  },
+  "stuckPaymentDetailTitle": "Stuck payment",
+  "@stuckPaymentDetailTitle": {
+    "description": "AppBar title of the stuck-payment detail screen"
+  },
+  "stuckPaymentDetailExplainer": "The customer's Bitcoin payment got stuck in transit. The funds are safe. You can recover them to your Bull Bitcoin wallet.",
+  "@stuckPaymentDetailExplainer": {
+    "description": "Detail-screen explanation of a stuck payment"
+  },
+  "stuckPaymentRecoveringInline": "Recovering… this can take a moment.",
+  "@stuckPaymentRecoveringInline": {
+    "description": "Progress label shown while a recovery is in flight"
+  },
+  "stuckPaymentRecoverButton": "Recover funds to my wallet",
+  "@stuckPaymentRecoverButton": {
+    "description": "Primary button that starts one-tap recovery"
+  },
+  "stuckPaymentRecoveredTitle": "Recovered to your wallet",
+  "@stuckPaymentRecoveredTitle": {
+    "description": "Header shown after a successful recovery"
+  },
+  "stuckPaymentOutOfBandNotice": "This sale did NOT settle at the register. If the customer is owed goods or a refund, settle with them in person — this app only recovers the coins to you.",
+  "@stuckPaymentOutOfBandNotice": {
+    "description": "Persistent notice that recovery does not refund the customer"
+  },
+  "stuckPaymentAcknowledge": "I understand",
+  "@stuckPaymentAcknowledge": {
+    "description": "Button acknowledging the out-of-band settle-in-person notice"
+  },
+  "recoverConfirmTitle": "Recover {amount}",
+  "@recoverConfirmTitle": {
+    "description": "Confirm sheet title with the payment amount",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "recoverConfirmBody": "The stuck Bitcoin will be recovered to your default Bull Bitcoin wallet.",
+  "@recoverConfirmBody": {
+    "description": "Confirm sheet body explaining the recovery destination"
+  },
+  "recoverConfirmCheckbox": "This sale did NOT settle at the register. If the customer is owed goods or a refund, I will settle with them in person — this only recovers the coins to me.",
+  "@recoverConfirmCheckbox": {
+    "description": "Mandatory out-of-band acknowledgement checkbox on the confirm sheet"
+  },
+  "recoverConfirmButton": "Recover funds",
+  "@recoverConfirmButton": {
+    "description": "Confirm button that triggers the recovery"
   }
 }

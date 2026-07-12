@@ -153,6 +153,26 @@ class BullnymFacade {
     return _client.getInvoiceStatus(invoiceId: invoiceId);
   }
 
+  Future<BullnymRecoverableSwapList> listRecoverableChainSwaps({
+    required BullnymAuthSigner signer,
+  }) {
+    return _client.listRecoverableChainSwaps(signer: signer);
+  }
+
+  Future<BullnymRecoverChainSwapResponse> recoverChainSwap({
+    required BullnymAuthSigner signer,
+    required String nym,
+    required String invoiceId,
+    required String btcAddress,
+  }) {
+    return _client.recoverChainSwap(
+      signer: signer,
+      nym: nym,
+      invoiceId: invoiceId,
+      btcAddress: btcAddress,
+    );
+  }
+
   @override
   String toString() => 'BullnymFacade';
 }

@@ -7,6 +7,8 @@ import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_ro
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_routes.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_routes.dart';
+import 'package:bb_mobile/features/payment_recovery/public/payment_recovery_routes.dart';
+import 'package:bb_mobile/features/payment_recovery/ui/widgets/stuck_payment_banner.dart';
 import 'package:bb_mobile/features/pos/public/pos_routes.dart';
 import 'package:bull_ui/bull_ui.dart';
 import 'package:flutter/material.dart'
@@ -106,6 +108,14 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
     final page = state.paymentPage;
     final pos = state.posTerminal;
     return [
+      if (state.hasStuckPayments) ...[
+        StuckPaymentBanner(
+          count: state.stuckPaymentCount,
+          onTap: () =>
+              context.pushNamed(StuckPaymentsRoute.stuckPayments.name),
+        ),
+        const Gap(12),
+      ],
       GetPaidSlotCard(
         icon: Icons.alternate_email,
         title: loc.getPaidDashboardLightningAddressTitle,

@@ -15,6 +15,7 @@ Future<void> wipeAppState(GetIt locator) async {
     await db.delete(db.keychainManifestWalletBindings).go();
     await db.delete(db.keychainManifestEntries).go();
     await db.delete(db.getPaidSettings).go();
+    await db.delete(db.paymentRecoveries).go();
     await db.delete(db.walletMetadatas).go();
   });
 

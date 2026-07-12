@@ -34,6 +34,9 @@ const skip = {
   // SPEC-INV-01: same app-process non-determinism; the deterministic Invoices
   // gates are the L0 usecase/cubit suites.
   'invoices_lifecycle_test.dart',
+  // SPEC-RECOVER-01: same app-process non-determinism; the deterministic
+  // recovery gates are the L0 usecase/cubit suites.
+  'pos_stuck_payment_recovery_test.dart',
 };
 
 void main() {
