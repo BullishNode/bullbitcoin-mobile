@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/data/bullnym_http_client.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice_actions.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullpay_signing.dart';
@@ -84,6 +85,7 @@ List<int> _oracleMessageBytes({
 Map<String, dynamic> _statusView({String status = 'unpaid'}) {
   return {
     'status': status,
+    'presentation_status': 'payment_detected',
     'pricing_mode': 'sat',
     'settlement_status': 'none',
     'amount_sat': 25000,
@@ -100,7 +102,21 @@ Map<String, dynamic> _statusView({String status = 'unpaid'}) {
     'lightning_pr': null,
     'liquid_address': 'lq1qtest',
     'bitcoin_address': null,
-    'bitcoin_direct_observations': [],
+    'bitcoin_direct_observations': [
+      {
+        'source': 'mempool',
+        'rail': 'bitcoin',
+        'txid': 'ab' * 32,
+        'vout': 1,
+        'address': 'bc1qtest',
+        'amount_sat': 25000,
+        'confirmations': 2,
+        'block_height': 840000,
+        'state': 'confirmed',
+        'first_seen_at_unix': 1710000100,
+        'last_seen_at_unix': 1710000200,
+      },
+    ],
     'bitcoin_chain_address': null,
     'bitcoin_chain_bip21': null,
     'accept_btc': false,
@@ -117,6 +133,7 @@ Map<String, dynamic> _listItemView({String? nymOwner, bool paid = false}) {
     'nym_owner': nymOwner,
     'origin': 'wallet',
     'status': paid ? 'paid' : 'unpaid',
+    'presentation_status': paid ? 'settled' : 'awaiting_payment',
     'pricing_mode': 'sat',
     'settlement_status': 'none',
     'amount_sat': 25000,
@@ -124,6 +141,7 @@ Map<String, dynamic> _listItemView({String? nymOwner, bool paid = false}) {
     'fiat_amount_minor': null,
     'fiat_currency': null,
     'public_description': 'Consulting',
+    'memo': 'private authenticated memo',
     'recipient_name': 'Acme',
     'invoice_number': 'INV-042',
     'accept_btc': false,
@@ -213,12 +231,14 @@ void main() {
         );
 
         expect(
-          buildBullpaySchnorrMessage(
-            action: bullpayActionInvoiceCreate,
-            npubHex: 'npub',
-            nymOrEmpty: '',
-            payloadFields: buildInvoiceCreatePayloadFields(fields),
-            timestampSecs: timestamp,
+          _unwrap(
+            buildBullpaySchnorrMessage(
+              action: bullpayActionInvoiceCreate,
+              npubHex: 'npub',
+              nymOrEmpty: '',
+              payloadFields: buildInvoiceCreatePayloadFields(fields),
+              timestampSecs: timestamp,
+            ),
           ),
           oracle,
         );
@@ -261,12 +281,14 @@ void main() {
         timestampSecs: timestamp,
       );
       expect(
-        buildBullpaySchnorrMessage(
-          action: bullpayActionInvoiceCreate,
-          npubHex: 'npub',
-          nymOrEmpty: 'alice',
-          payloadFields: buildInvoiceCreatePayloadFields(_lnLiquidFields()),
-          timestampSecs: timestamp,
+        _unwrap(
+          buildBullpaySchnorrMessage(
+            action: bullpayActionInvoiceCreate,
+            npubHex: 'npub',
+            nymOrEmpty: 'alice',
+            payloadFields: buildInvoiceCreatePayloadFields(_lnLiquidFields()),
+            timestampSecs: timestamp,
+          ),
         ),
         oracle,
       );
@@ -284,12 +306,14 @@ void main() {
         timestampSecs: timestamp,
       );
       expect(
-        buildBullpaySchnorrMessage(
-          action: bullpayActionInvoiceCancel,
-          npubHex: 'npub',
-          nymOrEmpty: '',
-          payloadFields: buildInvoiceCancelPayloadFields('inv-1'),
-          timestampSecs: timestamp,
+        _unwrap(
+          buildBullpaySchnorrMessage(
+            action: bullpayActionInvoiceCancel,
+            npubHex: 'npub',
+            nymOrEmpty: '',
+            payloadFields: buildInvoiceCancelPayloadFields('inv-1'),
+            timestampSecs: timestamp,
+          ),
         ),
         oracle,
       );
@@ -307,12 +331,17 @@ void main() {
         timestampSecs: timestamp,
       );
       expect(
-        buildBullpaySchnorrMessage(
-          action: bullpayActionInvoiceList,
-          npubHex: 'npub',
-          nymOrEmpty: '',
-          payloadFields: buildInvoiceListPayloadFields(page: 1, pageSize: 100),
-          timestampSecs: timestamp,
+        _unwrap(
+          buildBullpaySchnorrMessage(
+            action: bullpayActionInvoiceList,
+            npubHex: 'npub',
+            nymOrEmpty: '',
+            payloadFields: buildInvoiceListPayloadFields(
+              page: 1,
+              pageSize: 100,
+            ),
+            timestampSecs: timestamp,
+          ),
         ),
         oracle,
       );
@@ -327,19 +356,42 @@ void main() {
   });
 
   group('T-INV-DTO parse round-trips', () {
-    test('status shape parses and ignores unknown keys (tolerant reader)', () {
-      final client = BullnymHttpClient.withDio(
-        _stubDio([_statusView(status: 'paid')]).dio,
+    test(
+      'status shape parses raw presentation and Bitcoin observations',
+      () async {
+        final client = BullnymHttpClient.withDio(
+          _stubDio([_statusView(status: 'paid')]).dio,
+        );
+        final status = _unwrap(
+          await client.getInvoiceStatus(invoiceId: 'inv-1'),
+        );
+        expect(status.status, 'paid');
+        expect(status.presentationStatus, 'payment_detected');
+        expect(status.liquidAddress, 'lq1qtest');
+        expect(status.acceptLiquid, isTrue);
+        final observation = status.bitcoinDirectObservations.single;
+        expect(observation.source, 'mempool');
+        expect(observation.rail, 'bitcoin');
+        expect(observation.txid, 'ab' * 32);
+        expect(observation.vout, 1);
+        expect(observation.amountSat, 25000);
+        expect(observation.confirmations, 2);
+        expect(observation.blockHeight, 840000);
+        expect(observation.state, 'confirmed');
+        expect(observation.firstSeenAtUnix, 1710000100);
+        expect(observation.lastSeenAtUnix, 1710000200);
+      },
+    );
+
+    test('status fails closed when the observations list is absent', () async {
+      final response = _statusView()..remove('bitcoin_direct_observations');
+      final client = BullnymHttpClient.withDio(_stubDio([response]).dio);
+
+      final failure = _unwrapFailure(
+        await client.getInvoiceStatus(invoiceId: 'inv-1'),
       );
-      expect(
-        client.getInvoiceStatus(invoiceId: 'inv-1'),
-        completion(
-          isA<BullnymInvoiceStatus>()
-              .having((s) => s.status, 'status', 'paid')
-              .having((s) => s.liquidAddress, 'liquidAddress', 'lq1qtest')
-              .having((s) => s.acceptLiquid, 'acceptLiquid', true),
-        ),
-      );
+
+      expect(failure.kind, BullnymFailureKind.invalidServerResponse);
     });
 
     test('list shape parses pageSize rename, null nym_owner and paid_* '
@@ -352,62 +404,69 @@ void main() {
           'has_more': false,
         },
       ]);
-      final client = BullnymHttpClient.withDio(stub.dio, nowSecs: () => timestamp);
-      final result = await client.listInvoices(
-        signer: signer,
-        page: 1,
-        pageSize: 100,
+      final client = BullnymHttpClient.withDio(
+        stub.dio,
+        nowSecs: () => timestamp,
+      );
+      final result = _unwrap(
+        await client.listInvoices(signer: signer, page: 1, pageSize: 100),
       );
       expect(result.pageSize, 100);
       expect(result.hasMore, isFalse);
       expect(result.invoices.first.nymOwner, isNull);
       expect(result.invoices.first.paidAtUnix, isNull);
+      expect(result.invoices.first.presentationStatus, 'awaiting_payment');
+      expect(result.invoices.first.memo, 'private authenticated memo');
       expect(result.invoices.last.status, 'paid');
       expect(result.invoices.last.paidVia, 'liquid');
     });
   });
 
   group('T-INV-CLIENT create', () {
-    test('POSTs the unlinked body and signs the exact 13-field layout',
-        () async {
-      final stub = _stubDio([
-        {'invoice_id': 'inv-1', 'share_url': 'https://bullpay.ca/invoice/inv-1'},
-      ]);
-      final client = BullnymHttpClient.withDio(
-        stub.dio,
-        nowSecs: () => timestamp,
-      );
+    test(
+      'POSTs the unlinked body and signs the exact 13-field layout',
+      () async {
+        final stub = _stubDio([
+          {
+            'invoice_id': 'inv-1',
+            'share_url': 'https://bullpay.ca/invoice/inv-1',
+          },
+        ]);
+        final client = BullnymHttpClient.withDio(
+          stub.dio,
+          nowSecs: () => timestamp,
+        );
 
-      final response = await client.createInvoice(
-        signer: signer,
-        fields: _lnLiquidFields(),
-      );
+        final response = _unwrap(
+          await client.createInvoice(signer: signer, fields: _lnLiquidFields()),
+        );
 
-      expect(response.invoiceId, 'inv-1');
-      expect(response.shareUrl, 'https://bullpay.ca/invoice/inv-1');
+        expect(response.invoiceId, 'inv-1');
+        expect(response.shareUrl, 'https://bullpay.ca/invoice/inv-1');
 
-      final request = stub.captured.requests.single;
-      expect(request.method, 'POST');
-      expect(request.path, '/api/v1/invoices');
-      final body = request.data as Map<String, dynamic>;
-      expect(body['npub'], handle.publicKeyHex);
-      expect(body['accept_ln'], true);
-      expect(body['accept_liquid'], true);
-      expect(body['accept_btc'], false);
-      expect(body['liquid_address'], 'lq1qtest');
-      expect(body['liquid_blinding_key_hex'], 'ab12cd');
+        final request = stub.captured.requests.single;
+        expect(request.method, 'POST');
+        expect(request.path, '/api/v1/invoices');
+        final body = request.data as Map<String, dynamic>;
+        expect(body['npub'], handle.publicKeyHex);
+        expect(body['accept_ln'], true);
+        expect(body['accept_liquid'], true);
+        expect(body['accept_btc'], false);
+        expect(body['liquid_address'], 'lq1qtest');
+        expect(body['liquid_blinding_key_hex'], 'ab12cd');
 
-      _expectSignatureValid(
-        handle: handle,
-        signatureHex: body['signature'] as String,
-        action: bullpayActionInvoiceCreate,
-        nymOrEmpty: '',
-        payloadFields: buildInvoiceCreatePayloadFields(_lnLiquidFields()),
-        timestampSecs: timestamp,
-      );
-    });
+        _expectSignatureValid(
+          handle: handle,
+          signatureHex: body['signature'] as String,
+          action: bullpayActionInvoiceCreate,
+          nymOrEmpty: '',
+          payloadFields: buildInvoiceCreatePayloadFields(_lnLiquidFields()),
+          timestampSecs: timestamp,
+        );
+      },
+    );
 
-    test('maps the InvalidAmount envelope to a typed rejection', () {
+    test('maps the InvalidAmount envelope to a typed rejection', () async {
       final stub = _stubDio([
         {
           'status': 'ERROR',
@@ -419,11 +478,12 @@ void main() {
         stub.dio,
         nowSecs: () => timestamp,
       );
+      final failure = _unwrapFailure(
+        await client.createInvoice(signer: signer, fields: _lnLiquidFields()),
+      );
       expect(
-        () => client.createInvoice(signer: signer, fields: _lnLiquidFields()),
-        throwsA(
-          isA<BullnymException>().having((e) => e.code, 'code', 'InvalidAmount'),
-        ),
+        failure,
+        isA<BullnymFailure>().having((e) => e.code, 'code', 'InvalidAmount'),
       );
     });
   });
@@ -438,9 +498,8 @@ void main() {
         nowSecs: () => timestamp,
       );
 
-      final response = await client.cancelInvoice(
-        signer: signer,
-        invoiceId: 'inv-1',
+      final response = _unwrap(
+        await client.cancelInvoice(signer: signer, invoiceId: 'inv-1'),
       );
       expect(response.status, 'cancelled');
 
@@ -462,34 +521,38 @@ void main() {
   });
 
   group('T-INV-CLIENT list', () {
-    test('GETs /api/v1/invoices with signed query and empty-nym signature',
-        () async {
-      final stub = _stubDio([
-        {'invoices': [], 'page': 1, 'pageSize': 100, 'has_more': false},
-      ]);
-      final client = BullnymHttpClient.withDio(
-        stub.dio,
-        nowSecs: () => timestamp,
-      );
+    test(
+      'GETs /api/v1/invoices with signed query and empty-nym signature',
+      () async {
+        final stub = _stubDio([
+          {'invoices': [], 'page': 1, 'pageSize': 100, 'has_more': false},
+        ]);
+        final client = BullnymHttpClient.withDio(
+          stub.dio,
+          nowSecs: () => timestamp,
+        );
 
-      await client.listInvoices(signer: signer, page: 1, pageSize: 100);
+        _unwrap(
+          await client.listInvoices(signer: signer, page: 1, pageSize: 100),
+        );
 
-      final request = stub.captured.requests.single;
-      expect(request.method, 'GET');
-      expect(request.path, '/api/v1/invoices');
-      expect(request.queryParameters['npub'], handle.publicKeyHex);
-      expect(request.queryParameters['pageSize'], 100);
-      expect(request.queryParameters.containsKey('status'), isFalse);
+        final request = stub.captured.requests.single;
+        expect(request.method, 'GET');
+        expect(request.path, '/api/v1/invoices');
+        expect(request.queryParameters['npub'], handle.publicKeyHex);
+        expect(request.queryParameters['pageSize'], 100);
+        expect(request.queryParameters.containsKey('status'), isFalse);
 
-      _expectSignatureValid(
-        handle: handle,
-        signatureHex: request.queryParameters['signature'] as String,
-        action: bullpayActionInvoiceList,
-        nymOrEmpty: '',
-        payloadFields: buildInvoiceListPayloadFields(page: 1, pageSize: 100),
-        timestampSecs: timestamp,
-      );
-    });
+        _expectSignatureValid(
+          handle: handle,
+          signatureHex: request.queryParameters['signature'] as String,
+          action: bullpayActionInvoiceList,
+          nymOrEmpty: '',
+          payloadFields: buildInvoiceListPayloadFields(page: 1, pageSize: 100),
+          timestampSecs: timestamp,
+        );
+      },
+    );
   });
 
   group('T-INV-CLIENT status is unsigned', () {
@@ -497,7 +560,7 @@ void main() {
       final stub = _stubDio([_statusView()]);
       final client = BullnymHttpClient.withDio(stub.dio);
 
-      await client.getInvoiceStatus(invoiceId: 'inv-1');
+      _unwrap(await client.getInvoiceStatus(invoiceId: 'inv-1'));
 
       final request = stub.captured.requests.single;
       expect(request.method, 'GET');
@@ -507,6 +570,17 @@ void main() {
     });
   });
 }
+
+T _unwrap<T>(Result<T, BullnymFailure> result) => switch (result) {
+  Ok(:final value) => value,
+  Err(:final failure) => throw StateError('Expected Ok, got $failure'),
+};
+
+BullnymFailure _unwrapFailure<T>(Result<T, BullnymFailure> result) =>
+    switch (result) {
+      Ok() => throw StateError('Expected Err, got Ok'),
+      Err(:final failure) => failure,
+    };
 
 NostrKeychainHandle _bullnymAuthHandle() {
   return NostrKeychainHandle.deriveFromBip85Path(

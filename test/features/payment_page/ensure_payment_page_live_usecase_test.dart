@@ -88,8 +88,8 @@ void main() {
 
   test('page GET unreachable -> unreachable, never fake-live, zero writes',
       () async {
-    client.getError = const BullnymException.network(
-      diagnosticReason: 'offline',
+    client.getError = const BullnymFailure.network(
+      logMessage: 'offline',
     );
     final outcome = await healWith(laFacade(status: activeStatus)).execute();
 
