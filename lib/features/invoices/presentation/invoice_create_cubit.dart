@@ -19,23 +19,26 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
   /// Loads the live fiat currency list; degrades gracefully on failure so the
   /// sats path still works (§7.4).
   Future<void> loadCurrencies() async {
-    try {
-      final supported = await _facade.supportedCurrencies();
-      if (isClosed) return;
-      final currencies = supported.currencies;
-      emit(
-        state.copyWith(
-          currencies: currencies,
-          currenciesUnavailable: false,
-          fiatCurrency: state.fiatCurrency.isEmpty && currencies.isNotEmpty
-              ? currencies.first.code
-              : state.fiatCurrency,
-        ),
-      );
-    } catch (e, stack) {
-      log.warning('Invoice currency fetch failed', error: e, trace: stack);
-      if (isClosed) return;
-      emit(state.copyWith(currenciesUnavailable: true));
+    final result = await _facade.supportedCurrencies();
+    if (isClosed) return;
+    switch (result) {
+      case Ok(:final value):
+        final currencies = value.currencies;
+        emit(
+          state.copyWith(
+            currencies: currencies,
+            currenciesUnavailable: false,
+            fiatCurrency: state.fiatCurrency.isEmpty && currencies.isNotEmpty
+                ? currencies.first.code
+                : state.fiatCurrency,
+          ),
+        );
+      case Err(:final failure):
+        log.warning(
+          'Invoice currency fetch failed',
+          error: failure.logMessage ?? failure.code,
+        );
+        emit(state.copyWith(currenciesUnavailable: true));
     }
   }
 
