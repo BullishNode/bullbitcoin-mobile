@@ -65,33 +65,34 @@ sealed class PaymentPageException implements Exception {
   const factory PaymentPageException.unexpected() =
       PaymentPageUnexpectedException;
 
-  /// Map a shared-client [BullnymException] to the payment_page family. The
+  /// Map a shared-client [BullnymFailure] to the payment_page family. The
   /// server `reason` string is diagnostic-only and never surfaced to the user
   /// (charter C3); only the stable `code` drives the mapping.
-  factory PaymentPageException.fromBullnym(BullnymException error) {
-    return switch (error.kind) {
-      BullnymErrorKind.invalidInput => PaymentPageException.invalidInput(
-        code: error.code,
+  factory PaymentPageException.fromBullnym(BullnymFailure failure) {
+    return switch (failure.kind) {
+      BullnymFailureKind.invalidInput => PaymentPageException.invalidInput(
+        code: failure.code,
       ),
-      BullnymErrorKind.network => const PaymentPageException.network(),
-      BullnymErrorKind.timeout => const PaymentPageException.timeout(),
-      BullnymErrorKind.serverRejectedRequest => switch (error.code) {
+      BullnymFailureKind.network => const PaymentPageException.network(),
+      BullnymFailureKind.timeout => const PaymentPageException.timeout(),
+      BullnymFailureKind.serverRejectedRequest => switch (failure.code) {
         'DonationPageNotFound' => const PaymentPageException.notFound(),
         'DonationPageInvalid' => PaymentPageException.rejected(
-          code: error.code,
+          code: failure.code,
         ),
         'AuthError' => const PaymentPageException.authError(),
         _ =>
-          error.retryable
+          failure.retryable
               ? const PaymentPageException.server(retryable: true)
-              : PaymentPageException.rejected(code: error.code),
+              : PaymentPageException.rejected(code: failure.code),
       },
-      BullnymErrorKind.unexpectedHttpStatus ||
-      BullnymErrorKind.emptyResponse ||
-      BullnymErrorKind.invalidServerResponse =>
+      BullnymFailureKind.unexpectedHttpStatus ||
+      BullnymFailureKind.emptyResponse ||
+      BullnymFailureKind.invalidServerResponse =>
         const PaymentPageException.invalidServerResponse(),
-      BullnymErrorKind.signingFailed =>
+      BullnymFailureKind.signingFailed =>
         const PaymentPageException.signingFailed(),
+      BullnymFailureKind.unexpected => const PaymentPageException.unexpected(),
     };
   }
 
@@ -111,8 +112,7 @@ sealed class PaymentPageException implements Exception {
     PaymentPageErrorKind.server => context.loc.paymentPageErrorServer,
     PaymentPageErrorKind.invalidServerResponse ||
     PaymentPageErrorKind.signingFailed ||
-    PaymentPageErrorKind.unexpected =>
-      context.loc.paymentPageErrorUnexpected,
+    PaymentPageErrorKind.unexpected => context.loc.paymentPageErrorUnexpected,
   };
 
   @override
@@ -271,6 +271,5 @@ final class PaymentPageSaveException extends PaymentPageException {
   String toTranslated(BuildContext context) => cause.toTranslated(context);
 
   @override
-  String toString() =>
-      'PaymentPageSaveException(phase: $phase, cause: $cause)';
+  String toString() => 'PaymentPageSaveException(phase: $phase, cause: $cause)';
 }
