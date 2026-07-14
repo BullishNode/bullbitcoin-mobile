@@ -97,6 +97,40 @@ void main() {
       expect(register.publishFlags, [false]);
     },
   );
+  test(
+    'an offline permanent-name registration is reconstructed without a write',
+    () async {
+      final register = _FakeRegister();
+      final usecase = EnsureLightningAddressRegistrationLiveUsecase(
+        lookup: _FakeLookup(
+          status: const LightningAddressStatus(
+            nym: 'alice',
+            active: false,
+            permanentNameStatus: LightningAddressPermanentNameStatus(
+              nym: 'alice',
+              lightningAddressOnline: false,
+              quota: LightningAddressPermanentNameQuota(
+                used: 1,
+                cap: 1,
+                remaining: 0,
+              ),
+            ),
+          ),
+        ),
+        register: register,
+      );
+
+      final outcome = await usecase.execute();
+
+      expect(
+        outcome.liveness,
+        LightningAddressRegistrationLiveness.needsReactivation,
+      );
+      expect(outcome.nym, 'alice');
+      expect(register.nyms, isEmpty);
+      expect(register.publishFlags, isEmpty);
+    },
+  );
 
   test('a rejected re-register (e.g. NymTaken) needs re-activation', () async {
     final register = _FakeRegister(

@@ -5,15 +5,16 @@ import 'package:bb_mobile/features/lightning_address/domain/lightning_address_re
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_wallet_owned_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_wallet_owned_lightning_address_usecase.dart';
 
-/// DG-3 auto-heal: a conditional server-liveness check with a silent
-/// re-register when a lapsed registration is known — NOT an unconditional
-/// "re-enable your product" prompt.
+/// DG-3 server-liveness check.
 ///
 /// Run on recovery for the bullnym-backed Lightning Address product. It looks
 /// the registration up by the seed-derived npub and:
 /// - active:true            -> [live] (no prompt, no re-register);
+/// - permanent name + offline -> [needsReactivation] without a write, because
+///                                offline is an intentional product state;
 /// - active:false + nym     -> silent re-register -> [reregistered], or a
-///                             rejection (e.g. NymTaken) -> [needsReactivation];
+///                             rejection -> [needsReactivation] for legacy
+///                             servers only;
 /// - NymNotFound             -> [needsReactivation] (the nym is not recoverable
 ///                             locally — it is not in the frozen manifest);
 /// - network/timeout/server  -> [unreachable] (liveness UNKNOWN; never [live]).
@@ -61,9 +62,21 @@ class EnsureLightningAddressRegistrationLiveUsecase {
       );
     }
 
-    // Inactive with a known (previous) nym — silent re-register through the
-    // full existing path (prepare returns the already-restored wallet + its
-    // ctDescriptor, so the registered descriptor is derivation-equal).
+    // Under permanent_names_v1, inactive means the Lightning Address product
+    // is deliberately offline; ownership remains on the server. Recovery must
+    // reconstruct that state and wait for an explicit user action, never turn
+    // the product back on as a side effect of restoring local wallet data.
+    final permanentName = status.permanentNameStatus;
+    if (permanentName != null) {
+      return LightningAddressHealOutcome(
+        liveness: LightningAddressRegistrationLiveness.needsReactivation,
+        nym: permanentName.nym,
+      );
+    }
+
+    // Preserve the existing legacy-server recovery behavior. Permanent-name
+    // servers never enter this path because the typed lookup status above is
+    // present only for the exact permanent_names_v1 policy.
     try {
       // Do NOT publish from the heal path: the recovery cubit is the sole
       // recovery-path publisher and suppresses republish after an older-approved
