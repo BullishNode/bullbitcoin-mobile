@@ -28,7 +28,10 @@ void main() {
 
   group('PosProvisionCommand.validate', () {
     test('valid command passes and reports no invalid field', () {
-      const command = PosProvisionCommand(label: 'My Till', displayCurrency: 'CAD');
+      const command = PosProvisionCommand(
+        label: 'My Till',
+        displayCurrency: 'CAD',
+      );
       expect(command.isValid, isTrue);
       expect(command.firstInvalidField(), isNull);
       command.validate();
@@ -48,7 +51,10 @@ void main() {
     });
 
     test('an empty display currency is invalid', () {
-      const command = PosProvisionCommand(label: 'My Till', displayCurrency: '');
+      const command = PosProvisionCommand(
+        label: 'My Till',
+        displayCurrency: '',
+      );
       expect(command.firstInvalidField(), PosField.displayCurrency);
       expect(
         () => command.validate(),
@@ -58,10 +64,27 @@ void main() {
       );
     });
 
-    test('has only label + currency fields: no image/socials/website rules', () {
-      // The POS command carries exactly two fields (DELTA 2) - a compile-time
-      // guarantee reinforced here: the field enum has no page-content members.
-      expect(PosField.values, [PosField.label, PosField.displayCurrency]);
+    test('normalizes and validates the exact shared alias contract', () {
+      expect(normalizePosAlias('  Shop-21  '), 'shop-21');
+      expect(isValidPosAliasClaim(null), isTrue);
+      expect(isValidPosAliasClaim('shop-21'), isTrue);
+      expect(isValidPosAliasClaim('-shop'), isFalse);
+      expect(isValidPosAliasClaim('pos'), isFalse);
+      expect(isValidPosAliasClaim('a' * 33), isFalse);
+      const command = PosProvisionCommand(
+        aliasClaim: 'pos',
+        label: 'My Till',
+        displayCurrency: 'CAD',
+      );
+      expect(command.firstInvalidField(), PosField.alias);
+    });
+
+    test('has only alias + label + currency: no page-content rules', () {
+      expect(PosField.values, [
+        PosField.alias,
+        PosField.label,
+        PosField.displayCurrency,
+      ]);
     });
   });
 }

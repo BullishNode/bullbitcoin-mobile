@@ -2,36 +2,40 @@ import 'dart:async';
 
 import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_wallet_behaviors_usecase.dart';
-import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/pos/domain/usecases/get_pos_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  late _FakeLightningAddressFacade la;
+  late _FakeGetPosPermanentNameUsecase permanentName;
   late _FakePosFacade facade;
   late _FakeGetGetPaidWalletBehaviorsUsecase walletBehaviors;
   late _FakeUpdateWalletBehaviorUsecase updateWalletBehavior;
 
   PosCubit build() => PosCubit(
     facade: facade,
-    lightningAddress: la,
+    getPermanentName: permanentName,
     getWalletBehaviors: walletBehaviors,
     updateWalletBehavior: updateWalletBehavior,
   );
 
-  PosTerminal buildTerminal({bool archived = false}) => PosTerminal(
-    nym: 'alice',
-    label: 'My Till',
-    displayCurrency: 'USD',
-    enabled: true,
-    isArchived: archived,
-    terminalUrl: 'https://bullpay.ca/alice/pos',
-  );
+  PosTerminal buildTerminal({bool archived = false, String? alias}) =>
+      PosTerminal(
+        nym: 'alice',
+        label: 'My Till',
+        displayCurrency: 'USD',
+        enabled: true,
+        isArchived: archived,
+        alias: alias,
+        terminalUrl: alias == null
+            ? 'https://bullpay.ca/alice/pos'
+            : 'https://bullpay.ca/a/$alias/pos',
+      );
 
   setUp(() {
-    la = _FakeLightningAddressFacade();
+    permanentName = _FakeGetPosPermanentNameUsecase();
     facade = _FakePosFacade();
     walletBehaviors = _FakeGetGetPaidWalletBehaviorsUsecase();
     updateWalletBehavior = _FakeUpdateWalletBehaviorUsecase();
@@ -43,10 +47,7 @@ void main() {
 
   group('load', () {
     test('no nym -> needsNym', () async {
-      la.lookupError = const LightningAddressServerRejectedRequestException(
-        code: 'NymNotFound',
-        retryable: false,
-      );
+      permanentName.value = const PosPermanentName.unclaimed();
       final cubit = build();
 
       await cubit.load();
@@ -55,7 +56,6 @@ void main() {
     });
 
     test('nym but no pos -> create with the fallback currency', () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
       facade.terminal = null;
       final cubit = build();
 
@@ -66,22 +66,22 @@ void main() {
       expect(cubit.state.displayCurrency, 'CAD');
     });
 
-    test('existing live pos -> edit with populated fields + terminal URL',
-        () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
-      facade.terminal = buildTerminal();
-      final cubit = build();
+    test(
+      'existing live pos -> edit with populated fields + terminal URL',
+      () async {
+        facade.terminal = buildTerminal();
+        final cubit = build();
 
-      await cubit.load();
+        await cubit.load();
 
-      expect(cubit.state.status, PosStatus.edit);
-      expect(cubit.state.label, 'My Till');
-      expect(cubit.state.displayCurrency, 'USD');
-      expect(cubit.state.terminalUrl, 'https://bullpay.ca/alice/pos');
-    });
+        expect(cubit.state.status, PosStatus.edit);
+        expect(cubit.state.label, 'My Till');
+        expect(cubit.state.displayCurrency, 'USD');
+        expect(cubit.state.terminalUrl, 'https://bullpay.ca/alice/pos');
+      },
+    );
 
     test('archived pos -> archived', () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
       facade.terminal = buildTerminal(archived: true);
       final cubit = build();
 
@@ -91,10 +91,7 @@ void main() {
     });
 
     test('nym lookup failure -> loadFailed', () async {
-      la.lookupError = const LightningAddressServerRejectedRequestException(
-        code: 'ServiceUnavailable',
-        retryable: true,
-      );
+      permanentName.error = const PosException.network();
       final cubit = build();
 
       await cubit.load();
@@ -102,74 +99,120 @@ void main() {
       expect(cubit.state.status, PosStatus.loadFailed);
     });
 
-    test('server load failure still exposes the local wallet behavior',
-        () async {
-      la.lookupError = const LightningAddressServerRejectedRequestException(
-        code: 'ServiceUnavailable',
-        retryable: true,
-      );
-      walletBehaviors.behaviors = const [
-        GetPaidWalletBehavior(
-          product: GetPaidWalletProduct.pos,
-          walletId: 'wallet-103',
-          hideOnHome: true,
-          autoSweepEnabled: true,
-        ),
-      ];
-      final cubit = build();
+    test(
+      'server load failure still exposes the local wallet behavior',
+      () async {
+        permanentName.error = const PosException.network();
+        walletBehaviors.behaviors = const [
+          GetPaidWalletBehavior(
+            product: GetPaidWalletProduct.pos,
+            walletId: 'wallet-103',
+            hideOnHome: true,
+            autoSweepEnabled: true,
+          ),
+        ];
+        final cubit = build();
 
-      await cubit.load();
+        await cubit.load();
 
-      expect(cubit.state.status, PosStatus.loadFailed);
-      expect(cubit.state.walletBehavior?.walletId, 'wallet-103');
-    });
+        expect(cubit.state.status, PosStatus.loadFailed);
+        expect(cubit.state.walletBehavior?.walletId, 'wallet-103');
+      },
+    );
 
-    test('currency fetch failure degrades but still reaches the form',
-        () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
-      facade.terminal = null;
-      facade.currenciesError = const PosException.network();
-      final cubit = build();
+    test(
+      'currency fetch failure degrades but still reaches the form',
+      () async {
+        facade.terminal = null;
+        facade.currenciesError = const PosException.network();
+        final cubit = build();
 
-      await cubit.load();
+        await cubit.load();
 
-      expect(cubit.state.status, PosStatus.create);
-      expect(cubit.state.currenciesUnavailable, isTrue);
-    });
+        expect(cubit.state.status, PosStatus.create);
+        expect(cubit.state.currenciesUnavailable, isTrue);
+      },
+    );
 
-    test('a kind-mismatch body surfaces as loadFailed (invalidServerResponse)',
-        () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
-      facade.findError = const PosException.invalidServerResponse();
-      final cubit = build();
+    test(
+      'a kind-mismatch body surfaces as loadFailed (invalidServerResponse)',
+      () async {
+        facade.findError = const PosException.invalidServerResponse();
+        final cubit = build();
 
-      await cubit.load();
+        await cubit.load();
 
-      expect(cubit.state.status, PosStatus.loadFailed);
-      expect(cubit.state.failure?.kind, PosErrorKind.invalidServerResponse);
-    });
+        expect(cubit.state.status, PosStatus.loadFailed);
+        expect(cubit.state.failure?.kind, PosErrorKind.invalidServerResponse);
+      },
+    );
+
+    test(
+      'missing exact capability hides alias and availability actions',
+      () async {
+        permanentName.value = const PosPermanentName.unsupported();
+        facade.terminal = buildTerminal();
+
+        final cubit = build();
+        await cubit.load();
+
+        expect(cubit.state.status, PosStatus.unsupported);
+        expect(facade.findCallCount, 0);
+        expect(cubit.state.permanentAlias, isNull);
+      },
+    );
+
+    test(
+      'reconstructs the shared alias after local app state is wiped',
+      () async {
+        permanentName.value = const PosPermanentName.claimed(
+          nym: 'alice',
+          alias: 'shop',
+        );
+        facade.terminal = buildTerminal(alias: 'shop');
+
+        final first = build();
+        await first.load();
+        expect(first.state.permanentAlias, 'shop');
+        await first.close();
+
+        final afterAppStateWipe = build();
+        await afterAppStateWipe.load();
+        expect(afterAppStateWipe.state.permanentAlias, 'shop');
+        expect(afterAppStateWipe.state.aliasDraft, isEmpty);
+      },
+    );
+
+    test(
+      'fails closed when terminal alias disagrees with owner state',
+      () async {
+        permanentName.value = const PosPermanentName.claimed(
+          nym: 'alice',
+          alias: 'shop',
+        );
+        facade.terminal = buildTerminal(alias: 'other');
+
+        final cubit = build();
+        await cubit.load();
+
+        expect(cubit.state.status, PosStatus.loadFailed);
+        expect(cubit.state.failure?.kind, PosErrorKind.invalidServerResponse);
+      },
+    );
   });
 
-  test('createNym delegates to the LA registration then reloads', () async {
-    la.lookupError = const LightningAddressServerRejectedRequestException(
-      code: 'NymNotFound',
-      retryable: false,
-    );
+  test('an unclaimed nym exposes no POS-owned name mutation', () async {
+    permanentName.value = const PosPermanentName.unclaimed();
     final cubit = build();
     await cubit.load();
+
     expect(cubit.state.status, PosStatus.needsNym);
-
-    cubit.nymDraftChanged('alice');
-    facade.terminal = null;
-    await cubit.createNym();
-
-    expect(la.registeredNyms, ['alice']);
-    expect(cubit.state.status, PosStatus.create);
+    expect(facade.provisionCallCount, 0);
+    expect(facade.archiveCallCount, 0);
   });
 
   group('provision', () {
     test('success moves to edit with the returned terminal', () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
       facade.terminal = null;
       final cubit = build();
       await cubit.load();
@@ -185,7 +228,6 @@ void main() {
     });
 
     test('surfaces an uncertain submission failure', () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
       facade.terminal = null;
       final cubit = build();
       await cubit.load();
@@ -202,7 +244,6 @@ void main() {
     });
 
     test('invalid input is refused without a wire call', () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
       facade.terminal = null;
       final cubit = build();
       await cubit.load();
@@ -216,7 +257,6 @@ void main() {
     });
 
     test('a double-tap yields exactly one wire call', () async {
-      la.status = const LightningAddressStatus(nym: 'alice', active: true);
       facade.terminal = null;
       final cubit = build();
       await cubit.load();
@@ -227,13 +267,89 @@ void main() {
       facade.provisionedTerminal = buildTerminal();
 
       final first = cubit.provision();
-      final second = cubit.provision(); // inert: a provision is already in flight
+      final second = cubit
+          .provision(); // inert: a provision is already in flight
       gate.complete();
       await Future.wait([first, second]);
 
       expect(facade.provisionCallCount, 1);
     });
+
+    test(
+      'normalizes and submits the optional first shared alias claim',
+      () async {
+        facade.terminal = null;
+        final cubit = build();
+        await cubit.load();
+        cubit
+          ..aliasDraftChanged('  Shop  ')
+          ..labelChanged('My Till');
+        facade.provisionedTerminal = buildTerminal(alias: 'shop');
+
+        await cubit.provision();
+
+        expect(facade.lastCommand?.aliasClaim, 'shop');
+        expect(cubit.state.permanentAlias, 'shop');
+        expect(cubit.state.aliasDraft, isEmpty);
+      },
+    );
+
+    test('structured owned-alias conflict adopts the server alias', () async {
+      facade.terminal = null;
+      final cubit = build();
+      await cubit.load();
+      cubit
+        ..aliasDraftChanged('other')
+        ..labelChanged('My Till');
+      facade.provisionError = PosProvisionException.submission(
+        cause: const PosException.aliasAlreadyAssigned(ownedAlias: 'shop'),
+      );
+
+      await cubit.provision();
+
+      expect(cubit.state.permanentAlias, 'shop');
+      expect(cubit.state.aliasDraft, isEmpty);
+      expect(cubit.state.submissionUncertain, isFalse);
+    });
+
+    test('alias namespace conflict points at only the alias field', () async {
+      facade.terminal = null;
+      final cubit = build();
+      await cubit.load();
+      cubit
+        ..aliasDraftChanged('taken')
+        ..labelChanged('My Till');
+      facade.provisionError = PosProvisionException.submission(
+        cause: const PosException.aliasTaken(),
+      );
+
+      await cubit.provision();
+
+      expect(cubit.state.invalidField, PosField.alias);
+      expect(cubit.state.submissionUncertain, isFalse);
+    });
   });
+
+  test(
+    'availability switch archives only POS and preserves shared alias',
+    () async {
+      permanentName.value = const PosPermanentName.claimed(
+        nym: 'alice',
+        alias: 'shop',
+      );
+      facade.terminal = buildTerminal(alias: 'shop');
+      final cubit = build();
+      await cubit.load();
+
+      facade.terminal = buildTerminal(archived: true, alias: 'shop');
+      await cubit.setOnline(false);
+
+      expect(facade.archiveCallCount, 1);
+      expect(facade.provisionCallCount, 0);
+      expect(cubit.state.status, PosStatus.archived);
+      expect(cubit.state.permanentAlias, 'shop');
+    },
+  );
 }
 
 class _FakeGetGetPaidWalletBehaviorsUsecase
@@ -258,40 +374,16 @@ class _FakeUpdateWalletBehaviorUsecase implements UpdateWalletBehaviorUsecase {
   }) async {}
 }
 
-class _FakeLightningAddressFacade implements LightningAddressFacade {
-  LightningAddressStatus status = const LightningAddressStatus(
-    nym: 'alice',
-    active: true,
-  );
-  Object? lookupError;
-  final List<String> registeredNyms = [];
+class _FakeGetPosPermanentNameUsecase implements GetPosPermanentNameUsecase {
+  PosPermanentName value = const PosPermanentName.claimed(nym: 'alice');
+  Object? error;
 
   @override
-  Future<LightningAddressStatus> lookupWalletOwnedRegistration() async {
-    final error = lookupError;
-    if (error != null) throw error;
-    return status;
+  Future<PosPermanentName> execute() async {
+    final currentError = error;
+    if (currentError != null) throw currentError;
+    return value;
   }
-
-  @override
-  Future<WalletOwnedLightningAddressRegistration> registerWalletOwned({
-    required String nym,
-  }) async {
-    registeredNyms.add(nym);
-    lookupError = null;
-    status = LightningAddressStatus(nym: nym, active: true);
-    return WalletOwnedLightningAddressRegistration(
-      registration: LightningAddressRegistration(
-        nym: nym,
-        lightningAddress: '$nym@bullpay.ca',
-      ),
-      walletId: 'la-wallet',
-      walletCreated: true,
-    );
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakePosFacade implements PosFacade {
@@ -303,9 +395,13 @@ class _FakePosFacade implements PosFacade {
   Object? currenciesError;
   Future<void>? provisionGate;
   int provisionCallCount = 0;
+  int findCallCount = 0;
+  int archiveCallCount = 0;
+  PosProvisionCommand? lastCommand;
 
   @override
   Future<PosTerminal?> find({required String nym}) async {
+    findCallCount += 1;
     final error = findError;
     if (error != null) throw error;
     return terminal;
@@ -314,6 +410,7 @@ class _FakePosFacade implements PosFacade {
   @override
   Future<PosTerminal> provision(PosProvisionCommand command) async {
     provisionCallCount += 1;
+    lastCommand = command;
     final gate = provisionGate;
     if (gate != null) await gate;
     final error = provisionError;
@@ -322,7 +419,10 @@ class _FakePosFacade implements PosFacade {
   }
 
   @override
-  Future<PosTerminal?> archive() async => terminal;
+  Future<PosTerminal?> archive() async {
+    archiveCallCount += 1;
+    return terminal;
+  }
 
   @override
   Future<List<DisplayCurrency>> supportedCurrencies() async {

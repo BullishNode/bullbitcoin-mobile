@@ -17,7 +17,10 @@ void main() {
 
   final identity = ResolvedPosIdentity(
     nym: 'alice',
-    signer: BullnymAuthSigner(npubHex: 'aa' * 32, signHashHex: (_) => 'bb' * 64),
+    signer: BullnymAuthSigner(
+      npubHex: 'aa' * 32,
+      signHashHex: (_) => 'bb' * 64,
+    ),
   );
 
   setUp(() {
@@ -27,36 +30,39 @@ void main() {
     usecase = ArchivePosUsecase(
       resolveIdentity: resolveIdentity,
       bullnym: bullnym,
-      terminalBaseUrl: 'https://bullpay.ca',
     );
     when(() => resolveIdentity.execute()).thenAnswer((_) async => identity);
   });
 
-  test('sends a kind-pinned signed archive and returns the archived terminal',
-      () async {
-    final terminal = await usecase.execute();
+  test(
+    'sends a kind-pinned signed archive and returns the archived terminal',
+    () async {
+      final terminal = await usecase.execute();
 
-    expect(terminal, isNotNull);
-    expect(terminal!.isArchived, isTrue);
-    expect(terminal.terminalUrl, 'https://bullpay.ca/alice/pos');
-    final archived = client.archiveCalls.single;
-    expect(archived.kind, 'pos');
-    expect(archived.nym, 'alice');
-  });
+      expect(terminal, isNotNull);
+      expect(terminal!.isArchived, isTrue);
+      expect(terminal.terminalUrl, 'https://bullpay.ca/alice/pos');
+      final archived = client.archiveCalls.single;
+      expect(archived.kind, 'pos');
+      expect(archived.nym, 'alice');
+    },
+  );
 
-  test('maps a second archive (DonationPageNotFound) to a benign null',
-      () async {
-    client.archiveError = const BullnymFailure.serverRejectedRequest(
-      code: 'DonationPageNotFound',
-      logMessage: 'nothing to archive',
-      statusCode: 200,
-      retryable: false,
-    );
+  test(
+    'maps a second archive (DonationPageNotFound) to a benign null',
+    () async {
+      client.archiveError = const BullnymFailure.serverRejectedRequest(
+        code: 'DonationPageNotFound',
+        logMessage: 'nothing to archive',
+        statusCode: 200,
+        retryable: false,
+      );
 
-    final terminal = await usecase.execute();
+      final terminal = await usecase.execute();
 
-    expect(terminal, isNull);
-  });
+      expect(terminal, isNull);
+    },
+  );
 
   test('rethrows a genuine server rejection', () async {
     client.archiveError = const BullnymFailure.serverRejectedRequest(

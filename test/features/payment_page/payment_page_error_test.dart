@@ -17,8 +17,15 @@ void main() {
         );
       }
 
-      expect(fromCode('DonationPageNotFound').kind, PaymentPageErrorKind.notFound);
-      expect(fromCode('DonationPageInvalid').kind, PaymentPageErrorKind.rejected);
+      expect(
+        fromCode('DonationPageNotFound').kind,
+        PaymentPageErrorKind.notFound,
+      );
+      expect(
+        fromCode('DonationPageInvalid').kind,
+        PaymentPageErrorKind.rejected,
+      );
+      expect(fromCode('NameTaken').kind, PaymentPageErrorKind.aliasTaken);
       expect(fromCode('AuthError').kind, PaymentPageErrorKind.authError);
       // A retryable, otherwise-unknown server rejection degrades to `server`.
       expect(
@@ -66,6 +73,30 @@ void main() {
       );
       expect(error.toString(), isNot(contains('secret-diagnostic')));
     });
+
+    test('AliasAlreadyAssigned requires and preserves typed owned alias', () {
+      final mapped = PaymentPageException.fromBullnym(
+        BullnymFailure.serverRejectedRequest(
+          code: 'AliasAlreadyAssigned',
+          logMessage: 'private detail',
+          retryable: false,
+          ownedNameDetails: BullnymOwnedAliasDetails(
+            alias: BullnymPublicName('shop'),
+          ),
+        ),
+      );
+      expect(mapped.kind, PaymentPageErrorKind.aliasAlreadyAssigned);
+      expect(mapped.ownedAlias, 'shop');
+
+      final malformed = PaymentPageException.fromBullnym(
+        const BullnymFailure.serverRejectedRequest(
+          code: 'AliasAlreadyAssigned',
+          logMessage: 'missing structured owner',
+          retryable: false,
+        ),
+      );
+      expect(malformed.kind, PaymentPageErrorKind.invalidServerResponse);
+    });
   });
 
   group('PaymentPageException.toTranslated', () {
@@ -86,6 +117,8 @@ void main() {
 
       final variants = <PaymentPageException>[
         const PaymentPageException.invalidInput(code: 'X'),
+        const PaymentPageException.aliasTaken(),
+        const PaymentPageException.aliasAlreadyAssigned(ownedAlias: 'shop'),
         const PaymentPageException.noNym(),
         const PaymentPageException.noDefaultBitcoinWallet(),
         const PaymentPageException.localPreparationFailed(
