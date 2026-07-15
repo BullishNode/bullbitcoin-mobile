@@ -1,6 +1,4 @@
 import 'package:bb_mobile/core/errors/bull_exception.dart';
-import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:flutter/widgets.dart';
 
 /// The server's default LUD-22 proof value floor (sats). Used as the fallback
 /// when a [BullpayProofRequiresProof] carries no explicit `min_sat`.
@@ -17,8 +15,8 @@ class LiquidDirectPayUnavailable implements Exception {
 }
 
 /// Sealed error family for the LUD-22 proof-of-funds callback (charter C1).
-/// Every variant carries a localized [toTranslated] message; the raw server
-/// `reason`/`code` stays for logs only and is never surfaced (charter C3).
+/// Raw server `reason`/`code` stays for logs only and is never surfaced
+/// (charter C3); presentation owns the localized mapping.
 ///
 /// Most variants are consumed as fallback triggers (mapped, logged, and then
 /// replaced by the normal Lightning swap per DG-8); only a committed-rail
@@ -55,21 +53,6 @@ sealed class BullpayProofError extends BullException {
         return BullpayProofInternal(code);
     }
   }
-
-  String toTranslated(BuildContext context) {
-    return switch (this) {
-      BullpayProofRequiresProof(:final minSat) => context.loc.sendLud22MinValue(
-        minSat ?? kBullpayDefaultMinProofValueSat,
-      ),
-      BullpayProofInvalid() => context.loc.sendLud22InvalidProof,
-      BullpayProofPubkeyMismatch() => context.loc.sendLud22InvalidProof,
-      BullpayProofUtxoNotFound() => context.loc.sendLud22UtxoUnavailable,
-      BullpayProofUtxoSpent() => context.loc.sendLud22UtxoUnavailable,
-      BullpayProofNymNotFound() => context.loc.sendLud22NymNotFound,
-      BullpayProofInvalidAmount() => context.loc.sendLud22DirectPayFailed,
-      BullpayProofInternal() => context.loc.sendLud22DirectPayFailed,
-    };
-  }
 }
 
 /// `ProofOfFundsRequired`: the server needs a proof of funds (no valid one was
@@ -84,7 +67,8 @@ final class BullpayProofRequiresProof extends BullpayProofError {
 /// not L-BTC, the value is below the floor, or the opening was forged.
 final class BullpayProofInvalid extends BullpayProofError {
   final String? reason;
-  BullpayProofInvalid({this.reason}) : super._('bullpay proof of funds invalid');
+  BullpayProofInvalid({this.reason})
+    : super._('bullpay proof of funds invalid');
 }
 
 /// `UtxoNotFound`: the server's chain view has not seen the proof outpoint.
@@ -119,7 +103,8 @@ final class BullpayProofInvalidAmount extends BullpayProofError {
 /// `NymNotFound`: the recipient nym is not registered on the server.
 final class BullpayProofNymNotFound extends BullpayProofError {
   final String? reason;
-  BullpayProofNymNotFound({this.reason}) : super._('bullpay proof nym not found');
+  BullpayProofNymNotFound({this.reason})
+    : super._('bullpay proof nym not found');
 }
 
 /// Catch-all for any unrecognised server code. The raw [code] is kept for logs
