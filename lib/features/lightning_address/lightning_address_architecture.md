@@ -47,6 +47,7 @@ feature never reads comments from anonymous LNURL, invoice, Page, POS, or
 status endpoints and never logs or persists them locally.
 
 Registration and delete receive `xprvBase58` only inside domain composition so Lightning Address can build a one-shot Bullnym auth signer through Nostr Identity.
+Registration also derives the distinct NIP-05 public verification key through Nostr Identity's public-only role helper. It binds that public key after the confidential descriptor in the signed registration payload; only the Bullnym authentication role signs.
 They pass the confidential descriptor through to Bullnym registration.
 Lookup accepts the Bullnym auth public key/npub hex and does not require wallet secret material.
 Lightning Address does not persist or own wallet secrets.

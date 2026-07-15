@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_auth_signer.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
+import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
@@ -109,13 +110,25 @@ int currentBullpayTimestampSecs() {
 
 @useResult
 Result<void, BullnymFailure> validateBullnymNpubHex(String npubHex) {
+  if (npubHex.length != 64 || npubHex != npubHex.toLowerCase()) {
+    return const Err(
+      BullnymFailure.invalidInput(
+        'Bullnym npub must be canonical lowercase 32-byte hex',
+      ),
+    );
+  }
   try {
     final decoded = hex.decode(npubHex);
-    if (decoded.length == 32) return const Ok(null);
-  } on FormatException {
+    if (decoded.length == 32) {
+      ECPublic.fromHex('02$npubHex');
+      return const Ok(null);
+    }
+  } on Exception {
     // Return the feature failure below.
   }
   return const Err(
-    BullnymFailure.invalidInput('Bullnym npub must be a 32-byte hex value'),
+    BullnymFailure.invalidInput(
+      'Bullnym npub must be a valid secp256k1 x-only public key',
+    ),
   );
 }
