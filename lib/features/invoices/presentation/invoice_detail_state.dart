@@ -43,7 +43,9 @@ class InvoiceDetailState {
   /// A terminal invoice continues polling while an attributed automatic
   /// fallback is delayed, active, confirming, or held for integrity review.
   bool get isTerminal {
-    final invoiceTerminal = effectiveStatus?.isTerminal ?? false;
+    final invoiceTerminal = cancelFinalStatus != null
+        ? cancelFinalStatus!.isTerminal
+        : snapshot?.isMonitoringComplete ?? false;
     if (!invoiceTerminal) return false;
     if (fallbackSupervisions.isEmpty) return true;
     return fallbackSupervisions.every(
