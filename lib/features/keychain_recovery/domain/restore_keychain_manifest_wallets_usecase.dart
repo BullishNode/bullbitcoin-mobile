@@ -298,7 +298,8 @@ class RestoreKeychainManifestWalletsUsecase {
   bool _requiresProductReactivation(String reservationId) {
     final reservation = _registry.reservationById(reservationId);
     if (reservation == null) return false;
-    return KeychainManifestReservationSupport
-        .requiresProductReactivationOnRecovery(reservation);
+    return KeychainManifestReservationSupport.requiresProductReactivationOnRecovery(
+      reservation,
+    );
   }
 }
