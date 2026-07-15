@@ -5,6 +5,8 @@ import 'package:bb_mobile/features/lightning_address/public/lightning_address_fa
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_routes.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_routes.dart';
+import 'package:bb_mobile/features/pos/public/pos_facade.dart';
+import 'package:bb_mobile/features/pos/public/pos_routes.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_cubit.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_state.dart';
 import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
@@ -288,6 +290,7 @@ class _RemoteKeychainRecoveryScreenState
     return [
       ..._lightningAddressHealRows(context, state),
       ..._paymentPageHealRows(context, state),
+      ..._posHealRows(context, state),
     ];
   }
 
@@ -361,6 +364,42 @@ class _RemoteKeychainRecoveryScreenState
           const SizedBox(height: 16),
           Text(
             context.loc.paymentPageHealUnreachable,
+            style: TextStyle(color: context.appColors.error),
+            textAlign: TextAlign.center,
+          ),
+        ];
+    }
+  }
+
+  List<Widget> _posHealRows(
+    BuildContext context,
+    RemoteKeychainRecoveryState state,
+  ) {
+    final outcome = state.posHealOutcome;
+    if (outcome == null) return const [];
+    switch (outcome.liveness) {
+      case PosLiveness.live:
+      case PosLiveness.archivedByUser:
+        return const [];
+      case PosLiveness.needsReactivation:
+        return [
+          const SizedBox(height: 16),
+          Text(
+            context.loc.posHealNeedsReactivation,
+            style: TextStyle(color: context.appColors.error),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => context.goNamed(PosRoute.posSettings.name),
+            child: Text(context.loc.posHealNeedsReactivationAction),
+          ),
+        ];
+      case PosLiveness.unreachable:
+        return [
+          const SizedBox(height: 16),
+          Text(
+            context.loc.posHealUnreachable,
             style: TextStyle(color: context.appColors.error),
             textAlign: TextAlign.center,
           ),
