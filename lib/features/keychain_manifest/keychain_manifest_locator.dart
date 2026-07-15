@@ -3,8 +3,11 @@ import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/drift_keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
+import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_encryption_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
@@ -16,6 +19,9 @@ class KeychainManifestLocator {
       () => DriftKeychainManifestEntryRepository(
         database: locator<SqliteDatabase>(),
       ),
+    );
+    locator.registerLazySingleton<KeychainManifestNostrEncryptionRepository>(
+      () => const RecoverBullKeychainManifestNostrEncryptionRepository(),
     );
     locator.registerFactory<RecordKeychainManifestEntryUsecase>(
       () => RecordKeychainManifestEntryUsecase(
@@ -35,6 +41,13 @@ class KeychainManifestLocator {
       () => ParseKeychainManifestFileUsecase(
         codec: const KeychainManifestFileCodec(),
         bip85Registry: locator<Bip85RegistryFacade>(),
+      ),
+    );
+    locator.registerFactory<BuildKeychainManifestNostrEncryptedContentUsecase>(
+      () => BuildKeychainManifestNostrEncryptedContentUsecase(
+        buildManifestFile: locator<BuildKeychainManifestFileUsecase>(),
+        encryptionRepository:
+            locator<KeychainManifestNostrEncryptionRepository>(),
       ),
     );
     locator.registerFactory<KeychainManifestFacade>(
