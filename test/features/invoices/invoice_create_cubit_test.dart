@@ -30,11 +30,13 @@ void main() {
   setUp(() {
     facade = _MockFacade();
     when(() => facade.supportedCurrencies()).thenAnswer(
-      (_) async => const BullnymSupportedCurrencies(
-        currencies: [
-          BullnymSupportedCurrency(code: 'CAD', precision: 2),
-          BullnymSupportedCurrency(code: 'COP', precision: 0),
-        ],
+      (_) async => const Ok(
+        BullnymSupportedCurrencies(
+          currencies: [
+            BullnymSupportedCurrency(code: 'CAD', precision: 2),
+            BullnymSupportedCurrency(code: 'COP', precision: 0),
+          ],
+        ),
       ),
     );
   });

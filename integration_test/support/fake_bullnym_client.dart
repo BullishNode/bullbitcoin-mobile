@@ -1,7 +1,8 @@
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_auth_signer.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_client_port.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_donation_page.dart';
-import 'package:bb_mobile/features/bullnym/domain/bullnym_error.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_registration.dart';
 
@@ -153,82 +154,98 @@ class FakeBullnymClient implements BullnymClientPort {
   String _pageKey(String nym, String kind) => '$nym|$kind';
 
   @override
-  Future<BullnymRegisterResult> register(BullnymRegisterRequest request) async {
+  Future<Result<BullnymRegisterResult, BullnymFailure>> register(
+    BullnymRegisterRequest request,
+  ) async {
     registeredNyms.add(request.nym);
     if (mode == FakeBullnymMode.serverUnreachable) {
-      throw const BullnymException.serverRejectedRequest(
-        code: 'ServiceUnavailable',
-        diagnosticReason: 'fake relay unreachable',
-        statusCode: 503,
-        retryable: true,
+      return const Err(
+        BullnymFailure.serverRejectedRequest(
+          code: 'ServiceUnavailable',
+          logMessage: 'fake relay unreachable',
+          statusCode: 503,
+          retryable: true,
+        ),
       );
     }
     nym = request.nym;
     mode = FakeBullnymMode.live;
-    return BullnymRegisterResult(nym: nym, lightningAddress: _lightningAddress);
+    return Ok(
+      BullnymRegisterResult(nym: nym, lightningAddress: _lightningAddress),
+    );
   }
 
   @override
-  Future<void> deleteRegistration(
+  Future<Result<void, BullnymFailure>> deleteRegistration(
     BullnymDeleteRegistrationRequest request,
-  ) async {}
+  ) async => const Ok(null);
 
   @override
-  Future<BullnymLookupResult> lookupRegistration({
+  Future<Result<BullnymLookupResult, BullnymFailure>> lookupRegistration({
     required String npubHex,
   }) async {
     switch (mode) {
       case FakeBullnymMode.live:
-        return BullnymLookupResult(
-          nym: nym,
-          active: true,
-          lightningAddress: _lightningAddress,
+        return Ok(
+          BullnymLookupResult(
+            nym: nym,
+            active: true,
+            lightningAddress: _lightningAddress,
+          ),
         );
       case FakeBullnymMode.inactiveWithPreviousNym:
-        return BullnymLookupResult(nym: nym, active: false);
+        return Ok(BullnymLookupResult(nym: nym, active: false));
       case FakeBullnymMode.registrationMissing:
-        throw const BullnymException.serverRejectedRequest(
-          code: 'NymNotFound',
-          diagnosticReason: 'no registration for npub',
-          statusCode: 404,
-          retryable: false,
+        return const Err(
+          BullnymFailure.serverRejectedRequest(
+            code: 'NymNotFound',
+            logMessage: 'no registration for npub',
+            statusCode: 404,
+            retryable: false,
+          ),
         );
       case FakeBullnymMode.serverUnreachable:
-        throw const BullnymException.serverRejectedRequest(
-          code: 'ServiceUnavailable',
-          diagnosticReason: 'fake relay unreachable',
-          statusCode: 503,
-          retryable: true,
+        return const Err(
+          BullnymFailure.serverRejectedRequest(
+            code: 'ServiceUnavailable',
+            logMessage: 'fake relay unreachable',
+            statusCode: 503,
+            retryable: true,
+          ),
         );
     }
   }
 
   @override
-  Future<BullnymDonationPage> getDonationPage({
+  Future<Result<BullnymDonationPage, BullnymFailure>> getDonationPage({
     required String nym,
     required String kind,
   }) async {
     final isPos = kind == bullnymDonationPageKindPos;
     if (isPos) {
-      if (posMode == FakePosMode.serverUnreachable) throw _serverUnreachable();
-      if (posMode == FakePosMode.missing) throw _notFound();
+      if (posMode == FakePosMode.serverUnreachable) {
+        return Err(_serverUnreachable());
+      }
+      if (posMode == FakePosMode.missing) return Err(_notFound());
     } else {
       if (donationPageMode == FakeDonationPageMode.serverUnreachable) {
-        throw _serverUnreachable();
+        return Err(_serverUnreachable());
       }
-      if (donationPageMode == FakeDonationPageMode.missing) throw _notFound();
+      if (donationPageMode == FakeDonationPageMode.missing) {
+        return Err(_notFound());
+      }
     }
     final page = _pages[_pageKey(nym, kind)];
-    if (page == null) throw _notFound();
+    if (page == null) return Err(_notFound());
     final archived = isPos
         ? posMode == FakePosMode.archived
         : donationPageMode == FakeDonationPageMode.archived;
-    if (archived) return _copyWith(page, isArchived: true);
-    return page;
+    if (archived) return Ok(_copyWith(page, isArchived: true));
+    return Ok(page);
   }
 
   @override
-  Future<BullnymDonationPage> saveDonationPage(
+  Future<Result<BullnymDonationPage, BullnymFailure>> saveDonationPage(
     BullnymSaveDonationPageRequest request,
   ) async {
     saveDonationPageCalls.add(request);
@@ -237,12 +254,14 @@ class FakeBullnymClient implements BullnymClientPort {
       // KR-1 server backstop: a kind=pos save has NO LA-cursor fallback, so a
       // descriptorless pos save is HARD-REJECTED here (never silently routed to
       // the LA wallet 101). The client must make an empty descriptor impossible.
-      if (request.ctDescriptor.isEmpty) throw _donationPageInvalid();
-      if (posMode == FakePosMode.serverUnreachable) throw _serverUnreachable();
-      if (posMode == FakePosMode.saveAuthError) throw _authError();
+      if (request.ctDescriptor.isEmpty) return Err(_donationPageInvalid());
+      if (posMode == FakePosMode.serverUnreachable) {
+        return Err(_serverUnreachable());
+      }
+      if (posMode == FakePosMode.saveAuthError) return Err(_authError());
     } else {
       if (donationPageMode == FakeDonationPageMode.serverUnreachable) {
-        throw _serverUnreachable();
+        return Err(_serverUnreachable());
       }
     }
     final page = BullnymDonationPage(
@@ -262,21 +281,23 @@ class FakeBullnymClient implements BullnymClientPort {
           : 'https://example.invalid/${request.nym}',
     );
     _pages[_pageKey(request.nym, request.kind)] = page;
-    return page;
+    return Ok(page);
   }
 
   @override
-  Future<BullnymDonationPage> archiveDonationPage(
+  Future<Result<BullnymDonationPage, BullnymFailure>> archiveDonationPage(
     BullnymArchiveDonationPageRequest request,
   ) async {
     archiveDonationPageCalls.add(request);
     final isPos = request.kind == bullnymDonationPageKindPos;
     if (isPos) {
-      if (posMode == FakePosMode.serverUnreachable) throw _serverUnreachable();
-      if (posMode == FakePosMode.saveAuthError) throw _authError();
+      if (posMode == FakePosMode.serverUnreachable) {
+        return Err(_serverUnreachable());
+      }
+      if (posMode == FakePosMode.saveAuthError) return Err(_authError());
     } else {
       if (donationPageMode == FakeDonationPageMode.serverUnreachable) {
-        throw _serverUnreachable();
+        return Err(_serverUnreachable());
       }
     }
     final key = _pageKey(request.nym, request.kind);
@@ -284,71 +305,76 @@ class FakeBullnymClient implements BullnymClientPort {
     if (page == null || page.isArchived) {
       // Double-archive / archive-of-missing: the server preserves nothing to
       // archive and returns DonationPageNotFound.
-      throw _notFound();
+      return Err(_notFound());
     }
     final archived = _copyWith(page, isArchived: true);
     _pages[key] = archived;
-    return archived;
+    return Ok(archived);
   }
 
   @override
-  Future<BullnymSupportedCurrencies> getSupportedCurrencies() async {
+  Future<Result<BullnymSupportedCurrencies, BullnymFailure>>
+  getSupportedCurrencies() async {
     if (donationPageMode == FakeDonationPageMode.serverUnreachable) {
-      throw _serverUnreachable();
+      return Err(_serverUnreachable());
     }
-    return BullnymSupportedCurrencies(currencies: supportedCurrencies);
+    return Ok(BullnymSupportedCurrencies(currencies: supportedCurrencies));
   }
 
   @override
-  Future<BullnymCreateInvoiceResponse> createInvoice({
+  Future<Result<BullnymCreateInvoiceResponse, BullnymFailure>> createInvoice({
     required BullnymAuthSigner signer,
     String? nym,
     required BullnymCreateInvoiceFields fields,
   }) async {
     createInvoiceCalls.add((npub: signer.npubHex, nym: nym, fields: fields));
     if (invoiceMode == FakeInvoiceMode.featureDisabled) {
-      throw const BullnymException.unexpectedHttpStatus(statusCode: 404);
+      return const Err(BullnymFailure.unexpectedHttpStatus(statusCode: 404));
     }
     if (invoiceMode == FakeInvoiceMode.serverUnreachable) {
-      throw _serverUnreachable();
+      return Err(_serverUnreachable());
     }
-    if (invoiceMode == FakeInvoiceMode.authError) throw _authError();
-    if (invoiceMode == FakeInvoiceMode.rateLimited) throw _invoiceRateLimited();
+    if (invoiceMode == FakeInvoiceMode.authError) return Err(_authError());
+    if (invoiceMode == FakeInvoiceMode.rateLimited) {
+      return Err(_invoiceRateLimited());
+    }
 
     // Server echoes (create_invoice_inner): at least one rail, rail↔address
     // coherence, one-of amount, and the expiry window.
     if (!fields.acceptBtc && !fields.acceptLn && !fields.acceptLiquid) {
-      throw _invalidAmount('at least one rail must be accepted');
+      return Err(_invalidAmount('at least one rail must be accepted'));
     }
     if (fields.acceptBtc &&
         (fields.bitcoinAddress == null || fields.bitcoinAddress!.isEmpty)) {
-      throw _invalidAmount('accept_btc requires a bitcoin_address');
+      return Err(_invalidAmount('accept_btc requires a bitcoin_address'));
     }
     if ((fields.acceptLn || fields.acceptLiquid) &&
         (fields.liquidAddress == null || fields.liquidAddress!.isEmpty)) {
-      throw _invalidAmount('a liquid rail requires a liquid_address');
+      return Err(_invalidAmount('a liquid rail requires a liquid_address'));
     }
     if (fields.acceptLiquid &&
         (fields.liquidBlindingKeyHex == null ||
             fields.liquidBlindingKeyHex!.isEmpty)) {
-      throw _invalidAmount('accept_liquid requires a liquid_blinding_key_hex');
+      return Err(
+        _invalidAmount('accept_liquid requires a liquid_blinding_key_hex'),
+      );
     }
     final hasSat = fields.amountSat != null;
     final hasFiat =
         fields.fiatAmountMinor != null && fields.fiatCurrency != null;
     if (hasSat == hasFiat) {
-      throw _invalidAmount('amount must be exactly one of sat or fiat');
+      return Err(_invalidAmount('amount must be exactly one of sat or fiat'));
     }
 
     if (invoiceMode == FakeInvoiceMode.reusedBitcoinAddressOnce &&
         fields.acceptBtc) {
       invoiceMode = FakeInvoiceMode.normal;
-      throw _bitcoinAddressAlreadyUsed();
+      return Err(_bitcoinAddressAlreadyUsed());
     }
     if (invoiceMode == FakeInvoiceMode.reusedLiquidAddressOnce &&
         (fields.acceptLn || fields.acceptLiquid)) {
       invoiceMode = FakeInvoiceMode.normal;
-      throw _liquidAddressAlreadyUsed();
+      return Err(_liquidAddressAlreadyUsed());
     }
 
     final id = 'inv-${_nextInvoiceSeq++}';
@@ -364,53 +390,57 @@ class FakeBullnymClient implements BullnymClientPort {
     final shareUrl = nym == null
         ? 'https://example.invalid/invoice/$id'
         : 'https://example.invalid/$nym/i/$id';
-    return BullnymCreateInvoiceResponse(invoiceId: id, shareUrl: shareUrl);
+    return Ok(BullnymCreateInvoiceResponse(invoiceId: id, shareUrl: shareUrl));
   }
 
   @override
-  Future<BullnymCancelInvoiceResponse> cancelInvoice({
+  Future<Result<BullnymCancelInvoiceResponse, BullnymFailure>> cancelInvoice({
     required BullnymAuthSigner signer,
     String? nym,
     required String invoiceId,
   }) async {
     if (invoiceMode == FakeInvoiceMode.featureDisabled) {
-      throw const BullnymException.unexpectedHttpStatus(statusCode: 404);
+      return const Err(BullnymFailure.unexpectedHttpStatus(statusCode: 404));
     }
     if (invoiceMode == FakeInvoiceMode.serverUnreachable) {
-      throw _serverUnreachable();
+      return Err(_serverUnreachable());
     }
-    if (invoiceMode == FakeInvoiceMode.authError) throw _authError();
+    if (invoiceMode == FakeInvoiceMode.authError) return Err(_authError());
     final invoice = _invoices[invoiceId];
     // Ownership is server-side: a non-owner (or unknown id) is InvoiceNotFound.
     if (invoice == null ||
         invoice.ownerNpub != signer.npubHex ||
         invoiceMode == FakeInvoiceMode.notFound) {
-      throw _invoiceNotFound();
+      return Err(_invoiceNotFound());
     }
     // Cancel only flips an unpaid invoice; an already-terminal invoice returns
     // its existing status benignly.
     if (invoice.status == 'unpaid') invoice.status = 'cancelled';
-    return BullnymCancelInvoiceResponse(
-      invoiceId: invoiceId,
-      status: invoice.status,
+    return Ok(
+      BullnymCancelInvoiceResponse(
+        invoiceId: invoiceId,
+        status: invoice.status,
+      ),
     );
   }
 
   @override
-  Future<BullnymListInvoicesResponse> listInvoices({
+  Future<Result<BullnymListInvoicesResponse, BullnymFailure>> listInvoices({
     required BullnymAuthSigner signer,
     required int page,
     required int pageSize,
     String? status,
   }) async {
     if (invoiceMode == FakeInvoiceMode.featureDisabled) {
-      throw const BullnymException.unexpectedHttpStatus(statusCode: 404);
+      return const Err(BullnymFailure.unexpectedHttpStatus(statusCode: 404));
     }
     if (invoiceMode == FakeInvoiceMode.serverUnreachable) {
-      throw _serverUnreachable();
+      return Err(_serverUnreachable());
     }
-    if (invoiceMode == FakeInvoiceMode.authError) throw _authError();
-    if (invoiceMode == FakeInvoiceMode.rateLimited) throw _invoiceRateLimited();
+    if (invoiceMode == FakeInvoiceMode.authError) return Err(_authError());
+    if (invoiceMode == FakeInvoiceMode.rateLimited) {
+      return Err(_invoiceRateLimited());
+    }
 
     final owned =
         _invoices.values
@@ -424,43 +454,48 @@ class FakeBullnymClient implements BullnymClientPort {
     final pageRows = start >= owned.length
         ? <_FakeInvoice>[]
         : owned.sublist(start, (start + pageSize).clamp(0, owned.length));
-    return BullnymListInvoicesResponse(
-      invoices: pageRows.map(_toListItem).toList(),
-      page: page,
-      pageSize: pageSize,
-      hasMore: start + pageSize < owned.length,
+    return Ok(
+      BullnymListInvoicesResponse(
+        invoices: pageRows.map(_toListItem).toList(),
+        page: page,
+        pageSize: pageSize,
+        hasMore: start + pageSize < owned.length,
+      ),
     );
   }
 
   @override
-  Future<BullnymInvoiceStatus> getInvoiceStatus({
+  Future<Result<BullnymInvoiceStatus, BullnymFailure>> getInvoiceStatus({
     required String invoiceId,
   }) async {
     if (invoiceMode == FakeInvoiceMode.serverUnreachable) {
-      throw _serverUnreachable();
+      return Err(_serverUnreachable());
     }
     final invoice = _invoices[invoiceId];
     if (invoice == null || invoiceMode == FakeInvoiceMode.notFound) {
-      throw _invoiceNotFound();
+      return Err(_invoiceNotFound());
     }
     final f = invoice.fields;
-    return BullnymInvoiceStatus(
-      status: invoice.status,
-      pricingMode: f.amountSat != null ? 'sat' : 'fiat',
-      settlementStatus: 'none',
-      amountSat: f.amountSat ?? 0,
-      fiatAmountMinor: f.fiatAmountMinor,
-      fiatCurrency: f.fiatCurrency,
-      remainingAmountSat: f.amountSat ?? 0,
-      paymentToleranceSat: 0,
-      rateMinorPerBtc: null,
-      rateLocksUntilUnix: invoice.createdAtUnix,
-      expiresAtUnix: f.expiresAtUnix ?? 0,
-      acceptBtc: f.acceptBtc,
-      acceptLn: f.acceptLn,
-      acceptLiquid: f.acceptLiquid,
-      liquidAddress: f.liquidAddress,
-      bitcoinAddress: f.bitcoinAddress,
+    return Ok(
+      BullnymInvoiceStatus(
+        status: invoice.status,
+        pricingMode: f.amountSat != null ? 'sat' : 'fiat',
+        settlementStatus: 'none',
+        amountSat: f.amountSat ?? 0,
+        fiatAmountMinor: f.fiatAmountMinor,
+        fiatCurrency: f.fiatCurrency,
+        remainingAmountSat: f.amountSat ?? 0,
+        paymentToleranceSat: 0,
+        rateMinorPerBtc: null,
+        rateLocksUntilUnix: invoice.createdAtUnix,
+        expiresAtUnix: f.expiresAtUnix ?? 0,
+        acceptBtc: f.acceptBtc,
+        acceptLn: f.acceptLn,
+        acceptLiquid: f.acceptLiquid,
+        liquidAddress: f.liquidAddress,
+        bitcoinAddress: f.bitcoinAddress,
+        bitcoinDirectObservations: const [],
+      ),
     );
   }
 
@@ -490,76 +525,76 @@ class FakeBullnymClient implements BullnymClientPort {
     );
   }
 
-  BullnymException _invoiceNotFound() =>
-      const BullnymException.serverRejectedRequest(
+  BullnymFailure _invoiceNotFound() =>
+      const BullnymFailure.serverRejectedRequest(
         code: 'InvoiceNotFound',
-        diagnosticReason: 'invoice not found',
+        logMessage: 'invoice not found',
         statusCode: 200,
         retryable: false,
       );
 
-  BullnymException _invalidAmount(String reason) =>
-      BullnymException.serverRejectedRequest(
+  BullnymFailure _invalidAmount(String reason) =>
+      BullnymFailure.serverRejectedRequest(
         code: 'InvalidAmount',
-        diagnosticReason: reason,
+        logMessage: reason,
         statusCode: 200,
         retryable: false,
       );
 
-  BullnymException _bitcoinAddressAlreadyUsed() =>
-      const BullnymException.serverRejectedRequest(
+  BullnymFailure _bitcoinAddressAlreadyUsed() =>
+      const BullnymFailure.serverRejectedRequest(
         code: 'BitcoinAddressAlreadyUsed',
-        diagnosticReason: 'bitcoin address already assigned to an invoice',
+        logMessage: 'bitcoin address already assigned to an invoice',
         statusCode: 409,
         retryable: false,
       );
 
-  BullnymException _liquidAddressAlreadyUsed() =>
-      const BullnymException.serverRejectedRequest(
+  BullnymFailure _liquidAddressAlreadyUsed() =>
+      const BullnymFailure.serverRejectedRequest(
         code: 'LiquidAddressAlreadyUsed',
-        diagnosticReason: 'liquid address already assigned to an invoice',
+        logMessage: 'liquid address already assigned to an invoice',
         statusCode: 409,
         retryable: false,
       );
 
-  BullnymException _invoiceRateLimited() =>
-      const BullnymException.serverRejectedRequest(
+  BullnymFailure _invoiceRateLimited() =>
+      const BullnymFailure.serverRejectedRequest(
         code: 'RateLimitedSender',
-        diagnosticReason: 'invoice create rate limit exceeded',
+        logMessage: 'invoice create rate limit exceeded',
         statusCode: 200,
         retryable: true,
       );
 
-  BullnymException _notFound() => const BullnymException.serverRejectedRequest(
+  BullnymFailure _notFound() => const BullnymFailure.serverRejectedRequest(
     code: 'DonationPageNotFound',
-    diagnosticReason: 'no donation page for nym',
+    logMessage: 'no donation page for nym',
     statusCode: 200,
     retryable: false,
   );
 
-  BullnymException _serverUnreachable() =>
-      const BullnymException.serverRejectedRequest(
+  BullnymFailure _serverUnreachable() =>
+      const BullnymFailure.serverRejectedRequest(
         code: 'ServiceUnavailable',
-        diagnosticReason: 'fake server unreachable',
+        logMessage: 'fake server unreachable',
         statusCode: 503,
         retryable: true,
       );
 
   // The kind=pos server backstop for a descriptorless save (KR-1): the server
   // rejects it as invalid rather than falling back to any wallet.
-  BullnymException _donationPageInvalid() =>
-      const BullnymException.serverRejectedRequest(
+  BullnymFailure _donationPageInvalid() =>
+      const BullnymFailure.serverRejectedRequest(
         code: 'DonationPageInvalid',
-        diagnosticReason: 'kind=pos save requires a non-empty ct_descriptor',
+        logMessage: 'kind=pos save requires a non-empty ct_descriptor',
         statusCode: 400,
         retryable: false,
       );
 
   // The pre-release-server fail-closed emulation (KR-2/DG-P7): signing over a
   // `kind` the old server does not rebuild yields a signature mismatch.
-  BullnymException _authError() => const BullnymException.serverRejectedRequest(
+  BullnymFailure _authError() => const BullnymFailure.serverRejectedRequest(
     code: 'AuthError',
-    diagnosticReason: 'signature verification failed',
+    logMessage: 'signature verification failed',
     statusCode: 401,
     retryable: false,
   );

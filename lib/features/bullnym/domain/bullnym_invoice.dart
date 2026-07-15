@@ -71,6 +71,7 @@ class BullnymInvoiceListItem {
   final String? nymOwner;
   final String origin;
   final String status;
+  final String? presentationStatus;
   final String pricingMode;
   final String settlementStatus;
   final int amountSat;
@@ -78,6 +79,7 @@ class BullnymInvoiceListItem {
   final int? fiatAmountMinor;
   final String? fiatCurrency;
   final String? publicDescription;
+  final String? memo;
   final String? recipientName;
   final String? invoiceNumber;
   final bool acceptBtc;
@@ -96,6 +98,7 @@ class BullnymInvoiceListItem {
     this.nymOwner,
     required this.origin,
     required this.status,
+    this.presentationStatus,
     required this.pricingMode,
     required this.settlementStatus,
     required this.amountSat,
@@ -103,6 +106,7 @@ class BullnymInvoiceListItem {
     this.fiatAmountMinor,
     this.fiatCurrency,
     this.publicDescription,
+    this.memo,
     this.recipientName,
     this.invoiceNumber,
     required this.acceptBtc,
@@ -115,6 +119,37 @@ class BullnymInvoiceListItem {
     this.paidVia,
     this.paidAtUnix,
     this.paidAmountSat,
+  });
+}
+
+/// One raw Bitcoin-chain observation in the public invoice-status response.
+/// Interpretation belongs to the invoices settlement domain; Bullnym only
+/// preserves the deployed server contract and validates its wire types.
+class BullnymBitcoinDirectObservation {
+  final String source;
+  final String rail;
+  final String txid;
+  final int vout;
+  final String address;
+  final int amountSat;
+  final int confirmations;
+  final int? blockHeight;
+  final String state;
+  final int firstSeenAtUnix;
+  final int lastSeenAtUnix;
+
+  const BullnymBitcoinDirectObservation({
+    required this.source,
+    required this.rail,
+    required this.txid,
+    required this.vout,
+    required this.address,
+    required this.amountSat,
+    required this.confirmations,
+    this.blockHeight,
+    required this.state,
+    required this.firstSeenAtUnix,
+    required this.lastSeenAtUnix,
   });
 }
 
@@ -139,6 +174,7 @@ class BullnymListInvoicesResponse {
 /// merge explicitly, they never conflate the two.
 class BullnymInvoiceStatus {
   final String status;
+  final String? presentationStatus;
   final String pricingMode;
   final String settlementStatus;
   final int amountSat;
@@ -160,9 +196,11 @@ class BullnymInvoiceStatus {
   final bool acceptBtc;
   final bool acceptLn;
   final bool acceptLiquid;
+  final List<BullnymBitcoinDirectObservation> bitcoinDirectObservations;
 
   const BullnymInvoiceStatus({
     required this.status,
+    this.presentationStatus,
     required this.pricingMode,
     required this.settlementStatus,
     required this.amountSat,
@@ -184,5 +222,6 @@ class BullnymInvoiceStatus {
     required this.acceptBtc,
     required this.acceptLn,
     required this.acceptLiquid,
+    required this.bitcoinDirectObservations,
   });
 }
