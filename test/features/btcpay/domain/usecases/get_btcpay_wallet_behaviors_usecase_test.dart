@@ -1,9 +1,11 @@
 import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_failure.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,12 +43,13 @@ void main() {
       ],
     );
 
-    final behaviors = await usecase.execute(
+    final result = await usecase.execute(
       connection: _connection(
         walletIds: const {BtcpayWalletNetwork.liquid: 'actual-liquid'},
         walletNetworks: const [BtcpayWalletNetwork.liquid],
       ),
     );
+    final behaviors = _value(result);
 
     expect(behaviors, hasLength(1));
     expect(behaviors.single.network, BtcpayWalletNetwork.liquid);
@@ -66,34 +69,66 @@ void main() {
       ],
     );
 
-    final behaviors = await usecase.execute(
+    final result = await usecase.execute(
+      connection: _connection(
+        walletIds: const {},
+        walletNetworks: const [BtcpayWalletNetwork.bitcoin],
+      ),
+    );
+    final behaviors = _value(result);
+
+    expect(behaviors, hasLength(1));
+    expect(behaviors.single.network, BtcpayWalletNetwork.bitcoin);
+    expect(behaviors.single.wallet.id, 'legacy-bitcoin');
+  });
+
+  test('represents a wallet read failure as a typed failure', () async {
+    when(
+      () => getWallets.execute(),
+    ).thenThrow(Exception('wallet database unavailable'));
+
+    final result = await usecase.execute(
       connection: _connection(
         walletIds: const {},
         walletNetworks: const [BtcpayWalletNetwork.bitcoin],
       ),
     );
 
-    expect(behaviors, hasLength(1));
-    expect(behaviors.single.network, BtcpayWalletNetwork.bitcoin);
-    expect(behaviors.single.wallet.id, 'legacy-bitcoin');
+    expect(result, isA<Err<List<BtcpayWalletBehavior>, BtcpayFailure>>());
+    expect(
+      (result as Err<List<BtcpayWalletBehavior>, BtcpayFailure>).failure,
+      isA<BtcpayStorageFailure>(),
+    );
   });
 }
+
+List<BtcpayWalletBehavior> _value(
+  Result<List<BtcpayWalletBehavior>, BtcpayFailure> result,
+) => switch (result) {
+  Ok(:final value) => value,
+  Err(:final failure) => throw TestFailure('Unexpected failure: $failure'),
+};
 
 BtcpayConnection _connection({
   required Map<BtcpayWalletNetwork, String> walletIds,
   required List<BtcpayWalletNetwork> walletNetworks,
 }) {
-  return BtcpayConnection(
+  return BtcpayConnection.tryCreate(
     environment: Environment.mainnet,
     serverUrl: 'https://btcpay.example.com',
     storeId: 'store123',
-    capabilities: const [SamRockSetupCapability.liquidChain],
+    capabilities: [
+      if (walletNetworks.contains(BtcpayWalletNetwork.bitcoin))
+        SamRockSetupCapability.bitcoinChain,
+      if (walletNetworks.contains(BtcpayWalletNetwork.liquid))
+        SamRockSetupCapability.liquidChain,
+    ],
     walletNetworks: walletNetworks,
     walletIds: walletIds,
     status: BtcpayConnectionStatus.paired,
     pairedAt: DateTime.utc(2026),
     updatedAt: DateTime.utc(2026),
-  );
+  )!;
 }
 
 Wallet _wallet({
