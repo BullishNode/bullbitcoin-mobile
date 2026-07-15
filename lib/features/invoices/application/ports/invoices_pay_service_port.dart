@@ -4,6 +4,7 @@ import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart'
 import 'package:bb_mobile/features/invoices/application/commands/invoice_commands.dart';
 import 'package:bb_mobile/features/invoices/application/results/invoice_results.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_status_snapshot.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';
 import 'package:bb_mobile/features/invoices/domain/invoices_failure.dart';
 import 'package:bb_mobile/features/invoices/domain/value_objects/invoice_id.dart';
 import 'package:meta/meta.dart';
@@ -35,6 +36,11 @@ abstract interface class InvoicesPayServicePort {
     required BullnymAuthSigner signer,
     required ListInvoicesCommand command,
   });
+
+  /// Signed, npub-wide and read-only automatic-fallback supervision.
+  @useResult
+  Future<Result<InvoiceFallbackOverview, InvoicesFailure>>
+  listFallbackSupervision({required BullnymAuthSigner signer});
 
   /// UNSIGNED public status poll by id (§3.12).
   @useResult

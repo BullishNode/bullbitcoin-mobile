@@ -3,6 +3,7 @@ import 'package:bb_mobile/features/bullnym/domain/bullnym_auth_signer.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_client_port.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_donation_page.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_fallback_supervision.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_public_names.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_recovery_address.dart';
@@ -590,6 +591,14 @@ class FakeBullnymClient implements BullnymClientPort {
         pageSize: pageSize,
         hasMore: start + pageSize < owned.length,
       ),
+    );
+  }
+
+  @override
+  Future<Result<BullnymFallbackSupervisionResponse, BullnymFailure>>
+  listFallbackSupervision({required BullnymAuthSigner signer}) async {
+    return const Ok(
+      BullnymFallbackSupervisionResponse(items: [], count: 0, hasMore: false),
     );
   }
 

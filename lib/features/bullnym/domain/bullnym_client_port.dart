@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_auth_signer.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_donation_page.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_fallback_supervision.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_public_names.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_recovery_address.dart';
@@ -98,6 +99,12 @@ abstract interface class BullnymClientPort {
     required int pageSize,
     String? status,
   });
+
+  /// Authenticated, npub-wide and strictly read-only automatic-fallback
+  /// projection. The action signs an empty nym and zero payload fields.
+  @useResult
+  Future<Result<BullnymFallbackSupervisionResponse, BullnymFailure>>
+  listFallbackSupervision({required BullnymAuthSigner signer});
 
   /// Public, UNSIGNED status/detail poll by id
   /// (`GET /api/v1/invoices/:id/status`). Anyone holding the id can poll it.
