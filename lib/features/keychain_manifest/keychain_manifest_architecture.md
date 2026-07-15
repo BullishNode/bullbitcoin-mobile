@@ -264,13 +264,24 @@ Schema/version metadata lives inside the encrypted content as
 `bullbitcoin.keychain_manifest.v1`; it must not be published as public Nostr
 tags. The event draft carries opaque encrypted content only.
 
-The remote manifest snapshot content is encrypted with a RecoverBull-style encrypted backup envelope using a dedicated seed-derived BIP85 key at `1642'/0'/1'`.
-This key is separate from RecoverBull vault backup keys at app `1608` and separate from Nostr signing keys at app `9000`.
-The encryption use case derives it from a caller-supplied root xprv and validates that the xprv fingerprint matches the manifest parent fingerprint before encryption; the later publish orchestration slice owns default-wallet xprv selection.
-The stable `1642'/0'/1'` path is reserved in `bip85_registry` so restore can derive the decrypt key from the seed without publishing derivation-path metadata as a Nostr tag.
+The remote manifest snapshot content is encrypted with a RecoverBull-style
+encrypted backup envelope using a dedicated seed-derived BIP85 key at
+`1642'/0'/1'`. This key is separate from RecoverBull vault backup keys at app
+`1608` and separate from Nostr signing keys at app `9000`. The encryption use
+case derives it from a caller-supplied root xprv and validates that the xprv
+fingerprint matches the manifest parent fingerprint before encryption; the later
+publish orchestration slice owns default-wallet xprv selection. The stable
+`1642'/0'/1'` path is reserved in `bip85_registry` so restore can derive the
+decrypt key from the seed without publishing derivation-path metadata as a Nostr
+tag.
 
-Signing, relay publishing, relay fetching, candidate selection, wallet restore,
-product reactivation, and UI are separate later slices.
+This slice signs the event with the wallet manifest Nostr role through
+`nostr_identity` and stops at a locally built signed event. It does not expose a
+public publish facade, relay publisher port, relay result model, or accepted
+relay semantics before a concrete relay transport exists. Relay publishing,
+relay fetching, candidate selection, wallet restore, product reactivation, and
+UI are separate later slices. Local wallet creation and manifest recording must
+not depend on relay publish success.
 
 The wallet manifest Nostr role must not be reused for Bullnym server
 authentication, NIP-05, profile publishing, DMs, or any public identity flow.
