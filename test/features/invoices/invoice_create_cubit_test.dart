@@ -63,9 +63,23 @@ void main() {
       expect(sent.amountSat, 25000);
       expect(sent.fiatAmountMinor, isNull);
       expect(sent.linkToPageNym, isNull); // unlinked v1
+      final remaining = sent.expiresAt.difference(DateTime.now().toUtc());
+      expect(remaining, greaterThan(const Duration(days: 29, hours: 23)));
+      expect(remaining, lessThanOrEqualTo(const Duration(days: 30)));
       await cubit.close();
     },
   );
+
+  test('invoice lifetime defaults to 30 days and clamps at 30', () async {
+    final cubit = InvoiceCreateCubit(facade: facade);
+
+    expect(cubit.state.expiryDays, 30);
+    cubit.expiryDaysChanged(31);
+    expect(cubit.state.expiryDays, 30);
+    cubit.expiryDaysChanged(0);
+    expect(cubit.state.expiryDays, 1);
+    await cubit.close();
+  });
 
   test(
     'fiat submit converts to minor units by the currency precision',

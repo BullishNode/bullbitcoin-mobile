@@ -5,6 +5,7 @@ import 'package:bb_mobile/features/bullnym/domain/bullnym_donation_page.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_fallback_supervision.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice_quote.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_public_names.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_recovery_address.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_registration.dart';
@@ -170,6 +171,13 @@ class RecordingBullnymClient implements BullnymClientPort {
   @override
   Future<Result<BullnymInvoiceStatus, BullnymFailure>> getInvoiceStatus({
     required String invoiceId,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<Result<BullnymPayerDemandQuoteResponse, BullnymFailure>>
+  getInvoiceQuote({
+    required String invoiceId,
+    required BullnymPayerQuoteRail rail,
   }) => throw UnimplementedError();
 
   BullnymDonationPage _viewFromSave(BullnymSaveDonationPageRequest request) {
