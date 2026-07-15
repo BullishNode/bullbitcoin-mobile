@@ -7,6 +7,7 @@ class BtcpayConnectionModel {
   final String status;
   final List<String> capabilities;
   final List<String> walletNetworks;
+  final Map<String, String> walletIds;
   final String? pairedAt;
   final String updatedAt;
   final String? lastError;
@@ -18,6 +19,7 @@ class BtcpayConnectionModel {
     required this.status,
     required this.capabilities,
     required this.walletNetworks,
+    this.walletIds = const {},
     required this.pairedAt,
     required this.updatedAt,
     this.lastError,
@@ -42,6 +44,7 @@ class BtcpayConnectionModel {
     final updatedAt = decoded['updatedAt'];
     final capabilities = decoded['capabilities'];
     final walletNetworks = decoded['walletNetworks'];
+    final walletIds = decoded['walletIds'];
     if (environment is! String ||
         serverUrl is! String ||
         storeId is! String ||
@@ -56,6 +59,22 @@ class BtcpayConnectionModel {
       return null;
     }
 
+    final parsedWalletIds = <String, String>{};
+    if (walletIds != null && walletIds is! Map) return null;
+    if (walletIds is Map) {
+      for (final entry in walletIds.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        if (key is! String ||
+            value is! String ||
+            value.isEmpty ||
+            value != value.trim()) {
+          return null;
+        }
+        parsedWalletIds[key] = value;
+      }
+    }
+
     return BtcpayConnectionModel(
       environment: environment,
       serverUrl: serverUrl,
@@ -63,6 +82,7 @@ class BtcpayConnectionModel {
       status: status,
       capabilities: List<String>.from(capabilities),
       walletNetworks: List<String>.from(walletNetworks),
+      walletIds: parsedWalletIds,
       pairedAt: pairedAt is String ? pairedAt : null,
       updatedAt: updatedAt,
       lastError: decoded['lastError'] is String
@@ -79,6 +99,7 @@ class BtcpayConnectionModel {
       'status': status,
       'capabilities': capabilities,
       'walletNetworks': walletNetworks,
+      'walletIds': walletIds,
       'pairedAt': pairedAt,
       'updatedAt': updatedAt,
       'lastError': lastError,

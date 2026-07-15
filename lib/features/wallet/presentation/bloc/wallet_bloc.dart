@@ -30,6 +30,8 @@ import 'package:bb_mobile/core/wallet/domain/wallet_error.dart';
 import 'package:bb_mobile/features/electrum_settings/frameworks/ui/routing/electrum_settings_router.dart';
 import 'package:bb_mobile/features/wallet/domain/entity/warning.dart';
 import 'package:bb_mobile/features/wallet/domain/usecase/get_unconfirmed_incoming_balance_usecase.dart';
+import 'package:bb_mobile/features/wallet/domain/usecase/run_wallet_auto_sweep_usecase.dart';
+import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -55,6 +57,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     required this._disableAutoswapWarningUsecase,
     required this._disableAutoswapUsecase,
     required this._autoSwapExecutionUsecase,
+    required this._runWalletAutoSweepUsecase,
     required this._deleteWalletUsecase,
     required this._getArkWalletUsecase,
     required this._checkArkWalletSetupUsecase,
@@ -95,6 +98,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   final DisableAutoswapWarningUsecase _disableAutoswapWarningUsecase;
   final DisableAutoswapUsecase _disableAutoswapUsecase;
   final AutoSwapExecutionUsecase _autoSwapExecutionUsecase;
+  final RunWalletAutoSweepUsecase _runWalletAutoSweepUsecase;
   final DeleteWalletUsecase _deleteWalletUsecase;
   final GetArkWalletUsecase _getArkWalletUsecase;
   final CheckArkWalletSetupUsecase _checkArkWalletSetupUsecase;
@@ -341,6 +345,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
         );
         add(const ExecuteAutoSwap());
       }
+      final sweepWarning = await _runAutoSweep(event.wallet);
 
       // Set sync status to false for the wallet that finished syncing
       final newSyncStatus = Map<String, bool>.from(state.syncStatus);
@@ -353,6 +358,12 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
           error: null,
           noWalletsFoundException: null,
           syncStatus: newSyncStatus,
+          // Merge additively: keep any electrum-server warning, replace a stale
+          // autosweep warning, and drop it entirely once the sweep recovers.
+          warnings: [
+            ...state.warnings.where((w) => w.title != _autoSweepWarningTitle),
+            ?sweepWarning,
+          ],
         ),
       );
     } on NoWalletsFoundException catch (e) {
@@ -399,6 +410,61 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
       emit(state.copyWith(warnings: [warning]));
     } else {
       emit(state.copyWith(warnings: []));
+    }
+  }
+
+  // Stable title so repeated syncs replace (never stack) the autosweep warning,
+  // and so it can coexist additively with the electrum-server warning.
+  static const _autoSweepWarningTitle = 'Automatic sweep needs attention';
+
+  // Surfaces the money-relevant outcomes of an autosweep so funds landing in a
+  // hidden Get Paid wallet can't accumulate invisibly while the UI claims
+  // readiness (R2-D1). Returns a warning to merge into state, or null when the
+  // sweep succeeded or was skipped for a benign reason (dust/self-sweep/etc.).
+  Future<WalletWarning?> _runAutoSweep(Wallet wallet) async {
+    try {
+      final result = await _runWalletAutoSweepUsecase.execute(wallet);
+      switch (result) {
+        case AutosweepFailed(:final error):
+          log.warning(
+            '[WalletBloc] Autosweep failed for wallet ${wallet.id}',
+            error: error,
+          );
+          return WalletWarning(
+            title: _autoSweepWarningTitle,
+            description:
+                'A received payment could not be swept to your wallet '
+                'automatically.',
+            actionRoute: WalletRoute.walletHome.name,
+            type: WarningType.error,
+          );
+        case AutosweepSkipped(reason: AutosweepSkipReason.noDefaultWallet):
+          log.warning(
+            '[WalletBloc] Autosweep skipped for wallet ${wallet.id}: '
+            'no default wallet',
+          );
+          return WalletWarning(
+            title: _autoSweepWarningTitle,
+            description:
+                'Set a default wallet so received payments can be swept.',
+            actionRoute: WalletRoute.walletHome.name,
+            type: WarningType.error,
+          );
+        // Dust / self-sweep / fee-policy / disabled / in-flight skips are
+        // deliberate policy and stay silent (Appendix A sub-dust residual).
+        case AutosweepSwept() || AutosweepSkipped():
+          return null;
+      }
+    } catch (e, stack) {
+      log.warning('[WalletBloc] Autosweep failed', error: e, trace: stack);
+      return WalletWarning(
+        title: _autoSweepWarningTitle,
+        description:
+            'A received payment could not be swept to your wallet '
+            'automatically.',
+        actionRoute: WalletRoute.walletHome.name,
+        type: WarningType.error,
+      );
     }
   }
 

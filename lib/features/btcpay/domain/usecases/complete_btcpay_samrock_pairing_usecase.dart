@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_failure.dart';
@@ -21,6 +22,7 @@ class CompleteBtcpaySamRockPairingUsecase {
   final SamRockPairingServicePort _pairingService;
   final BtcpayConnectionRepository _connectionRepository;
   final Bip85RegistryFacade _bip85Registry;
+  final ApplyWalletBehaviorDefaultsUsecase _applyWalletBehaviorDefaults;
 
   const CompleteBtcpaySamRockPairingUsecase({
     required this._getSettings,
@@ -29,6 +31,7 @@ class CompleteBtcpaySamRockPairingUsecase {
     required this._pairingService,
     required this._connectionRepository,
     required this._bip85Registry,
+    required this._applyWalletBehaviorDefaults,
   });
 
   @useResult
@@ -87,6 +90,7 @@ class CompleteBtcpaySamRockPairingUsecase {
       environment: environment,
       request: request,
       walletNetworks: _walletNetworks(preparedWallets),
+      walletIds: _walletIds(preparedWallets),
       status: BtcpayConnectionStatus.uncertain,
       updatedAt: DateTime.now().toUtc(),
     );
@@ -115,11 +119,14 @@ class CompleteBtcpaySamRockPairingUsecase {
       return const Err(BtcpayPairingUncertainFailure());
     }
 
+    await _applyBtcpayWalletBehaviorDefaults(preparedWallets);
+
     final pairedAt = DateTime.now().toUtc();
     final connection = BtcpayConnection.fromPairing(
       environment: environment,
       request: request,
       walletNetworks: _walletNetworks(preparedWallets),
+      walletIds: _walletIds(preparedWallets),
       status: BtcpayConnectionStatus.paired,
       pairedAt: pairedAt,
       updatedAt: pairedAt,
@@ -200,6 +207,42 @@ class CompleteBtcpaySamRockPairingUsecase {
         .map((wallet) => BtcpayWalletNetwork.tryFromSpecId(wallet.specId))
         .whereType<BtcpayWalletNetwork>()
         .toList(growable: false);
+  }
+
+  Map<BtcpayWalletNetwork, String> _walletIds(
+    PreparedDeterministicWallets preparedWallets,
+  ) {
+    final walletIds = <BtcpayWalletNetwork, String>{};
+    for (final wallet in preparedWallets.wallets) {
+      final network = BtcpayWalletNetwork.tryFromSpecId(wallet.specId);
+      if (network != null) walletIds[network] = wallet.walletId;
+    }
+    return walletIds;
+  }
+
+  /// Applies the BTCPay wallet behavior defaults best-effort: the server has
+  /// already accepted the descriptors at this point, so a local
+  /// defaults-application failure must not degrade a successful pairing.
+  Future<void> _applyBtcpayWalletBehaviorDefaults(
+    PreparedDeterministicWallets preparedWallets,
+  ) async {
+    for (final prepared in preparedWallets.wallets) {
+      final network = BtcpayWalletNetwork.tryFromSpecId(prepared.specId);
+      if (network == null) continue;
+      try {
+        await _applyWalletBehaviorDefaults.execute(
+          walletId: prepared.walletId,
+          hideOnHome: network == BtcpayWalletNetwork.liquid,
+          autoSweepEnabled: network == BtcpayWalletNetwork.liquid,
+        );
+      } on Exception catch (error, trace) {
+        log.warning(
+          'BTCPay wallet behavior defaults could not be applied',
+          error: error.runtimeType,
+          trace: trace,
+        );
+      }
+    }
   }
 }
 
