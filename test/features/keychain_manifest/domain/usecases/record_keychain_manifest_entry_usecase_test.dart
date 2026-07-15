@@ -296,10 +296,7 @@ void main() {
       expect(Bip85ReservationOwner.lightningAddress.name, 'lightningAddress');
       expect(Bip85ReservationOwner.paymentPage.name, 'paymentPage');
       expect(Bip85ReservationOwner.nostr.name, 'nostr');
-      expect(
-        Bip85ReservationOwner.keychainManifest.name,
-        'keychainManifest',
-      );
+      expect(Bip85ReservationOwner.keychainManifest.name, 'keychainManifest');
     });
 
     test('frozen wire value: BIP85 reservation purpose names', () {
