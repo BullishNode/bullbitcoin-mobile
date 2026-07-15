@@ -1,4 +1,5 @@
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_payment_event.dart';
 import 'package:bb_mobile/features/invoices/domain/primitives/invoice_status.dart';
 import 'package:bb_mobile/features/invoices/domain/primitives/payment_method.dart';
 import 'package:bb_mobile/features/invoices/domain/value_objects/invoice_id.dart';
@@ -14,6 +15,8 @@ class Invoice {
   /// The public URL scheme is chosen from this field.
   final String? nymOwner;
   final InvoiceStatus status;
+  final InvoiceSettlementState settlementState;
+  final bool presentationMarksLatePayment;
   final int amountSat;
   final int remainingAmountSat;
   final int? fiatAmountMinor;
@@ -37,6 +40,8 @@ class Invoice {
     required this.id,
     this.nymOwner,
     required this.status,
+    this.settlementState = InvoiceSettlementState.none,
+    this.presentationMarksLatePayment = false,
     required this.amountSat,
     required this.remainingAmountSat,
     this.fiatAmountMinor,
@@ -67,6 +72,8 @@ class Invoice {
       id: id,
       nymOwner: nymOwner,
       status: status,
+      settlementState: settlementState,
+      presentationMarksLatePayment: presentationMarksLatePayment,
       amountSat: amountSat,
       remainingAmountSat: remainingAmountSat,
       fiatAmountMinor: fiatAmountMinor,
@@ -89,6 +96,27 @@ class Invoice {
   }
 
   bool get isExpired => status == InvoiceStatus.expired;
+
+  bool get hasPaymentEvidence =>
+      paidAmountSat != null ||
+      paidAt != null ||
+      paidVia != null ||
+      status == InvoiceStatus.inProgress ||
+      status == InvoiceStatus.partiallyPaid ||
+      status == InvoiceStatus.paid ||
+      status == InvoiceStatus.underpaid ||
+      status == InvoiceStatus.overpaid;
+
+  bool get isSettlementPending =>
+      settlementState == InvoiceSettlementState.pending;
+
+  bool get hasSettlementProblem =>
+      settlementState == InvoiceSettlementState.problem;
+
+  bool get hasLatePayment =>
+      presentationMarksLatePayment ||
+      (paidAt != null &&
+          (!expiresAt.isAfter(paidAt!) || status == InvoiceStatus.cancelled));
 
   /// Still collectible: unpaid or partially paid, and not past expiry.
   bool isPayable(DateTime now) {
