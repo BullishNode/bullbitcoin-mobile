@@ -16309,5 +16309,9 @@
   "getPaidDeleteBackupBody": "This removes the encrypted recovery metadata stored by Bull Bitcoin. It does not delete local wallets or funds.",
   "@getPaidDeleteBackupBody": {
     "description": "Confirmation body before deleting encrypted keychain metadata from Bullnym"
+  },
+  "systemLabelAutomaticFallback": "Automatic fallback",
+  "@systemLabelAutomaticFallback": {
+    "description": "System label for the Bitcoin address reserved for automatic fallback settlement."
   }
 }
