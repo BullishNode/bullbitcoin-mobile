@@ -48,7 +48,7 @@ void main() {
     );
   });
 
-  test('maps invalid file input to a keychain manifest error', () async {
+  test('maps invalid fingerprint input to a keychain manifest error', () async {
     await expectLater(
       usecase.execute('invalid'),
       throwsA(

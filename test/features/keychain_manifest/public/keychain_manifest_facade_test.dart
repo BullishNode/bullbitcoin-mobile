@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +23,10 @@ void main() {
         bip85Registry: const Bip85RegistryFacade(),
       ),
       buildManifestFile: BuildKeychainManifestFileUsecase(repository: store),
+      parseManifestFile: const ParseKeychainManifestFileUsecase(
+        codec: KeychainManifestFileCodec(),
+        bip85Registry: Bip85RegistryFacade(),
+      ),
     );
   });
 
@@ -243,6 +249,70 @@ void main() {
       reason:
           'Frozen v1 manifest materialization-level key set changed '
           '(decision [F]).',
+    );
+  });
+
+  test('parses manifest file payloads into import plans', () {
+    final plan = facade.parseManifestFilePayload(
+      _manifestPayload,
+      expectedParentFingerprint: ' FEDCBA98 ',
+    );
+
+    expect(plan.parentFingerprint, 'fedcba98');
+    expect(plan.entries, hasLength(1));
+    expect(plan.entries.single.reservationId, 'btcpay_wallet_seed');
+    expect(plan.walletMaterializations, hasLength(2));
+    expect(plan.walletMaterializations.first.walletId, 'btc-wallet');
+    expect(plan.walletMaterializations.last.walletId, 'lbtc-wallet');
+  });
+
+  test('exposes the explicit empty-import decision to callers', () {
+    const emptyPayload =
+        '{"version":1,"parentFingerprint":"fedcba98","generatedAt":20,'
+        '"inventoryUpdatedAt":0,"entryCount":0,"materializationCount":0,'
+        '"entries":[]}';
+
+    expect(
+      () => facade.parseManifestFilePayload(
+        emptyPayload,
+        expectedParentFingerprint: 'fedcba98',
+      ),
+      throwsA(
+        isA<KeychainManifestException>().having(
+          (error) => error.type,
+          'type',
+          KeychainManifestExceptionType.emptyInventory,
+        ),
+      ),
+    );
+
+    final plan = facade.parseManifestFilePayload(
+      emptyPayload,
+      expectedParentFingerprint: 'fedcba98',
+      allowEmpty: true,
+    );
+
+    expect(plan.entries, isEmpty);
+  });
+
+  test('surfaces a newer-version manifest file as unsupported, not missing', () {
+    // KC-2: a well-formed backup written by a newer app version must reach the
+    // consumer as the unsupported-version type ("update the app"), never as a
+    // generic invalid file or a "no backup found" signal.
+    final payload = _manifestPayload.replaceFirst('"version":1', '"version":2');
+
+    expect(
+      () => facade.parseManifestFilePayload(
+        payload,
+        expectedParentFingerprint: 'fedcba98',
+      ),
+      throwsA(
+        isA<KeychainManifestException>().having(
+          (error) => error.type,
+          'type',
+          KeychainManifestExceptionType.unsupportedFileVersion,
+        ),
+      ),
     );
   });
 }

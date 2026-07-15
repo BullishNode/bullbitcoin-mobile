@@ -22,8 +22,10 @@ missing proven materializations idempotently instead of rolling back valid rows.
 It can build an on-demand manifest file payload from local records for a
 requested parent fingerprint. The local Drift records remain the source of
 truth; the file payload is a read-only projection and is not cached as product
-state. This PR does not import, publish, fetch, or restore a manifest file, and
-non-wallet materialization types are out of scope.
+state. It can also validate an imported v1 payload into typed import intents for
+later consumer flows. Import parsing does not persist, delete, create wallets,
+publish, fetch, or restore product state, and non-wallet materialization types
+are out of scope for v1.
 
 ## Boundaries
 
@@ -41,7 +43,7 @@ non-wallet materialization types are out of scope.
 - The public boundary may build a manifest file payload, but file operations
   must not mutate local manifest inventory.
 - `keychain_manifest` must not import BTCPay, Get Paid, external receive
-  wallets, Nostr, or UI features.
+  wallets, Nostr, UI features, or wallet creation/restoration features.
 
 ## Entry Identity
 
@@ -164,7 +166,8 @@ Rules:
   across all entries.
 - `inventoryUpdatedAt` is the data-recency timestamp: the latest `updatedAt`
   among included entries and materializations. An empty manifest serializes
-  `inventoryUpdatedAt` as `0`.
+  `inventoryUpdatedAt` as `0`. V1 decode rejects payloads whose declared
+  `inventoryUpdatedAt` does not match the value derived from the entries.
 - Cross-manifest recency ordering uses data recency (`inventoryUpdatedAt`),
   so an empty manifest never outranks a populated one. `generatedAt` records
   when the payload was built and is informational only; it must not be used
@@ -172,8 +175,37 @@ Rules:
 - V1 supports only wallet materializations with `"type": "wallet"`.
 - Enumerated fields carry frozen wire vocabulary (see the table below).
 - Public callers must explicitly opt in before exporting an empty manifest.
-- This PR only encodes the v1 payload. Decoding, import validation, and restore
-  semantics belong to a later consumer PR.
+- V1 decode validates the payload wire shape in `data/`, then validates registry
+  metadata into import intents in `domain/usecases`. Public import parsing
+  requires the caller's expected parent fingerprint and rejects files from a
+  different wallet before returning a plan. Wallet creation and restore semantics
+  belong to later consumer features.
+- Import parsing refuses an empty plan unless the caller explicitly opts in,
+  mirroring the empty-export gate: silently returning a plan with nothing to
+  recover would be indistinguishable from a successful import.
+
+### Consumer obligations
+
+An imported manifest file is unsigned, unauthenticated input. Parsing validates
+shape, internal consistency, and registry metadata; it cannot prove that the
+file's claims are true for this device. Consumers of an import plan MUST:
+
+- Source `expectedParentFingerprint` from local seed storage. It must never be
+  taken from the file, from user input, or from another remote artifact.
+- Treat `childSeedFingerprint` on wallet materialization intents as
+  file-CLAIMED. After deriving the child seed, the consumer MUST verify the
+  derived fingerprint against the claimed one and refuse the materialization on
+  mismatch.
+- Treat `walletId` as file-CLAIMED. The consumer MUST recompute the wallet id
+  from the descriptor derived locally (child seed fingerprint, script type,
+  network) and never trust or persist the claimed value.
+- Treat every string field on intents as untrusted input when rendering UI:
+  no markup interpretation, apply length truncation where layout requires it.
+- Require explicit user confirmation for empty plans (parsed with
+  `allowEmpty: true`); an empty plan restores nothing.
+- Handle environment/network mismatches (for example a testnet materialization
+  on a mainnet build): filtering or refusing such intents is the consumer's
+  responsibility, not the parser's.
 
 ### Frozen wire vocabulary
 
@@ -193,5 +225,5 @@ not a refactor.
 | `scriptType` | `bip84`, `bip49`, `bip44` | `ScriptType` (`core/wallet`) |
 
 The payload is generated on demand by callers that need a serialized projection.
-Transport, import, restore, and UI flows are out of scope and are not specified
-by this PR.
+Transport, wallet creation, product restore, and UI flows are out of scope and
+are not specified by this feature.
