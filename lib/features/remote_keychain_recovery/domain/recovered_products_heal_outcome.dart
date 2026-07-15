@@ -8,8 +8,5 @@ class RecoveredProductsHealOutcome {
   final LightningAddressHealOutcome? lightningAddress;
   final PaymentPageHealOutcome? paymentPage;
 
-  const RecoveredProductsHealOutcome({
-    this.lightningAddress,
-    this.paymentPage,
-  });
+  const RecoveredProductsHealOutcome({this.lightningAddress, this.paymentPage});
 }

@@ -19,10 +19,7 @@ class HealRecoveredProductsUsecase {
   final LightningAddressFacade _lightningAddress;
   final PaymentPageFacade _paymentPage;
 
-  const HealRecoveredProductsUsecase(
-    this._lightningAddress,
-    this._paymentPage,
-  );
+  const HealRecoveredProductsUsecase(this._lightningAddress, this._paymentPage);
 
   Future<RecoveredProductsHealOutcome> execute(
     Set<String> reactivationReservationIds,

@@ -366,7 +366,9 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
       if (state.displayCurrency.isNotEmpty) state.displayCurrency,
     }.toList();
     return DropdownButtonFormField<String>(
-      initialValue: state.displayCurrency.isEmpty ? null : state.displayCurrency,
+      initialValue: state.displayCurrency.isEmpty
+          ? null
+          : state.displayCurrency,
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
         labelText: context.loc.paymentPageCurrencyLabel,

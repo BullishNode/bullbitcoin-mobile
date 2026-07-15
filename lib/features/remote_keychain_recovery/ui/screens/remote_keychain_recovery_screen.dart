@@ -351,9 +351,8 @@ class _RemoteKeychainRecoveryScreenState
           ),
           const SizedBox(height: 8),
           OutlinedButton(
-            onPressed: () => context.goNamed(
-              PaymentPageRoute.paymentPageSettings.name,
-            ),
+            onPressed: () =>
+                context.goNamed(PaymentPageRoute.paymentPageSettings.name),
             child: Text(context.loc.paymentPageHealNeedsReactivationAction),
           ),
         ];

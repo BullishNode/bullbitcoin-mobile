@@ -96,14 +96,16 @@ void main() {
     expect(outcome.paymentPage, isNotNull);
   });
 
-  test('a Payment Page heal failure degrades to unreachable (never throws)',
-      () async {
-    pp.error = StateError('boom');
+  test(
+    'a Payment Page heal failure degrades to unreachable (never throws)',
+    () async {
+      pp.error = StateError('boom');
 
-    final outcome = await usecase.execute({_ppReservation});
+      final outcome = await usecase.execute({_ppReservation});
 
-    expect(outcome.paymentPage?.liveness, PaymentPageLiveness.unreachable);
-  });
+      expect(outcome.paymentPage?.liveness, PaymentPageLiveness.unreachable);
+    },
+  );
 
   test('a Lightning Address heal failure degrades to unreachable', () async {
     la.error = StateError('boom');
