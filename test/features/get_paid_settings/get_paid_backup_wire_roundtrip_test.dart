@@ -140,37 +140,39 @@ void main() {
     );
   }
 
-  test('publishes an opaque NIP-33 blob with no cleartext markers (WIRE-01)',
-      () async {
-    await recordBtcpayEntry();
+  test(
+    'publishes an opaque NIP-33 blob with no cleartext markers (WIRE-01)',
+    () async {
+      await recordBtcpayEntry();
 
-    await facade.publishEncryptedNostrSnapshot(
-      parentFingerprint: parentFingerprint,
-      xprvBase58: xprv,
-      relayUrls: relayUrls,
-    );
+      await facade.publishEncryptedNostrSnapshot(
+        parentFingerprint: parentFingerprint,
+        xprvBase58: xprv,
+        relayUrls: relayUrls,
+      );
 
-    expect(relay.capturedEventFrames, isNotEmpty);
-    expect(relay.storedEventCount, 1);
+      expect(relay.capturedEventFrames, isNotEmpty);
+      expect(relay.storedEventCount, 1);
 
-    for (final frame in relay.capturedEventFrames) {
-      final lower = frame.toLowerCase();
-      expect(lower.contains('bullbitcoin'), isFalse);
-      expect(lower.contains('recoverbull'), isFalse);
-      expect(lower.contains('satoshiportal'), isFalse);
+      for (final frame in relay.capturedEventFrames) {
+        final lower = frame.toLowerCase();
+        expect(lower.contains('bullbitcoin'), isFalse);
+        expect(lower.contains('recoverbull'), isFalse);
+        expect(lower.contains('satoshiportal'), isFalse);
 
-      final decoded = jsonDecode(frame) as List;
-      expect(decoded[0], 'EVENT');
-      final event = decoded[1] as Map<String, dynamic>;
-      expect(event['kind'], 30078);
-      final tags = (event['tags'] as List).cast<List<dynamic>>();
-      expect(tags.any((t) => t[0] == 'd' && t[1] == 'manifest'), isTrue);
-      final content = event['content'] as String;
-      // Opaque: bare base64, not a cleartext JSON envelope.
-      expect(content.startsWith('{'), isFalse);
-      expect(() => base64.decode(content), returnsNormally);
-    }
-  });
+        final decoded = jsonDecode(frame) as List;
+        expect(decoded[0], 'EVENT');
+        final event = decoded[1] as Map<String, dynamic>;
+        expect(event['kind'], 30078);
+        final tags = (event['tags'] as List).cast<List<dynamic>>();
+        expect(tags.any((t) => t[0] == 'd' && t[1] == 'manifest'), isTrue);
+        final content = event['content'] as String;
+        // Opaque: bare base64, not a cleartext JSON envelope.
+        expect(content.startsWith('{'), isFalse);
+        expect(() => base64.decode(content), returnsNormally);
+      }
+    },
+  );
 
   test('a published snapshot round-trips through fetch under the same author '
       'key (SPEC-RT-01 / KC-4 obligation 4)', () async {
@@ -197,21 +199,23 @@ void main() {
     );
   });
 
-  test('a newer publish replaces the older event (NIP-33), no accumulation',
-      () async {
-    await recordBtcpayEntry();
-    await facade.publishEncryptedNostrSnapshot(
-      parentFingerprint: parentFingerprint,
-      xprvBase58: xprv,
-      relayUrls: relayUrls,
-    );
-    await facade.publishEncryptedNostrSnapshot(
-      parentFingerprint: parentFingerprint,
-      xprvBase58: xprv,
-      relayUrls: relayUrls,
-    );
+  test(
+    'a newer publish replaces the older event (NIP-33), no accumulation',
+    () async {
+      await recordBtcpayEntry();
+      await facade.publishEncryptedNostrSnapshot(
+        parentFingerprint: parentFingerprint,
+        xprvBase58: xprv,
+        relayUrls: relayUrls,
+      );
+      await facade.publishEncryptedNostrSnapshot(
+        parentFingerprint: parentFingerprint,
+        xprvBase58: xprv,
+        relayUrls: relayUrls,
+      );
 
-    // Two publishes, but the relay holds a single replaceable event.
-    expect(relay.storedEventCount, 1);
-  });
+      // Two publishes, but the relay holds a single replaceable event.
+      expect(relay.storedEventCount, 1);
+    },
+  );
 }

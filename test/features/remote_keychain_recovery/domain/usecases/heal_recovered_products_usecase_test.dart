@@ -50,16 +50,18 @@ void main() {
     );
   });
 
-  test('does not heal for a payment page reservation alone (no client surface)',
-      () async {
-    final facade = _FakeLightningAddressFacade();
-    final usecase = HealRecoveredProductsUsecase(facade);
+  test(
+    'does not heal for a payment page reservation alone (no client surface)',
+    () async {
+      final facade = _FakeLightningAddressFacade();
+      final usecase = HealRecoveredProductsUsecase(facade);
 
-    final outcome = await usecase.execute({'payment_page_wallet_seed'});
+      final outcome = await usecase.execute({'payment_page_wallet_seed'});
 
-    expect(facade.ensureCalls, 0);
-    expect(outcome, isNull);
-  });
+      expect(facade.ensureCalls, 0);
+      expect(outcome, isNull);
+    },
+  );
 
   test('returns null when there is nothing to heal', () async {
     final facade = _FakeLightningAddressFacade();

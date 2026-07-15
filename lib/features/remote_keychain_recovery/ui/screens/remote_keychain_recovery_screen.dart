@@ -54,23 +54,27 @@ class _RemoteKeychainRecoveryScreenState
         title: Text(context.loc.remoteKeychainRecoveryScreenTitle),
       ),
       body: SafeArea(
-        child: BlocConsumer<
-          RemoteKeychainRecoveryCubit,
-          RemoteKeychainRecoveryState
-        >(
-          listenWhen: (previous, current) =>
-              current.status ==
-                  RemoteKeychainRecoveryStatus.requiresRelayDisclosure &&
-              previous.status !=
-                  RemoteKeychainRecoveryStatus.requiresRelayDisclosure,
-          listener: (context, state) => _handleDisclosure(),
-          builder: (context, state) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: _content(context, state),
-            );
-          },
-        ),
+        child:
+            BlocConsumer<
+              RemoteKeychainRecoveryCubit,
+              RemoteKeychainRecoveryState
+            >(
+              listenWhen: (previous, current) =>
+                  current.status ==
+                      RemoteKeychainRecoveryStatus.requiresRelayDisclosure &&
+                  previous.status !=
+                      RemoteKeychainRecoveryStatus.requiresRelayDisclosure,
+              listener: (context, state) => _handleDisclosure(),
+              builder: (context, state) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  child: _content(context, state),
+                );
+              },
+            ),
       ),
     );
   }

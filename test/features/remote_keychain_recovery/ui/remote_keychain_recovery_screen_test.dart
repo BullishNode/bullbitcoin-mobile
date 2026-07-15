@@ -184,10 +184,7 @@ void main() {
         ),
       ),
     );
-    expect(
-      find.textContaining('could not be verified'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('could not be verified'), findsOneWidget);
     expect(find.text('Re-activate'), findsNothing);
   });
 }

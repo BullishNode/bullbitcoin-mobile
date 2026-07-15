@@ -10,7 +10,9 @@ import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_wallet_beha
 import 'package:bb_mobile/features/btcpay/domain/usecases/preview_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_cubit.dart';
 import 'package:bb_mobile/features/btcpay/ui/screens/btcpay_settings_screen.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
+import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +33,9 @@ class _MockGetBtcpayWalletBehaviorsUsecase extends Mock
 class _MockUpdateWalletBehaviorUsecase extends Mock
     implements UpdateWalletBehaviorUsecase {}
 
+class _MockGetPaidSettingsFacade extends Mock
+    implements GetPaidSettingsFacade {}
+
 const _pairingUrl =
     'https://btcpay.example.com/plugins/store123/samrock/protocol?otp=sensitive-otp&setup=btc,lbtc,btcln';
 
@@ -40,14 +45,17 @@ void main() {
   late _MockGetBtcpayWalletBehaviorsUsecase getWalletBehaviors;
   late _MockPreviewBtcpaySamRockPairingUsecase previewPairing;
   late _MockUpdateWalletBehaviorUsecase updateWalletBehavior;
+  late _MockGetPaidSettingsFacade getPaidSettings;
   late BtcpayPairingCubit cubit;
 
-  setUp(() {
+  setUp(() async {
     completePairing = _MockCompleteBtcpaySamRockPairingUsecase();
     getConnection = _MockGetBtcpayConnectionUsecase();
     getWalletBehaviors = _MockGetBtcpayWalletBehaviorsUsecase();
     previewPairing = _MockPreviewBtcpaySamRockPairingUsecase();
     updateWalletBehavior = _MockUpdateWalletBehaviorUsecase();
+    getPaidSettings = _MockGetPaidSettingsFacade();
+    locator.registerSingleton<GetPaidSettingsFacade>(getPaidSettings);
     cubit = BtcpayPairingCubit(
       completePairing: completePairing,
       getConnection: getConnection,
@@ -56,6 +64,12 @@ void main() {
       updateWalletBehavior: updateWalletBehavior,
     );
     when(() => getConnection.execute()).thenAnswer((_) async => const Ok(null));
+    when(() => getPaidSettings.getSettings()).thenAnswer(
+      (_) async => const GetPaidSettings(
+        automatedBackupEnabled: true,
+        backupDisclosureAcknowledged: true,
+      ),
+    );
     when(() => previewPairing.execute(_pairingUrl)).thenReturn(
       const Ok(
         BtcpaySamRockPairingPreview(
@@ -68,7 +82,10 @@ void main() {
     );
   });
 
-  tearDown(() => cubit.close());
+  tearDown(() async {
+    await cubit.close();
+    await locator.unregister<GetPaidSettingsFacade>();
+  });
 
   testWidgets('validates first, discloses descriptors, and cancels safely', (
     tester,

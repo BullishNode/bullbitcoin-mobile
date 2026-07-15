@@ -267,97 +267,105 @@ void main() {
     expect(restoreManifest.restoreCount, 0);
   });
 
-  test('a persisted disclosure ack short-circuits the relay-disclosure gate',
-      () async {
-    loadConsent.acked = true;
-    checkRecovery.result =
-        RemoteKeychainRecoveryCheckResult.latestManifestReady(
-          manifestResult: KeychainManifestNostrImportResult.latestRecoverable(
-            importPlan: _importPlan,
-            eventCreatedAt: _manifestEvent.createdAt,
-          ),
-        );
+  test(
+    'a persisted disclosure ack short-circuits the relay-disclosure gate',
+    () async {
+      loadConsent.acked = true;
+      checkRecovery.result =
+          RemoteKeychainRecoveryCheckResult.latestManifestReady(
+            manifestResult: KeychainManifestNostrImportResult.latestRecoverable(
+              importPlan: _importPlan,
+              eventCreatedAt: _manifestEvent.createdAt,
+            ),
+          );
 
-    // start() with no explicit accept, yet the persisted ack drives the fetch.
-    await cubit.start();
+      // start() with no explicit accept, yet the persisted ack drives the fetch.
+      await cubit.start();
 
-    expect(loadConsent.calls, 1);
-    expect(checkRecovery.acceptedDisclosureValues, [true]);
-    expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
-  });
+      expect(loadConsent.calls, 1);
+      expect(checkRecovery.acceptedDisclosureValues, [true]);
+      expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
+    },
+  );
 
-  test('without a persisted ack the relay-disclosure gate is preserved',
-      () async {
-    loadConsent.acked = false;
-    checkRecovery.result =
-        const RemoteKeychainRecoveryCheckResult.requiresRelayDisclosure();
+  test(
+    'without a persisted ack the relay-disclosure gate is preserved',
+    () async {
+      loadConsent.acked = false;
+      checkRecovery.result =
+          const RemoteKeychainRecoveryCheckResult.requiresRelayDisclosure();
 
-    await cubit.start();
+      await cubit.start();
 
-    expect(checkRecovery.acceptedDisclosureValues, [false]);
-    expect(
-      cubit.state.status,
-      RemoteKeychainRecoveryStatus.requiresRelayDisclosure,
-    );
-  });
+      expect(checkRecovery.acceptedDisclosureValues, [false]);
+      expect(
+        cubit.state.status,
+        RemoteKeychainRecoveryStatus.requiresRelayDisclosure,
+      );
+    },
+  );
 
-  test('a latest restore heals with the summary ids and republishes once',
-      () async {
-    checkRecovery.result =
-        RemoteKeychainRecoveryCheckResult.latestManifestReady(
-          manifestResult: KeychainManifestNostrImportResult.latestRecoverable(
-            importPlan: _importPlan,
-            eventCreatedAt: _manifestEvent.createdAt,
-          ),
-        );
-    restoreManifest.summary = const RemoteKeychainRecoveryRestoreSummary(
-      restoredCount: 1,
-      failedCount: 0,
-      hasProductReactivationRequired: true,
-      reactivationReservationIds: {'lightning_address_wallet_seed'},
-    );
-    heal.outcome = const LightningAddressHealOutcome(
-      liveness: LightningAddressRegistrationLiveness.reregistered,
-    );
+  test(
+    'a latest restore heals with the summary ids and republishes once',
+    () async {
+      checkRecovery.result =
+          RemoteKeychainRecoveryCheckResult.latestManifestReady(
+            manifestResult: KeychainManifestNostrImportResult.latestRecoverable(
+              importPlan: _importPlan,
+              eventCreatedAt: _manifestEvent.createdAt,
+            ),
+          );
+      restoreManifest.summary = const RemoteKeychainRecoveryRestoreSummary(
+        restoredCount: 1,
+        failedCount: 0,
+        hasProductReactivationRequired: true,
+        reactivationReservationIds: {'lightning_address_wallet_seed'},
+      );
+      heal.outcome = const LightningAddressHealOutcome(
+        liveness: LightningAddressRegistrationLiveness.reregistered,
+      );
 
-    await cubit.acceptRelayDisclosure();
+      await cubit.acceptRelayDisclosure();
 
-    expect(heal.calls, 1);
-    expect(heal.receivedIds, {'lightning_address_wallet_seed'});
-    expect(
-      cubit.state.healOutcome?.liveness,
-      LightningAddressRegistrationLiveness.reregistered,
-    );
-    expect(publishRestored.calls, 1);
-    // Terminal state emitted regardless of the (decoupled) republish.
-    expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
-  });
+      expect(heal.calls, 1);
+      expect(heal.receivedIds, {'lightning_address_wallet_seed'});
+      expect(
+        cubit.state.healOutcome?.liveness,
+        LightningAddressRegistrationLiveness.reregistered,
+      );
+      expect(publishRestored.calls, 1);
+      // Terminal state emitted regardless of the (decoupled) republish.
+      expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
+    },
+  );
 
-  test('an older-approved restore heals but never republishes (T-NOCLOBBER)',
-      () async {
-    checkRecovery.result =
-        RemoteKeychainRecoveryCheckResult.olderManifestAvailable(
-          manifestResult:
-              KeychainManifestNostrImportResult.newestFailedOlderRecoverable(
-                importPlan: _importPlan,
-                selectedEventCreatedAt: 20,
-                newestEventCreatedAt: 30,
-              ),
-        );
-    restoreManifest.summary = const RemoteKeychainRecoveryRestoreSummary(
-      restoredCount: 1,
-      failedCount: 0,
-      hasProductReactivationRequired: false,
-    );
+  test(
+    'an older-approved restore heals but never republishes (T-NOCLOBBER)',
+    () async {
+      checkRecovery.result =
+          RemoteKeychainRecoveryCheckResult.olderManifestAvailable(
+            manifestResult:
+                KeychainManifestNostrImportResult.newestFailedOlderRecoverable(
+                  importPlan: _importPlan,
+                  selectedEventCreatedAt: 20,
+                  newestEventCreatedAt: 30,
+                ),
+          );
+      restoreManifest.summary = const RemoteKeychainRecoveryRestoreSummary(
+        restoredCount: 1,
+        failedCount: 0,
+        hasProductReactivationRequired: false,
+      );
 
-    await cubit.acceptRelayDisclosure();
-    await cubit.restoreOlderManifest();
+      await cubit.acceptRelayDisclosure();
+      await cubit.restoreOlderManifest();
 
-    expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
-    expect(cubit.state.isOlderRestore, isTrue);
-    // The newer (unreadable) relay event must not be clobbered by a republish.
-    expect(publishRestored.calls, 0);
-  });
+      expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
+      expect(cubit.state.isOlderRestore, isTrue);
+      // The newer (unreadable) relay event must not be clobbered by a republish.
+      expect(publishRestored.calls, 0);
+    },
+  );
 
   test('nothingToRestore runs no heal and no republish', () async {
     checkRecovery.result =

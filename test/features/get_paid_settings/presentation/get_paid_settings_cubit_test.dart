@@ -52,26 +52,29 @@ void main() {
     await cubit.close();
   });
 
-  test('toggling persists via the usecase and clears the saving flag', () async {
-    final setEnabled = _FakeSetEnabled();
-    final cubit = GetPaidSettingsCubit(
-      getSettings: _FakeGetSettings(
-        const GetPaidSettings(
-          automatedBackupEnabled: true,
-          backupDisclosureAcknowledged: true,
+  test(
+    'toggling persists via the usecase and clears the saving flag',
+    () async {
+      final setEnabled = _FakeSetEnabled();
+      final cubit = GetPaidSettingsCubit(
+        getSettings: _FakeGetSettings(
+          const GetPaidSettings(
+            automatedBackupEnabled: true,
+            backupDisclosureAcknowledged: true,
+          ),
         ),
-      ),
-      setAutomatedBackupEnabled: setEnabled,
-    );
-    await cubit.load();
+        setAutomatedBackupEnabled: setEnabled,
+      );
+      await cubit.load();
 
-    await cubit.toggleAutomatedBackup(false);
+      await cubit.toggleAutomatedBackup(false);
 
-    expect(setEnabled.calls, [false]);
-    expect(cubit.state.automatedBackupEnabled, isFalse);
-    expect(cubit.state.saving, isFalse);
-    await cubit.close();
-  });
+      expect(setEnabled.calls, [false]);
+      expect(cubit.state.automatedBackupEnabled, isFalse);
+      expect(cubit.state.saving, isFalse);
+      await cubit.close();
+    },
+  );
 
   test('a toggle failure reverts the value and surfaces the failure', () async {
     final cubit = GetPaidSettingsCubit(

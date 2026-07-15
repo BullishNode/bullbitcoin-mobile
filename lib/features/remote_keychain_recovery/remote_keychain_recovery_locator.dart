@@ -42,8 +42,9 @@ class RemoteKeychainRecoveryLocator {
       () => LoadAutomatedBackupConsentUsecase(locator<GetPaidSettingsFacade>()),
     );
     locator.registerFactory<PublishRestoredKeychainBackupUsecase>(
-      () =>
-          PublishRestoredKeychainBackupUsecase(locator<GetPaidSettingsFacade>()),
+      () => PublishRestoredKeychainBackupUsecase(
+        locator<GetPaidSettingsFacade>(),
+      ),
     );
     locator.registerFactory<HealRecoveredProductsUsecase>(
       () => HealRecoveredProductsUsecase(locator<LightningAddressFacade>()),

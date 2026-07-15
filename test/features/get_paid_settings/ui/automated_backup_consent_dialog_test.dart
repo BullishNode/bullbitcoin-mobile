@@ -38,14 +38,18 @@ Future<void> _openDialog(WidgetTester tester) async {
 
 void main() {
   testWidgets('body copy equals the locked string verbatim', (tester) async {
-    await tester.pumpWidget(_host((context) => AutomatedBackupConsentDialog.show(context)));
+    await tester.pumpWidget(
+      _host((context) => AutomatedBackupConsentDialog.show(context)),
+    );
     await _openDialog(tester);
 
     expect(find.text(_lockedBody), findsOneWidget);
   });
 
   testWidgets('the toggle defaults to on', (tester) async {
-    await tester.pumpWidget(_host((context) => AutomatedBackupConsentDialog.show(context)));
+    await tester.pumpWidget(
+      _host((context) => AutomatedBackupConsentDialog.show(context)),
+    );
     await _openDialog(tester);
 
     final toggle = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
@@ -54,7 +58,9 @@ void main() {
 
   testWidgets('turning the toggle off shows the locked warning verbatim, on '
       'removes it', (tester) async {
-    await tester.pumpWidget(_host((context) => AutomatedBackupConsentDialog.show(context)));
+    await tester.pumpWidget(
+      _host((context) => AutomatedBackupConsentDialog.show(context)),
+    );
     await _openDialog(tester);
 
     expect(find.text(_lockedOffWarning), findsNothing);
@@ -69,7 +75,9 @@ void main() {
   });
 
   testWidgets('a barrier tap does not dismiss the dialog', (tester) async {
-    await tester.pumpWidget(_host((context) => AutomatedBackupConsentDialog.show(context)));
+    await tester.pumpWidget(
+      _host((context) => AutomatedBackupConsentDialog.show(context)),
+    );
     await _openDialog(tester);
 
     // Tap the top-left corner (the barrier area, away from the centered dialog).
@@ -79,11 +87,15 @@ void main() {
     expect(find.text(_lockedBody), findsOneWidget);
   });
 
-  testWidgets('Continue returns accepted with the chosen toggle value',
-      (tester) async {
+  testWidgets('Continue returns accepted with the chosen toggle value', (
+    tester,
+  ) async {
     AutomatedBackupConsentResult? result;
     await tester.pumpWidget(
-      _host((context) async => result = await AutomatedBackupConsentDialog.show(context)),
+      _host(
+        (context) async =>
+            result = await AutomatedBackupConsentDialog.show(context),
+      ),
     );
     await _openDialog(tester);
 
@@ -101,7 +113,10 @@ void main() {
   testWidgets('a system back pop returns not accepted', (tester) async {
     AutomatedBackupConsentResult? result;
     await tester.pumpWidget(
-      _host((context) async => result = await AutomatedBackupConsentDialog.show(context)),
+      _host(
+        (context) async =>
+            result = await AutomatedBackupConsentDialog.show(context),
+      ),
     );
     await _openDialog(tester);
 

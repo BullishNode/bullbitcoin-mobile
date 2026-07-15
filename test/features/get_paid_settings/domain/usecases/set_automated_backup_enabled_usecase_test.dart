@@ -38,40 +38,45 @@ class _FakePublishUsecase implements PublishAutomatedKeychainBackupUsecase {
 }
 
 void main() {
-  test('turning ON with the disclosure acknowledged fires one catch-up publish',
-      () async {
-    final publish = _FakePublishUsecase();
-    final usecase = SetAutomatedBackupEnabledUsecase(
-      repository: _FakeRepository(
-        const GetPaidSettings(
-          automatedBackupEnabled: false,
-          backupDisclosureAcknowledged: true,
+  test(
+    'turning ON with the disclosure acknowledged fires one catch-up publish',
+    () async {
+      final publish = _FakePublishUsecase();
+      final usecase = SetAutomatedBackupEnabledUsecase(
+        repository: _FakeRepository(
+          const GetPaidSettings(
+            automatedBackupEnabled: false,
+            backupDisclosureAcknowledged: true,
+          ),
         ),
-      ),
-      publishBackup: publish,
-    );
+        publishBackup: publish,
+      );
 
-    await usecase.execute(true);
+      await usecase.execute(true);
 
-    expect(publish.calls, 1);
-  });
+      expect(publish.calls, 1);
+    },
+  );
 
-  test('turning ON without an acknowledged disclosure does not publish', () async {
-    final publish = _FakePublishUsecase();
-    final usecase = SetAutomatedBackupEnabledUsecase(
-      repository: _FakeRepository(
-        const GetPaidSettings(
-          automatedBackupEnabled: false,
-          backupDisclosureAcknowledged: false,
+  test(
+    'turning ON without an acknowledged disclosure does not publish',
+    () async {
+      final publish = _FakePublishUsecase();
+      final usecase = SetAutomatedBackupEnabledUsecase(
+        repository: _FakeRepository(
+          const GetPaidSettings(
+            automatedBackupEnabled: false,
+            backupDisclosureAcknowledged: false,
+          ),
         ),
-      ),
-      publishBackup: publish,
-    );
+        publishBackup: publish,
+      );
 
-    await usecase.execute(true);
+      await usecase.execute(true);
 
-    expect(publish.calls, 0);
-  });
+      expect(publish.calls, 0);
+    },
+  );
 
   test('turning OFF never publishes', () async {
     final publish = _FakePublishUsecase();

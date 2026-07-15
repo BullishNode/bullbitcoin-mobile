@@ -78,8 +78,7 @@ class LightningAddressLocator {
     );
     locator.registerFactory<EnsureLightningAddressRegistrationLiveUsecase>(
       () => EnsureLightningAddressRegistrationLiveUsecase(
-        lookup:
-            locator<LookupWalletOwnedLightningAddressRegistrationUsecase>(),
+        lookup: locator<LookupWalletOwnedLightningAddressRegistrationUsecase>(),
         register: locator<RegisterWalletOwnedLightningAddressUsecase>(),
       ),
     );

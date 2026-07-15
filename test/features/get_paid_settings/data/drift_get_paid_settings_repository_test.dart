@@ -34,16 +34,19 @@ void main() {
     expect(settings.backupDisclosureAcknowledged, isFalse);
   });
 
-  test('the ack setter writes both the ack and the chosen toggle value', () async {
-    await repository.setBackupDisclosureAcknowledged(
-      automatedBackupEnabled: false,
-    );
+  test(
+    'the ack setter writes both the ack and the chosen toggle value',
+    () async {
+      await repository.setBackupDisclosureAcknowledged(
+        automatedBackupEnabled: false,
+      );
 
-    final settings = await repository.fetch();
+      final settings = await repository.fetch();
 
-    expect(settings.backupDisclosureAcknowledged, isTrue);
-    expect(settings.automatedBackupEnabled, isFalse);
-  });
+      expect(settings.backupDisclosureAcknowledged, isTrue);
+      expect(settings.automatedBackupEnabled, isFalse);
+    },
+  );
 
   test('the toggle setter preserves a previously recorded ack', () async {
     await repository.setBackupDisclosureAcknowledged(

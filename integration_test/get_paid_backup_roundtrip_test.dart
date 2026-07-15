@@ -1,7 +1,11 @@
 import 'dart:convert';
 
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_failure.dart';
+import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_service_port.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
@@ -37,12 +41,19 @@ const _pairingUrl =
 
 class _FakePairingService implements SamRockPairingServicePort {
   @override
-  Future<SamRockPairingResponse> submitSetup({
-    required Object request,
-    required Object payload,
+  Future<Result<void, BtcpayFailure>> submitSetup({
+    required SamRockPairingRequest request,
+    required Map<String, Object?> payload,
   }) async {
-    return const SamRockPairingResponse(success: true);
+    return const Ok(null);
   }
+}
+
+Future<void> _completePairing() async {
+  final result = await locator<CompleteBtcpaySamRockPairingUsecase>().execute(
+    pairingUrl: _pairingUrl,
+  );
+  expect(result, isA<Ok<BtcpayConnection, BtcpayFailure>>());
 }
 
 // A structural view of a manifest payload for a readable semantic diff: the
@@ -80,7 +91,10 @@ Map<String, Object?> _semanticManifest(String payload) {
   };
 }
 
-Future<void> _installBoundaries(FakeNostrRelay relay, FakeBullnymClient bullnym) async {
+Future<void> _installBoundaries(
+  FakeNostrRelay relay,
+  FakeBullnymClient bullnym,
+) async {
   await overrideBoundariesForTest(locator, relay: relay, bullnym: bullnym);
   // Freeze the clock: the manifest embeds wall-clock timestamps, so without a
   // frozen clock the wiped-then-rebuilt payload is never byte-identical.
@@ -95,22 +109,23 @@ Future<void> main({bool isInitialized = false}) async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   if (!isInitialized) await Bull.init();
 
-  test('no consent acknowledgement means no relay publish (T-NOCONSENT)', () async {
-    final relay = FakeNostrRelay();
-    final bullnym = FakeBullnymClient();
-    await wipeAppState(locator);
-    await _installBoundaries(relay, bullnym);
-    await locator<CreateDefaultWalletsUsecase>().execute(
-      mnemonicWords: getPaidFixtureMnemonicWords,
-    );
+  test(
+    'no consent acknowledgement means no relay publish (T-NOCONSENT)',
+    () async {
+      final relay = FakeNostrRelay();
+      final bullnym = FakeBullnymClient();
+      await wipeAppState(locator);
+      await _installBoundaries(relay, bullnym);
+      await locator<CreateDefaultWalletsUsecase>().execute(
+        mnemonicWords: getPaidFixtureMnemonicWords,
+      );
 
-    // Toggle defaults ON but the disclosure is NOT acknowledged.
-    await locator<CompleteBtcpaySamRockPairingUsecase>().execute(
-      pairingUrl: _pairingUrl,
-    );
+      // Toggle defaults ON but the disclosure is NOT acknowledged.
+      await _completePairing();
 
-    expect(relay.capturedEventFrames, isEmpty);
-  });
+      expect(relay.capturedEventFrames, isEmpty);
+    },
+  );
 
   test('consent then creation publishes exactly one opaque NIP-33 event '
       '(WIRE-01)', () async {
@@ -125,9 +140,7 @@ Future<void> main({bool isInitialized = false}) async {
       automatedBackupEnabled: true,
     );
 
-    await locator<CompleteBtcpaySamRockPairingUsecase>().execute(
-      pairingUrl: _pairingUrl,
-    );
+    await _completePairing();
 
     // The manifest is a single replaceable event (not accumulated).
     expect(relay.capturedEventFrames, isNotEmpty);
@@ -164,17 +177,16 @@ Future<void> main({bool isInitialized = false}) async {
     await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
       automatedBackupEnabled: true,
     );
-    await locator<CompleteBtcpaySamRockPairingUsecase>().execute(
-      pairingUrl: _pairingUrl,
-    );
+    await _completePairing();
 
     final defaultWallet = (await locator<WalletRepository>().getWallets(
       onlyDefaults: true,
       onlyBitcoin: true,
     )).first;
-    final bytesBefore = (await locator<KeychainManifestFacade>()
-            .buildManifestFilePayload(defaultWallet.masterFingerprint))
-        .payload;
+    final bytesBefore =
+        (await locator<KeychainManifestFacade>().buildManifestFilePayload(
+          defaultWallet.masterFingerprint,
+        )).payload;
 
     // Wipe app state; the relay + bullnym fakes survive.
     await wipeAppState(locator);
@@ -203,9 +215,10 @@ Future<void> main({bool isInitialized = false}) async {
     )).first;
     expect(restoredDefault.masterFingerprint, defaultWallet.masterFingerprint);
 
-    final bytesAfter = (await locator<KeychainManifestFacade>()
-            .buildManifestFilePayload(restoredDefault.masterFingerprint))
-        .payload;
+    final bytesAfter =
+        (await locator<KeychainManifestFacade>().buildManifestFilePayload(
+          restoredDefault.masterFingerprint,
+        )).payload;
 
     // Semantic equality FIRST (readable diff on a real regression): entry ids,
     // BIP85 derivation paths, child-seed fingerprints, networks, script types,

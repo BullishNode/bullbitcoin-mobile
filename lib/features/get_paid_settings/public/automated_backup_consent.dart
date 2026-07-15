@@ -31,7 +31,11 @@ Future<bool> ensureAutomatedBackupConsent(BuildContext context) async {
     );
     return true;
   } catch (e, stack) {
-    log.warning('AUTOBACKUP: consent persistence failed', error: e, trace: stack);
+    log.warning(
+      'AUTOBACKUP: consent persistence failed',
+      error: e,
+      trace: stack,
+    );
     return false;
   }
 }

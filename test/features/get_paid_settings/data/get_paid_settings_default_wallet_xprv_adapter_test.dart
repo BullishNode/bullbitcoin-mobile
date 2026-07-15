@@ -52,8 +52,7 @@ void main() {
     ).thenAnswer((_) async => [wallet]);
 
     when(() => seedRepository.get(fingerprint)).thenAnswer(
-      (_) async =>
-          Seed.bytes(bytes: seedBytes, masterFingerprint: fingerprint),
+      (_) async => Seed.bytes(bytes: seedBytes, masterFingerprint: fingerprint),
     );
   });
 

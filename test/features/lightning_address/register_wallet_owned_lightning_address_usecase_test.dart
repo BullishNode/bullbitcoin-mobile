@@ -243,54 +243,62 @@ void main() {
       expect(result.walletCreated, false);
     });
 
-    test('publishes the backup snapshot once after a successful activation',
-        () async {
-      await usecase.execute(nym: 'alice');
+    test(
+      'publishes the backup snapshot once after a successful activation',
+      () async {
+        await usecase.execute(nym: 'alice');
 
-      expect(getPaidSettings.publishCalls, 1);
-    });
+        expect(getPaidSettings.publishCalls, 1);
+      },
+    );
 
-    test('does not publish when publishBackupSnapshot is false (heal path)',
-        () async {
-      // The recovery-path DG-3 auto-heal re-registers a lapsed address with
-      // publishBackupSnapshot: false, so it never republishes — otherwise it
-      // would clobber a newer unreadable manifest on the relays (T-NOCLOBBER).
-      await usecase.execute(nym: 'alice', publishBackupSnapshot: false);
+    test(
+      'does not publish when publishBackupSnapshot is false (heal path)',
+      () async {
+        // The recovery-path DG-3 auto-heal re-registers a lapsed address with
+        // publishBackupSnapshot: false, so it never republishes — otherwise it
+        // would clobber a newer unreadable manifest on the relays (T-NOCLOBBER).
+        await usecase.execute(nym: 'alice', publishBackupSnapshot: false);
 
-      expect(getPaidSettings.publishCalls, 0);
-    });
+        expect(getPaidSettings.publishCalls, 0);
+      },
+    );
 
-    test('publishes when registration fails after the wallet is prepared',
-        () async {
-      register.error = const LightningAddressTimeoutException(
-        code: 'Timeout',
-        retryable: true,
-      );
+    test(
+      'publishes when registration fails after the wallet is prepared',
+      () async {
+        register.error = const LightningAddressTimeoutException(
+          code: 'Timeout',
+          retryable: true,
+        );
 
-      await expectLater(
-        usecase.execute(nym: 'alice'),
-        throwsA(isA<WalletOwnedLightningAddressRegistrationException>()),
-      );
+        await expectLater(
+          usecase.execute(nym: 'alice'),
+          throwsA(isA<WalletOwnedLightningAddressRegistrationException>()),
+        );
 
-      // The record is durable once prepare returns, so the backup publishes
-      // even though the server registration failed.
-      expect(getPaidSettings.publishCalls, 1);
-    });
+        // The record is durable once prepare returns, so the backup publishes
+        // even though the server registration failed.
+        expect(getPaidSettings.publishCalls, 1);
+      },
+    );
 
-    test('does not publish when wallet preparation fails before the record',
-        () async {
-      prepareWallet.error = LightningAddressException.localPreparationFailed(
-        code: 'ManifestFailed',
-        retryable: true,
-      );
+    test(
+      'does not publish when wallet preparation fails before the record',
+      () async {
+        prepareWallet.error = LightningAddressException.localPreparationFailed(
+          code: 'ManifestFailed',
+          retryable: true,
+        );
 
-      await expectLater(
-        usecase.execute(nym: 'alice'),
-        throwsA(isA<WalletOwnedLightningAddressRegistrationException>()),
-      );
+        await expectLater(
+          usecase.execute(nym: 'alice'),
+          throwsA(isA<WalletOwnedLightningAddressRegistrationException>()),
+        );
 
-      expect(getPaidSettings.publishCalls, 0);
-    });
+        expect(getPaidSettings.publishCalls, 0);
+      },
+    );
   });
 
   group('LookupWalletOwnedLightningAddressRegistrationUsecase', () {
