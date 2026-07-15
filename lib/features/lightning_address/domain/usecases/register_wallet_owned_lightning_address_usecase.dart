@@ -25,7 +25,7 @@ class RegisterWalletOwnedLightningAddressUsecase {
     required String nym,
     bool publishBackupSnapshot = true,
   }) async {
-    validateLightningAddressNym(nym);
+    final normalizedNym = validateLightningAddressNym(nym);
 
     var walletPrepared = false;
     try {
@@ -40,7 +40,7 @@ class RegisterWalletOwnedLightningAddressUsecase {
       try {
         registration = await _register.execute(
           xprvBase58: xprvBase58,
-          nym: nym,
+          nym: normalizedNym,
           ctDescriptor: preparedWallet.ctDescriptor,
         );
       } on LightningAddressException catch (e) {

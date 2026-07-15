@@ -3,11 +3,13 @@ enum LightningAddressRegistrationLiveness {
   /// Lookup returned active:true — nothing to do, nothing to render.
   live,
 
-  /// Was inactive with a known nym; a silent re-register succeeded.
+  /// A legacy registration was inactive with a known nym and a silent
+  /// re-register succeeded. Permanent-name registrations never use this state.
   reregistered,
 
-  /// Genuinely missing (NymNotFound) or a re-register was rejected (e.g.
-  /// NymTaken) — the UI offers a re-activation affordance.
+  /// Genuinely missing, an intentional permanent-name offline state, or a
+  /// legacy re-register rejection — the UI offers a product reactivation
+  /// affordance without offering a different name.
   needsReactivation,
 
   /// Network/timeout/5xx — liveness is UNKNOWN; degrade loudly, never heal
