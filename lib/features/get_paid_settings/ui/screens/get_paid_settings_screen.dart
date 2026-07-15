@@ -28,7 +28,9 @@ class GetPaidSettingsScreen extends StatelessWidget {
                       ? null
                       : () => context
                             .read<GetPaidSettingsCubit>()
-                            .toggleAutomatedBackup(!state.automatedBackupEnabled);
+                            .toggleAutomatedBackup(
+                              !state.automatedBackupEnabled,
+                            );
                   return SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
@@ -56,7 +58,9 @@ class GetPaidSettingsScreen extends StatelessWidget {
                             description:
                                 context.loc.getPaidAutomatedBackupOffWarning,
                             tagColor: context.bull.warning,
-                            bgColor: context.bull.warning.withValues(alpha: 0.14),
+                            bgColor: context.bull.warning.withValues(
+                              alpha: 0.14,
+                            ),
                           ),
                         ],
                         const Gap(8),
