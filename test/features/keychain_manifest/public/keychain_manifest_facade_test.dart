@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/record_keychain_manifest_entry_usecase.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_entry.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,6 +20,7 @@ void main() {
         repository: store,
         bip85Registry: const Bip85RegistryFacade(),
       ),
+      buildManifestFile: BuildKeychainManifestFileUsecase(repository: store),
     );
   });
 
@@ -103,7 +107,160 @@ void main() {
       'lbtc-wallet',
     ]);
   });
+
+  test('builds manifest file payloads from recorded local inventory', () async {
+    await facade.recordReservedDerivation(
+      KeychainManifestReservedDerivationRequest(
+        reservationId: 'btcpay_wallet_seed',
+        derivationPath: "39'/0'/12'/100'",
+        parentFingerprint: ' FEDCBA98 ',
+        materializations: [
+          _walletMaterialization(),
+          _walletMaterialization(
+            walletId: 'lbtc-wallet',
+            network: Network.liquidMainnet,
+          ),
+        ],
+      ),
+      now: DateTime.fromMillisecondsSinceEpoch(10000, isUtc: true),
+    );
+
+    final payload = await facade.buildManifestFilePayload(
+      'fedcba98',
+      now: DateTime.fromMillisecondsSinceEpoch(20000, isUtc: true),
+    );
+
+    expect(payload.payload, _manifestPayload);
+    expect(payload.entryCount, 1);
+    expect(payload.materializationCount, 2);
+    expect(payload.generatedAt, 20);
+    expect(payload.inventoryUpdatedAt, 10);
+    expect(payload.isEmpty, isFalse);
+  });
+
+  test(
+    'requires an explicit caller decision before exporting empty inventory',
+    () async {
+      await expectLater(
+        facade.buildManifestFilePayload('fedcba98'),
+        throwsA(
+          isA<KeychainManifestException>().having(
+            (error) => error.type,
+            'type',
+            KeychainManifestExceptionType.emptyInventory,
+          ),
+        ),
+      );
+
+      final payload = await facade.buildManifestFilePayload(
+        'fedcba98',
+        allowEmpty: true,
+        now: DateTime.fromMillisecondsSinceEpoch(20000, isUtc: true),
+      );
+
+      expect(payload.payload, contains('"inventoryUpdatedAt":0'));
+      expect(payload.payload, contains('"entryCount":0'));
+      expect(payload.payload, contains('"materializationCount":0'));
+      expect(payload.payload, contains('"entries":[]'));
+      expect(payload.entryCount, 0);
+      expect(payload.materializationCount, 0);
+      expect(payload.generatedAt, 20);
+      expect(payload.inventoryUpdatedAt, 0);
+      expect(payload.isEmpty, isTrue);
+    },
+  );
+
+  // Decision [F] v1 format freeze (schema-lock leg). The byte-exact golden above
+  // freezes the serialized value; this freezes the SHAPE: the exact key set at
+  // each level. Adding, renaming, retyping, or removing a field flips this red
+  // with a message telling the author the frozen v1 contract requires a human
+  // decision (additive-only evolution). Companion decode/forward-compat checks
+  // land at pr05 where the decoder exists (R2-F1).
+  test('v1 manifest key sets are frozen at every level', () async {
+    await facade.recordReservedDerivation(
+      KeychainManifestReservedDerivationRequest(
+        reservationId: 'btcpay_wallet_seed',
+        derivationPath: "39'/0'/12'/100'",
+        parentFingerprint: 'fedcba98',
+        materializations: [_walletMaterialization()],
+      ),
+      now: DateTime.fromMillisecondsSinceEpoch(10000, isUtc: true),
+    );
+    final payload = await facade.buildManifestFilePayload(
+      'fedcba98',
+      now: DateTime.fromMillisecondsSinceEpoch(20000, isUtc: true),
+    );
+
+    final decoded = jsonDecode(payload.payload) as Map<String, Object?>;
+    expect(
+      decoded.keys.toSet(),
+      {
+        'version',
+        'parentFingerprint',
+        'generatedAt',
+        'inventoryUpdatedAt',
+        'entryCount',
+        'materializationCount',
+        'entries',
+      },
+      reason:
+          'Frozen v1 manifest file-level key set changed. Do not rename, remove, '
+          'or retype a field; add a new golden vector and update the frozen '
+          'contract deliberately (decision [F]).',
+    );
+
+    final entry = (decoded['entries']! as List).single as Map<String, Object?>;
+    expect(
+      entry.keys.toSet(),
+      {
+        'entryId',
+        'bip85DerivationPath',
+        'reservationId',
+        'entryType',
+        'ownerFeature',
+        'bip85Application',
+        'bip85Index',
+        'createdAt',
+        'updatedAt',
+        'materializations',
+      },
+      reason: 'Frozen v1 manifest entry-level key set changed (decision [F]).',
+    );
+
+    final materialization =
+        (entry['materializations']! as List).single as Map<String, Object?>;
+    expect(
+      materialization.keys.toSet(),
+      {
+        'type',
+        'walletId',
+        'childSeedFingerprint',
+        'network',
+        'scriptType',
+        'createdAt',
+        'updatedAt',
+      },
+      reason:
+          'Frozen v1 manifest materialization-level key set changed '
+          '(decision [F]).',
+    );
+  });
 }
+
+const _manifestPayload =
+    '{"version":1,"parentFingerprint":"fedcba98","generatedAt":20,'
+    '"inventoryUpdatedAt":10,"entryCount":1,"materializationCount":2,'
+    '"entries":[{"entryId":"fedcba98:39\'/0\'/12\'/100\'",'
+    '"bip85DerivationPath":"39\'/0\'/12\'/100\'",'
+    '"reservationId":"btcpay_wallet_seed","entryType":"walletSeed",'
+    '"ownerFeature":"btcpay","bip85Application":39,"bip85Index":100,'
+    '"createdAt":10,"updatedAt":10,"materializations":[{"type":"wallet",'
+    '"walletId":"btc-wallet","childSeedFingerprint":"0123abcd",'
+    '"network":"bitcoinMainnet","scriptType":"bip84",'
+    '"createdAt":10,"updatedAt":10},{"type":"wallet",'
+    '"walletId":"lbtc-wallet","childSeedFingerprint":"0123abcd",'
+    '"network":"liquidMainnet","scriptType":"bip84",'
+    '"createdAt":10,"updatedAt":10}]}]}';
 
 KeychainManifestWalletMaterializationRequest _walletMaterialization({
   String walletId = 'btc-wallet',
@@ -133,6 +290,16 @@ class _InMemoryKeychainManifestStore
           (record) => record!.walletId == walletId,
           orElse: () => null,
         );
+  }
+
+  @override
+  Future<List<KeychainManifestWalletMaterializationRecord>>
+  fetchWalletMaterializationRecordsByParentFingerprint(
+    String parentFingerprint,
+  ) async {
+    return records
+        .where((record) => record.entry.parentFingerprint == parentFingerprint)
+        .toList(growable: false);
   }
 
   @override
