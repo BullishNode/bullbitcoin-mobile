@@ -5,6 +5,7 @@ import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
+import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/automated_backup_consent.dart';
 import 'package:bb_mobile/features/pos/domain/pos_validation.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
@@ -92,7 +93,7 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
         ),
       ),
       PosStatus.needsNym => _needsNymView(context, state, cubit),
-      PosStatus.loadFailed => _loadFailedView(context, cubit),
+      PosStatus.loadFailed => _loadFailedView(context, state, cubit),
       PosStatus.archived => _archivedView(context, state, cubit),
       PosStatus.create || PosStatus.edit => _form(context, state, cubit),
     };
@@ -140,7 +141,7 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     );
   }
 
-  Widget _loadFailedView(BuildContext context, PosCubit cubit) {
+  Widget _loadFailedView(BuildContext context, PosState state, PosCubit cubit) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -158,6 +159,13 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           bgColor: context.appColors.secondary,
           textColor: context.appColors.onSecondary,
         ),
+        // The behavior controls only need the local wallet, so they stay
+        // reachable even while the server-backed POS load is failing.
+        if (state.walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: state.walletBehavior!,
+            saving: state.walletBehaviorSaving,
+          ),
       ],
     );
   }
@@ -181,6 +189,11 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           bgColor: context.appColors.primary,
           textColor: context.appColors.onPrimary,
         ),
+        if (state.walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: state.walletBehavior!,
+            saving: state.walletBehaviorSaving,
+          ),
       ],
     );
   }
@@ -251,6 +264,11 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
             textColor: context.appColors.onSecondary,
           ),
         ],
+        if (state.walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: state.walletBehavior!,
+            saving: state.walletBehaviorSaving,
+          ),
       ],
     );
   }
@@ -372,6 +390,51 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     // Guarded external launch only - the terminal URL is never webviewed
     // (DELTA 2 / §8.9).
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+/// Reserved-wallet behavior controls (auto-sweep + hide-on-home) for wallet 103.
+/// Mirrors BTCPay's `_BtcpayWalletBehaviorTile`; the safe defaults are applied
+/// at wallet creation, these rows only let the user review and change them.
+class _WalletBehaviorControls extends StatelessWidget {
+  final GetPaidWalletBehavior behavior;
+  final bool saving;
+
+  const _WalletBehaviorControls({required this.behavior, required this.saving});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<PosCubit>();
+    return Card(
+      margin: const EdgeInsets.only(top: 24),
+      child: Column(
+        children: [
+          ListTile(title: Text(context.loc.getPaidWalletSettingsSectionTitle)),
+          SwitchListTile(
+            value: behavior.autoSweepEnabled,
+            onChanged: saving
+                ? null
+                : (value) => cubit.updateWalletBehavior(
+                    walletId: behavior.walletId,
+                    autoSweepEnabled: value,
+                  ),
+            title: Text(context.loc.getPaidWalletAutoSweepLabel),
+            subtitle: Text(context.loc.getPaidWalletAutoSweepInfo),
+          ),
+          SwitchListTile(
+            value: behavior.hideOnHome,
+            onChanged: saving
+                ? null
+                : (value) => cubit.updateWalletBehavior(
+                    walletId: behavior.walletId,
+                    hideOnHome: value,
+                  ),
+            title: Text(context.loc.getPaidWalletHideOnHomeLabel),
+            subtitle: Text(context.loc.getPaidWalletHideOnHomeInfo),
+          ),
+        ],
+      ),
+    );
   }
 }
 
