@@ -4,13 +4,18 @@ import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.d
 import 'package:bb_mobile/features/keychain_manifest/data/drift_keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_manifest_nostr_encryption_repository.dart';
+import 'package:bb_mobile/features/keychain_manifest/data/websocket_keychain_manifest_nostr_relay_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_encryption_repository.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_relay_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_signed_keychain_manifest_nostr_event_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/publish_keychain_manifest_nostr_event_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
+import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:get_it/get_it.dart';
 
 class KeychainManifestLocator {
@@ -22,6 +27,9 @@ class KeychainManifestLocator {
     );
     locator.registerLazySingleton<KeychainManifestNostrEncryptionRepository>(
       () => const RecoverBullKeychainManifestNostrEncryptionRepository(),
+    );
+    locator.registerLazySingleton<KeychainManifestNostrRelayRepository>(
+      () => const WebSocketKeychainManifestNostrRelayRepository(),
     );
     locator.registerFactory<RecordKeychainManifestEntryUsecase>(
       () => RecordKeychainManifestEntryUsecase(
@@ -50,11 +58,27 @@ class KeychainManifestLocator {
             locator<KeychainManifestNostrEncryptionRepository>(),
       ),
     );
+    locator.registerFactory<BuildSignedKeychainManifestNostrEventUsecase>(
+      () => BuildSignedKeychainManifestNostrEventUsecase(
+        buildEncryptedContent:
+            locator<BuildKeychainManifestNostrEncryptedContentUsecase>(),
+        nostrIdentity: locator<NostrIdentityFacade>(),
+        clock: locator<Clock>(),
+      ),
+    );
+    locator.registerFactory<PublishKeychainManifestNostrEventUsecase>(
+      () => PublishKeychainManifestNostrEventUsecase(
+        buildSignedEvent:
+            locator<BuildSignedKeychainManifestNostrEventUsecase>(),
+        relayRepository: locator<KeychainManifestNostrRelayRepository>(),
+      ),
+    );
     locator.registerFactory<KeychainManifestFacade>(
       () => KeychainManifestFacade(
         recordEntry: locator<RecordKeychainManifestEntryUsecase>(),
         buildManifestFile: locator<BuildKeychainManifestFileUsecase>(),
         parseManifestFile: locator<ParseKeychainManifestFileUsecase>(),
+        publishNostrEvent: locator<PublishKeychainManifestNostrEventUsecase>(),
       ),
     );
   }
