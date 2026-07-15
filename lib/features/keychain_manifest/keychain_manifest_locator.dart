@@ -11,6 +11,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychai
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_signed_keychain_manifest_nostr_event_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/fetch_keychain_manifest_nostr_import_plan_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/publish_keychain_manifest_nostr_event_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
@@ -73,12 +74,23 @@ class KeychainManifestLocator {
         relayRepository: locator<KeychainManifestNostrRelayRepository>(),
       ),
     );
+    locator.registerFactory<FetchKeychainManifestNostrImportPlanUsecase>(
+      () => FetchKeychainManifestNostrImportPlanUsecase(
+        relayRepository: locator<KeychainManifestNostrRelayRepository>(),
+        encryptionRepository:
+            locator<KeychainManifestNostrEncryptionRepository>(),
+        parseManifestFile: locator<ParseKeychainManifestFileUsecase>(),
+        nostrIdentity: locator<NostrIdentityFacade>(),
+      ),
+    );
     locator.registerFactory<KeychainManifestFacade>(
       () => KeychainManifestFacade(
         recordEntry: locator<RecordKeychainManifestEntryUsecase>(),
         buildManifestFile: locator<BuildKeychainManifestFileUsecase>(),
         parseManifestFile: locator<ParseKeychainManifestFileUsecase>(),
         publishNostrEvent: locator<PublishKeychainManifestNostrEventUsecase>(),
+        fetchNostrImportPlan:
+            locator<FetchKeychainManifestNostrImportPlanUsecase>(),
       ),
     );
   }

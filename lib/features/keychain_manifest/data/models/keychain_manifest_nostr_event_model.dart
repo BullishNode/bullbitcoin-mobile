@@ -73,6 +73,28 @@ class KeychainManifestNostrSignedEventCodec {
     return _toNostrEvent(event).serialize();
   }
 
+  KeychainManifestNostrSignedEvent fromNostrEvent(nostr.Event event) {
+    // Recovery authenticity boundary (P21a): re-verify the event explicitly
+    // instead of trusting Event.deserialize's verify:true default, so a
+    // transport-side perf tweak (verify:false "for faster deserialization")
+    // can never silently disable authenticity. isValid() checks the NIP-01 id
+    // and the BIP340 signature under the author key.
+    if (!event.isValid()) {
+      throw KeychainManifestNostrEventException(
+        'Nostr manifest event failed authenticity verification',
+      );
+    }
+    return KeychainManifestNostrSignedEvent.fromRelay(
+      id: event.id,
+      authorPublicKeyHex: event.pubkey,
+      createdAt: event.createdAt,
+      kind: event.kind,
+      tags: event.tags,
+      encryptedContent: event.content,
+      signatureHex: event.sig,
+    );
+  }
+
   nostr.Event _toNostrEvent(KeychainManifestNostrSignedEvent event) {
     return nostr.Event(
       event.id,

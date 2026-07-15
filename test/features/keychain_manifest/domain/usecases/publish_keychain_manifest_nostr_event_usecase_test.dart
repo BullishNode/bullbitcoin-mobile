@@ -232,6 +232,17 @@ class _FakeKeychainManifestNostrRelayRepository
   bool acceptedByAnyRelay = true;
 
   @override
+  Future<KeychainManifestNostrFetchResult> fetchManifestEvents({
+    required String authorPublicKeyHex,
+    required List<KeychainManifestNostrRelayUrl> relayUrls,
+  }) async {
+    return KeychainManifestNostrFetchResult(
+      contactedAnyRelay: false,
+      events: [],
+    );
+  }
+
+  @override
   Future<bool> publish({
     required KeychainManifestNostrSignedEvent event,
     required List<KeychainManifestNostrRelayUrl> relayUrls,

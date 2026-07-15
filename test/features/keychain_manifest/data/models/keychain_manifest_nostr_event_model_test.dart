@@ -228,6 +228,35 @@ void main() {
     expect(() => signed.tags.single.add('x'), throwsUnsupportedError);
   });
 
+  test('accepts relay events with extra signed metadata tags', () {
+    const tags = [
+      ['d', keychainManifestNostrDTag],
+      ['client', 'bullbitcoin-mobile'],
+    ];
+    final eventId = keychainManifestNostrEventId(
+      authorPublicKeyHex:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      createdAt: 123,
+      kind: keychainManifestNostrEventKind,
+      tags: tags,
+      encryptedContent: _wellShapedCiphertext,
+    );
+
+    final signed = KeychainManifestNostrSignedEvent.fromRelay(
+      id: eventId,
+      authorPublicKeyHex:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      createdAt: 123,
+      kind: keychainManifestNostrEventKind,
+      tags: tags,
+      encryptedContent: _wellShapedCiphertext,
+      signatureHex: _signatureHex,
+    );
+
+    expect(signed.id, eventId);
+    expect(signed.tags, tags);
+  });
+
   test('rejects invalid signed event signatures', () {
     final draft = KeychainManifestNostrEventDraft(
       authorPublicKeyHex:

@@ -7,11 +7,13 @@ import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_m
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_relay.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_relay_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_nostr_encrypted_content_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_signed_keychain_manifest_nostr_event_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/fetch_keychain_manifest_nostr_import_plan_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/publish_keychain_manifest_nostr_event_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
@@ -39,6 +41,19 @@ void main() {
         bip85Registry: Bip85RegistryFacade(),
       ),
       publishNostrEvent: _unusedPublishUsecase(store),
+      fetchNostrImportPlan: _unusedFetchUsecase(store),
+    );
+  });
+
+  test('refuses to fetch without third-party relay consent (P21c)', () async {
+    await expectLater(
+      facade.fetchEncryptedNostrImportPlan(
+        parentFingerprint: 'fedcba98',
+        xprvBase58: 'xprv',
+        relayUrls: const ['wss://relay.example'],
+        acceptedThirdPartyRelayDisclosure: false,
+      ),
+      throwsA(isA<KeychainManifestConsentRequiredException>()),
     );
   });
 
@@ -412,6 +427,21 @@ PublishKeychainManifestNostrEventUsecase _unusedPublishUsecase(
   );
 }
 
+FetchKeychainManifestNostrImportPlanUsecase _unusedFetchUsecase(
+  _InMemoryKeychainManifestStore store,
+) {
+  return FetchKeychainManifestNostrImportPlanUsecase(
+    relayRepository: _FakeKeychainManifestNostrRelayRepository(),
+    encryptionRepository:
+        const RecoverBullKeychainManifestNostrEncryptionRepository(),
+    parseManifestFile: const ParseKeychainManifestFileUsecase(
+      codec: KeychainManifestFileCodec(),
+      bip85Registry: Bip85RegistryFacade(),
+    ),
+    nostrIdentity: _FakeNostrIdentityFacade(),
+  );
+}
+
 const _manifestPayload =
     '{"version":1,"parentFingerprint":"fedcba98","generatedAt":20,'
     '"inventoryUpdatedAt":10,"entryCount":1,"materializationCount":2,'
@@ -516,6 +546,17 @@ class _FakeNostrIdentityFacade implements NostrIdentityFacade {
 
 class _FakeKeychainManifestNostrRelayRepository
     implements KeychainManifestNostrRelayRepository {
+  @override
+  Future<KeychainManifestNostrFetchResult> fetchManifestEvents({
+    required String authorPublicKeyHex,
+    required List<KeychainManifestNostrRelayUrl> relayUrls,
+  }) async {
+    return KeychainManifestNostrFetchResult(
+      contactedAnyRelay: false,
+      events: [],
+    );
+  }
+
   @override
   Future<bool> publish({
     required KeychainManifestNostrSignedEvent event,
