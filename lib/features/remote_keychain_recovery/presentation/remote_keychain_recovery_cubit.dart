@@ -80,6 +80,12 @@ class RemoteKeychainRecoveryCubit extends Cubit<RemoteKeychainRecoveryState> {
               status: RemoteKeychainRecoveryStatus.noRecoverableManifest,
             ),
           );
+        case RemoteKeychainRecoveryCheckStatus.unsupportedNewerManifest:
+          emit(
+            const RemoteKeychainRecoveryState(
+              status: RemoteKeychainRecoveryStatus.unsupportedNewerManifest,
+            ),
+          );
       }
     } on RemoteKeychainRecoveryException catch (e) {
       if (!_isActive(operationId)) return;

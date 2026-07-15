@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_error.dart';
@@ -50,6 +52,19 @@ void main() {
 
     expect(checkRecovery.acceptedDisclosureValues, [true]);
     expect(cubit.state.status, RemoteKeychainRecoveryStatus.noManifestFound);
+    expect(restoreManifest.restoreCount, 0);
+  });
+
+  test('surfaces an unsupported newer manifest without restoring', () async {
+    checkRecovery.result =
+        const RemoteKeychainRecoveryCheckResult.unsupportedNewerManifest();
+
+    await cubit.acceptRelayDisclosure();
+
+    expect(
+      cubit.state.status,
+      RemoteKeychainRecoveryStatus.unsupportedNewerManifest,
+    );
     expect(restoreManifest.restoreCount, 0);
   });
 
@@ -181,11 +196,15 @@ final _importPlan = KeychainManifestImportPlan(
   entries: [],
 );
 
+final _ciphertext = KeychainManifestNostrCiphertext(
+  base64.encode(List<int>.filled(64, 0)),
+);
+
 final _manifestEvent = KeychainManifestNostrSignedEvent.fromDraft(
   draft: KeychainManifestNostrEventDraft(
     authorPublicKeyHex:
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    encryptedContent: 'encrypted',
+    encryptedContent: _ciphertext,
     createdAt: 20,
   ),
   signatureHex:
@@ -197,7 +216,7 @@ final _newerManifestEvent = KeychainManifestNostrSignedEvent.fromDraft(
   draft: KeychainManifestNostrEventDraft(
     authorPublicKeyHex:
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    encryptedContent: 'newer-encrypted',
+    encryptedContent: _ciphertext,
     createdAt: 30,
   ),
   signatureHex:

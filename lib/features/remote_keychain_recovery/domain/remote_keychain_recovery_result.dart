@@ -8,6 +8,7 @@ enum RemoteKeychainRecoveryCheckStatus {
   noManifestFound,
   relaysUnavailable,
   noRecoverableManifest,
+  unsupportedNewerManifest,
 }
 
 class RemoteKeychainRecoveryCheckResult {
@@ -56,6 +57,11 @@ class RemoteKeychainRecoveryCheckResult {
 
   const RemoteKeychainRecoveryCheckResult.noRecoverableManifest()
     : this._(status: RemoteKeychainRecoveryCheckStatus.noRecoverableManifest);
+
+  const RemoteKeychainRecoveryCheckResult.unsupportedNewerManifest()
+    : this._(
+        status: RemoteKeychainRecoveryCheckStatus.unsupportedNewerManifest,
+      );
 }
 
 class RemoteKeychainRecoveryRestoreSummary {

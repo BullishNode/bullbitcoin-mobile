@@ -11,6 +11,7 @@ enum RemoteKeychainRecoveryStatus {
   noManifestFound,
   relaysUnavailable,
   noRecoverableManifest,
+  unsupportedNewerManifest,
   defaultWalletUnavailable,
   failed,
 }

@@ -36,6 +36,7 @@ class CheckRemoteKeychainRecoveryUsecase {
         relayUrls: policy.defaultRelays
             .map((relay) => relay.url)
             .toList(growable: false),
+        acceptedThirdPartyRelayDisclosure: acceptedThirdPartyRelayDisclosure,
       );
     } on RemoteKeychainRecoveryException {
       rethrow;
@@ -60,6 +61,8 @@ class CheckRemoteKeychainRecoveryUsecase {
         const RemoteKeychainRecoveryCheckResult.relaysUnavailable(),
       KeychainManifestNostrImportStatus.noRecoverableManifest =>
         const RemoteKeychainRecoveryCheckResult.noRecoverableManifest(),
+      KeychainManifestNostrImportStatus.unsupportedNewerManifest =>
+        const RemoteKeychainRecoveryCheckResult.unsupportedNewerManifest(),
     };
   }
 }
