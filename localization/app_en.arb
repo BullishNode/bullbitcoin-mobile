@@ -4876,6 +4876,151 @@
   "@anErrorOccurred": {
     "description": "Generic error message"
   },
+  "getPaidSettingsGenericError": "Something went wrong. Please try again.",
+  "@getPaidSettingsGenericError": {
+    "description": "Generic Get Paid settings failure message"
+  },
+  "getPaidAutomatedBackupConsentTitle": "Automated backup",
+  "@getPaidAutomatedBackupConsentTitle": {
+    "description": "Title of the automated backup consent dialog"
+  },
+  "getPaidAutomatedBackupConsentBody": "An encrypted backup of your wallet metadata will be created and published anonymously on NOSTR so that when you recover your wallet, the BULL app will automatically recover your Get Paid wallet. Your private keys never leave the device. This is highly recommended and does not compromise your privacy or security.",
+  "@getPaidAutomatedBackupConsentBody": {
+    "description": "Locked consent body shown before the first Get Paid wallet creation"
+  },
+  "getPaidAutomatedBackupToggleLabel": "Automated backup",
+  "@getPaidAutomatedBackupToggleLabel": {
+    "description": "Label for the automated backup toggle"
+  },
+  "getPaidAutomatedBackupConsentContinue": "Continue",
+  "@getPaidAutomatedBackupConsentContinue": {
+    "description": "Continue action on the automated backup consent dialog"
+  },
+  "getPaidAutomatedBackupOffWarning": "You will need to manually re-enable the Get Paid feature you are activating now to recover funds you received with this feature.",
+  "@getPaidAutomatedBackupOffWarning": {
+    "description": "Locked warning shown while the automated backup toggle is off"
+  },
+  "getPaidSettingsScreenTitle": "Get Paid",
+  "@getPaidSettingsScreenTitle": {
+    "description": "AppBar title of the Get Paid settings screen"
+  },
+  "settingsGetPaidTitle": "Get Paid",
+  "@settingsGetPaidTitle": {
+    "description": "Get Paid row title in the main settings hub"
+  },
+  "getPaidRecoverRowTitle": "Recover Get Paid wallets",
+  "@getPaidRecoverRowTitle": {
+    "description": "Get Paid settings row that opens remote recovery"
+  },
+  "remoteKeychainRecoveryScreenTitle": "Recover Get Paid wallets",
+  "@remoteKeychainRecoveryScreenTitle": {
+    "description": "AppBar title of the Get Paid recovery screen"
+  },
+  "remoteKeychainRecoveryChecking": "Checking for a Get Paid backup…",
+  "@remoteKeychainRecoveryChecking": {
+    "description": "Progress copy while checking the relays for a backup"
+  },
+  "remoteKeychainRecoveryRestoring": "Restoring your Get Paid wallets…",
+  "@remoteKeychainRecoveryRestoring": {
+    "description": "Progress copy while restoring wallets"
+  },
+  "remoteKeychainRecoveryRestoredCount": "{count, plural, =1{Restored 1 Get Paid wallet.} other{Restored {count} Get Paid wallets.}}",
+  "@remoteKeychainRecoveryRestoredCount": {
+    "description": "Success copy with the number of restored wallets",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remoteKeychainRecoveryPartiallyRestored": "Restored {restored} Get Paid wallets; {failed} could not be restored.",
+  "@remoteKeychainRecoveryPartiallyRestored": {
+    "description": "Partial-restore copy with restored and failed counts",
+    "placeholders": {
+      "restored": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "remoteKeychainRecoveryNothingToRestore": "Your backup contains no Get Paid wallets to restore.",
+  "@remoteKeychainRecoveryNothingToRestore": {
+    "description": "Copy when the backup has no recoverable wallets"
+  },
+  "remoteKeychainRecoveryNoManifestFound": "No Get Paid backup was found on the relays.",
+  "@remoteKeychainRecoveryNoManifestFound": {
+    "description": "Copy when no backup is found on the relays"
+  },
+  "remoteKeychainRecoveryRelaysUnavailable": "The backup relays could not be reached. Check your connection and try again.",
+  "@remoteKeychainRecoveryRelaysUnavailable": {
+    "description": "Copy when the relays cannot be reached"
+  },
+  "remoteKeychainRecoveryUnsupportedNewerManifest": "This backup was created by a newer version of the app. Update the app to recover it.",
+  "@remoteKeychainRecoveryUnsupportedNewerManifest": {
+    "description": "KC-2 copy when the backup is a newer unsupported version"
+  },
+  "remoteKeychainRecoveryOlderWarningTitle": "Restore an older backup?",
+  "@remoteKeychainRecoveryOlderWarningTitle": {
+    "description": "Title of the older-backup restore warning"
+  },
+  "remoteKeychainRecoveryOlderWarningBody": "The most recent backup could not be used. You are about to restore an older backup; anything recorded after it will be missing.",
+  "@remoteKeychainRecoveryOlderWarningBody": {
+    "description": "Body of the older-backup restore warning (decision D)"
+  },
+  "remoteKeychainRecoveryRestoreOlderAction": "Restore older backup",
+  "@remoteKeychainRecoveryRestoreOlderAction": {
+    "description": "Action to restore the older backup"
+  },
+  "remoteKeychainRecoverySkipAction": "Skip",
+  "@remoteKeychainRecoverySkipAction": {
+    "description": "Action to skip recovery"
+  },
+  "remoteKeychainRecoverySkipped": "Get Paid recovery skipped. You can recover later from Get Paid settings.",
+  "@remoteKeychainRecoverySkipped": {
+    "description": "Terminal message shown when Get Paid recovery was skipped or declined"
+  },
+  "remoteKeychainRecoveryRetryAction": "Try again",
+  "@remoteKeychainRecoveryRetryAction": {
+    "description": "Action to retry recovery"
+  },
+  "remoteKeychainRecoveryDoneAction": "Done",
+  "@remoteKeychainRecoveryDoneAction": {
+    "description": "Action to finish recovery"
+  },
+  "remoteKeychainRecoveryRestoredFromOlderNote": "Restored from an older backup.",
+  "@remoteKeychainRecoveryRestoredFromOlderNote": {
+    "description": "Note appended when an older backup was restored"
+  },
+  "remoteKeychainRecoveryDefaultWalletUnavailable": "No wallet is available to recover a Get Paid backup for.",
+  "@remoteKeychainRecoveryDefaultWalletUnavailable": {
+    "description": "Copy when there is no default wallet to recover for"
+  },
+  "remoteKeychainRecoveryRestoreFailed": "Your Get Paid backup could not be restored. Please try again.",
+  "@remoteKeychainRecoveryRestoreFailed": {
+    "description": "Copy when a restore fails"
+  },
+  "remoteKeychainRecoveryCheckFailed": "Something went wrong while checking for a backup. Please try again.",
+  "@remoteKeychainRecoveryCheckFailed": {
+    "description": "Copy when the backup check fails"
+  },
+  "remoteKeychainRecoveryHealNeedsReactivation": "Your Lightning Address needs to be re-activated.",
+  "@remoteKeychainRecoveryHealNeedsReactivation": {
+    "description": "Copy when a recovered Lightning Address needs re-activation"
+  },
+  "remoteKeychainRecoveryHealNeedsReactivationAction": "Re-activate",
+  "@remoteKeychainRecoveryHealNeedsReactivationAction": {
+    "description": "Action to re-activate the Lightning Address"
+  },
+  "remoteKeychainRecoveryHealUnreachable": "Your Lightning Address could not be verified. Check it in Settings → Bitcoin → Lightning Address.",
+  "@remoteKeychainRecoveryHealUnreachable": {
+    "description": "Copy when the Lightning Address liveness could not be verified"
+  },
+  "remoteKeychainRecoveryDisclosureBlocked": "Reviewing the backup relay disclosure…",
+  "@remoteKeychainRecoveryDisclosureBlocked": {
+    "description": "State copy shown behind the relay disclosure dialog"
+  },
   "dcaSetRecurringBuyTitle": "Set Recurring Buy",
   "@dcaSetRecurringBuyTitle": {
     "description": "AppBar title for the main DCA setup screen"

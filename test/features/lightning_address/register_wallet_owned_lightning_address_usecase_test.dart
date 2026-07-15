@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.d
 import 'package:bb_mobile/features/bullnym/bullnym_locator.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/lightning_address/data/default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_default_wallet_xprv_port.dart';
@@ -33,16 +34,19 @@ void main() {
     late _FakeDefaultWalletXprvPort defaultWalletXprv;
     late _FakePrepareLightningAddressWalletUsecase prepareWallet;
     late _FakeRegisterLightningAddressUsecase register;
+    late _FakeGetPaidSettingsFacade getPaidSettings;
     late RegisterWalletOwnedLightningAddressUsecase usecase;
 
     setUp(() {
       defaultWalletXprv = _FakeDefaultWalletXprvPort();
       prepareWallet = _FakePrepareLightningAddressWalletUsecase();
       register = _FakeRegisterLightningAddressUsecase();
+      getPaidSettings = _FakeGetPaidSettingsFacade();
       usecase = RegisterWalletOwnedLightningAddressUsecase(
         defaultWalletXprv: defaultWalletXprv,
         prepareWallet: prepareWallet,
         register: register,
+        getPaidSettings: getPaidSettings,
       );
     });
 
@@ -238,6 +242,63 @@ void main() {
       expect(result.walletId, 'la-wallet');
       expect(result.walletCreated, false);
     });
+
+    test(
+      'publishes the backup snapshot once after a successful activation',
+      () async {
+        await usecase.execute(nym: 'alice');
+
+        expect(getPaidSettings.publishCalls, 1);
+      },
+    );
+
+    test(
+      'does not publish when publishBackupSnapshot is false (heal path)',
+      () async {
+        // The recovery-path DG-3 auto-heal re-registers a lapsed address with
+        // publishBackupSnapshot: false, so it never republishes — otherwise it
+        // would clobber a newer unreadable manifest on the relays (T-NOCLOBBER).
+        await usecase.execute(nym: 'alice', publishBackupSnapshot: false);
+
+        expect(getPaidSettings.publishCalls, 0);
+      },
+    );
+
+    test(
+      'publishes when registration fails after the wallet is prepared',
+      () async {
+        register.error = const LightningAddressTimeoutException(
+          code: 'Timeout',
+          retryable: true,
+        );
+
+        await expectLater(
+          usecase.execute(nym: 'alice'),
+          throwsA(isA<WalletOwnedLightningAddressRegistrationException>()),
+        );
+
+        // The record is durable once prepare returns, so the backup publishes
+        // even though the server registration failed.
+        expect(getPaidSettings.publishCalls, 1);
+      },
+    );
+
+    test(
+      'does not publish when wallet preparation fails before the record',
+      () async {
+        prepareWallet.error = LightningAddressException.localPreparationFailed(
+          code: 'ManifestFailed',
+          retryable: true,
+        );
+
+        await expectLater(
+          usecase.execute(nym: 'alice'),
+          throwsA(isA<WalletOwnedLightningAddressRegistrationException>()),
+        );
+
+        expect(getPaidSettings.publishCalls, 0);
+      },
+    );
   });
 
   group('LookupWalletOwnedLightningAddressRegistrationUsecase', () {
@@ -315,6 +376,9 @@ void main() {
           ),
       registerWalletOwned: ({required nym}) => walletOwned.execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
+      ensureRegistrationLive: () async => const LightningAddressHealOutcome(
+        liveness: LightningAddressRegistrationLiveness.live,
+      ),
     );
 
     final result = await facade.registerWalletOwned(nym: 'alice');
@@ -335,6 +399,9 @@ void main() {
       registerWalletOwned: ({required nym}) =>
           _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
+      ensureRegistrationLive: () async => const LightningAddressHealOutcome(
+        liveness: LightningAddressRegistrationLiveness.live,
+      ),
     );
 
     final result = await facade.lookupWalletOwnedRegistration();
@@ -399,6 +466,9 @@ void main() {
     );
     getIt.registerFactory<ApplyWalletBehaviorDefaultsUsecase>(
       () => _FakeApplyWalletBehaviorDefaultsUsecase(),
+    );
+    getIt.registerFactory<GetPaidSettingsFacade>(
+      () => _FakeGetPaidSettingsFacade(),
     );
 
     BullnymLocator.setup(getIt);
@@ -465,6 +535,28 @@ class _FakeRegisterLightningAddressUsecase
   }
 }
 
+class _FakeGetPaidSettingsFacade implements GetPaidSettingsFacade {
+  int publishCalls = 0;
+
+  @override
+  Future<void> publishBackupSnapshotIfEnabled() async {
+    publishCalls++;
+  }
+
+  @override
+  Future<GetPaidSettings> getSettings() =>
+      throw UnimplementedError('unused in these tests');
+
+  @override
+  Future<void> setAutomatedBackupEnabled(bool enabled) =>
+      throw UnimplementedError('unused in these tests');
+
+  @override
+  Future<void> acknowledgeBackupDisclosure({
+    required bool automatedBackupEnabled,
+  }) => throw UnimplementedError('unused in these tests');
+}
+
 class _FakeRegisterWalletOwnedLightningAddressUsecase
     implements RegisterWalletOwnedLightningAddressUsecase {
   final nyms = <String>[];
@@ -472,6 +564,7 @@ class _FakeRegisterWalletOwnedLightningAddressUsecase
   @override
   Future<WalletOwnedLightningAddressRegistration> execute({
     required String nym,
+    bool publishBackupSnapshot = true,
   }) async {
     nyms.add(nym);
     return WalletOwnedLightningAddressRegistration(

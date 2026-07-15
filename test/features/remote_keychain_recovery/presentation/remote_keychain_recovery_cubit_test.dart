@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
-import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
+import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_error.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/check_remote_keychain_recovery_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/heal_recovered_products_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/load_automated_backup_consent_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/publish_restored_keychain_backup_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/restore_remote_keychain_manifest_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_cubit.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_state.dart';
@@ -15,14 +20,23 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   late _FakeCheckUsecase checkRecovery;
   late _FakeRestoreUsecase restoreManifest;
+  late _FakeLoadConsent loadConsent;
+  late _FakeHeal heal;
+  late _FakePublishRestored publishRestored;
   late RemoteKeychainRecoveryCubit cubit;
 
   setUp(() {
     checkRecovery = _FakeCheckUsecase();
     restoreManifest = _FakeRestoreUsecase();
+    loadConsent = _FakeLoadConsent();
+    heal = _FakeHeal();
+    publishRestored = _FakePublishRestored();
     cubit = RemoteKeychainRecoveryCubit(
       checkRecovery: checkRecovery,
       restoreManifest: restoreManifest,
+      loadConsent: loadConsent,
+      healRecoveredProducts: heal,
+      publishRestoredBackup: publishRestored,
     );
   });
 
@@ -52,19 +66,6 @@ void main() {
 
     expect(checkRecovery.acceptedDisclosureValues, [true]);
     expect(cubit.state.status, RemoteKeychainRecoveryStatus.noManifestFound);
-    expect(restoreManifest.restoreCount, 0);
-  });
-
-  test('surfaces an unsupported newer manifest without restoring', () async {
-    checkRecovery.result =
-        const RemoteKeychainRecoveryCheckResult.unsupportedNewerManifest();
-
-    await cubit.acceptRelayDisclosure();
-
-    expect(
-      cubit.state.status,
-      RemoteKeychainRecoveryStatus.unsupportedNewerManifest,
-    );
     expect(restoreManifest.restoreCount, 0);
   });
 
@@ -156,10 +157,86 @@ void main() {
     expect(restoreManifest.restoreCount, 1);
   });
 
-  test('maps missing default wallet to unavailable state', () async {
-    checkRecovery.error = const RemoteKeychainRecoveryException(
-      RemoteKeychainRecoveryErrorKind.defaultWalletUnavailable,
+  test('maps a zero-outcome restore to nothingToRestore (P22a)', () async {
+    checkRecovery.result =
+        RemoteKeychainRecoveryCheckResult.latestManifestReady(
+          manifestResult: KeychainManifestNostrImportResult.latestRecoverable(
+            importPlan: _importPlan,
+            eventCreatedAt: _manifestEvent.createdAt,
+          ),
+        );
+    restoreManifest.summary = const RemoteKeychainRecoveryRestoreSummary(
+      restoredCount: 0,
+      failedCount: 0,
+      hasProductReactivationRequired: false,
     );
+
+    await cubit.acceptRelayDisclosure();
+
+    expect(cubit.state.status, RemoteKeychainRecoveryStatus.nothingToRestore);
+  });
+
+  test('maps unsupportedNewerManifest to a dedicated state (P22c)', () async {
+    checkRecovery.result =
+        const RemoteKeychainRecoveryCheckResult.unsupportedNewerManifest();
+
+    await cubit.acceptRelayDisclosure();
+
+    expect(
+      cubit.state.status,
+      RemoteKeychainRecoveryStatus.unsupportedNewerManifest,
+    );
+    expect(restoreManifest.restoreCount, 0);
+  });
+
+  test('maps relaysUnavailable and noRecoverableManifest checks', () async {
+    checkRecovery.result =
+        const RemoteKeychainRecoveryCheckResult.relaysUnavailable();
+    await cubit.acceptRelayDisclosure();
+    expect(cubit.state.status, RemoteKeychainRecoveryStatus.relaysUnavailable);
+
+    checkRecovery.result =
+        const RemoteKeychainRecoveryCheckResult.noRecoverableManifest();
+    await cubit.acceptRelayDisclosure();
+    expect(
+      cubit.state.status,
+      RemoteKeychainRecoveryStatus.noRecoverableManifest,
+    );
+  });
+
+  test('carries staleness markers onto an older restore (P22d)', () async {
+    checkRecovery.result =
+        RemoteKeychainRecoveryCheckResult.olderManifestAvailable(
+          manifestResult:
+              KeychainManifestNostrImportResult.newestFailedOlderRecoverable(
+                importPlan: _importPlan,
+                selectedEventCreatedAt: 20,
+                newestEventCreatedAt: 30,
+              ),
+        );
+
+    await cubit.acceptRelayDisclosure();
+    await cubit.restoreOlderManifest();
+
+    expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
+    expect(cubit.state.isOlderRestore, isTrue);
+    expect(cubit.state.selectedEventCreatedAt, 20);
+    expect(cubit.state.newestEventCreatedAt, 30);
+  });
+
+  test('surfaces the typed failure without a raw error (P22b)', () async {
+    checkRecovery.error = DefaultWalletUnavailableRecoveryException();
+
+    await cubit.acceptRelayDisclosure();
+
+    expect(
+      cubit.state.failure,
+      isA<DefaultWalletUnavailableRecoveryException>(),
+    );
+  });
+
+  test('maps missing default wallet to unavailable state', () async {
+    checkRecovery.error = DefaultWalletUnavailableRecoveryException();
 
     await cubit.acceptRelayDisclosure();
 
@@ -189,22 +266,143 @@ void main() {
     expect(cubit.state.status, RemoteKeychainRecoveryStatus.skipped);
     expect(restoreManifest.restoreCount, 0);
   });
+
+  test(
+    'a persisted disclosure ack short-circuits the relay-disclosure gate',
+    () async {
+      loadConsent.acked = true;
+      checkRecovery.result =
+          RemoteKeychainRecoveryCheckResult.latestManifestReady(
+            manifestResult: KeychainManifestNostrImportResult.latestRecoverable(
+              importPlan: _importPlan,
+              eventCreatedAt: _manifestEvent.createdAt,
+            ),
+          );
+
+      // start() with no explicit accept, yet the persisted ack drives the fetch.
+      await cubit.start();
+
+      expect(loadConsent.calls, 1);
+      expect(checkRecovery.acceptedDisclosureValues, [true]);
+      expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
+    },
+  );
+
+  test(
+    'without a persisted ack the relay-disclosure gate is preserved',
+    () async {
+      loadConsent.acked = false;
+      checkRecovery.result =
+          const RemoteKeychainRecoveryCheckResult.requiresRelayDisclosure();
+
+      await cubit.start();
+
+      expect(checkRecovery.acceptedDisclosureValues, [false]);
+      expect(
+        cubit.state.status,
+        RemoteKeychainRecoveryStatus.requiresRelayDisclosure,
+      );
+    },
+  );
+
+  test(
+    'a latest restore heals with the summary ids and republishes once',
+    () async {
+      checkRecovery.result =
+          RemoteKeychainRecoveryCheckResult.latestManifestReady(
+            manifestResult: KeychainManifestNostrImportResult.latestRecoverable(
+              importPlan: _importPlan,
+              eventCreatedAt: _manifestEvent.createdAt,
+            ),
+          );
+      restoreManifest.summary = const RemoteKeychainRecoveryRestoreSummary(
+        restoredCount: 1,
+        failedCount: 0,
+        hasProductReactivationRequired: true,
+        reactivationReservationIds: {'lightning_address_wallet_seed'},
+      );
+      heal.outcome = const LightningAddressHealOutcome(
+        liveness: LightningAddressRegistrationLiveness.reregistered,
+      );
+
+      await cubit.acceptRelayDisclosure();
+
+      expect(heal.calls, 1);
+      expect(heal.receivedIds, {'lightning_address_wallet_seed'});
+      expect(
+        cubit.state.healOutcome?.liveness,
+        LightningAddressRegistrationLiveness.reregistered,
+      );
+      expect(publishRestored.calls, 1);
+      // Terminal state emitted regardless of the (decoupled) republish.
+      expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
+    },
+  );
+
+  test(
+    'an older-approved restore heals but never republishes (T-NOCLOBBER)',
+    () async {
+      checkRecovery.result =
+          RemoteKeychainRecoveryCheckResult.olderManifestAvailable(
+            manifestResult:
+                KeychainManifestNostrImportResult.newestFailedOlderRecoverable(
+                  importPlan: _importPlan,
+                  selectedEventCreatedAt: 20,
+                  newestEventCreatedAt: 30,
+                ),
+          );
+      restoreManifest.summary = const RemoteKeychainRecoveryRestoreSummary(
+        restoredCount: 1,
+        failedCount: 0,
+        hasProductReactivationRequired: false,
+      );
+
+      await cubit.acceptRelayDisclosure();
+      await cubit.restoreOlderManifest();
+
+      expect(cubit.state.status, RemoteKeychainRecoveryStatus.restored);
+      expect(cubit.state.isOlderRestore, isTrue);
+      // The newer (unreadable) relay event must not be clobbered by a republish.
+      expect(publishRestored.calls, 0);
+    },
+  );
+
+  test('nothingToRestore runs no heal and no republish', () async {
+    checkRecovery.result =
+        RemoteKeychainRecoveryCheckResult.latestManifestReady(
+          manifestResult: KeychainManifestNostrImportResult.latestRecoverable(
+            importPlan: _importPlan,
+            eventCreatedAt: _manifestEvent.createdAt,
+          ),
+        );
+    restoreManifest.summary = const RemoteKeychainRecoveryRestoreSummary(
+      restoredCount: 0,
+      failedCount: 0,
+      hasProductReactivationRequired: false,
+    );
+
+    await cubit.acceptRelayDisclosure();
+
+    expect(cubit.state.status, RemoteKeychainRecoveryStatus.nothingToRestore);
+    expect(heal.calls, 0);
+    expect(publishRestored.calls, 0);
+  });
 }
+
+final _wellShapedCiphertext = base64.encode(
+  Uint8List(KeychainManifestNostrCiphertext.minimumByteLength),
+);
 
 final _importPlan = KeychainManifestImportPlan(
   parentFingerprint: 'fedcba98',
   entries: [],
 );
 
-final _ciphertext = KeychainManifestNostrCiphertext(
-  base64.encode(List<int>.filled(64, 0)),
-);
-
 final _manifestEvent = KeychainManifestNostrSignedEvent.fromDraft(
   draft: KeychainManifestNostrEventDraft(
     authorPublicKeyHex:
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    encryptedContent: _ciphertext,
+    encryptedContent: KeychainManifestNostrCiphertext(_wellShapedCiphertext),
     createdAt: 20,
   ),
   signatureHex:
@@ -216,7 +414,7 @@ final _newerManifestEvent = KeychainManifestNostrSignedEvent.fromDraft(
   draft: KeychainManifestNostrEventDraft(
     authorPublicKeyHex:
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    encryptedContent: _ciphertext,
+    encryptedContent: KeychainManifestNostrCiphertext(_wellShapedCiphertext),
     createdAt: 30,
   ),
   signatureHex:
@@ -259,5 +457,40 @@ class _FakeRestoreUsecase implements RestoreRemoteKeychainManifestUsecase {
   ) async {
     restoreCount++;
     return summary;
+  }
+}
+
+class _FakeLoadConsent implements LoadAutomatedBackupConsentUsecase {
+  bool acked = false;
+  int calls = 0;
+
+  @override
+  Future<bool> execute() async {
+    calls++;
+    return acked;
+  }
+}
+
+class _FakeHeal implements HealRecoveredProductsUsecase {
+  Set<String>? receivedIds;
+  int calls = 0;
+  LightningAddressHealOutcome? outcome;
+
+  @override
+  Future<LightningAddressHealOutcome?> execute(
+    Set<String> reactivationReservationIds,
+  ) async {
+    calls++;
+    receivedIds = reactivationReservationIds;
+    return outcome;
+  }
+}
+
+class _FakePublishRestored implements PublishRestoredKeychainBackupUsecase {
+  int calls = 0;
+
+  @override
+  Future<void> execute() async {
+    calls++;
   }
 }

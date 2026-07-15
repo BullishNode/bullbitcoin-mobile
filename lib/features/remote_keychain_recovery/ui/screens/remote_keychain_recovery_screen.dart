@@ -1,0 +1,321 @@
+import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/automated_backup_consent.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_routes.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_cubit.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_state.dart';
+import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+class RemoteKeychainRecoveryScreen extends StatefulWidget {
+  const RemoteKeychainRecoveryScreen({super.key, required this.fromOnboarding});
+
+  final bool fromOnboarding;
+
+  @override
+  State<RemoteKeychainRecoveryScreen> createState() =>
+      _RemoteKeychainRecoveryScreenState();
+}
+
+class _RemoteKeychainRecoveryScreenState
+    extends State<RemoteKeychainRecoveryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<RemoteKeychainRecoveryCubit>().start();
+  }
+
+  Future<void> _handleDisclosure() async {
+    final cubit = context.read<RemoteKeychainRecoveryCubit>();
+    final accepted = await ensureAutomatedBackupConsent(context);
+    if (!mounted) return;
+    if (accepted) {
+      await cubit.acceptRelayDisclosure();
+    } else {
+      cubit.skip();
+    }
+  }
+
+  void _exit() {
+    if (widget.fromOnboarding) {
+      context.goNamed(WalletRoute.walletHome.name);
+    } else {
+      context.pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(context.loc.remoteKeychainRecoveryScreenTitle),
+      ),
+      body: SafeArea(
+        child:
+            BlocConsumer<
+              RemoteKeychainRecoveryCubit,
+              RemoteKeychainRecoveryState
+            >(
+              listenWhen: (previous, current) =>
+                  current.status ==
+                      RemoteKeychainRecoveryStatus.requiresRelayDisclosure &&
+                  previous.status !=
+                      RemoteKeychainRecoveryStatus.requiresRelayDisclosure,
+              listener: (context, state) => _handleDisclosure(),
+              builder: (context, state) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  child: _content(context, state),
+                );
+              },
+            ),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, RemoteKeychainRecoveryState state) {
+    final cubit = context.read<RemoteKeychainRecoveryCubit>();
+    // Exhaustive switch: a future status addition fails compilation, so no
+    // produced signal can go unsurfaced (PR11/PR14 lesson).
+    return switch (state.status) {
+      RemoteKeychainRecoveryStatus.idle ||
+      RemoteKeychainRecoveryStatus.checking => _progress(
+        context,
+        context.loc.remoteKeychainRecoveryChecking,
+      ),
+      RemoteKeychainRecoveryStatus.requiresRelayDisclosure => _progress(
+        context,
+        context.loc.remoteKeychainRecoveryDisclosureBlocked,
+      ),
+      RemoteKeychainRecoveryStatus.restoring => _progress(
+        context,
+        context.loc.remoteKeychainRecoveryRestoring,
+      ),
+      RemoteKeychainRecoveryStatus.olderManifestAvailable => _olderWarning(
+        context,
+        state,
+        cubit,
+      ),
+      RemoteKeychainRecoveryStatus.restored => _restored(context, state),
+      RemoteKeychainRecoveryStatus.partiallyRestored => _partiallyRestored(
+        context,
+        state,
+      ),
+      RemoteKeychainRecoveryStatus.nothingToRestore ||
+      RemoteKeychainRecoveryStatus.noRecoverableManifest => _message(
+        context,
+        context.loc.remoteKeychainRecoveryNothingToRestore,
+        actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
+        onAction: _exit,
+      ),
+      RemoteKeychainRecoveryStatus.noManifestFound => _message(
+        context,
+        context.loc.remoteKeychainRecoveryNoManifestFound,
+        actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
+        onAction: _exit,
+      ),
+      RemoteKeychainRecoveryStatus.relaysUnavailable => _message(
+        context,
+        context.loc.remoteKeychainRecoveryRelaysUnavailable,
+        actionLabel: context.loc.remoteKeychainRecoveryRetryAction,
+        onAction: cubit.start,
+      ),
+      RemoteKeychainRecoveryStatus.unsupportedNewerManifest => _message(
+        context,
+        context.loc.remoteKeychainRecoveryUnsupportedNewerManifest,
+        actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
+        onAction: _exit,
+      ),
+      RemoteKeychainRecoveryStatus.defaultWalletUnavailable => _message(
+        context,
+        state.failure?.toTranslated(context) ??
+            context.loc.remoteKeychainRecoveryDefaultWalletUnavailable,
+        actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
+        onAction: _exit,
+      ),
+      RemoteKeychainRecoveryStatus.restoreFailed => _message(
+        context,
+        state.failure?.toTranslated(context) ??
+            context.loc.remoteKeychainRecoveryRestoreFailed,
+        actionLabel: context.loc.remoteKeychainRecoveryRetryAction,
+        onAction: cubit.start,
+      ),
+      RemoteKeychainRecoveryStatus.failed => _message(
+        context,
+        state.failure?.toTranslated(context) ??
+            context.loc.remoteKeychainRecoveryCheckFailed,
+        actionLabel: context.loc.remoteKeychainRecoveryRetryAction,
+        onAction: cubit.start,
+      ),
+      RemoteKeychainRecoveryStatus.skipped => _message(
+        context,
+        context.loc.remoteKeychainRecoverySkipped,
+        actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
+        onAction: _exit,
+      ),
+    };
+  }
+
+  Widget _progress(BuildContext context, String message) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const CircularProgressIndicator(),
+        if (message.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(message, textAlign: TextAlign.center),
+        ],
+      ],
+    );
+  }
+
+  Widget _message(
+    BuildContext context,
+    String message, {
+    required String actionLabel,
+    required VoidCallback onAction,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(message, textAlign: TextAlign.center),
+        const SizedBox(height: 24),
+        FilledButton(onPressed: onAction, child: Text(actionLabel)),
+      ],
+    );
+  }
+
+  Widget _olderWarning(
+    BuildContext context,
+    RemoteKeychainRecoveryState state,
+    RemoteKeychainRecoveryCubit cubit,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          context.loc.remoteKeychainRecoveryOlderWarningTitle,
+          style: context.font.titleMedium,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          context.loc.remoteKeychainRecoveryOlderWarningBody,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        FilledButton(
+          onPressed: cubit.restoreOlderManifest,
+          child: Text(context.loc.remoteKeychainRecoveryRestoreOlderAction),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: cubit.skip,
+          child: Text(context.loc.remoteKeychainRecoverySkipAction),
+        ),
+      ],
+    );
+  }
+
+  Widget _restored(BuildContext context, RemoteKeychainRecoveryState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          context.loc.remoteKeychainRecoveryRestoredCount(state.restoredCount),
+          textAlign: TextAlign.center,
+        ),
+        if (state.isOlderRestore) ...[
+          const SizedBox(height: 8),
+          Text(
+            context.loc.remoteKeychainRecoveryRestoredFromOlderNote,
+            textAlign: TextAlign.center,
+          ),
+        ],
+        ..._healRows(context, state),
+        const SizedBox(height: 24),
+        FilledButton(
+          onPressed: _exit,
+          child: Text(context.loc.remoteKeychainRecoveryDoneAction),
+        ),
+      ],
+    );
+  }
+
+  Widget _partiallyRestored(
+    BuildContext context,
+    RemoteKeychainRecoveryState state,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          context.loc.remoteKeychainRecoveryPartiallyRestored(
+            state.restoredCount,
+            state.failedCount,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        ..._healRows(context, state),
+        const SizedBox(height: 24),
+        FilledButton(
+          onPressed: _exit,
+          child: Text(context.loc.remoteKeychainRecoveryDoneAction),
+        ),
+      ],
+    );
+  }
+
+  // DG-3 rendering: live/reregistered/null render NOTHING (no prompt, no
+  // affordance); needsReactivation offers a re-activate route; unreachable
+  // degrades loudly without an auto-prompt.
+  List<Widget> _healRows(
+    BuildContext context,
+    RemoteKeychainRecoveryState state,
+  ) {
+    final outcome = state.healOutcome;
+    if (outcome == null) return const [];
+    switch (outcome.liveness) {
+      case LightningAddressRegistrationLiveness.live:
+      case LightningAddressRegistrationLiveness.reregistered:
+        return const [];
+      case LightningAddressRegistrationLiveness.needsReactivation:
+        return [
+          const SizedBox(height: 16),
+          Text(
+            context.loc.remoteKeychainRecoveryHealNeedsReactivation,
+            style: TextStyle(color: context.appColors.error),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => context.goNamed(
+              LightningAddressRoute.lightningAddressSettings.name,
+            ),
+            child: Text(
+              context.loc.remoteKeychainRecoveryHealNeedsReactivationAction,
+            ),
+          ),
+        ];
+      case LightningAddressRegistrationLiveness.unreachable:
+        return [
+          const SizedBox(height: 16),
+          Text(
+            context.loc.remoteKeychainRecoveryHealUnreachable,
+            style: TextStyle(color: context.appColors.error),
+            textAlign: TextAlign.center,
+          ),
+        ];
+    }
+  }
+}

@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/automated_backup_consent.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_state.dart';
 import 'package:flutter/material.dart';
@@ -156,6 +157,8 @@ class _LightningAddressActivationScreenState
       },
     );
     if (!mounted || confirmed != true) return;
+    if (!await ensureAutomatedBackupConsent(context)) return;
+    if (!mounted) return;
     await context.read<LightningAddressActivationCubit>().submit();
   }
 

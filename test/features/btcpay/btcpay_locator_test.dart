@@ -16,6 +16,7 @@ import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_connection_
 import 'package:bb_mobile/features/btcpay/domain/usecases/preview_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_cubit.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -40,6 +41,9 @@ class _MockUpdateWalletBehaviorUsecase extends Mock
 class _MockKeychainManifestFacade extends Mock
     implements KeychainManifestFacade {}
 
+class _MockGetPaidSettingsFacade extends Mock
+    implements GetPaidSettingsFacade {}
+
 void main() {
   late GetIt locator;
 
@@ -63,6 +67,9 @@ void main() {
     );
     locator.registerSingleton<KeychainManifestFacade>(
       _MockKeychainManifestFacade(),
+    );
+    locator.registerSingleton<GetPaidSettingsFacade>(
+      _MockGetPaidSettingsFacade(),
     );
   });
 
@@ -94,12 +101,17 @@ void main() {
     );
     final wallets = source.indexOf('WalletLocator.setup(locator)');
     final keychain = source.indexOf('KeychainManifestLocator.setup(locator)');
+    final getPaidSettings = source.indexOf(
+      'GetPaidSettingsLocator.setup(locator)',
+    );
     final btcpay = source.indexOf('BtcpayLocator.setup(locator)');
 
     expect(registry, greaterThanOrEqualTo(0));
     expect(wallets, greaterThanOrEqualTo(0));
     expect(keychain, greaterThan(deterministic));
+    expect(getPaidSettings, greaterThan(keychain));
     expect(deterministic, greaterThan(registry));
+    expect(btcpay, greaterThan(getPaidSettings));
     expect(btcpay, greaterThan(keychain));
     expect(btcpay, greaterThan(deterministic));
     expect(btcpay, greaterThan(wallets));

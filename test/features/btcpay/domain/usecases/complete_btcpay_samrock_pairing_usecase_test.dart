@@ -13,6 +13,7 @@ import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_service_port.da
 import 'package:bb_mobile/features/btcpay/domain/samrock_setup_payload_builder.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -33,6 +34,9 @@ class _MockApplyWalletBehaviorDefaultsUsecase extends Mock
 
 class _MockKeychainManifestFacade extends Mock
     implements KeychainManifestFacade {}
+
+class _MockGetPaidSettingsFacade extends Mock
+    implements GetPaidSettingsFacade {}
 
 const _pairingUrl =
     'https://btcpay.example.com/plugins/store123/samrock/protocol?otp=123&setup=btc,lbtc,btcln';
@@ -116,6 +120,7 @@ void main() {
         payload: any(named: 'payload'),
       ),
     );
+    verifyNever(() => harness.getPaidSettings.publishBackupSnapshotIfEnabled());
   });
 
   test('maps deterministic-wallet failure before submission', () async {
@@ -133,6 +138,7 @@ void main() {
         payload: any(named: 'payload'),
       ),
     );
+    verifyNever(() => harness.getPaidSettings.publishBackupSnapshotIfEnabled());
   });
 
   test(
@@ -156,6 +162,9 @@ void main() {
           payload: any(named: 'payload'),
         ),
       );
+      verify(
+        () => harness.getPaidSettings.publishBackupSnapshotIfEnabled(),
+      ).called(1);
     },
   );
 
@@ -227,6 +236,7 @@ void main() {
         payload: any(named: 'payload'),
       ),
     );
+    verifyNever(() => harness.getPaidSettings.publishBackupSnapshotIfEnabled());
   });
 
   test('maps a manifest conflict separately before submission', () async {
@@ -248,6 +258,7 @@ void main() {
         payload: any(named: 'payload'),
       ),
     );
+    verifyNever(() => harness.getPaidSettings.publishBackupSnapshotIfEnabled());
   });
 
   test(
@@ -271,6 +282,9 @@ void main() {
       verifyNever(
         () => harness.deterministicWallets.rollbackCreatedWallets(prepared),
       );
+      verify(
+        () => harness.getPaidSettings.publishBackupSnapshotIfEnabled(),
+      ).called(2);
     },
   );
 
@@ -315,6 +329,9 @@ void main() {
             ).captured.single
             as BtcpayConnection;
     expect(saved.isPaired, isTrue);
+    verify(
+      () => harness.getPaidSettings.publishBackupSnapshotIfEnabled(),
+    ).called(1);
   });
 
   test('failed paired-state save downgrades to uncertain', () async {
@@ -374,6 +391,7 @@ class _Harness {
   final connectionRepository = _MockBtcpayConnectionRepository();
   final applyWalletBehaviorDefaults = _MockApplyWalletBehaviorDefaultsUsecase();
   final keychainManifest = _MockKeychainManifestFacade();
+  final getPaidSettings = _MockGetPaidSettingsFacade();
   late final CompleteBtcpaySamRockPairingUsecase usecase;
 
   _Harness(PreparedDeterministicWallets prepared) {
@@ -386,6 +404,7 @@ class _Harness {
       bip85Registry: const Bip85RegistryFacade(),
       applyWalletBehaviorDefaults: applyWalletBehaviorDefaults,
       keychainManifest: keychainManifest,
+      getPaidSettings: getPaidSettings,
     );
     when(() => getSettings.execute()).thenAnswer((_) async => _settings);
     when(
@@ -396,6 +415,9 @@ class _Harness {
     ).thenAnswer((_) async => const Ok(null));
     when(
       () => keychainManifest.recordReservedDerivation(any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => getPaidSettings.publishBackupSnapshotIfEnabled(),
     ).thenAnswer((_) async {});
     when(
       () => pairingService.submitSetup(

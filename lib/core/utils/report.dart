@@ -279,6 +279,7 @@ class Report {
     13: 'v6.12.0+',
     14: 'v6.12.0+',
     15: 'v6.12.0+',
+    16: 'v6.12.0+',
   };
 
   static String _versionFromSchema(int schema) =>
