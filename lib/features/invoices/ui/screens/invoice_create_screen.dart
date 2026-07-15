@@ -212,8 +212,8 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         Slider(
           value: state.expiryDays.toDouble(),
           min: 1,
-          max: 7,
-          divisions: 6,
+          max: 30,
+          divisions: 29,
           label: '${state.expiryDays}',
           onChanged: state.submitting
               ? null
