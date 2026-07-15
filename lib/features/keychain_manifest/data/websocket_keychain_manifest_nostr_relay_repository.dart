@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:bb_mobile/features/keychain_manifest/data/datasources/keychain_manifest_nostr_relay_datasource.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_event_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
@@ -32,7 +30,7 @@ class WebSocketKeychainManifestNostrRelayRepository
     required List<KeychainManifestNostrRelayUrl> relayUrls,
   }) async {
     final uniqueRelayUrls = relayUrls.toSet().toList(growable: false);
-    final eventMessage = jsonEncode(['EVENT', _eventCodec.encode(event)]);
+    final eventMessage = _eventCodec.serialize(event);
     final outcomes = await Future.wait(
       uniqueRelayUrls.map((relayUrl) async {
         try {

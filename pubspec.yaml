@@ -131,6 +131,10 @@ dependencies:
       url: https://github.com/bukata-sa/bc-ur-dart.git
       ref: 5738f70d0ec3d50977ac3dd01fed62939600238b
   bitcoin_base: ^7.0.0
+  nostr:
+    git:
+      url: https://github.com/ethicnology/dart-nostr
+      ref: 7e52fce1bccc85707590d45095892a4ba819f600
   socks5_proxy: ^2.1.1
   tor:
     git:

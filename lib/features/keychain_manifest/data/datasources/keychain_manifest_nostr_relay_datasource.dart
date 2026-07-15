@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import 'package:nostr/nostr.dart' as nostr;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 typedef KeychainManifestNostrRelayConnector =
@@ -32,24 +31,21 @@ class KeychainManifestNostrRelayDatasource {
   }
 
   bool _isOkForEvent(Object? message, String eventId) {
-    final decoded = _decodeMessage(message);
-    return decoded != null &&
-        decoded.length >= 4 &&
-        decoded[0] == 'OK' &&
-        decoded[1] == eventId &&
-        decoded[2] is bool;
+    final result = _commandResult(message);
+    return result != null && result.eventId == eventId;
   }
 
   bool _isAcceptedOk(Object? message) {
-    final decoded = _decodeMessage(message);
-    return decoded != null && decoded.length >= 3 && decoded[2] == true;
+    return _commandResult(message)?.status == true;
   }
 
-  List<Object?>? _decodeMessage(Object? message) {
+  nostr.Nip20? _commandResult(Object? message) {
     if (message is! String) return null;
     try {
-      final decoded = jsonDecode(message);
-      if (decoded is List) return decoded.cast<Object?>();
+      final decoded = nostr.Message.deserialize(message);
+      if (decoded.messageType != nostr.MessageType.ok) return null;
+      final result = decoded.message;
+      if (result is nostr.Nip20) return result;
       return null;
     } catch (_) {
       return null;
