@@ -103,52 +103,55 @@ Future<void> main({bool isInitialized = false}) async {
     expect(bullnym.totalDonationWriteCalls, writesAfterCreate);
   });
 
-  test('coexistence: a Donation Page (102) and a POS (103) under one nym are '
-      'independent - provisioning/healing one never touches the other',
-      () async {
-    final relay = FakeNostrRelay();
-    final bullnym = FakeBullnymClient();
-    await wipeAppState(locator);
-    await overrideBoundariesForTest(locator, relay: relay, bullnym: bullnym);
-    await overrideClockForTest(locator);
-    await locator<CreateDefaultWalletsUsecase>().execute(
-      mnemonicWords: getPaidFixtureMnemonicWords,
-    );
-    await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
-      automatedBackupEnabled: true,
-    );
+  test(
+    'coexistence: a Donation Page (102) and a POS (103) under one nym are '
+    'independent - provisioning/healing one never touches the other',
+    () async {
+      final relay = FakeNostrRelay();
+      final bullnym = FakeBullnymClient();
+      await wipeAppState(locator);
+      await overrideBoundariesForTest(locator, relay: relay, bullnym: bullnym);
+      await overrideClockForTest(locator);
+      await locator<CreateDefaultWalletsUsecase>().execute(
+        mnemonicWords: getPaidFixtureMnemonicWords,
+      );
+      await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
+        automatedBackupEnabled: true,
+      );
 
-    await locator<LightningAddressFacade>().registerWalletOwned(nym: _nym);
+      await locator<LightningAddressFacade>().registerWalletOwned(nym: _nym);
 
-    // Create the page (102) first, then provision the POS (103).
-    final page = await locator<PaymentPageFacade>().save(
-      const SavePaymentPageCommand(
-        header: 'Tip me',
-        description: 'Support my work',
-        displayCurrency: 'CAD',
-      ),
-    );
-    expect(page.isActive, isTrue);
+      // Create the page (102) first, then provision the POS (103).
+      final page = await locator<PaymentPageFacade>().save(
+        const SavePaymentPageCommand(
+          header: 'Tip me',
+          description: 'Support my work',
+          displayCurrency: 'CAD',
+        ),
+      );
+      expect(page.isActive, isTrue);
 
-    await locator<PosFacade>().provision(
-      const PosProvisionCommand(label: 'My Till', displayCurrency: 'CAD'),
-    );
+      await locator<PosFacade>().provision(
+        const PosProvisionCommand(label: 'My Till', displayCurrency: 'CAD'),
+      );
 
-    // Both rows coexist and are independently readable.
-    final foundPage = await locator<PaymentPageFacade>().find(nym: _nym);
-    final foundPos = await locator<PosFacade>().find(nym: _nym);
-    expect(foundPage, isNotNull);
-    expect(foundPos, isNotNull);
-    expect(foundPage!.header, 'Tip me');
-    expect(foundPos!.label, 'My Till');
-    expect(foundPage.isActive, isTrue);
-    expect(foundPos.isActive, isTrue);
+      // Both rows coexist and are independently readable.
+      final foundPage = await locator<PaymentPageFacade>().find(nym: _nym);
+      final foundPos = await locator<PosFacade>().find(nym: _nym);
+      expect(foundPage, isNotNull);
+      expect(foundPos, isNotNull);
+      expect(foundPage!.header, 'Tip me');
+      expect(foundPos!.label, 'My Till');
+      expect(foundPage.isActive, isTrue);
+      expect(foundPos.isActive, isTrue);
 
-    // Archiving the POS leaves the page live and untouched (and vice-versa).
-    await locator<PosFacade>().archive();
-    final pageAfterPosArchive =
-        await locator<PaymentPageFacade>().find(nym: _nym);
-    expect(pageAfterPosArchive, isNotNull);
-    expect(pageAfterPosArchive!.isActive, isTrue);
-  });
+      // Archiving the POS leaves the page live and untouched (and vice-versa).
+      await locator<PosFacade>().archive();
+      final pageAfterPosArchive = await locator<PaymentPageFacade>().find(
+        nym: _nym,
+      );
+      expect(pageAfterPosArchive, isNotNull);
+      expect(pageAfterPosArchive!.isActive, isTrue);
+    },
+  );
 }
