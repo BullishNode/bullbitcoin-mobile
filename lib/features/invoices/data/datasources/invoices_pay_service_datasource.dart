@@ -6,6 +6,7 @@ import 'package:bb_mobile/features/invoices/application/ports/invoices_pay_servi
 import 'package:bb_mobile/features/invoices/application/results/invoice_results.dart';
 import 'package:bb_mobile/features/invoices/domain/bullnym_failure_mapping.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_status_snapshot.dart';
 import 'package:bb_mobile/features/invoices/domain/invoices_failure.dart';
 import 'package:bb_mobile/features/invoices/domain/primitives/invoice_status.dart';
@@ -138,6 +139,35 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
   }
 
   @override
+  Future<Result<InvoiceFallbackOverview, InvoicesFailure>>
+  listFallbackSupervision({required BullnymAuthSigner signer}) async {
+    try {
+      final result = await _bullnym.listFallbackSupervision(signer: signer);
+      switch (result) {
+        case Ok(:final value):
+          return Ok(
+            InvoiceFallbackOverview(
+              items: value.items.map(_toFallbackSupervision).toList(),
+              hasMore: value.hasMore,
+            ),
+          );
+        case Err(:final failure):
+          // Servers predating the read-only projection return 404/405. The
+          // contract requires a fail-closed empty view, never inference from
+          // the anonymous invoice-status endpoint.
+          if (failure.statusCode == 404 || failure.statusCode == 405) {
+            return const Ok(InvoiceFallbackOverview(items: [], hasMore: false));
+          }
+          return Err(mapBullnymFailureToInvoices(failure));
+      }
+    } on ArgumentError {
+      return const Err(InvoicesFailure.invalidServerResponse());
+    } on Exception catch (error, stack) {
+      return _unexpectedFailure('fallback supervision', error, stack);
+    }
+  }
+
+  @override
   Future<Result<InvoiceStatusSnapshot, InvoicesFailure>> getInvoiceStatus(
     InvoiceId invoiceId,
   ) async {
@@ -210,6 +240,23 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       paidVia: PaymentMethod.fromWire(item.paidVia),
       paidAt: item.paidAtUnix == null ? null : _fromUnix(item.paidAtUnix!),
       paidAmountSat: item.paidAmountSat,
+    );
+  }
+
+  InvoiceFallbackSupervision _toFallbackSupervision(
+    BullnymFallbackSupervisionItem item,
+  ) {
+    return InvoiceFallbackSupervision(
+      invoiceId: _invoiceId(item.invoiceId),
+      nym: item.nym,
+      state: invoiceFallbackStateFromWire(item.recoveryStatus),
+      payerAmountSat: item.userLockAmountSat,
+      invoiceSwapAmountSat: item.serverLockAmountSat,
+      lockupAddress: item.lockupAddress,
+      fallbackAddress: item.refundAddress,
+      transactionId: item.refundTxid,
+      createdAt: _fromUnix(item.swapCreatedAtUnix),
+      updatedAt: _fromUnix(item.swapUpdatedAtUnix),
     );
   }
 

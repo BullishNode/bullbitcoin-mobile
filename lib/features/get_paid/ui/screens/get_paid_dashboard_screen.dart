@@ -146,10 +146,12 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
         subtitle: loc.getPaidDashboardInvoicesSubtitle,
         // Active green once the user's default wallet is created (invoices pay
         // out from the default wallet).
-        statusLabel: state.invoicesWalletReady
+        statusLabel: state.hasFallbackAttention
+            ? loc.getPaidDashboardFallbackPending(state.fallbackAttentionCount!)
+            : state.invoicesWalletReady
             ? loc.getPaidDashboardActive
             : null,
-        statusActive: state.invoicesWalletReady,
+        statusActive: state.invoicesWalletReady && !state.hasFallbackAttention,
         onTap: () => _open(InvoicesRoute.list.name),
       ),
       const Gap(12),

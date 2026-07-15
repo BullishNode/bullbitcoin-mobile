@@ -96,6 +96,12 @@ class InvoiceDetailScreen extends StatelessWidget {
           _expiry(context, snapshot),
           const Divider(),
           if (unsupported) _unsupportedStatus(context),
+          if (state.fallbackSupervisionFailure != null)
+            _notice(context, context.loc.invoiceFallbackUnavailable),
+          if (state.fallbackSupervisionOverflow)
+            _notice(context, context.loc.invoiceFallbackOverflow),
+          for (final fallback in state.fallbackSupervisions)
+            _fallbackBlock(context, fallback),
           if (!unsupported && snapshot.lightningPr != null)
             _copyBlock(
               context,
@@ -136,6 +142,80 @@ class InvoiceDetailScreen extends StatelessWidget {
         style: context.font.bodyMedium?.copyWith(
           color: context.appColors.textMuted,
         ),
+      ),
+    );
+  }
+
+  Widget _notice(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 18,
+            color: context.appColors.textMuted,
+          ),
+          const Gap(8),
+          Expanded(
+            child: Text(
+              text,
+              style: context.font.bodySmall?.copyWith(
+                color: context.appColors.textMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fallbackBlock(
+    BuildContext context,
+    InvoiceFallbackSupervision fallback,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.loc.invoiceFallbackSectionTitle,
+            style: context.font.titleMedium,
+          ),
+          const Gap(4),
+          Text(
+            invoiceFallbackStateText(context, fallback.state),
+            style: context.font.bodyMedium?.copyWith(
+              color: context.appColors.textMuted,
+            ),
+          ),
+          const Gap(8),
+          _row(
+            context,
+            context.loc.invoiceFallbackPayerAmountLabel,
+            context.loc.invoiceAmountSats(fallback.payerAmountSat),
+          ),
+          _row(
+            context,
+            context.loc.invoiceFallbackInvoiceAmountLabel,
+            context.loc.invoiceAmountSats(fallback.invoiceSwapAmountSat),
+          ),
+          if (fallback.fallbackAddress case final address?)
+            _copyBlock(
+              context,
+              context.loc.invoiceFallbackDestinationLabel,
+              address,
+            ),
+          if (fallback.transactionId case final transactionId?)
+            _copyBlock(
+              context,
+              context.loc.invoiceFallbackTransactionLabel,
+              transactionId,
+            ),
+          const Divider(),
+        ],
       ),
     );
   }
