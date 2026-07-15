@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
+import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -10,7 +11,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Assembles the Get Paid hub snapshot from the public facades only. It reads
 /// each product's current status to render a chip + subtitle; it never touches
-/// balances, protocol internals or money logic, and it never writes.
+/// balances, protocol internals or money logic. Once a wallet-owned nym exists,
+/// it also invokes the idempotent automatic-fallback setup use-case.
 ///
 /// The Donation Page and Point of Sale rows are keyed by the wallet nym, which
 /// is resolved from the Lightning Address registration — so those two are only
@@ -23,6 +25,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
   final PosFacade _pos;
   final BtcpayFacade _btcpay;
   final GetWalletsUsecase _getWallets;
+  final EnsureGetPaidAutomaticFallbackUsecase _ensureAutomaticFallback;
   int _refreshGeneration = 0;
 
   GetPaidDashboardCubit({
@@ -31,6 +34,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
     required this._pos,
     required this._btcpay,
     required this._getWallets,
+    required this._ensureAutomaticFallback,
   }) : super(const GetPaidDashboardState());
 
   Future<void> refresh() async {
@@ -70,6 +74,12 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
           : registration.lightningAddress;
 
       if (nym != null) {
+        if (_isStale(generation)) return;
+        final fallbackReady = await _ensureAutomaticFallback.execute();
+        if (!fallbackReady) {
+          refreshError = 'Something went wrong. Please try again.';
+        }
+
         if (_isStale(generation)) return;
         final page = await _paymentPage.find(nym: nym);
         paymentPage = page?.isArchived == true ? null : page;
