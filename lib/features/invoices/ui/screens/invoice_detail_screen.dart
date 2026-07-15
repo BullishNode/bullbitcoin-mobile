@@ -119,7 +119,12 @@ class InvoiceDetailScreen extends StatelessWidget {
           const Divider(),
           _expiry(context, snapshot),
           const Divider(),
-          if (unsupported) _unsupportedStatus(context),
+          if (unsupported)
+            _unsupportedStatus(context)
+          else if (snapshot.isFiatFixed) ...[
+            _quoteBlock(context, state, cubit, snapshot),
+            const Divider(),
+          ],
           if (state.fallbackSupervisionFailure != null)
             _notice(context, context.loc.invoiceFallbackUnavailable),
           if (state.fallbackSupervisionOverflow)
@@ -136,19 +141,25 @@ class InvoiceDetailScreen extends StatelessWidget {
             for (final fallback in state.fallbackSupervisions)
               _fallbackBlock(context, fallback),
           ],
-          if (!unsupported && snapshot.lightningPr != null)
+          if (!unsupported &&
+              !snapshot.isFiatFixed &&
+              snapshot.lightningPr != null)
             _copyBlock(
               context,
               context.loc.invoicePaymentLightningLabel,
               snapshot.lightningPr!,
             ),
-          if (!unsupported && snapshot.liquidAddress != null)
+          if (!unsupported &&
+              !snapshot.isFiatFixed &&
+              snapshot.liquidAddress != null)
             _copyBlock(
               context,
               context.loc.invoicePaymentLiquidLabel,
               snapshot.liquidAddress!,
             ),
-          if (!unsupported && snapshot.bitcoinAddress != null)
+          if (!unsupported &&
+              !snapshot.isFiatFixed &&
+              snapshot.bitcoinAddress != null)
             _copyBlock(
               context,
               context.loc.invoicePaymentBitcoinLabel,
@@ -202,6 +213,98 @@ class InvoiceDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _quoteBlock(
+    BuildContext context,
+    InvoiceDetailState state,
+    InvoiceDetailCubit cubit,
+    InvoiceStatusSnapshot snapshot,
+  ) {
+    final availability = snapshot.quoteRailAvailability;
+    final rails = [
+      for (final rail in [
+        PaymentMethod.lightning,
+        PaymentMethod.liquid,
+        PaymentMethod.btc,
+      ])
+        if (availability?.supports(rail) ?? false) rail,
+    ];
+    final quote = state.quote;
+    final usable = state.hasUsableQuote(DateTime.now().toUtc());
+    final selected = state.selectedQuoteRail ?? availability?.firstAvailable;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(context.loc.invoiceQuoteTitle, style: context.font.titleMedium),
+        const Gap(8),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final rail in rails)
+              ChoiceChip(
+                label: Text(_paymentRailTitle(context, rail)),
+                selected: selected == rail,
+                onSelected: state.quoteRefreshing
+                    ? null
+                    : (_) => cubit.selectQuoteRail(rail),
+              ),
+          ],
+        ),
+        if (rails.isEmpty)
+          _notice(context, context.loc.invoiceQuoteUnavailable),
+        if (state.quoteRefreshing)
+          _notice(context, context.loc.invoiceQuoteRefreshing),
+        if (state.quoteFailure != null)
+          _notice(context, context.loc.invoiceQuoteUnavailable),
+        if (quote != null && usable) ...[
+          const Gap(8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                context.loc.invoiceQuoteRefreshesIn,
+                style: context.font.bodyMedium?.copyWith(
+                  color: context.appColors.textMuted,
+                ),
+              ),
+              Countdown(until: quote.expiresAt, onTimeout: cubit.quoteExpired),
+            ],
+          ),
+          _row(
+            context,
+            context.loc.invoiceQuoteMerchantAmountLabel,
+            context.loc.invoiceAmountSats(
+              quote.instruction.amount.merchantTargetAmountSat,
+            ),
+          ),
+          _row(
+            context,
+            context.loc.invoiceQuotePayerAmountLabel,
+            context.loc.invoiceAmountSats(
+              quote.instruction.amount.payerAmountSat,
+            ),
+          ),
+          _row(
+            context,
+            context.loc.invoiceQuoteCheckoutCostLabel,
+            context.loc.invoiceAmountSats(
+              quote.instruction.amount.checkoutCostSat,
+            ),
+          ),
+          _copyBlock(
+            context,
+            _paymentRailTitle(context, quote.selectedRail),
+            quote.instruction.copyPayload,
+          ),
+        ] else if (!state.quoteRefreshing && selected != null)
+          TextButton.icon(
+            onPressed: () => cubit.refreshQuote(selected),
+            icon: const Icon(Icons.refresh),
+            label: Text(context.loc.invoiceQuoteRetry),
+          ),
+      ],
     );
   }
 

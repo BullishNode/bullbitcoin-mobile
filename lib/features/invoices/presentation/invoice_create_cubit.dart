@@ -85,7 +85,7 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
       emit(state.copyWith(acceptLiquid: value, clearFailure: true));
 
   void expiryDaysChanged(int days) =>
-      emit(state.copyWith(expiryDays: days.clamp(1, 7), clearFailure: true));
+      emit(state.copyWith(expiryDays: days.clamp(1, 30), clearFailure: true));
 
   void privateMemoChanged(String value) =>
       emit(state.copyWith(privateMemo: value, clearFailure: true));
