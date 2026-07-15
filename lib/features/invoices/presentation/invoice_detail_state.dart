@@ -16,6 +16,11 @@ class InvoiceDetailState {
   final bool fallbackSupervisionOverflow;
   final InvoicesFailure? fallbackSupervisionFailure;
 
+  final PaymentMethod? selectedQuoteRail;
+  final InvoiceQuote? quote;
+  final bool quoteRefreshing;
+  final InvoicesFailure? quoteFailure;
+
   final bool cancelling;
   final InvoiceStatus? cancelFinalStatus;
   final InvoicesFailure? cancelFailure;
@@ -28,6 +33,10 @@ class InvoiceDetailState {
     this.fallbackSupervisions = const [],
     this.fallbackSupervisionOverflow = false,
     this.fallbackSupervisionFailure,
+    this.selectedQuoteRail,
+    this.quote,
+    this.quoteRefreshing = false,
+    this.quoteFailure,
     this.cancelling = false,
     this.cancelFinalStatus,
     this.cancelFailure,
@@ -59,6 +68,9 @@ class InvoiceDetailState {
       cancelFinalStatus == null &&
       snapshot?.status == InvoiceStatus.unpaid;
 
+  bool hasUsableQuote(DateTime now) =>
+      quote != null && !quote!.isExpired(now) && !quoteRefreshing;
+
   InvoiceDetailState copyWith({
     InvoiceDetailStatus? status,
     Invoice? invoice,
@@ -67,11 +79,17 @@ class InvoiceDetailState {
     List<InvoiceFallbackSupervision>? fallbackSupervisions,
     bool? fallbackSupervisionOverflow,
     InvoicesFailure? fallbackSupervisionFailure,
+    PaymentMethod? selectedQuoteRail,
+    InvoiceQuote? quote,
+    bool? quoteRefreshing,
+    InvoicesFailure? quoteFailure,
     bool? cancelling,
     InvoiceStatus? cancelFinalStatus,
     InvoicesFailure? cancelFailure,
     bool clearFailure = false,
     bool clearFallbackSupervisionFailure = false,
+    bool clearQuote = false,
+    bool clearQuoteFailure = false,
     bool clearCancelFailure = false,
   }) {
     return InvoiceDetailState(
@@ -85,6 +103,12 @@ class InvoiceDetailState {
       fallbackSupervisionFailure: clearFallbackSupervisionFailure
           ? null
           : fallbackSupervisionFailure ?? this.fallbackSupervisionFailure,
+      selectedQuoteRail: selectedQuoteRail ?? this.selectedQuoteRail,
+      quote: clearQuote ? null : quote ?? this.quote,
+      quoteRefreshing: quoteRefreshing ?? this.quoteRefreshing,
+      quoteFailure: clearQuoteFailure
+          ? null
+          : quoteFailure ?? this.quoteFailure,
       cancelling: cancelling ?? this.cancelling,
       cancelFinalStatus: cancelFinalStatus ?? this.cancelFinalStatus,
       cancelFailure: clearCancelFailure

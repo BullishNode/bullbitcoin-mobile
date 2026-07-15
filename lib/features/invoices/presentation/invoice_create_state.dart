@@ -29,7 +29,7 @@ class InvoiceCreateState {
   final bool acceptLn;
   final bool acceptLiquid;
 
-  // Expiry: a 1–7 day picker (§3.7).
+  // Expiry: merchant invoices may remain payable for up to 30 days.
   final int expiryDays;
 
   final String privateMemo;
@@ -56,7 +56,7 @@ class InvoiceCreateState {
     this.acceptBtc = false,
     this.acceptLn = true,
     this.acceptLiquid = true,
-    this.expiryDays = 1,
+    this.expiryDays = 30,
     this.privateMemo = '',
     this.currencies = const [],
     this.currenciesUnavailable = false,
