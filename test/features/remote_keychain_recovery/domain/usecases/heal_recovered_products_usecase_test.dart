@@ -1,75 +1,129 @@
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/heal_recovered_products_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+const _laReservation = 'lightning_address_wallet_seed';
+const _ppReservation = 'payment_page_wallet_seed';
 
 class _FakeLightningAddressFacade implements LightningAddressFacade {
   int ensureCalls = 0;
   LightningAddressHealOutcome outcome = const LightningAddressHealOutcome(
     liveness: LightningAddressRegistrationLiveness.live,
   );
+  Object? error;
 
   @override
   Future<LightningAddressHealOutcome> ensureRegistrationLive() async {
     ensureCalls++;
+    final error = this.error;
+    if (error != null) throw error;
     return outcome;
   }
 
   @override
-  Future<PreparedLightningAddressWallet> prepareWallet() =>
-      throw UnimplementedError();
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakePaymentPageFacade implements PaymentPageFacade {
+  int ensureCalls = 0;
+  PaymentPageHealOutcome outcome = const PaymentPageHealOutcome(
+    liveness: PaymentPageLiveness.live,
+  );
+  Object? error;
 
   @override
-  Future<WalletOwnedLightningAddressRegistration> registerWalletOwned({
-    required String nym,
-  }) => throw UnimplementedError();
+  Future<PaymentPageHealOutcome> ensurePageLive() async {
+    ensureCalls++;
+    final error = this.error;
+    if (error != null) throw error;
+    return outcome;
+  }
 
   @override
-  Future<LightningAddressStatus> lookupWalletOwnedRegistration() =>
-      throw UnimplementedError();
-
-  @override
-  Future<LightningAddressStatus> lookupRegistration({
-    required String npubHex,
-  }) => throw UnimplementedError();
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
-  test('heals the Lightning Address when its reservation is flagged', () async {
-    final facade = _FakeLightningAddressFacade()
-      ..outcome = const LightningAddressHealOutcome(
-        liveness: LightningAddressRegistrationLiveness.reregistered,
-      );
-    final usecase = HealRecoveredProductsUsecase(facade);
+  late _FakeLightningAddressFacade la;
+  late _FakePaymentPageFacade pp;
+  late HealRecoveredProductsUsecase usecase;
 
-    final outcome = await usecase.execute({'lightning_address_wallet_seed'});
+  setUp(() {
+    la = _FakeLightningAddressFacade();
+    pp = _FakePaymentPageFacade();
+    usecase = HealRecoveredProductsUsecase(la, pp);
+  });
 
-    expect(facade.ensureCalls, 1);
+  test('heals only the Lightning Address when only it is flagged', () async {
+    la.outcome = const LightningAddressHealOutcome(
+      liveness: LightningAddressRegistrationLiveness.reregistered,
+    );
+
+    final outcome = await usecase.execute({_laReservation});
+
+    expect(la.ensureCalls, 1);
+    expect(pp.ensureCalls, 0);
     expect(
-      outcome!.liveness,
+      outcome.lightningAddress?.liveness,
       LightningAddressRegistrationLiveness.reregistered,
     );
+    expect(outcome.paymentPage, isNull);
+  });
+
+  test('heals only the Payment Page when only it is flagged', () async {
+    pp.outcome = const PaymentPageHealOutcome(
+      liveness: PaymentPageLiveness.needsReactivation,
+    );
+
+    final outcome = await usecase.execute({_ppReservation});
+
+    expect(pp.ensureCalls, 1);
+    expect(la.ensureCalls, 0);
+    expect(
+      outcome.paymentPage?.liveness,
+      PaymentPageLiveness.needsReactivation,
+    );
+    expect(outcome.lightningAddress, isNull);
+  });
+
+  test('heals both products when both are flagged', () async {
+    final outcome = await usecase.execute({_laReservation, _ppReservation});
+
+    expect(la.ensureCalls, 1);
+    expect(pp.ensureCalls, 1);
+    expect(outcome.lightningAddress, isNotNull);
+    expect(outcome.paymentPage, isNotNull);
   });
 
   test(
-    'does not heal for a payment page reservation alone (no client surface)',
+    'a Payment Page heal failure degrades to unreachable (never throws)',
     () async {
-      final facade = _FakeLightningAddressFacade();
-      final usecase = HealRecoveredProductsUsecase(facade);
+      pp.error = StateError('boom');
 
-      final outcome = await usecase.execute({'payment_page_wallet_seed'});
+      final outcome = await usecase.execute({_ppReservation});
 
-      expect(facade.ensureCalls, 0);
-      expect(outcome, isNull);
+      expect(outcome.paymentPage?.liveness, PaymentPageLiveness.unreachable);
     },
   );
 
-  test('returns null when there is nothing to heal', () async {
-    final facade = _FakeLightningAddressFacade();
-    final usecase = HealRecoveredProductsUsecase(facade);
+  test('a Lightning Address heal failure degrades to unreachable', () async {
+    la.error = StateError('boom');
 
+    final outcome = await usecase.execute({_laReservation});
+
+    expect(
+      outcome.lightningAddress?.liveness,
+      LightningAddressRegistrationLiveness.unreachable,
+    );
+  });
+
+  test('nothing flagged heals nothing', () async {
     final outcome = await usecase.execute(const {});
 
-    expect(facade.ensureCalls, 0);
-    expect(outcome, isNull);
+    expect(la.ensureCalls, 0);
+    expect(pp.ensureCalls, 0);
+    expect(outcome.lightningAddress, isNull);
+    expect(outcome.paymentPage, isNull);
   });
 }
