@@ -52,6 +52,13 @@ void main() {
       facade.deriveBullnymServerAuthPublicKeyFromXprv(xprv),
       _expectedBullnymAuthPublicKeyHex,
     );
+    expect(
+      facade.deriveBullnymNip05VerificationPublicKeyFromXprv(xprv),
+      NostrKeychainHandle.deriveFromBip85Path(
+        xprvBase58: xprv,
+        hardenedPath: "9000'/3'/1'",
+      ).publicKeyHex,
+    );
   });
 
   test('wallet manifest facade uses the registry exact path', () {
@@ -77,9 +84,10 @@ void main() {
     final publicKeys = {
       facade.deriveWalletManifestPublicKeyFromXprv(xprv),
       facade.deriveBullnymServerAuthPublicKeyFromXprv(xprv),
+      facade.deriveBullnymNip05VerificationPublicKeyFromXprv(xprv),
     };
 
-    expect(publicKeys.length, 2);
+    expect(publicKeys.length, 3);
   });
 
   test('handle debug output does not expose secret key material', () {

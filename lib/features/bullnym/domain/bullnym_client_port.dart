@@ -139,6 +139,7 @@ abstract interface class BullnymClientPort {
 class BullnymRegisterRequest {
   final String nym;
   final String ctDescriptor;
+  final String verificationNpubHex;
   final String npubHex;
   final String signatureHex;
   final int timestamp;
@@ -146,6 +147,7 @@ class BullnymRegisterRequest {
   const BullnymRegisterRequest({
     required this.nym,
     required this.ctDescriptor,
+    required this.verificationNpubHex,
     required this.npubHex,
     required this.signatureHex,
     required this.timestamp,

@@ -58,7 +58,8 @@ Map<String, dynamic> _page(List<Map<String, dynamic>> rows) {
 
 void main() {
   const timestamp = 1784041300;
-  final npub = '11' * 32;
+  const npub =
+      '8b455c643d16fe546012f699b8f05eea4386268baa933b39dd1bbe0dc1965c4f';
 
   setUpAll(() => registerFallbackValue(RequestOptions(path: '')));
 
