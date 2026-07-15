@@ -189,10 +189,13 @@ class BullnymInvoiceStatus {
   final int? paidAtUnix;
   final int? paidAmountSat;
   final String? lightningPr;
+  final int? lightningAmountSat;
   final String? liquidAddress;
+  final int? liquidAmountSat;
   final String? bitcoinAddress;
   final String? bitcoinChainAddress;
   final String? bitcoinChainBip21;
+  final int? bitcoinChainAmountSat;
   final bool acceptBtc;
   final bool acceptLn;
   final bool acceptLiquid;
@@ -215,10 +218,13 @@ class BullnymInvoiceStatus {
     this.paidAtUnix,
     this.paidAmountSat,
     this.lightningPr,
+    this.lightningAmountSat,
     this.liquidAddress,
+    this.liquidAmountSat,
     this.bitcoinAddress,
     this.bitcoinChainAddress,
     this.bitcoinChainBip21,
+    this.bitcoinChainAmountSat,
     required this.acceptBtc,
     required this.acceptLn,
     required this.acceptLiquid,
