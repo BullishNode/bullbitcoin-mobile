@@ -55,4 +55,19 @@ void main() {
     expect(find.byType(BullShimmerBox), findsNWidgets(5));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('the invoices card shows pending fallback attention', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const GetPaidDashboardState(
+        invoicesWalletReady: true,
+        fallbackAttentionCount: 2,
+      ),
+    );
+
+    expect(find.text('2 SETTLEMENTS PENDING'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
