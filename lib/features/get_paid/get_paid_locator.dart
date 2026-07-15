@@ -4,6 +4,7 @@ import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_comment_history_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -33,6 +34,9 @@ class GetPaidLocator {
             locator<EnsureGetPaidAutomaticFallbackUsecase>(),
         fallbackAttention: locator<GetPaidFallbackAttentionUsecase>(),
       ),
+    );
+    locator.registerFactory<GetPaidCommentHistoryCubit>(
+      () => GetPaidCommentHistoryCubit(locator<LightningAddressFacade>()),
     );
   }
 }

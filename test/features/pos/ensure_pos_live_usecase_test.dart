@@ -34,6 +34,8 @@ void main() {
         return status!;
       },
       ensureRegistrationLive: () => throw UnimplementedError(),
+      listPaymentComments: ({required page, required pageSize}) =>
+          throw UnimplementedError(),
     );
   }
 

@@ -14,6 +14,8 @@ import 'package:bb_mobile/features/bullnym/domain/bullnym_fallback_supervision.d
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice_quote.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice_actions.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_lnurl_comment.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_lnurl_comment_actions.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_public_names.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_recovery_address.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_recovery_address_actions.dart';
@@ -486,6 +488,54 @@ class BullnymHttpClient implements BullnymClientPort {
         },
       );
       return _parseFallbackSupervisionResponse(response);
+    });
+  }
+
+  @override
+  Future<Result<BullnymLnurlCommentHistoryResponse, BullnymFailure>>
+  listLnurlCommentHistory({
+    required BullnymAuthSigner signer,
+    required int page,
+    required int pageSize,
+  }) {
+    return _guard(() async {
+      if (page < 1 ||
+          page > bullnymLnurlCommentMaxHistoryPage ||
+          pageSize < 1 ||
+          pageSize > bullnymLnurlCommentMaxHistoryPageSize) {
+        throw const _BullnymClientException(
+          BullnymFailure.invalidInput(
+            'LNURL comment history page is outside the contract',
+          ),
+        );
+      }
+      final payloadFields = buildLnurlCommentHistoryPayloadFields(
+        page: page,
+        pageSize: pageSize,
+      );
+      final timestamp = _nowSecs();
+      final signatureHex = await _signAction(
+        signer: signer,
+        action: bullpayActionLnurlCommentHistory,
+        nymOrEmpty: '',
+        payloadFields: payloadFields,
+        timestampSecs: timestamp,
+      );
+      final response = await _getMap(
+        '/api/v1/lnurl/comments',
+        queryParameters: {
+          'npub': signer.npubHex,
+          'timestamp': timestamp,
+          'signature': signatureHex,
+          'page': page,
+          'pageSize': pageSize,
+        },
+      );
+      return _parseLnurlCommentHistoryResponse(
+        response,
+        expectedPage: page,
+        expectedPageSize: pageSize,
+      );
     });
   }
 
@@ -1317,6 +1367,89 @@ class BullnymHttpClient implements BullnymClientPort {
       pageSize: _requiredInt(json, 'pageSize'),
       hasMore: _requiredBool(json, 'has_more'),
     );
+  }
+
+  BullnymLnurlCommentHistoryResponse _parseLnurlCommentHistoryResponse(
+    Map<String, dynamic> json, {
+    required int expectedPage,
+    required int expectedPageSize,
+  }) {
+    final page = _requiredInt(json, 'page');
+    final pageSize = _requiredInt(json, 'pageSize');
+    final hasMore = _requiredBool(json, 'has_more');
+    final rawComments = json['comments'];
+    if (page != expectedPage ||
+        pageSize != expectedPageSize ||
+        rawComments is! List ||
+        rawComments.length > pageSize) {
+      throw const _BullnymClientException(
+        BullnymFailure.invalidServerResponse(
+          logMessage: 'Private comment history page is inconsistent',
+        ),
+      );
+    }
+
+    final comments = <BullnymLnurlCommentHistoryItem>[];
+    final intentIds = <String>{};
+    for (final raw in rawComments) {
+      if (raw is! Map<String, dynamic>) {
+        throw const _BullnymClientException(
+          BullnymFailure.invalidServerResponse(
+            logMessage: 'Private comment history row has an unexpected shape',
+          ),
+        );
+      }
+      final intentId = _requiredNonEmptyString(raw, 'intent_id');
+      final nym = _requiredNonEmptyString(raw, 'nym');
+      final amountMsat = _requiredPositiveInt(raw, 'amount_msat');
+      final comment = _requiredString(raw, 'comment');
+      final receivedAtUnix = _requiredNonNegativeInt(raw, 'received_at_unix');
+      if (!_isCanonicalUuid(intentId) ||
+          !isValidBullnymLnurlComment(comment) ||
+          !intentIds.add(intentId)) {
+        throw const _BullnymClientException(
+          BullnymFailure.invalidServerResponse(
+            logMessage: 'Private comment history row is invalid',
+          ),
+        );
+      }
+      comments.add(
+        BullnymLnurlCommentHistoryItem(
+          intentId: intentId,
+          nym: nym,
+          amountMsat: amountMsat,
+          comment: comment,
+          receivedAtUnix: receivedAtUnix,
+        ),
+      );
+    }
+    for (var index = 1; index < comments.length; index++) {
+      final previous = comments[index - 1];
+      final current = comments[index];
+      final outOfOrder =
+          previous.receivedAtUnix < current.receivedAtUnix ||
+          (previous.receivedAtUnix == current.receivedAtUnix &&
+              previous.intentId.compareTo(current.intentId) < 0);
+      if (outOfOrder) {
+        throw const _BullnymClientException(
+          BullnymFailure.invalidServerResponse(
+            logMessage: 'Private comment history order is invalid',
+          ),
+        );
+      }
+    }
+    return BullnymLnurlCommentHistoryResponse(
+      comments: List.unmodifiable(comments),
+      page: page,
+      pageSize: pageSize,
+      hasMore: hasMore,
+    );
+  }
+
+  bool _isCanonicalUuid(String value) {
+    return RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    ).hasMatch(value);
   }
 
   BullnymInvoiceListItem _parseInvoiceListItem(Map<String, dynamic> json) {

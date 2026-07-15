@@ -34,6 +34,8 @@ LightningAddressFacade _laFacade(
         throw UnimplementedError(),
     lookupWalletOwnedRegistration: lookup,
     ensureRegistrationLive: () async => throw UnimplementedError(),
+    listPaymentComments: ({required page, required pageSize}) async =>
+        throw UnimplementedError(),
   );
 }
 

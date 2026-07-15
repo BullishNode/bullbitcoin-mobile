@@ -8,6 +8,7 @@ import 'package:bb_mobile/features/bullnym/domain/bullnym_error.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_fallback_supervision.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_lnurl_comment.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice_quote.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_public_names.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_recovery_address.dart';
@@ -231,6 +232,14 @@ class RecordingBullnymClient implements BullnymClientPort {
   Future<Result<BullnymFallbackSupervisionResponse, BullnymFailure>>
   listFallbackSupervision({required BullnymAuthSigner signer}) =>
       throw UnimplementedError();
+
+  @override
+  Future<Result<BullnymLnurlCommentHistoryResponse, BullnymFailure>>
+  listLnurlCommentHistory({
+    required BullnymAuthSigner signer,
+    required int page,
+    required int pageSize,
+  }) => throw UnimplementedError();
 
   @override
   Future<Result<BullnymInvoiceStatus, BullnymFailure>> getInvoiceStatus({

@@ -16487,5 +16487,71 @@
   "invoiceQuoteRetry": "Refresh quote",
   "@invoiceQuoteRetry": {
     "description": "Button label to explicitly retry a fiat payer quote."
+  },
+  "getPaidCommentsHistoryTitle": "Lightning payment comments",
+  "@getPaidCommentsHistoryTitle": {
+    "description": "Title for the authenticated Lightning Address payer-comment history."
+  },
+  "getPaidCommentsHistorySubtitle": "Private comments attached to received Lightning payments",
+  "@getPaidCommentsHistorySubtitle": {
+    "description": "Subtitle for the private Lightning payment-comment history entry."
+  },
+  "getPaidCommentsRetry": "Try again",
+  "@getPaidCommentsRetry": {
+    "description": "Retry loading private Lightning payment comments."
+  },
+  "getPaidCommentsLoadMore": "Load more",
+  "@getPaidCommentsLoadMore": {
+    "description": "Load another page of private Lightning payment comments."
+  },
+  "getPaidCommentsUnavailable": "Private payment comments are unavailable right now.",
+  "@getPaidCommentsUnavailable": {
+    "description": "Private comment history load failure."
+  },
+  "getPaidCommentsEmpty": "No received Lightning payments have comments yet.",
+  "@getPaidCommentsEmpty": {
+    "description": "Empty state for evidenced Lightning payments with payer comments."
+  },
+  "getPaidCommentsDetailTitle": "Payment comment",
+  "@getPaidCommentsDetailTitle": {
+    "description": "Title for one private payer-comment detail."
+  },
+  "getPaidCommentsAmountLabel": "Amount",
+  "@getPaidCommentsAmountLabel": {
+    "description": "Amount label in private payer-comment detail."
+  },
+  "getPaidCommentsNameLabel": "Lightning name",
+  "@getPaidCommentsNameLabel": {
+    "description": "Permanent nym label in private payer-comment detail."
+  },
+  "getPaidCommentsReceivedLabel": "Received",
+  "@getPaidCommentsReceivedLabel": {
+    "description": "Payment evidence time label in private payer-comment detail."
+  },
+  "getPaidCommentsCommentLabel": "Payer comment",
+  "@getPaidCommentsCommentLabel": {
+    "description": "Exact private payer text label."
+  },
+  "getPaidCommentsClose": "Close",
+  "@getPaidCommentsClose": {
+    "description": "Close private payer-comment detail."
+  },
+  "getPaidCommentsAmountSats": "{amount} sats",
+  "@getPaidCommentsAmountSats": {
+    "description": "Exact received Lightning amount in whole satoshis.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "getPaidCommentsAmountMsats": "{amount} msats",
+  "@getPaidCommentsAmountMsats": {
+    "description": "Exact received Lightning amount in millisatoshis when not a whole satoshi.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
   }
 }
