@@ -20,6 +20,8 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightni
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_receive_readiness_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_wallet_owned_lightning_address_registration_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/list_lightning_address_payment_comments_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/list_wallet_owned_lightning_address_payment_comments_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/prepare_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_wallet_owned_lightning_address_usecase.dart';
@@ -92,6 +94,19 @@ class LightningAddressLocator {
         getWallet: locator<GetWalletUsecase>(),
       ),
     );
+    locator.registerFactory<ListLightningAddressPaymentCommentsUsecase>(
+      () => ListLightningAddressPaymentCommentsUsecase(
+        locator<BullnymFacade>(),
+        locator<NostrIdentityFacade>(),
+      ),
+    );
+    locator
+        .registerFactory<ListWalletOwnedLightningAddressPaymentCommentsUsecase>(
+          () => ListWalletOwnedLightningAddressPaymentCommentsUsecase(
+            locator<LightningAddressDefaultWalletXprvPort>(),
+            locator<ListLightningAddressPaymentCommentsUsecase>(),
+          ),
+        );
     locator.registerFactory<EnsureLightningAddressRegistrationLiveUsecase>(
       () => EnsureLightningAddressRegistrationLiveUsecase(
         lookup: locator<LookupWalletOwnedLightningAddressRegistrationUsecase>(),
@@ -108,6 +123,8 @@ class LightningAddressLocator {
           locator<LookupWalletOwnedLightningAddressRegistrationUsecase>();
       final ensureRegistrationLive =
           locator<EnsureLightningAddressRegistrationLiveUsecase>();
+      final listPaymentComments =
+          locator<ListWalletOwnedLightningAddressPaymentCommentsUsecase>();
 
       return LightningAddressFacade(
         prepareWallet: prepareWallet.execute,
@@ -117,6 +134,8 @@ class LightningAddressLocator {
             registerWalletOwned.execute(nym: nym),
         lookupWalletOwnedRegistration: lookupWalletOwnedRegistration.execute,
         ensureRegistrationLive: ensureRegistrationLive.execute,
+        listPaymentComments: ({required page, required pageSize}) =>
+            listPaymentComments.execute(page: page, pageSize: pageSize),
       );
     });
     locator.registerFactory<ActivateWalletOwnedLightningAddressUsecase>(

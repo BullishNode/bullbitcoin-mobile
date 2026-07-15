@@ -1,11 +1,14 @@
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_comment_history_cubit.dart';
+import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_comment_history_screen.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 enum GetPaidDashboardRoute {
-  getPaidHome('/get-paid');
+  getPaidHome('/get-paid'),
+  commentHistory('comments');
 
   final String path;
 
@@ -24,5 +27,15 @@ class GetPaidRouter {
       create: (_) => locator<GetPaidDashboardCubit>(),
       child: const GetPaidDashboardScreen(),
     ),
+    routes: [
+      GoRoute(
+        name: GetPaidDashboardRoute.commentHistory.name,
+        path: GetPaidDashboardRoute.commentHistory.path,
+        builder: (context, state) => BlocProvider(
+          create: (_) => locator<GetPaidCommentHistoryCubit>(),
+          child: const GetPaidCommentHistoryScreen(),
+        ),
+      ),
+    ],
   );
 }

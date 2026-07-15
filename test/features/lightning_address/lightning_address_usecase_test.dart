@@ -229,6 +229,14 @@ class _FakeBullnymFacade implements BullnymFacade {
   BullnymFailure? registerError;
 
   @override
+  Future<Result<BullnymLnurlCommentHistoryResponse, BullnymFailure>>
+  listLnurlCommentHistory({
+    required BullnymAuthSigner signer,
+    required int page,
+    required int pageSize,
+  }) => throw UnimplementedError();
+
+  @override
   Future<Result<BullnymVersionInfo, BullnymFailure>> getVersion() async =>
       const Ok(
         BullnymVersionInfo(publicNamePolicy: bullnymPermanentNamesV1Policy),

@@ -331,6 +331,8 @@ void main() {
       ensureRegistrationLive: () async => const LightningAddressHealOutcome(
         liveness: LightningAddressRegistrationLiveness.live,
       ),
+      listPaymentComments: ({required page, required pageSize}) async =>
+          throw UnimplementedError(),
     );
 
     final result = await facade.registerWalletOwned(nym: 'alice');
@@ -354,6 +356,8 @@ void main() {
       ensureRegistrationLive: () async => const LightningAddressHealOutcome(
         liveness: LightningAddressRegistrationLiveness.live,
       ),
+      listPaymentComments: ({required page, required pageSize}) async =>
+          throw UnimplementedError(),
     );
 
     final result = await facade.lookupWalletOwnedRegistration();
