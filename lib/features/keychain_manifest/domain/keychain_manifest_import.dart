@@ -11,7 +11,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_er
 /// (asserted by the file only — the consumer must verify before acting). See
 /// "Consumer obligations" in `keychain_manifest_architecture.md`.
 class KeychainManifestImportPlan {
-  /// VERIFIED: matched against the caller-supplied expected fingerprint,
+  /// Matched against the caller-supplied expected fingerprint,
   /// which must come from local seed storage.
   final String parentFingerprint;
 
@@ -32,18 +32,30 @@ class KeychainManifestImportPlan {
 }
 
 class KeychainManifestImportEntryIntent {
-  /// VERIFIED: derived from the verified parent fingerprint and the
+  /// Derived from the verified parent fingerprint and the
   /// registry-validated BIP85 path.
   final String entryId;
 
-  /// VERIFIED: matched against the caller-supplied expected fingerprint.
+  /// Matched against the caller-supplied expected fingerprint.
   final String parentFingerprint;
 
-  /// VERIFIED: matched against the registry reservation's exact path.
+  /// Matched against the registry reservation's exact path.
   final String bip85DerivationPath;
 
-  /// VERIFIED: resolved against the local BIP85 registry.
+  /// Resolved against the local BIP85 registry.
   final String reservationId;
+
+  /// Matched against the registry reservation's purpose name.
+  final String entryType;
+
+  /// Matched against the registry reservation's owner name.
+  final String ownerFeature;
+
+  /// Matched against the registry reservation's application number.
+  final int bip85Application;
+
+  /// Matched against the registry reservation's wallet seed index.
+  final int bip85Index;
 
   final List<KeychainManifestWalletMaterializationIntent>
   walletMaterializations;
@@ -53,6 +65,10 @@ class KeychainManifestImportEntryIntent {
     required String parentFingerprint,
     required String bip85DerivationPath,
     required this.reservationId,
+    required this.entryType,
+    required this.ownerFeature,
+    required this.bip85Application,
+    required this.bip85Index,
     required List<KeychainManifestWalletMaterializationIntent>
     walletMaterializations,
   }) : parentFingerprint = KeychainManifestFingerprint.normalize(
@@ -62,6 +78,16 @@ class KeychainManifestImportEntryIntent {
          bip85DerivationPath,
        ),
        walletMaterializations = List.unmodifiable(walletMaterializations) {
+    if (entryType.trim().isEmpty || ownerFeature.trim().isEmpty) {
+      throw KeychainManifestInvalidEntryException(
+        'manifest import entry metadata is required',
+      );
+    }
+    if (bip85Application < 0 || bip85Index < 0) {
+      throw KeychainManifestInvalidEntryException(
+        'manifest import BIP85 application and index must be non-negative',
+      );
+    }
     if (this.walletMaterializations.isEmpty) {
       throw KeychainManifestInvalidEntryException(
         'manifest import entry requires wallet materializations',
@@ -79,20 +105,24 @@ class KeychainManifestImportEntryIntent {
       parentFingerprint: entry.parentFingerprint,
       bip85DerivationPath: entry.bip85DerivationPath,
       reservationId: entry.reservationId,
+      entryType: entry.entryType,
+      ownerFeature: entry.ownerFeature,
+      bip85Application: entry.bip85Application,
+      bip85Index: entry.bip85Index,
       walletMaterializations: walletMaterializations,
     );
   }
 }
 
 class KeychainManifestWalletMaterializationIntent {
-  /// VERIFIED: derived from the verified parent fingerprint and the
+  /// Derived from the verified parent fingerprint and the
   /// registry-validated BIP85 path.
   final String entryId;
 
-  /// VERIFIED: resolved against the local BIP85 registry.
+  /// Resolved against the local BIP85 registry.
   final String reservationId;
 
-  /// VERIFIED: matched against the registry reservation's exact path.
+  /// Matched against the registry reservation's exact path.
   final String bip85DerivationPath;
 
   /// CLAIMED: asserted by the file only. Consumers MUST recompute the wallet
