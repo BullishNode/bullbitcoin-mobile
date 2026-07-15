@@ -4,11 +4,13 @@ import 'package:bb_mobile/features/bullnym/domain/bullnym_client_port.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_donation_page.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_public_names.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_registration.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullpay_signing.dart';
 import 'package:bb_mobile/features/bullnym/domain/usecases/archive_donation_page_usecase.dart';
 import 'package:bb_mobile/features/bullnym/domain/usecases/delete_bullnym_registration_usecase.dart';
 import 'package:bb_mobile/features/bullnym/domain/usecases/get_donation_page_usecase.dart';
+import 'package:bb_mobile/features/bullnym/domain/usecases/get_bullnym_version_usecase.dart';
 import 'package:bb_mobile/features/bullnym/domain/usecases/get_supported_currencies_usecase.dart';
 import 'package:bb_mobile/features/bullnym/domain/usecases/lookup_bullnym_registration_usecase.dart';
 import 'package:bb_mobile/features/bullnym/domain/usecases/register_bullnym_usecase.dart';
@@ -19,11 +21,13 @@ export 'package:bb_mobile/features/bullnym/domain/bullnym_auth_signer.dart';
 export 'package:bb_mobile/features/bullnym/domain/bullnym_donation_page.dart';
 export 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
 export 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
+export 'package:bb_mobile/features/bullnym/domain/bullnym_public_names.dart';
 export 'package:bb_mobile/features/bullnym/domain/bullnym_registration.dart';
 export 'package:bb_mobile/features/bullnym/presentation/bullnym_failure_l10n.dart';
 
 class BullnymFacade {
   final BullnymClientPort _client;
+  final GetBullnymVersionUsecase _getVersion;
   final RegisterBullnymUsecase _register;
   final DeleteBullnymRegistrationUsecase _deleteRegistration;
   final LookupBullnymRegistrationUsecase _lookupRegistration;
@@ -36,6 +40,7 @@ class BullnymFacade {
     required BullnymClientPort client,
     int Function() nowSecs = currentBullpayTimestampSecs,
   }) : _client = client,
+       _getVersion = GetBullnymVersionUsecase(client),
        _register = RegisterBullnymUsecase(client, nowSecs),
        _deleteRegistration = DeleteBullnymRegistrationUsecase(client, nowSecs),
        _lookupRegistration = LookupBullnymRegistrationUsecase(client),
@@ -43,6 +48,11 @@ class BullnymFacade {
        _saveDonationPage = SaveDonationPageUsecase(client, nowSecs),
        _archiveDonationPage = ArchiveDonationPageUsecase(client, nowSecs),
        _getSupportedCurrencies = GetSupportedCurrenciesUsecase(client);
+
+  @useResult
+  Future<Result<BullnymVersionInfo, BullnymFailure>> getVersion() {
+    return _getVersion.execute();
+  }
 
   @useResult
   Future<Result<BullnymRegisterResult, BullnymFailure>> register({
@@ -95,6 +105,7 @@ class BullnymFacade {
     required String instagram,
     required bool enabled,
     required String kind,
+    BullnymAliasIntent aliasIntent = const BullnymAliasIntent.preserve(),
   }) {
     return _saveDonationPage.execute(
       signer: signer,
@@ -108,6 +119,7 @@ class BullnymFacade {
       instagram: instagram,
       enabled: enabled,
       kind: kind,
+      aliasIntent: aliasIntent,
     );
   }
 
