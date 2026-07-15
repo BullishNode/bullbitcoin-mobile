@@ -18,8 +18,10 @@ class BullnymHttpClient implements BullnymClientPort {
     this._nowSecs = currentBullpayTimestampSecs,
   }) : _dio = _newDio(baseUrl);
 
-  BullnymHttpClient.withDio(Dio dio, {this._nowSecs = currentBullpayTimestampSecs})
-    : _dio = dio;
+  BullnymHttpClient.withDio(
+    Dio dio, {
+    this._nowSecs = currentBullpayTimestampSecs,
+  }) : _dio = dio;
 
   final Dio _dio;
   // Invoice actions are signed inside the client (unlike the donation-page

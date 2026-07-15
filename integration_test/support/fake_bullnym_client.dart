@@ -334,7 +334,8 @@ class FakeBullnymClient implements BullnymClientPort {
       throw _invalidAmount('accept_liquid requires a liquid_blinding_key_hex');
     }
     final hasSat = fields.amountSat != null;
-    final hasFiat = fields.fiatAmountMinor != null && fields.fiatCurrency != null;
+    final hasFiat =
+        fields.fiatAmountMinor != null && fields.fiatCurrency != null;
     if (hasSat == hasFiat) {
       throw _invalidAmount('amount must be exactly one of sat or fiat');
     }
@@ -411,13 +412,14 @@ class FakeBullnymClient implements BullnymClientPort {
     if (invoiceMode == FakeInvoiceMode.authError) throw _authError();
     if (invoiceMode == FakeInvoiceMode.rateLimited) throw _invoiceRateLimited();
 
-    final owned = _invoices.values
-        .where((i) => i.ownerNpub == signer.npubHex)
-        .where(
-          (i) => status == null || status.isEmpty || i.status == status,
-        )
-        .toList()
-      ..sort((a, b) => b.createdAtUnix.compareTo(a.createdAtUnix));
+    final owned =
+        _invoices.values
+            .where((i) => i.ownerNpub == signer.npubHex)
+            .where(
+              (i) => status == null || status.isEmpty || i.status == status,
+            )
+            .toList()
+          ..sort((a, b) => b.createdAtUnix.compareTo(a.createdAtUnix));
     final start = (page - 1) * pageSize;
     final pageRows = start >= owned.length
         ? <_FakeInvoice>[]
