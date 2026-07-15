@@ -16401,5 +16401,9 @@
   "coinsErrorUnexpected": "Something went wrong. Please try again.",
   "@coinsErrorUnexpected": {
     "description": "Generic Coins error message for unexpected failures"
+  },
+  "systemLabelAutomaticFallback": "Automatic fallback",
+  "@systemLabelAutomaticFallback": {
+    "description": "System label for the Bitcoin address reserved for automatic fallback settlement."
   }
 }
