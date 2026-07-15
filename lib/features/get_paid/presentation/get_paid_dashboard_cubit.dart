@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -17,8 +18,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// The Donation Page and Point of Sale rows are keyed by the wallet nym, which
 /// is resolved from the Lightning Address registration — so those two are only
 /// probed once a nym exists (mirroring how the product screens resolve their
-/// own identity). Invoices carry no "current" status and are a static tile, so
-/// they are not read here.
+/// own identity). The invoices boundary contributes only a read-only automatic
+/// fallback attention count through a Get Paid use-case wrapper.
 class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
   final LightningAddressFacade _lightningAddress;
   final PaymentPageFacade _paymentPage;
@@ -26,6 +27,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
   final BtcpayFacade _btcpay;
   final GetWalletsUsecase _getWallets;
   final EnsureGetPaidAutomaticFallbackUsecase _ensureAutomaticFallback;
+  final GetPaidFallbackAttentionUsecase _fallbackAttention;
   int _refreshGeneration = 0;
 
   GetPaidDashboardCubit({
@@ -35,6 +37,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
     required this._btcpay,
     required this._getWallets,
     required this._ensureAutomaticFallback,
+    required this._fallbackAttention,
   }) : super(const GetPaidDashboardState());
 
   Future<void> refresh() async {
@@ -49,6 +52,9 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
     BtcpayConnection? btcpayConnection;
     String? refreshError;
     final invoicesWalletReady = await _hasDefaultWallet();
+    final fallbackAttentionCount = invoicesWalletReady
+        ? await _fallbackAttention.execute()
+        : null;
 
     try {
       final btcpayResult = await _btcpay.connection();
@@ -99,6 +105,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
           posTerminal: posTerminal,
           btcpayConnection: btcpayConnection,
           invoicesWalletReady: invoicesWalletReady,
+          fallbackAttentionCount: fallbackAttentionCount,
           error: refreshError,
         ),
       );
@@ -116,6 +123,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
           posTerminal: posTerminal,
           btcpayConnection: btcpayConnection,
           invoicesWalletReady: invoicesWalletReady,
+          fallbackAttentionCount: fallbackAttentionCount,
           error: 'Something went wrong. Please try again.',
         ),
       );
@@ -143,6 +151,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
     required PosTerminal? posTerminal,
     required BtcpayConnection? btcpayConnection,
     required bool invoicesWalletReady,
+    required int? fallbackAttentionCount,
     String? error,
   }) {
     return state.copyWith(
@@ -159,6 +168,8 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
       btcpayConnection: btcpayConnection,
       clearBtcpayConnection: btcpayConnection == null,
       invoicesWalletReady: invoicesWalletReady,
+      fallbackAttentionCount: fallbackAttentionCount,
+      clearFallbackAttention: fallbackAttentionCount == null,
       error: error,
       clearError: error == null,
     );

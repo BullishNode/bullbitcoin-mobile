@@ -5,8 +5,8 @@ import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 /// Read-only snapshot of every Get Paid product's status, assembled from the
 /// public facades. Holds no money logic, no balances and no protocol internals
 /// — only what the hub renders (a status chip + a contextual subtitle per
-/// product). Invoices carry no per-product "current" status, so they have no
-/// field here (the tile is a static entry).
+/// product). Invoices additionally expose only a read-only count of fallback
+/// settlements needing attention; row details remain inside invoices.
 class GetPaidDashboardState {
   final bool isLoading;
   final String? lightningAddress;
@@ -23,6 +23,10 @@ class GetPaidDashboardState {
   /// True when the user has a default wallet created — the Invoices product
   /// issues payouts from the default wallet, so this gates its "Active" status.
   final bool invoicesWalletReady;
+
+  /// Authenticated automatic-fallback rows that are not yet settled. `null`
+  /// means unavailable/not applicable; zero is a successful empty projection.
+  final int? fallbackAttentionCount;
   final String? error;
 
   const GetPaidDashboardState({
@@ -34,6 +38,7 @@ class GetPaidDashboardState {
     this.posTerminal,
     this.btcpayConnection,
     this.invoicesWalletReady = false,
+    this.fallbackAttentionCount,
     this.error,
   });
 
@@ -42,6 +47,7 @@ class GetPaidDashboardState {
   bool get hasPaymentPage => paymentPage != null && !paymentPage!.isArchived;
   bool get hasPos => posTerminal != null && !posTerminal!.isArchived;
   bool get hasBtcpayConnection => btcpayConnection != null;
+  bool get hasFallbackAttention => (fallbackAttentionCount ?? 0) > 0;
 
   /// True before the first successful load has populated any product — the cue
   /// to show the shimmer placeholder rather than the (empty) card list.
@@ -66,6 +72,8 @@ class GetPaidDashboardState {
     BtcpayConnection? btcpayConnection,
     bool clearBtcpayConnection = false,
     bool? invoicesWalletReady,
+    int? fallbackAttentionCount,
+    bool clearFallbackAttention = false,
     String? error,
     bool clearError = false,
   }) {
@@ -82,6 +90,9 @@ class GetPaidDashboardState {
           ? null
           : btcpayConnection ?? this.btcpayConnection,
       invoicesWalletReady: invoicesWalletReady ?? this.invoicesWalletReady,
+      fallbackAttentionCount: clearFallbackAttention
+          ? null
+          : fallbackAttentionCount ?? this.fallbackAttentionCount,
       error: clearError ? null : error ?? this.error,
     );
   }
