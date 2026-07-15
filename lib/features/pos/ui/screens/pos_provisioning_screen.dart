@@ -28,7 +28,7 @@ class PosProvisioningScreen extends StatefulWidget {
 
 class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
   final _label = TextEditingController();
-  final _nym = TextEditingController();
+  final _alias = TextEditingController();
 
   @override
   void initState() {
@@ -39,13 +39,13 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
   @override
   void dispose() {
     _label.dispose();
-    _nym.dispose();
+    _alias.dispose();
     super.dispose();
   }
 
   void _syncControllers(PosState state) {
     if (_label.text != state.label) _label.text = state.label;
-    if (_nym.text != state.nymDraft) _nym.text = state.nymDraft;
+    if (_alias.text != state.aliasDraft) _alias.text = state.aliasDraft;
   }
 
   @override
@@ -92,51 +92,46 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           ],
         ),
       ),
-      PosStatus.needsNym => _needsNymView(context, state, cubit),
+      PosStatus.unsupported => _unsupportedView(context, state),
+      PosStatus.needsNym => _needsNymView(context, state),
       PosStatus.loadFailed => _loadFailedView(context, state, cubit),
       PosStatus.archived => _archivedView(context, state, cubit),
       PosStatus.create || PosStatus.edit => _form(context, state, cubit),
     };
   }
 
-  // --- DG-P6: choose a name (delegates to the shared LA registration) ---
-  Widget _needsNymView(BuildContext context, PosState state, PosCubit cubit) {
+  Widget _unsupportedView(BuildContext context, PosState state) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _StatusNotice(
+          icon: Icons.visibility_off_outlined,
+          title: context.loc.posPermanentNamesUnavailableTitle,
+          body: context.loc.posPermanentNamesUnavailableBody,
+        ),
+        if (state.walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: state.walletBehavior!,
+            saving: state.walletBehaviorSaving,
+          ),
+      ],
+    );
+  }
+
+  Widget _needsNymView(BuildContext context, PosState state) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _StatusNotice(
           icon: Icons.badge_outlined,
-          title: context.loc.posNeedsNymTitle,
-          body: context.loc.posNeedsNymBody,
+          title: context.loc.posNeedsPermanentNymTitle,
+          body: context.loc.posNeedsPermanentNymBody,
         ),
-        const Gap(24),
-        TextField(
-          controller: _nym,
-          enabled: !state.submitting,
-          autocorrect: false,
-          enableSuggestions: false,
-          onChanged: cubit.nymDraftChanged,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            labelText: context.loc.posNymLabel,
-            helperText: context.loc.posNymHelper,
+        if (state.walletBehavior != null)
+          _WalletBehaviorControls(
+            behavior: state.walletBehavior!,
+            saving: state.walletBehaviorSaving,
           ),
-        ),
-        const Gap(16),
-        Text(
-          context.loc.posRoutingNotice,
-          style: context.font.bodySmall?.copyWith(
-            color: context.appColors.textMuted,
-          ),
-        ),
-        const Gap(24),
-        BBButton.big(
-          label: context.loc.posCreateNymButton,
-          onPressed: () => _createNym(cubit),
-          disabled: state.submitting || state.nymDraft.trim().isEmpty,
-          bgColor: context.appColors.primary,
-          textColor: context.appColors.onPrimary,
-        ),
       ],
     );
   }
@@ -180,15 +175,16 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           body: context.loc.posArchivedBody,
         ),
         const Gap(24),
-        if (state.terminalUrl != null) _shareRow(context, state.terminalUrl!),
-        const Gap(24),
-        BBButton.big(
-          label: context.loc.posPublishButton,
-          onPressed: () => _provision(cubit),
-          disabled: state.submitting,
-          bgColor: context.appColors.primary,
-          textColor: context.appColors.onPrimary,
+        _permanentAliasSection(context, state, cubit),
+        const Gap(16),
+        _SurfaceOnlineControl(
+          online: false,
+          saving: state.submitting,
+          onChanged: (online) =>
+              _setOnline(cubit: cubit, state: state, online: online),
         ),
+        const Gap(24),
+        if (state.terminalUrl != null) _shareRow(context, state.terminalUrl!),
         if (state.walletBehavior != null)
           _WalletBehaviorControls(
             behavior: state.walletBehavior!,
@@ -217,6 +213,17 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           ),
           const Gap(16),
         ],
+        _permanentAliasSection(context, state, cubit),
+        if (!isCreate) ...[
+          const Gap(16),
+          _SurfaceOnlineControl(
+            online: true,
+            saving: state.submitting,
+            onChanged: (online) =>
+                _setOnline(cubit: cubit, state: state, online: online),
+          ),
+        ],
+        const Gap(20),
         TextField(
           controller: _label,
           enabled: !state.submitting,
@@ -254,22 +261,39 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           bgColor: context.appColors.primary,
           textColor: context.appColors.onPrimary,
         ),
-        if (!isCreate) ...[
-          const Gap(12),
-          BBButton.big(
-            label: context.loc.posDeactivateButton,
-            onPressed: () => _archive(cubit),
-            disabled: state.submitting,
-            bgColor: context.appColors.secondary,
-            textColor: context.appColors.onSecondary,
-          ),
-        ],
         if (state.walletBehavior != null)
           _WalletBehaviorControls(
             behavior: state.walletBehavior!,
             saving: state.walletBehaviorSaving,
           ),
       ],
+    );
+  }
+
+  Widget _permanentAliasSection(
+    BuildContext context,
+    PosState state,
+    PosCubit cubit,
+  ) {
+    final alias = state.permanentAlias;
+    if (alias != null) return _PermanentAliasSummary(alias: alias);
+    return TextField(
+      key: const Key('pos_alias_field'),
+      controller: _alias,
+      enabled: !state.submitting,
+      autocorrect: false,
+      enableSuggestions: false,
+      maxLength: 32,
+      onChanged: cubit.aliasDraftChanged,
+      decoration: InputDecoration(
+        border: const OutlineInputBorder(),
+        labelText: context.loc.posAliasLabel,
+        helperText: context.loc.posAliasHelper,
+        errorText: state.invalidField == PosField.alias
+            ? context.loc.posAliasInvalid
+            : null,
+        errorMaxLines: 2,
+      ),
     );
   }
 
@@ -347,13 +371,30 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     );
   }
 
-  Future<void> _createNym(PosCubit cubit) async {
-    if (!await ensureAutomatedBackupConsent(context)) return;
-    if (!mounted) return;
-    await cubit.createNym();
-  }
-
   Future<void> _provision(PosCubit cubit) async {
+    final state = cubit.state;
+    if (state.permanentAlias == null && state.aliasDraft.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(dialogContext.loc.posAliasConfirmTitle),
+          content: Text(
+            dialogContext.loc.posAliasConfirmBody(state.aliasDraft),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(dialogContext.loc.posAliasConfirmCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(dialogContext.loc.posAliasConfirmSubmit),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || confirmed != true) return;
+    }
     // Creating the POS provisions wallet 103 and rides the next backup
     // snapshot, so ensure the automated-backup disclosure is acknowledged
     // (no-op if already consented).
@@ -362,26 +403,35 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     await cubit.provision();
   }
 
-  Future<void> _archive(PosCubit cubit) async {
+  Future<void> _setOnline({
+    required PosCubit cubit,
+    required PosState state,
+    required bool online,
+  }) async {
+    if (online) {
+      await _provision(cubit);
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(dialogContext.loc.posArchiveConfirmTitle),
-        content: Text(dialogContext.loc.posArchiveConfirmBody),
+        title: Text(dialogContext.loc.posTurnOffConfirmTitle),
+        content: Text(dialogContext.loc.posTurnOffConfirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(dialogContext.loc.posArchiveConfirmCancel),
+            child: Text(dialogContext.loc.posTurnOffConfirmCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(dialogContext.loc.posArchiveConfirmConfirm),
+            child: Text(dialogContext.loc.posTurnOffConfirmSubmit),
           ),
         ],
       ),
     );
     if (!mounted || confirmed != true) return;
-    await cubit.archive();
+    if (!state.isOnline) return;
+    await cubit.setOnline(false);
   }
 
   Future<void> _openLink(String url) async {
@@ -390,6 +440,57 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     // Guarded external launch only - the terminal URL is never webviewed
     // (DELTA 2 / §8.9).
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+class _PermanentAliasSummary extends StatelessWidget {
+  final String alias;
+
+  const _PermanentAliasSummary({required this.alias});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _InfoRow(label: context.loc.posAliasLabel, value: alias),
+          const Gap(8),
+          Text(
+            context.loc.posAliasReadOnly,
+            style: context.font.bodySmall?.copyWith(
+              color: context.appColors.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SurfaceOnlineControl extends StatelessWidget {
+  final bool online;
+  final bool saving;
+  final ValueChanged<bool> onChanged;
+
+  const _SurfaceOnlineControl({
+    required this.online,
+    required this.saving,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: SwitchListTile(
+        key: const Key('pos_online_switch'),
+        value: online,
+        onChanged: saving ? null : onChanged,
+        title: Text(context.loc.posOnlineToggleLabel),
+        subtitle: Text(context.loc.posOnlineToggleBody),
+      ),
+    );
   }
 }
 
