@@ -1,5 +1,6 @@
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration_liveness.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_payment_comment.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet_registration.dart';
 
@@ -9,6 +10,7 @@ export 'package:bb_mobile/features/lightning_address/domain/lightning_address_er
         WalletOwnedLightningAddressActivationFailurePhase;
 export 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration.dart';
 export 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration_liveness.dart';
+export 'package:bb_mobile/features/lightning_address/domain/lightning_address_payment_comment.dart';
 export 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet.dart'
     show PreparedLightningAddressWallet;
 export 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet_registration.dart'
@@ -27,6 +29,11 @@ class LightningAddressFacade {
   _lookupWalletOwnedRegistrationCallback;
   final Future<LightningAddressHealOutcome> Function()
   _ensureRegistrationLiveCallback;
+  final Future<LightningAddressPaymentCommentPage> Function({
+    required int page,
+    required int pageSize,
+  })
+  _listPaymentCommentsCallback;
 
   const LightningAddressFacade({
     required Future<PreparedLightningAddressWallet> Function() prepareWallet,
@@ -40,11 +47,17 @@ class LightningAddressFacade {
     lookupWalletOwnedRegistration,
     required Future<LightningAddressHealOutcome> Function()
     ensureRegistrationLive,
+    required Future<LightningAddressPaymentCommentPage> Function({
+      required int page,
+      required int pageSize,
+    })
+    listPaymentComments,
   }) : _prepareWalletCallback = prepareWallet,
        _lookupRegistrationCallback = lookupRegistration,
        _registerWalletOwnedCallback = registerWalletOwned,
        _lookupWalletOwnedRegistrationCallback = lookupWalletOwnedRegistration,
-       _ensureRegistrationLiveCallback = ensureRegistrationLive;
+       _ensureRegistrationLiveCallback = ensureRegistrationLive,
+       _listPaymentCommentsCallback = listPaymentComments;
 
   Future<PreparedLightningAddressWallet> prepareWallet() {
     return _prepareWalletCallback();
@@ -68,5 +81,14 @@ class LightningAddressFacade {
   /// re-register a lapsed-but-known registration. Never prompts unconditionally.
   Future<LightningAddressHealOutcome> ensureRegistrationLive() {
     return _ensureRegistrationLiveCallback();
+  }
+
+  /// Merchant-private history. The facade derives signing authority behind its
+  /// boundary; presentation receives only payment evidence and exact text.
+  Future<LightningAddressPaymentCommentPage> listPaymentComments({
+    required int page,
+    required int pageSize,
+  }) {
+    return _listPaymentCommentsCallback(page: page, pageSize: pageSize);
   }
 }

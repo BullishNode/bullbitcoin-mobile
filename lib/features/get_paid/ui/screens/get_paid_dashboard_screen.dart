@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_routes.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
+import 'package:bb_mobile/features/get_paid/ui/get_paid_router.dart';
 import 'package:bb_mobile/features/get_paid/ui/widgets/get_paid_slot_card.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_routes.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
@@ -23,8 +24,9 @@ import 'package:go_router/go_router.dart';
 
 /// The Get Paid hub — the third bottom-nav tab. Draws its own [BullTopBar]
 /// (the shell app bar is null for this tab) and lists the five Get Paid
-/// products as tappable slot cards. Auto-refreshes on init, on app-resume and
-/// on pull; reads public facades only.
+/// products plus the authenticated Lightning payment-comment history as
+/// tappable slot cards. Auto-refreshes on init, on app-resume and on pull;
+/// reads public facades only.
 class GetPaidDashboardScreen extends StatefulWidget {
   const GetPaidDashboardScreen({super.key});
 
@@ -121,6 +123,13 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
       ),
       const Gap(12),
       GetPaidSlotCard(
+        icon: Icons.comment_outlined,
+        title: loc.getPaidCommentsHistoryTitle,
+        subtitle: loc.getPaidCommentsHistorySubtitle,
+        onTap: () => _open(GetPaidDashboardRoute.commentHistory.name),
+      ),
+      const Gap(12),
+      GetPaidSlotCard(
         icon: Icons.storefront,
         title: loc.getPaidDashboardDonationPageTitle,
         subtitle: page?.publicUrl ?? loc.getPaidDashboardDonationPageSubtitle,
@@ -182,7 +191,7 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
   }
 }
 
-/// First-load shimmer: five placeholder tiles standing in for the slot cards.
+/// First-load shimmer: six placeholder tiles standing in for the slot cards.
 class _LoadingList extends StatelessWidget {
   const _LoadingList();
 
@@ -192,6 +201,8 @@ class _LoadingList extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       physics: const NeverScrollableScrollPhysics(),
       children: const [
+        BullShimmerBox(height: 88, padding: EdgeInsets.zero),
+        Gap(12),
         BullShimmerBox(height: 88, padding: EdgeInsets.zero),
         Gap(12),
         BullShimmerBox(height: 88, padding: EdgeInsets.zero),

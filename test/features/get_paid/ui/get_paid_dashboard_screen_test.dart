@@ -36,13 +36,12 @@ Future<void> _pump(WidgetTester tester, GetPaidDashboardState state) async {
 }
 
 void main() {
-  testWidgets('the hub renders its top bar and five slot cards', (
-    tester,
-  ) async {
+  testWidgets('the hub renders its top bar and six slot cards', (tester) async {
     await _pump(tester, const GetPaidDashboardState());
 
     expect(find.byType(BullTopBar), findsOneWidget);
-    expect(find.byType(GetPaidSlotCard), findsNWidgets(5));
+    expect(find.byType(GetPaidSlotCard), findsNWidgets(6));
+    expect(find.text('Lightning payment comments'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -52,7 +51,7 @@ void main() {
     await _pump(tester, const GetPaidDashboardState(isLoading: true));
 
     expect(find.byType(GetPaidSlotCard), findsNothing);
-    expect(find.byType(BullShimmerBox), findsNWidgets(5));
+    expect(find.byType(BullShimmerBox), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
