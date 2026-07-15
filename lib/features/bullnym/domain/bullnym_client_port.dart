@@ -5,6 +5,7 @@ import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_fallback_supervision.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice_quote.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_lnurl_comment.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_public_names.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_recovery_address.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_registration.dart';
@@ -106,6 +107,17 @@ abstract interface class BullnymClientPort {
   @useResult
   Future<Result<BullnymFallbackSupervisionResponse, BullnymFailure>>
   listFallbackSupervision({required BullnymAuthSigner signer});
+
+  /// Private, merchant-authenticated payment history containing only LNURL
+  /// comments whose payment evidence exists. The identity-wide action signs an
+  /// empty nym slot followed by `[page, pageSize]`.
+  @useResult
+  Future<Result<BullnymLnurlCommentHistoryResponse, BullnymFailure>>
+  listLnurlCommentHistory({
+    required BullnymAuthSigner signer,
+    required int page,
+    required int pageSize,
+  });
 
   /// Public, UNSIGNED status/detail poll by id
   /// (`GET /api/v1/invoices/:id/status`). Anyone holding the id can poll it.
