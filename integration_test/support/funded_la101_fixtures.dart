@@ -44,6 +44,12 @@ const _defaultPaymentTimeoutSec = 900; // 15 minutes
 const _defaultReturnTimeoutSec = 900; // 15 minutes
 const _defaultPollIntervalSec = 15;
 
+// Durable, out-of-repo seed-carry location for the app-generated recovery
+// material (fund-safety). GETPAID_FUNDED_SEED_EXPORT_DIR overrides it; the
+// operator must have created this directory mode-0700 before launch.
+const _defaultSeedExportDir =
+    '/home/francis/bull-bitcoin-workspace/.secrets-carry/getpaid-qa-seeds';
+
 /// Run configuration for the funded LA-101 spec, resolved from the process
 /// environment (operator-provided) with `--dart-define` fallbacks for device
 /// runs.
@@ -129,21 +135,16 @@ class FundedLa101Fixtures {
     // fund the wallet — the funds would be unrecoverable if the ephemeral app
     // state is lost. Checked (like the handshake dir) before any wallet work.
     final seedExportPath = _firstNonEmpty([
-      env['GETPAID_FUNDED_SEED_EXPORT_DIR'],
-      _seedExportDefine,
-    ]);
-    if (seedExportPath == null) {
-      throw StateError(
-        'GETPAID_FUNDED_SEED_EXPORT_DIR is not set; refusing to create + fund '
-        'an app-generated wallet with nowhere durable to persist its recovery '
-        'material (fund-safety, fail-closed)',
-      );
-    }
+          env['GETPAID_FUNDED_SEED_EXPORT_DIR'],
+          _seedExportDefine,
+        ]) ??
+        _defaultSeedExportDir;
     final seedExportDir = Directory(seedExportPath);
     if (!seedExportDir.existsSync()) {
       throw StateError(
-        'GETPAID_FUNDED_SEED_EXPORT_DIR ($seedExportPath) does not exist; the '
-        'operator must create the mode-0700 seed-carry directory before launch',
+        'seed-carry directory ($seedExportPath) does not exist; the operator '
+        'must create it mode-0700 before launch (fund-safety, fail-closed) — '
+        'or point GETPAID_FUNDED_SEED_EXPORT_DIR at an existing one',
       );
     }
 
@@ -217,25 +218,31 @@ class FundedLa101Fixtures {
       File('${handshakeDir.path}${Platform.pathSeparator}$name');
 
   /// The durable, mode-0600 file this run's app-generated recovery material is
-  /// written to (uniquely named per run + seed fingerprint). It lives OUTSIDE
-  /// the repos and the handshake channel and is never committed.
-  File seedBackupFile(String masterFingerprint) => File(
-        '${seedExportDir.path}${Platform.pathSeparator}'
-        'la101-$runId-$masterFingerprint.seed.json',
+  /// written to (uniquely named per run id). It lives OUTSIDE the repos and the
+  /// handshake channel and is never committed.
+  File get seedBackupFile => File(
+        '${seedExportDir.path}${Platform.pathSeparator}$runId.seed.json',
       );
 
   /// FUND-SAFETY: persist the app-generated recovery material so stranded funds
-  /// are always recoverable. Writes atomically, then tightens the file to owner
-  /// read/write only (0600). Returns the file path (the ONLY thing the caller
-  /// may surface — never the words). The caller must ensure this runs BEFORE any
-  /// funding.
+  /// are always recoverable. Refuses to clobber an existing backup (a prior run
+  /// with the same run id may still hold funds), writes atomically, then
+  /// tightens the file to owner read/write only (0600). Returns the file path
+  /// (the ONLY thing the caller may surface — never the words). The caller must
+  /// ensure this runs BEFORE any funding.
   Future<String> writeSeedBackup({
     required String masterFingerprint,
     required List<String> mnemonicWords,
     String? passphrase,
     required String network,
   }) async {
-    final file = seedBackupFile(masterFingerprint);
+    final file = seedBackupFile;
+    if (file.existsSync()) {
+      throw StateError(
+        'seed backup ${file.path} already exists; refusing to overwrite a prior '
+        "run's recovery material — use a fresh GETPAID_FUNDED_RUN_ID",
+      );
+    }
     final tmp = File('${file.path}.tmp');
     final payload = <String, Object?>{
       'schema': 'getpaid-la101-seed-backup/v1',
