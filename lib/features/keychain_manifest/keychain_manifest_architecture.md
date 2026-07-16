@@ -53,8 +53,12 @@ must not be presented as importable or recoverable.
   current-attempt rollback.
 - The public boundary may build a manifest file payload, but file operations
   must not mutate local manifest inventory.
+- `keychain_manifest` owns the canonical manifest payload used by
+  `wallet_backup` as its `keychain_manifest` section. It does not own the
+  outer envelope, encryption key, ciphertext, or remote lifecycle.
 - `keychain_manifest` must not import BTCPay, Get Paid, external receive
-  wallets, keychain recovery, Nostr, or UI features.
+  wallets, keychain recovery, remote storage infrastructure, or UI
+  features.
 
 ## Entry Identity
 
@@ -240,6 +244,7 @@ not a refactor.
 | `network` | `bitcoinMainnet`, `bitcoinTestnet`, `liquidMainnet`, `liquidTestnet` | `Network` (`core/wallet`) |
 | `scriptType` | `bip84`, `bip49`, `bip44` | `ScriptType` (`core/wallet`) |
 
-The payload is generated on demand by callers that need a serialized projection.
-Transport, wallet creation, product restore, and UI flows are out of scope and
-are not specified by this feature.
+The payload is generated on demand through `keychain_manifest/public`.
+`wallet_backup` consumes that published payload and embeds it without changing
+its canonical representation. Transport, encryption, wallet creation, product
+restore, and UI are out of scope for this feature.

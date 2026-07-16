@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +26,49 @@ void main() {
       expect(
         codec.encode(codec.decode(_emptyManifestPayload)),
         _emptyManifestPayload,
+      );
+    });
+
+    test('encode restores canonical entry and materialization order', () {
+      final json = jsonDecode(_manifestPayload) as Map<String, Object?>;
+      final entries = (json['entries']! as List<Object?>)
+          .cast<Map<String, Object?>>();
+      final first = Map<String, Object?>.from(entries.single);
+      final firstMaterializations =
+          (first['materializations']! as List<Object?>)
+              .cast<Map<String, Object?>>();
+      first['materializations'] = firstMaterializations.reversed.toList();
+
+      final second = Map<String, Object?>.from(first)
+        ..['entryId'] = "fedcba98:39'/0'/12'/101'"
+        ..['bip85DerivationPath'] = "39'/0'/12'/101'"
+        ..['bip85Index'] = 101
+        ..['materializations'] = [
+          Map<String, Object?>.from(firstMaterializations.first)
+            ..['walletId'] = 'btc-wallet-2',
+        ];
+      json
+        ..['entryCount'] = 2
+        ..['materializationCount'] = 3
+        ..['entries'] = [second, first];
+
+      final canonicalized = codec.encode(codec.decode(jsonEncode(json)));
+      final canonicalJson = jsonDecode(canonicalized) as Map<String, Object?>;
+      final canonicalEntries = (canonicalJson['entries']! as List<Object?>)
+          .cast<Map<String, Object?>>();
+      final canonicalMaterializations =
+          (canonicalEntries.first['materializations']! as List<Object?>)
+              .cast<Map<String, Object?>>();
+
+      expect(canonicalEntries.map((entry) => entry['bip85DerivationPath']), [
+        "39'/0'/12'/100'",
+        "39'/0'/12'/101'",
+      ]);
+      expect(
+        canonicalMaterializations.map(
+          (materialization) => materialization['network'],
+        ),
+        ['bitcoinMainnet', 'liquidMainnet'],
       );
     });
   });
