@@ -307,6 +307,13 @@ live-nopay-test:
 	@echo "🧪 live no-pay Get Paid integration test ($(INTEGRATION_DEVICE))"
 	@fvm flutter test integration_test/get_paid_live_nopay_test.dart -d $(INTEGRATION_DEVICE) --reporter=expanded
 
+# S-REAL-PROD-PAGE102-FUNDED: MOVES REAL FUNDS. Coordinator-driven via the
+# handshake directory (GETPAID_FUNDED_HANDSHAKE_DIR). See
+# integration_test/FUNDED-RUN.md for the env + handshake contract.
+page102-funded-test:
+	@echo "🧪 funded Page-102 Get Paid integration test ($(INTEGRATION_DEVICE))"
+	@fvm flutter test integration_test/get_paid_page102_funded_test.dart -d $(INTEGRATION_DEVICE) --reporter=expanded
+
 # Build & render the bull_ui design-system catalogue (Widgetbook) locally in the
 # browser. Dev-only tooling — never shipped in the app. Regenerates the
 # @UseCase directories, then runs the catalogue app on Chrome (hot-reload).

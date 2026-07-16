@@ -36,6 +36,9 @@ const skip = {
   // This is an explicit external lane only; never include it in the default
   // aggregate integration run.
   'get_paid_live_nopay_test.dart',
+  // S-REAL-PROD-PAGE102-FUNDED: MOVES REAL FUNDS, coordinator-driven through a
+  // handshake directory. Explicit external lane only; never aggregate it.
+  'get_paid_page102_funded_test.dart',
 };
 
 void main() {
