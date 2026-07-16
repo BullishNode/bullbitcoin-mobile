@@ -1,6 +1,9 @@
+import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_failure.dart';
+import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_service_port.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
-import 'package:bb_mobile/features/bullnym/domain/bullnym_error.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_cubit.dart';
@@ -31,10 +34,10 @@ const _pairingUrl =
 
 class _FakePairingService implements SamRockPairingServicePort {
   @override
-  Future<SamRockPairingResponse> submitSetup({
-    required Object request,
-    required Object payload,
-  }) async => const SamRockPairingResponse(success: true);
+  Future<Result<void, BtcpayFailure>> submitSetup({
+    required SamRockPairingRequest request,
+    required Map<String, Object?> payload,
+  }) async => const Ok(null);
 }
 
 /// The staged world for one tuple: the fake seams and the terminal recovery
@@ -100,10 +103,9 @@ class ScenarioCompiler {
       // Pairing records a keychain-manifest entry and publishes the snapshot —
       // the proven staging path (SPEC-RT-01), so the relay holds one populated
       // authentic NIP-33 event on the seed-derived coordinate.
-      await locator<CompleteBtcpaySamRockPairingUsecase>().execute(
-        pairingUrl: _pairingUrl,
-      );
-      published = relay.storedEventCount > 0;
+      final pairing = await locator<CompleteBtcpaySamRockPairingUsecase>()
+          .execute(pairingUrl: _pairingUrl);
+      published = pairing is Ok && relay.storedEventCount > 0;
     }
 
     // --- Apply the D3/D4 fault schedule that acts at FETCH time ------------
@@ -208,20 +210,20 @@ class ScenarioCompiler {
         bullnym.mode = FakeBullnymMode.serverUnreachable;
       case 'err-500':
         bullnym.injectedRegistrationError =
-            const BullnymException.unexpectedHttpStatus(statusCode: 500);
+            const BullnymFailure.unexpectedHttpStatus(statusCode: 500);
       case 'err-conflict':
         bullnym.injectedRegistrationError =
-            const BullnymException.serverRejectedRequest(
+            const BullnymFailure.serverRejectedRequest(
               code: 'Conflict',
-              diagnosticReason: 'nym already registered',
+              logMessage: 'nym already registered',
               statusCode: 409,
               retryable: false,
             );
       case 'err-ratelimited':
         bullnym.injectedRegistrationError =
-            const BullnymException.serverRejectedRequest(
+            const BullnymFailure.serverRejectedRequest(
               code: 'RateLimitedSender',
-              diagnosticReason: 'registration rate limit exceeded',
+              logMessage: 'registration rate limit exceeded',
               statusCode: 429,
               retryable: true,
             );

@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
@@ -22,6 +23,13 @@ import 'support/wipe_app_state.dart';
 // This spec intentionally does NOT import send/pay/broadcast code. It may
 // create invoice metadata and payable addresses, but it must never execute an
 // actual Bitcoin, Liquid, or Lightning payment.
+T _unwrap<T>(Result<T, InvoicesFailure> result) => switch (result) {
+  Ok(:final value) => value,
+  Err(:final failure) => throw TestFailure(
+    'Expected invoice operation to succeed, got $failure',
+  ),
+};
+
 Future<void> main({bool isInitialized = false}) async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   if (!isInitialized) await Bull.init();
@@ -68,29 +76,33 @@ Future<void> main({bool isInitialized = false}) async {
     expect(pos.isActive, isTrue);
     expect(pos.terminalUrl, contains(nym));
 
-    final invoice = await locator<InvoicesFacade>().create(
-      CreateInvoiceCommand(
-        amountSat: 25000,
-        acceptBtc: true,
-        acceptLn: true,
-        acceptLiquid: true,
-        publicDescription: 'No-pay invoice metadata ${fixtures.runId}',
-        expiresAt: DateTime.now().toUtc().add(const Duration(hours: 2)),
+    final invoice = _unwrap(
+      await locator<InvoicesFacade>().create(
+        CreateInvoiceCommand(
+          amountSat: 25000,
+          acceptBtc: true,
+          acceptLn: true,
+          acceptLiquid: true,
+          publicDescription: 'No-pay invoice metadata ${fixtures.runId}',
+          expiresAt: DateTime.now().toUtc().add(const Duration(hours: 2)),
+        ),
       ),
     );
     expect(invoice.invoiceId.value, isNotEmpty);
     expect(invoice.shareUrl.value, contains('/invoice/'));
 
-    final invoiceStatus = await locator<InvoicesFacade>().status(
-      invoice.invoiceId,
+    final invoiceStatus = _unwrap(
+      await locator<InvoicesFacade>().status(invoice.invoiceId),
     );
     expect(invoiceStatus.status, InvoiceStatus.unpaid);
     expect(invoiceStatus.acceptBtc, isTrue);
     expect(invoiceStatus.acceptLn, isTrue);
     expect(invoiceStatus.acceptLiquid, isTrue);
 
-    final cancelled = await locator<InvoicesFacade>().cancel(
-      CancelInvoiceCommand(invoiceId: invoice.invoiceId),
+    final cancelled = _unwrap(
+      await locator<InvoicesFacade>().cancel(
+        CancelInvoiceCommand(invoiceId: invoice.invoiceId),
+      ),
     );
     expect(cancelled.invoiceId, invoice.invoiceId);
     expect(cancelled.finalStatus, InvoiceStatus.cancelled);

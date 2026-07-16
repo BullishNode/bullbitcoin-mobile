@@ -133,12 +133,12 @@ class FakeBullnymClient implements BullnymClientPort {
   String? recoveryAddress;
 
   /// E8 (error-code injection, GETPAID-APP-E2E-FAILURE-MATRIX §7.2). When set,
-  /// `register` and `lookupRegistration` throw this exception instead of
+  /// `register` and `lookupRegistration` return this failure instead of
   /// honouring [mode], so the D5 server-error values beyond the four coarse
   /// [FakeBullnymMode]s (err-500 / err-conflict / err-ratelimited) can drive the
   /// registration + DG-3 heal paths. Null (the default) leaves behaviour
   /// unchanged, so the existing L1 specs are unaffected.
-  BullnymException? injectedRegistrationError;
+  BullnymFailure? injectedRegistrationError;
 
   final List<String> registeredNyms = [];
   final List<BullnymSaveDonationPageRequest> saveDonationPageCalls = [];
@@ -184,7 +184,7 @@ class FakeBullnymClient implements BullnymClientPort {
   ) async {
     registeredNyms.add(request.nym);
     final injected = injectedRegistrationError;
-    if (injected != null) throw injected;
+    if (injected != null) return Err(injected);
     if (mode == FakeBullnymMode.serverUnreachable) {
       return const Err(
         BullnymFailure.serverRejectedRequest(
@@ -247,7 +247,7 @@ class FakeBullnymClient implements BullnymClientPort {
     required String npubHex,
   }) async {
     final injected = injectedRegistrationError;
-    if (injected != null) throw injected;
+    if (injected != null) return Err(injected);
     switch (mode) {
       case FakeBullnymMode.live:
         return Ok(

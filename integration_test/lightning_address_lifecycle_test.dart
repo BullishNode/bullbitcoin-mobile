@@ -1,5 +1,5 @@
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
-import 'package:bb_mobile/features/bullnym/domain/bullnym_error.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_failure.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/locator.dart';
@@ -94,9 +94,9 @@ Future<void> main({bool isInitialized = false}) async {
 
     // The server rejects the registration (the nym is taken).
     bullnym.injectedRegistrationError =
-        const BullnymException.serverRejectedRequest(
+        const BullnymFailure.serverRejectedRequest(
       code: 'NymTaken',
-      diagnosticReason: 'nym taken',
+      logMessage: 'nym taken',
       retryable: false,
     );
     await expectLater(
