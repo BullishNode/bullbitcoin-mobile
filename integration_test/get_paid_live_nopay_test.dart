@@ -272,6 +272,11 @@ Future<void> _resetWithMnemonic(List<String> mnemonicWords) async {
 /// permanent-name quota is exhausted, the fixtures reused a seed that permanent
 /// names forbid — surface that clearly rather than as an opaque server reject.
 Future<void> _assertSeedCanClaim(String intendedNym) async {
+  // Opt-in only (default OFF). Fresh-per-run seeds + the fixtures' static
+  // distinctness guard already prevent seed reuse; skipping the network
+  // preflight keeps the suite under the server's per-source rate window.
+  if (!LiveNoPayFixtures.preflightSeedCheckEnabled) return;
+
   final LightningAddressStatus existing;
   try {
     existing = await locator<LightningAddressFacade>()

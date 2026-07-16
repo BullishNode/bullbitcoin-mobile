@@ -24,6 +24,23 @@ class LiveNoPayFixtures {
   static const _runIdDefine = String.fromEnvironment(
     'GETPAID_LIVE_NOPAY_RUN_ID',
   );
+  static const _preflightDefine = String.fromEnvironment(
+    'GETPAID_LIVE_NOPAY_PREFLIGHT',
+  );
+
+  /// Opt-in (default OFF) burned-seed preflight lookup. Fresh-per-run seeds and
+  /// [_assertDistinctSeeds] already cover the reuse risk, and each preflight is
+  /// a public GET that eats into the server's per-source rate window (~30/60s),
+  /// so the network preflight only runs when GETPAID_LIVE_NOPAY_PREFLIGHT is
+  /// truthy (1/true/yes/on) — e.g. when debugging a suspected burned seed.
+  static bool get preflightSeedCheckEnabled {
+    final raw = _firstNonEmpty([
+      Platform.environment['GETPAID_LIVE_NOPAY_PREFLIGHT'],
+      _preflightDefine,
+    ]);
+    if (raw == null) return false;
+    return const {'1', 'true', 'yes', 'on'}.contains(raw.toLowerCase());
+  }
 
   /// BullnymPublicName syntax cap (bullnym_public_names.dart:56-58).
   static const int maxNymLength = 32;
