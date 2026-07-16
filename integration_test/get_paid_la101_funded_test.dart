@@ -10,6 +10,7 @@ import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_receive_address_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_transactions_usecase.dart';
+import 'package:bb_mobile/features/test_wallet_backup/domain/usecases/get_mnemonic_from_fingerprint_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/send/domain/usecases/calculate_liquid_absolute_fees_usecase.dart';
@@ -76,16 +77,36 @@ Future<void> main({bool isInitialized = false}) async {
     final environment = settings.environment;
     final network = environment.isMainnet ? 'liquid-mainnet' : 'liquid-testnet';
 
-    // (a) Restore/create the QA wallet from the funded mnemonic. The mnemonic
-    // never leaves this call — it is not logged or written to the handshake.
+    // (a) Drive the app's OWN wallet-creation flow: with no mnemonic supplied,
+    // CreateDefaultWalletsUsecase generates the seed on-device, so the app owns
+    // it exactly like a fresh-install customer (which the app then auto-backs-up
+    // via the Nostr keychain). No externally-derived mnemonic is injected.
     await wipeAppState(locator);
-    await locator<CreateDefaultWalletsUsecase>().execute(
-      mnemonicWords: fixtures.mnemonicWords,
-    );
+    await locator<CreateDefaultWalletsUsecase>().execute();
     final defaultLiquid = await _defaultLiquidWallet(environment);
-    _checkpoint('wallet_restored', data: {
+    _checkpoint('wallet_created', data: {
       'default_liquid_wallet_id': defaultLiquid.id,
       'network': network,
+    });
+
+    // FUND-SAFETY: before any funding, persist the app-generated recovery
+    // material to the durable mode-0600 seed-carry dir so stranded funds are
+    // always recoverable. All wallets (default Bitcoin/Liquid + the BIP85
+    // wallet 101) derive from this one root seed, so a single backup covers the
+    // whole run. The words are read via the app's own seed-export API and are
+    // NEVER logged or checkpointed — only the export file path is surfaced.
+    final (mnemonicWords, passphrase) =
+        await locator<GetMnemonicFromFingerprintUsecase>()
+            .execute(defaultLiquid.masterFingerprint);
+    final seedBackupFile = await fixtures.writeSeedBackup(
+      masterFingerprint: defaultLiquid.masterFingerprint,
+      mnemonicWords: mnemonicWords,
+      passphrase: passphrase,
+      network: network,
+    );
+    _checkpoint('recovery_captured', data: {
+      'master_fingerprint': defaultLiquid.masterFingerprint,
+      'seed_backup_file': seedBackupFile,
     });
 
     // (b) Register a wallet-owned Lightning Address. This materializes wallet

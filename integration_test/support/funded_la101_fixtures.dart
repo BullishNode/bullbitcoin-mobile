@@ -46,8 +46,16 @@ const _defaultPollIntervalSec = 15;
 
 /// Run configuration for the funded LA-101 spec, resolved from the process
 /// environment (operator-provided) with `--dart-define` fallbacks for device
-/// runs. The mnemonic is held only in memory and is NEVER logged or written to
-/// the handshake channel.
+/// runs.
+///
+/// The recipient wallet is NOT restored from an injected mnemonic: the spec
+/// drives the app's own wallet-creation flow so the app GENERATES and OWNS its
+/// seed on-device (matching a real customer, who is then auto-backed-up via the
+/// Nostr keychain). As a fund-safety measure, before any funding the spec
+/// captures that app-generated recovery material to [seedExportDir] (mode 0600,
+/// uniquely named per run) so stranded funds are always recoverable. The
+/// recovery words are NEVER logged, checkpointed, or written to the handshake
+/// channel — only the export file path is surfaced.
 class FundedLa101Fixtures {
   static const _laneDefine = String.fromEnvironment('GETPAID_E2E_LANE');
   static const _nymDefine = String.fromEnvironment('GETPAID_FUNDED_NYM');
@@ -55,11 +63,14 @@ class FundedLa101Fixtures {
   static const _handshakeDefine = String.fromEnvironment(
     'GETPAID_FUNDED_HANDSHAKE_DIR',
   );
+  static const _seedExportDefine = String.fromEnvironment(
+    'GETPAID_FUNDED_SEED_EXPORT_DIR',
+  );
 
-  final List<String> mnemonicWords;
   final String runId;
   final String nym;
   final Directory handshakeDir;
+  final Directory seedExportDir;
   final int targetAmountSat;
   final int maxFeeSat;
   final double feeRateSatPerVb;
@@ -68,10 +79,10 @@ class FundedLa101Fixtures {
   final Duration pollInterval;
 
   const FundedLa101Fixtures._({
-    required this.mnemonicWords,
     required this.runId,
     required this.nym,
     required this.handshakeDir,
+    required this.seedExportDir,
     required this.targetAmountSat,
     required this.maxFeeSat,
     required this.feeRateSatPerVb,
@@ -91,15 +102,9 @@ class FundedLa101Fixtures {
       );
     }
 
-    final mnemonic = _requiredMnemonic(
-      env['GETPAID_FUNDED_MNEMONIC'],
-      'GETPAID_FUNDED_MNEMONIC',
-    );
-
-    // Handshake-channel refusal. This is deliberately checked BEFORE any wallet
-    // or network work: a funded journey with no channel back to the coordinator
-    // must fail fast and loud rather than move funds it cannot report on. The
-    // smoke lane proves exactly this refusal.
+    // Handshake-channel refusal. Checked BEFORE any wallet or network work: a
+    // funded journey with no channel back to the coordinator must fail fast and
+    // loud rather than move funds it cannot report on. The smoke lane proves it.
     final handshakePath = _firstNonEmpty([
       env['GETPAID_FUNDED_HANDSHAKE_DIR'],
       _handshakeDefine,
@@ -119,6 +124,29 @@ class FundedLa101Fixtures {
       );
     }
 
+    // Fund-safety refusal. The app generates its OWN seed, so if we cannot
+    // persist that seed's recovery material to a durable location we must NOT
+    // fund the wallet — the funds would be unrecoverable if the ephemeral app
+    // state is lost. Checked (like the handshake dir) before any wallet work.
+    final seedExportPath = _firstNonEmpty([
+      env['GETPAID_FUNDED_SEED_EXPORT_DIR'],
+      _seedExportDefine,
+    ]);
+    if (seedExportPath == null) {
+      throw StateError(
+        'GETPAID_FUNDED_SEED_EXPORT_DIR is not set; refusing to create + fund '
+        'an app-generated wallet with nowhere durable to persist its recovery '
+        'material (fund-safety, fail-closed)',
+      );
+    }
+    final seedExportDir = Directory(seedExportPath);
+    if (!seedExportDir.existsSync()) {
+      throw StateError(
+        'GETPAID_FUNDED_SEED_EXPORT_DIR ($seedExportPath) does not exist; the '
+        'operator must create the mode-0700 seed-carry directory before launch',
+      );
+    }
+
     final runId = _cleanNymPart(
       _firstNonEmpty([env['GETPAID_FUNDED_RUN_ID'], _runIdDefine]) ??
           DateTime.now().millisecondsSinceEpoch.toRadixString(36),
@@ -135,10 +163,10 @@ class FundedLa101Fixtures {
     }
 
     return FundedLa101Fixtures._(
-      mnemonicWords: mnemonic,
       runId: runId,
       nym: nym,
       handshakeDir: handshakeDir,
+      seedExportDir: seedExportDir,
       targetAmountSat: _intFromEnv(
         env['GETPAID_FUNDED_AMOUNT_SAT'],
         'GETPAID_FUNDED_AMOUNT_SAT',
@@ -188,6 +216,53 @@ class FundedLa101Fixtures {
   File _fileIn(String name) =>
       File('${handshakeDir.path}${Platform.pathSeparator}$name');
 
+  /// The durable, mode-0600 file this run's app-generated recovery material is
+  /// written to (uniquely named per run + seed fingerprint). It lives OUTSIDE
+  /// the repos and the handshake channel and is never committed.
+  File seedBackupFile(String masterFingerprint) => File(
+        '${seedExportDir.path}${Platform.pathSeparator}'
+        'la101-$runId-$masterFingerprint.seed.json',
+      );
+
+  /// FUND-SAFETY: persist the app-generated recovery material so stranded funds
+  /// are always recoverable. Writes atomically, then tightens the file to owner
+  /// read/write only (0600). Returns the file path (the ONLY thing the caller
+  /// may surface — never the words). The caller must ensure this runs BEFORE any
+  /// funding.
+  Future<String> writeSeedBackup({
+    required String masterFingerprint,
+    required List<String> mnemonicWords,
+    String? passphrase,
+    required String network,
+  }) async {
+    final file = seedBackupFile(masterFingerprint);
+    final tmp = File('${file.path}.tmp');
+    final payload = <String, Object?>{
+      'schema': 'getpaid-la101-seed-backup/v1',
+      'run_id': runId,
+      'nym': nym,
+      'network': network,
+      'master_fingerprint': masterFingerprint,
+      'mnemonic_words': mnemonicWords,
+      'passphrase': passphrase,
+      'captured_at': DateTime.now().toUtc().toIso8601String(),
+      '_warning': 'SECRET recovery material. Do not print, commit, or share.',
+    };
+    await tmp.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(payload),
+      flush: true,
+    );
+    await tmp.rename(file.path);
+    // dart:io has no chmod; use the platform tool to fence the secret to 0600.
+    final chmod = await Process.run('chmod', ['600', file.path]);
+    if (chmod.exitCode != 0) {
+      throw StateError(
+        'failed to chmod 600 the seed backup ${file.path}: ${chmod.stderr}',
+      );
+    }
+    return file.path;
+  }
+
   /// Atomic publish: write to a sibling temp file then rename over the target so
   /// the coordinator never observes a half-written document.
   Future<void> writeJsonAtomic(File file, Map<String, Object?> data) async {
@@ -211,18 +286,6 @@ class FundedLa101Fixtures {
     } catch (_) {
       return null;
     }
-  }
-
-  static List<String> _requiredMnemonic(String? raw, String name) {
-    final value = raw?.trim();
-    if (value == null || value.isEmpty) {
-      throw StateError('$name must be set for the funded LA-101 run');
-    }
-    final words = value.split(RegExp(r'\s+'));
-    if (words.length < 12) {
-      throw StateError('$name must contain a complete mnemonic');
-    }
-    return words;
   }
 
   static String? _firstNonEmpty(Iterable<String?> values) {

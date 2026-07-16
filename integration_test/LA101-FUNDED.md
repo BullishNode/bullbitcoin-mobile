@@ -8,14 +8,16 @@ Page-102 witness (`get_paid_page102_funded_test.dart`, `FUNDED-RUN.md`) — same
 machinery — with one load-bearing difference: the receive is over **Lightning**,
 via a Boltz **reverse swap**, not a direct Liquid send.
 
-**This lane moves real funds.** The spec never pays anything itself: it registers
-a wallet-owned Lightning Address (materializing wallet 101), publishes the
-Lightning Address + payable addresses to a handshake directory, waits for an
-**external coordinator** to pay the Lightning Address over Lightning, observes the
-receipt and the autosweep through the app's own wallet sync, then returns the
-balance via the app's real Liquid Send flow to an address the coordinator writes
-back. Every phase prints a machine-readable `CHECKPOINT` line so the coordinator
-can journal the run.
+**This lane moves real funds.** The spec never pays anything itself: it drives
+the app to CREATE and OWN its wallet (app-generated seed on-device — no injected
+mnemonic), captures that seed's recovery material to a durable mode-0600 file
+before any funding (fund-safety), registers a wallet-owned Lightning Address
+(activating wallet 101), publishes the Lightning Address + payable addresses to a
+handshake directory, waits for an **external coordinator** to pay the Lightning
+Address over Lightning, observes the receipt and the autosweep through the app's
+own wallet sync, then returns the balance via the app's real Liquid Send flow to
+an address the coordinator writes back. Every phase prints a machine-readable
+`CHECKPOINT` line so the coordinator can journal the run.
 
 It is excluded from the default aggregate run (`tools/gen_all_test.dart` skip set)
 and driven only by the coordinator's `scenarios/la101` Linux lane
@@ -49,8 +51,9 @@ Two consequences the spec handles:
 
 | step | meaning |
 |------|---------|
-| `env_check` | fixtures resolved (lane guard, mnemonic, handshake dir all present) |
-| `wallet_restored` | default wallets recreated from `GETPAID_FUNDED_MNEMONIC` |
+| `env_check` | fixtures resolved (lane guard, handshake dir, seed-export dir all present) |
+| `wallet_created` | app generates + owns a fresh seed; default wallets created on-device |
+| `recovery_captured` | app-generated recovery material persisted to the mode-0600 seed-carry file (path only; words never logged) |
 | `lightning_registered` | wallet-owned Lightning Address registered; wallet 101 (Liquid) materialized, autosweep on |
 | `addresses_derived` | wallet-101 receive address (informational) + default-Liquid next address derived |
 | `handshake_offer_written` | `la101_request.json` published; now awaiting payment |
@@ -69,11 +72,15 @@ Two consequences the spec handles:
 
 ## Environment variables
 
-Identical to the Page-102 lane (`FUNDED-RUN.md`) except `GETPAID_E2E_LANE` must
-equal **`S-REAL-PROD-LA101-FUNDED`** and the default nym is `bbe2ela101<runId>`.
-`GETPAID_FUNDED_AMOUNT_SAT` defaults to **2000** (the amount the payer sends over
-Lightning). The handshake files are `la101_request.json` / `la101_response.json`
-/ `la101_result.json` (schemas `getpaid-la101-funded/v1` and
+Like the Page-102 lane (`FUNDED-RUN.md`) with these differences:
+`GETPAID_E2E_LANE` must equal **`S-REAL-PROD-LA101-FUNDED`**; the default nym is
+`bbe2ela101<runId>`; `GETPAID_FUNDED_AMOUNT_SAT` defaults to **2000** (the amount
+the payer sends over Lightning). There is **no `GETPAID_FUNDED_MNEMONIC`** — the
+app creates its own wallet. Instead, **`GETPAID_FUNDED_SEED_EXPORT_DIR`** is
+REQUIRED (fail-closed): an existing mode-0700 directory the spec writes the
+app-generated recovery material into (mode-0600 file per run) before any funding.
+The handshake files are `la101_request.json` / `la101_response.json` /
+`la101_result.json` (schemas `getpaid-la101-funded/v1` and
 `getpaid-la101-funded-result/v1`).
 
 ## Launch command
