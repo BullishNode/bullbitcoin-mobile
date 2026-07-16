@@ -267,9 +267,10 @@ class FundedBtcpay100Fixtures {
   File _fileIn(String name) =>
       File('${handshakeDir.path}${Platform.pathSeparator}$name');
 
-  /// The per-run mode-600 file the recovery material is captured into.
+  /// The per-run mode-600 file the recovery material is captured into
+  /// (`<runId>.txt`, unique per run — the operator supplies a unique run id).
   File get seedCarryFile =>
-      File('${seedCarryDir.path}${Platform.pathSeparator}btcpay100-$runId.json');
+      File('${seedCarryDir.path}${Platform.pathSeparator}$runId.txt');
 
   /// FUND-SAFETY: durably captures the APP-GENERATED wallet's recovery material
   /// (the mnemonic + master fingerprint) into a per-run mode-600 file BEFORE any
@@ -303,21 +304,18 @@ class FundedBtcpay100Fixtures {
     // are never briefly world-readable on disk.
     file.writeAsStringSync('', flush: true);
     await _chmod('600', file.path);
-    file.writeAsStringSync(
-      const JsonEncoder.withIndent('  ').convert(<String, Object?>{
-        'schema': 'getpaid-qa-seed-carry/v1',
-        'scenario': 'btcpay100',
-        'run_id': runId,
-        'network': 'bitcoin-mainnet',
-        'master_fingerprint': masterFingerprint,
-        'mnemonic_words': mnemonicWords,
-        'note': 'QA fund-safety recovery material for an APP-CREATED wallet. '
-            'DO NOT print, commit, or share. Restore into the app to recover '
-            'funds if a run is interrupted.',
-        'captured_at': DateTime.now().toUtc().toIso8601String(),
-      }),
-      flush: true,
-    );
+    // Plaintext carry: two comment header lines (run id + fingerprint + a loud
+    // do-not-share note) then the mnemonic on its own line. The words live ONLY
+    // in this mode-600 file — never a checkpoint, handshake, or log.
+    final buffer = StringBuffer()
+      ..writeln('# getpaid-qa fund-safety recovery material (scenario=btcpay100)')
+      ..writeln('# run_id=$runId master_fingerprint=$masterFingerprint '
+          'network=bitcoin-mainnet captured_at='
+          '${DateTime.now().toUtc().toIso8601String()}')
+      ..writeln('# APP-CREATED wallet. DO NOT print/commit/share. Restore this '
+          'mnemonic into the app to recover funds if a run is interrupted.')
+      ..writeln(mnemonicWords.join(' '));
+    file.writeAsStringSync(buffer.toString(), flush: true);
     await _chmod('600', file.path);
     return file.path;
   }

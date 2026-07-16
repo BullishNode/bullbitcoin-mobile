@@ -1,7 +1,5 @@
 import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_bitcoin_transaction_usecase.dart';
 import 'package:bb_mobile/core/fees/domain/get_network_fees_usecase.dart';
-import 'package:bb_mobile/core/seed/data/models/seed_model.dart';
-import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
@@ -15,6 +13,7 @@ import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_bitcoin_tx_usecase.dart';
+import 'package:bb_mobile/features/test_wallet_backup/domain/usecases/get_mnemonic_from_fingerprint_usecase.dart';
 import 'package:bb_mobile/features/wallet/domain/usecase/run_wallet_auto_sweep_usecase.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:bb_mobile/main.dart';
@@ -107,16 +106,10 @@ Future<void> main({bool isInitialized = false}) async {
     // written to the handshake — only the file PATH and the public fingerprint
     // are checkpointed. This secret is kept entirely separate from the pairing
     // OTP and its redaction rules.
-    final seed = await locator<SeedRepository>().get(
-      defaultBitcoin.masterFingerprint,
-    );
-    final seedModel = SeedModel.fromEntity(seed);
-    if (seedModel is! MnemonicSeedModel) {
-      fail('app-created wallet seed is not a mnemonic seed; cannot capture '
-          'recovery material for fund-safety');
-    }
+    final (mnemonicWords, _) = await locator<GetMnemonicFromFingerprintUsecase>()
+        .execute(defaultBitcoin.masterFingerprint);
     final carryPath = await fixtures.captureRecoveryMaterial(
-      seedModel.mnemonicWords,
+      mnemonicWords,
       masterFingerprint: defaultBitcoin.masterFingerprint,
     );
     _checkpoint(fixtures, 'recovery_captured', data: {
