@@ -23,6 +23,10 @@ import 'support/wipe_app_state.dart';
 // This spec intentionally does NOT import send/pay/broadcast code. It may
 // create invoice metadata and payable addresses, but it must never execute an
 // actual Bitcoin, Liquid, or Lightning payment.
+//
+// Permanent names (permanent_names_v1): a wallet seed owns exactly one nym for
+// life, so every test that registers uses its OWN fresh throwaway seed (see
+// LiveNoPayFixtures) and every nym is kept within the 1-32 char Bullnym syntax.
 T _unwrap<T>(Result<T, InvoicesFailure> result) => switch (result) {
   Ok(:final value) => value,
   Err(:final failure) => throw TestFailure(
@@ -40,10 +44,51 @@ Future<void> main({bool isInitialized = false}) async {
     fixtures = LiveNoPayFixtures.fromEnvironment();
   });
 
-  test('live Bullnym, Nostr backup, restore, payment page, POS, and invoice '
-      'metadata work without executing payments', () async {
-    final nym = fixtures.nymFor('');
-    await _resetWithMnemonic(fixtures.primaryMnemonicWords);
+  // TEST A — the registration + autobackup portion, which does not resolve a
+  // nym via lookup and so is unaffected by the permanent-names lookup defect
+  // (see TEST B). This is the standalone green signal that the RC can register
+  // a wallet-owned nym and build its keychain manifest against production.
+  test('production Bullnym registration and keychain manifest for a '
+      'wallet-owned nym (no payment)', () async {
+    final nym = fixtures.nymFor(LiveNoPayFixtures.registrationScenario);
+    await _resetWithMnemonic(fixtures.registrationMnemonicWords);
+    await _assertSeedCanClaim(nym);
+    await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
+      automatedBackupEnabled: true,
+    );
+
+    final registration = await locator<LightningAddressFacade>()
+        .registerWalletOwned(nym: nym);
+    expect(registration.registration.nym, nym);
+    expect(registration.registration.lightningAddress, isNotEmpty);
+    expect(registration.walletId, isNotEmpty);
+
+    final defaultWallet = (await locator<WalletRepository>().getWallets(
+      onlyDefaults: true,
+      onlyBitcoin: true,
+    )).first;
+    final manifest = await locator<KeychainManifestFacade>()
+        .buildManifestFilePayload(defaultWallet.masterFingerprint);
+    expect(manifest.entryCount, greaterThanOrEqualTo(3));
+  });
+
+  // TEST B — payment page, POS, invoice metadata, and Nostr remote recovery for
+  // a registered nym, WITHOUT any payment.
+  //
+  // KNOWN-RED pending the client fix: under permanent_names_v1 the production
+  // lookup omits the legacy `active` bool (liveness is `lightning_address_online`),
+  // but BullnymHttpClient._parseLookupResponse still requires `active`
+  // unconditionally (bullnym_http_client.dart:791), so every nym-identity
+  // resolution — payment-page save, POS save, post-recovery lookup — throws
+  // InvalidServerResponse. Evidence:
+  // .quarantine/nopay-rc-run-20260716151742/VERDICT.md + lookup-response-body.json.
+  // This test is intentionally left exercising the full flow so it turns green
+  // on its own once the client parser fix lands; it is NOT worked around here.
+  test('payment page, POS, invoice metadata, and Nostr recovery for a '
+      'registered nym (no payment)', () async {
+    final nym = fixtures.nymFor(LiveNoPayFixtures.lifecycleScenario);
+    await _resetWithMnemonic(fixtures.lifecycleMnemonicWords);
+    await _assertSeedCanClaim(nym);
     await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
       automatedBackupEnabled: true,
     );
@@ -107,15 +152,7 @@ Future<void> main({bool isInitialized = false}) async {
     expect(cancelled.invoiceId, invoice.invoiceId);
     expect(cancelled.finalStatus, InvoiceStatus.cancelled);
 
-    final defaultWallet = (await locator<WalletRepository>().getWallets(
-      onlyDefaults: true,
-      onlyBitcoin: true,
-    )).first;
-    final manifest = await locator<KeychainManifestFacade>()
-        .buildManifestFilePayload(defaultWallet.masterFingerprint);
-    expect(manifest.entryCount, greaterThanOrEqualTo(3));
-
-    await _resetWithMnemonic(fixtures.primaryMnemonicWords);
+    await _resetWithMnemonic(fixtures.lifecycleMnemonicWords);
 
     final recovery = await _runRemoteRecovery();
     expect(
@@ -155,41 +192,61 @@ Future<void> main({bool isInitialized = false}) async {
     expect(posHeal.liveness, PosLiveness.live);
   });
 
-  test(
-    'a second real seed cannot silently take over a live Bullnym nym',
-    () async {
-      final secondaryMnemonic = fixtures.secondaryMnemonicWords;
+  // TEST 2 — anti-takeover under permanent names. A FRESH owner seed claims the
+  // nym; a FRESH attacker seed (which owns no name) then attempts the SAME nym
+  // and must be rejected server-side as a name it does not own — not merely
+  // "some exception". Using two fresh seeds is essential: reusing a seed that
+  // already owns a name would instead fail with "cannot claim a second name".
+  test('a second real seed cannot take over a live Bullnym nym', () async {
+    final nym = fixtures.nymFor(LiveNoPayFixtures.takeoverScenario);
 
-      final nym = fixtures.nymFor('takeover');
-      await _resetWithMnemonic(fixtures.primaryMnemonicWords);
-      await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
-        automatedBackupEnabled: true,
-      );
-      final primaryRegistration = await locator<LightningAddressFacade>()
-          .registerWalletOwned(nym: nym);
-      expect(primaryRegistration.registration.nym, nym);
+    // Fresh owner claims the nym.
+    await _resetWithMnemonic(fixtures.takeoverOwnerMnemonicWords);
+    await _assertSeedCanClaim(nym);
+    await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
+      automatedBackupEnabled: true,
+    );
+    final ownerRegistration = await locator<LightningAddressFacade>()
+        .registerWalletOwned(nym: nym);
+    expect(ownerRegistration.registration.nym, nym);
 
-      await _resetWithMnemonic(secondaryMnemonic);
-      await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
-        automatedBackupEnabled: true,
-      );
-      await expectLater(
-        locator<LightningAddressFacade>().registerWalletOwned(nym: nym),
-        throwsA(isA<Exception>()),
-      );
-    },
-  );
+    // Fresh attacker (owns nothing) attempts the same nym: the server must
+    // reject the submission as an already-owned name, non-retryably.
+    await _resetWithMnemonic(fixtures.takeoverAttackerMnemonicWords);
+    await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
+      automatedBackupEnabled: true,
+    );
+    await expectLater(
+      locator<LightningAddressFacade>().registerWalletOwned(nym: nym),
+      throwsA(
+        isA<WalletOwnedLightningAddressRegistrationException>()
+            .having(
+              (e) => e.phase,
+              'phase',
+              WalletOwnedLightningAddressRegistrationFailurePhase
+                  .registrationSubmission,
+            )
+            .having(
+              (e) => e.cause.kind,
+              'cause.kind',
+              LightningAddressErrorKind.serverRejectedRequest,
+            )
+            .having((e) => e.retryable, 'retryable', isFalse),
+      ),
+    );
+  });
 
+  // TEST 3 — a clean seed that registers WITHOUT the backup disclosure has no
+  // live Nostr backup to recover. Fresh seed; short nym within the syntax cap.
   test('without backup disclosure, a clean seed has no recoverable live Nostr '
       'backup', () async {
-    final cleanMnemonic = fixtures.cleanMnemonicWords;
+    final nym = fixtures.nymFor(LiveNoPayFixtures.noDisclosureScenario);
 
-    await _resetWithMnemonic(cleanMnemonic);
-    await locator<LightningAddressFacade>().registerWalletOwned(
-      nym: fixtures.nymFor('nodisclosure'),
-    );
+    await _resetWithMnemonic(fixtures.cleanMnemonicWords);
+    await _assertSeedCanClaim(nym);
+    await locator<LightningAddressFacade>().registerWalletOwned(nym: nym);
 
-    await _resetWithMnemonic(cleanMnemonic);
+    await _resetWithMnemonic(fixtures.cleanMnemonicWords);
 
     final recovery = await _runRemoteRecovery();
     expect(recovery.status, RemoteKeychainRecoveryStatus.noManifestFound);
@@ -201,6 +258,32 @@ Future<void> _resetWithMnemonic(List<String> mnemonicWords) async {
   await locator<CreateDefaultWalletsUsecase>().execute(
     mnemonicWords: mnemonicWords,
   );
+}
+
+/// Fail fast (before the registering call reaches the wire) if the current
+/// default-wallet seed has already burned its one permanent name. A fresh seed
+/// has no registration (server → NymNotFound), so the lookup throws and we
+/// proceed. If instead a registration exists for a different nym, or the
+/// permanent-name quota is exhausted, the fixtures reused a seed that permanent
+/// names forbid — surface that clearly rather than as an opaque server reject.
+Future<void> _assertSeedCanClaim(String intendedNym) async {
+  final LightningAddressStatus existing;
+  try {
+    existing = await locator<LightningAddressFacade>()
+        .lookupWalletOwnedRegistration();
+  } on LightningAddressException catch (e) {
+    if (e.code == 'NymNotFound') return;
+    rethrow;
+  }
+  final quota = existing.permanentNameStatus?.quota;
+  final ownsOther = existing.nym.isNotEmpty && existing.nym != intendedNym;
+  if (ownsOther || (quota != null && quota.remaining <= 0)) {
+    fail(
+      'Fixture seed already owns permanent name "${existing.nym}" '
+      '(quota remaining ${quota?.remaining}); live no-pay fixtures must provide '
+      'a FRESH seed per run — permanent names are one per seed for life.',
+    );
+  }
 }
 
 Future<RemoteKeychainRecoveryState> _runRemoteRecovery() async {
