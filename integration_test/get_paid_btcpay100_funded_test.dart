@@ -1,5 +1,7 @@
 import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_bitcoin_transaction_usecase.dart';
 import 'package:bb_mobile/core/fees/domain/get_network_fees_usecase.dart';
+import 'package:bb_mobile/core/seed/data/models/seed_model.dart';
+import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
@@ -22,16 +24,20 @@ import 'package:integration_test/integration_test.dart';
 import 'support/funded_btcpay100_fixtures.dart';
 import 'support/wipe_app_state.dart';
 
-// S-REAL-PROD-BTCPAY100-FUNDED: production SamRock pairing + real seed-derived
-// keys against the live BITCOIN mainnet. Unlike every other lane this one MOVES
-// REAL FUNDS, so it never executes a payment on its own: it drives the app's
-// real SamRock pairing to activate the BTCPay on-chain BTC wallet (BIP85 wallet
-// index 100), publishes the wallet-100 receive address to a handshake
-// directory, WAITS for an external coordinator to fund it, observes the receipt
-// + autosweep through the app's own wallet sync, then returns the funds via the
-// app's real Bitcoin Send flow to an address the coordinator writes back. Every
-// phase emits a machine-readable CHECKPOINT line — always redaction-scrubbed —
-// so the coordinator can journal the run.
+// S-REAL-PROD-BTCPAY100-FUNDED: production SamRock pairing against the live
+// BITCOIN mainnet, into a wallet the APP CREATES AND OWNS (the app generates the
+// seed on-device — nothing is injected or restored). Unlike every other lane
+// this one MOVES REAL FUNDS, so it never executes a payment on its own: it
+// creates the wallet, captures its recovery material to a mode-600 fund-safety
+// carry BEFORE any funds move, drives the app's real SamRock pairing to activate
+// the BTCPay on-chain BTC wallet (BIP85 wallet index 100), publishes the
+// wallet-100 receive address to a handshake directory, WAITS for an external
+// coordinator to fund it, observes the receipt + autosweep through the app's own
+// wallet sync, then returns the funds via the app's real Bitcoin Send flow to an
+// address the coordinator writes back. Recovery of a crashed run is via the
+// captured seed (and the app's own automated backup). Every phase emits a
+// machine-readable CHECKPOINT line — always redaction-scrubbed — so the
+// coordinator can journal the run.
 //
 // Two BTCPay-specific invariants this witness proves, verified against
 // f6eec5127:
@@ -81,16 +87,41 @@ Future<void> main({bool isInitialized = false}) async {
     final environment = settings.environment;
     final network = environment.isMainnet ? 'bitcoin-mainnet' : 'bitcoin-testnet';
 
-    // (a) Restore/create the QA wallet from the funded mnemonic. The mnemonic
-    // never leaves this call — it is not logged or written to the handshake.
+    // (a) CREATE a fresh wallet OWNED BY THE APP. Passing no mnemonic makes the
+    // app generate the seed on-device (CreateDefaultWalletsUsecase +
+    // MnemonicGenerator) and stamp a birthday — nothing is injected or restored.
     await wipeAppState(locator);
-    await locator<CreateDefaultWalletsUsecase>().execute(
-      mnemonicWords: fixtures.mnemonicWords,
-    );
+    await locator<CreateDefaultWalletsUsecase>().execute();
     final defaultBitcoin = await _defaultBitcoinWallet(environment);
-    _checkpoint(fixtures, 'wallet_restored', data: {
+    _checkpoint(fixtures, 'wallet_created', data: {
       'default_bitcoin_wallet_id': defaultBitcoin.id,
+      'master_fingerprint': defaultBitcoin.masterFingerprint,
       'network': network,
+    });
+
+    // (a.1) FUND-SAFETY: before ANY funds move, capture the app-generated
+    // recovery material to a per-run mode-600 file. The same seed derives the
+    // BTCPay wallet 100 (BIP85) and the default wallet, so this one capture
+    // recovers everything. The words are read back through the app's own seed
+    // store (the path RecoverBull uses) and are NEVER printed, logged, or
+    // written to the handshake — only the file PATH and the public fingerprint
+    // are checkpointed. This secret is kept entirely separate from the pairing
+    // OTP and its redaction rules.
+    final seed = await locator<SeedRepository>().get(
+      defaultBitcoin.masterFingerprint,
+    );
+    final seedModel = SeedModel.fromEntity(seed);
+    if (seedModel is! MnemonicSeedModel) {
+      fail('app-created wallet seed is not a mnemonic seed; cannot capture '
+          'recovery material for fund-safety');
+    }
+    final carryPath = await fixtures.captureRecoveryMaterial(
+      seedModel.mnemonicWords,
+      masterFingerprint: defaultBitcoin.masterFingerprint,
+    );
+    _checkpoint(fixtures, 'recovery_captured', data: {
+      'seed_carry_file': carryPath,
+      'master_fingerprint': defaultBitcoin.masterFingerprint,
     });
 
     // Production Get Paid runs the shared automated-backup consent gate before

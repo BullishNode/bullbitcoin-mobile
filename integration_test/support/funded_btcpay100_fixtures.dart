@@ -7,6 +7,13 @@ import 'dart:io';
 /// run.
 const fundedBtcpay100LaneName = 'S-REAL-PROD-BTCPAY100-FUNDED';
 
+/// Default durable, mode-600 carry directory for the app-created wallet's
+/// recovery material (fund-safety). It lives at the WORKSPACE root, OUTSIDE both
+/// git repos, so it can never be committed by either repo. Overridable via
+/// GETPAID_SEED_CARRY_DIR.
+const _defaultSeedCarryDir =
+    '/home/francis/bull-bitcoin-workspace/.secrets-carry/getpaid-qa-seeds';
+
 // Scenario defaults for the BTCPay on-chain BTC witness (BIP85 wallet index
 // 100, the "BTCPay Bitcoin" wallet). Unlike the Page-102 / POS-103 Liquid
 // witnesses this journey is on-chain BITCOIN, which changes the amount math in
@@ -46,6 +53,11 @@ const _defaultPollIntervalSec = 30;
 /// URL that carries a SamRock protocol path or an `otp` parameter. The function
 /// is pure and takes its secrets as an argument so it can be unit-tested with a
 /// SAMPLE secret that is never the real credential.
+///
+/// This concerns ONLY the SamRock pairing credential. The app-created wallet's
+/// recovery material (the mnemonic) is a DIFFERENT secret handled separately by
+/// [FundedBtcpay100Fixtures.captureRecoveryMaterial]: it is written only to the
+/// mode-600 carry file and is NEVER placed in any text that reaches this path.
 String redactBtcpaySecrets(String input, {Iterable<String> secrets = const []}) {
   var out = input;
   for (final secret in secrets) {
@@ -100,16 +112,21 @@ String btcpayCheckpointLine(
 
 /// Run configuration for the funded BTCPay-100 spec, resolved from the process
 /// environment (operator-provided) with `--dart-define` fallbacks for the lane
-/// guard and handshake wiring. The mnemonic and the pairing URL are held only in
-/// memory and are NEVER logged or written to the handshake channel.
+/// guard and handshake wiring.
+///
+/// The recipient wallet is CREATED and OWNED by the app (the app generates the
+/// seed on-device), so this lane does NOT take an injected mnemonic. As a
+/// fund-safety measure the spec captures the app-generated recovery material to
+/// a per-run mode-600 file via [captureRecoveryMaterial] before any funds move;
+/// that material is NEVER printed, logged, committed, or routed through the
+/// pairing-redaction path. The pairing URL is held only in memory and is never
+/// written to any handshake file.
 class FundedBtcpay100Fixtures {
   static const _laneDefine = String.fromEnvironment('GETPAID_E2E_LANE');
   static const _runIdDefine = String.fromEnvironment('GETPAID_FUNDED_RUN_ID');
   static const _handshakeDefine = String.fromEnvironment(
     'GETPAID_FUNDED_HANDSHAKE_DIR',
   );
-
-  final List<String> mnemonicWords;
 
   /// The real SamRock pairing URL. SECRET: read only from
   /// `GETPAID_BTCPAY_PAIRING_URL` at run time, never printed, never written to
@@ -119,6 +136,12 @@ class FundedBtcpay100Fixtures {
 
   final String runId;
   final Directory handshakeDir;
+
+  /// Durable mode-600 directory the app-created wallet's recovery material is
+  /// written into (one file per run). This is a fund-safety carry, kept OUT of
+  /// git and OUT of the pairing-redaction path.
+  final Directory seedCarryDir;
+
   final int targetAmountSat;
   final int maxFeeSat;
   final Duration paymentTimeout;
@@ -126,10 +149,10 @@ class FundedBtcpay100Fixtures {
   final Duration pollInterval;
 
   const FundedBtcpay100Fixtures._({
-    required this.mnemonicWords,
     required this.pairingUrl,
     required this.runId,
     required this.handshakeDir,
+    required this.seedCarryDir,
     required this.targetAmountSat,
     required this.maxFeeSat,
     required this.paymentTimeout,
@@ -147,11 +170,6 @@ class FundedBtcpay100Fixtures {
         'BTCPay-100 run (got: ${lane ?? '<unset>'})',
       );
     }
-
-    final mnemonic = _requiredMnemonic(
-      env['GETPAID_FUNDED_MNEMONIC'],
-      'GETPAID_FUNDED_MNEMONIC',
-    );
 
     // Credential refusal. The pairing URL is a short-lived secret the operator
     // sets from a mode-600 file at pairing time; a funded pairing with no
@@ -195,11 +213,15 @@ class FundedBtcpay100Fixtures {
           DateTime.now().millisecondsSinceEpoch.toRadixString(36),
     );
 
+    // Fund-safety carry directory for the app-generated recovery material.
+    final seedCarryPath =
+        _firstNonEmpty([env['GETPAID_SEED_CARRY_DIR']]) ?? _defaultSeedCarryDir;
+
     return FundedBtcpay100Fixtures._(
-      mnemonicWords: mnemonic,
       pairingUrl: pairingUrl,
       runId: runId,
       handshakeDir: handshakeDir,
+      seedCarryDir: Directory(seedCarryPath),
       targetAmountSat: _intFromEnv(
         env['GETPAID_FUNDED_AMOUNT_SAT'],
         'GETPAID_FUNDED_AMOUNT_SAT',
@@ -230,8 +252,8 @@ class FundedBtcpay100Fixtures {
 
   /// Spec -> coordinator: the payable BTC addresses and the run parameters.
   /// Written once pairing has activated wallet 100 and its address is known,
-  /// before the spec starts waiting for the payment. It carries NO credential —
-  /// only the derived on-chain addresses and amounts.
+  /// before the spec starts waiting for the payment. It carries NO credential
+  /// and NO recovery material — only the derived on-chain addresses and amounts.
   File get requestFile => _fileIn('btcpay100_request.json');
 
   /// Coordinator -> spec: at minimum `return_address` (a BTC address the
@@ -245,9 +267,75 @@ class FundedBtcpay100Fixtures {
   File _fileIn(String name) =>
       File('${handshakeDir.path}${Platform.pathSeparator}$name');
 
+  /// The per-run mode-600 file the recovery material is captured into.
+  File get seedCarryFile =>
+      File('${seedCarryDir.path}${Platform.pathSeparator}btcpay100-$runId.json');
+
+  /// FUND-SAFETY: durably captures the APP-GENERATED wallet's recovery material
+  /// (the mnemonic + master fingerprint) into a per-run mode-600 file BEFORE any
+  /// funds move, so a crashed/lost run is always recoverable. The words are a
+  /// secret DISTINCT from the pairing OTP: they are written only here, with
+  /// `0700` on the directory and `0600` on the file, and are NEVER printed,
+  /// logged, committed, or routed through [redact]. Returns the file path (the
+  /// path is not a secret; the words inside it are). Fail-closed: if the file
+  /// cannot be created with restrictive permissions, the caller must not fund.
+  Future<String> captureRecoveryMaterial(
+    List<String> mnemonicWords, {
+    required String masterFingerprint,
+  }) async {
+    if (mnemonicWords.length < 12) {
+      throw StateError(
+        'refusing to capture recovery material: mnemonic looks incomplete '
+        '(${mnemonicWords.length} words)',
+      );
+    }
+    seedCarryDir.createSync(recursive: true);
+    await _chmod('700', seedCarryDir.path);
+    // Defence in depth: if this directory ever lands inside a git repo, ignore
+    // everything in it so the recovery material can never be committed.
+    final ignore = File(
+      '${seedCarryDir.path}${Platform.pathSeparator}.gitignore',
+    );
+    if (!ignore.existsSync()) ignore.writeAsStringSync('*\n', flush: true);
+
+    final file = seedCarryFile;
+    // Create the file empty with 0600 BEFORE writing the secret, so the words
+    // are never briefly world-readable on disk.
+    file.writeAsStringSync('', flush: true);
+    await _chmod('600', file.path);
+    file.writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert(<String, Object?>{
+        'schema': 'getpaid-qa-seed-carry/v1',
+        'scenario': 'btcpay100',
+        'run_id': runId,
+        'network': 'bitcoin-mainnet',
+        'master_fingerprint': masterFingerprint,
+        'mnemonic_words': mnemonicWords,
+        'note': 'QA fund-safety recovery material for an APP-CREATED wallet. '
+            'DO NOT print, commit, or share. Restore into the app to recover '
+            'funds if a run is interrupted.',
+        'captured_at': DateTime.now().toUtc().toIso8601String(),
+      }),
+      flush: true,
+    );
+    await _chmod('600', file.path);
+    return file.path;
+  }
+
+  static Future<void> _chmod(String mode, String path) async {
+    final result = await Process.run('chmod', [mode, path]);
+    if (result.exitCode != 0) {
+      throw StateError(
+        'failed to chmod $mode $path (recovery material must be restricted '
+        'before it holds a secret): ${result.stderr}',
+      );
+    }
+  }
+
   /// Scrubs the pairing URL (and any URL-shaped secret / OTP / token) from
   /// [text]. Every log line, CHECKPOINT, handshake write, and error message
-  /// that could conceivably carry the credential is routed through this.
+  /// that could conceivably carry the credential is routed through this. It does
+  /// NOT touch the recovery mnemonic — that never reaches any text this guards.
   String redact(String text) =>
       redactBtcpaySecrets(text, secrets: [pairingUrl]);
 
@@ -281,18 +369,6 @@ class FundedBtcpay100Fixtures {
     } catch (_) {
       return null;
     }
-  }
-
-  static List<String> _requiredMnemonic(String? raw, String name) {
-    final value = raw?.trim();
-    if (value == null || value.isEmpty) {
-      throw StateError('$name must be set for the funded BTCPay-100 run');
-    }
-    final words = value.split(RegExp(r'\s+'));
-    if (words.length < 12) {
-      throw StateError('$name must contain a complete mnemonic');
-    }
-    return words;
   }
 
   static String? _firstNonEmpty(Iterable<String?> values) {
