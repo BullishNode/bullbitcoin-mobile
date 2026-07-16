@@ -1075,7 +1075,9 @@ class BullnymHttpClient implements BullnymClientPort {
       twitter: _optionalString(json, 'twitter'),
       instagram: _optionalString(json, 'instagram'),
       kind: kind,
-      posMode: _requiredBool(json, 'pos_mode'),
+      // The server dropped `pos_mode` in favour of the `kind` discriminator:
+      // POS is a kind, never a mode. Derive it from the (required) `kind`.
+      posMode: kind == bullnymDonationPageKindPos,
       enabled: _requiredBool(json, 'enabled'),
       isArchived: _requiredBool(json, 'is_archived'),
       avatarSha256: _optionalString(json, 'avatar_sha256'),
