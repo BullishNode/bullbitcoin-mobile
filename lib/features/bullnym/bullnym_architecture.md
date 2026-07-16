@@ -1,21 +1,25 @@
 # Bullnym
 
 Bullnym owns the shared Bullnym HTTP protocol foundation for authenticated
-Bullnym registration, deletion, and lookup calls.
+Bullnym registration, deletion, lookup, and opaque wallet-backup transport.
 
 ## Scope
 
 This PR owns:
 
 - Bullnym registration, delete, and lookup protocol calls;
+- opaque `wallet_backup` fetch, conditional store, and conditional delete;
 - Bullnym registration/delete signing payload construction;
+- wallet-backup signing-message and deterministic ETag construction;
 - a narrow domain use-case boundary and outbound Bullnym client port;
 - a small Dio HTTP client in the data layer that implements the port;
 - a public facade for later feature callers.
 
-It does not own Lightning Address UI, wallet materialization, wallet manifest
-publishing or recovery, NIP-05 registration, relay publishing, invoices, payment
-pages, DMs, local storage, or autosweep behavior.
+It does not own Lightning Address UI, wallet materialization, the encrypted
+wallet-backup envelope, backup lifecycle/state/publication/recovery, NIP-05
+registration, relay publishing, invoices, payment pages, DMs, local storage,
+or autosweep behavior. Those backup responsibilities belong to
+`features/wallet_backup`.
 
 ## PR9 Protocol Subset
 
@@ -33,6 +37,18 @@ The foundation contract implements only these fields:
   optional `lightning_address`;
 - Bullpay LA v2 signing layout:
   `bullpay-la-v2\0action\0npub_hex\0nym\0(payload\0)*timestamp`.
+
+The opaque backup subset uses:
+
+- `POST /api/v1/wallet-backups/fetch`;
+- `PUT /api/v1/wallet-backups`;
+- `DELETE /api/v1/wallet-backups`;
+- exactly one stream value, `wallet_backup`;
+- `bullbitcoin-wallet-backup-v1` signed messages;
+- `bullbitcoin-wallet-backup-etag-v1` deterministic ETags.
+
+Bullnym validates and transports authenticated ciphertext bytes. It does not
+decrypt or interpret the wallet-backup envelope or its sections.
 
 This feature intentionally does not send an extra public verification key field or
 expose derived Lightning Address behavior beyond returning server-supplied
