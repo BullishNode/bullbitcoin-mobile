@@ -7,25 +7,35 @@ import 'dart:io';
 ///
 /// POS is the Point of Sale product (BIP85 wallet-seed index 103, a Liquid
 /// wallet). The CRITICAL invariant this witness proves is DESTINATION
-/// ISOLATION: a POS sale must settle to the dedicated POS wallet 103 and NEVER
-/// to the shared Lightning Address wallet 101 (the two products share one nym
-/// but must never share a settlement destination — provision_pos_usecase.dart
-/// "POS sales settle to 103, never 101/102").
+/// ISOLATION: a POS sale settles to the dedicated POS wallet 103 and NEVER to
+/// the shared Lightning Address wallet 101. Funds arrive by REAL Bullnym
+/// settlement — the coordinator pays the server-hosted POS checkout, and Bullnym
+/// delivers L-BTC to a wallet-103 address it derives from the registered
+/// descriptor — not by the payer sending directly to an app-derived address.
+///
+/// The recipient wallet is CREATED and OWNED by the app itself (a fresh
+/// on-device seed via the normal wallet-creation flow, auto-backed-up over
+/// Nostr). No mnemonic is injected. Before any funding the app's own
+/// show-mnemonic/backup-export path captures the recovery words to a durable
+/// mode-0600 file (fund-safety) so an interrupted run is always recoverable; the
+/// words are NEVER logged, printed, committed, or emitted on the handshake.
 const fundedPos103LaneName = 'S-REAL-PROD-POS103-FUNDED';
 
-// Scenario defaults. This first witness funds wallet 103 by a DIRECT Liquid
-// send (no Boltz chain swap): the POS wallet is a Liquid wallet and the payer
-// pays it directly, so the Boltz 25,000-sat swap minimum does NOT apply here —
-// it binds only on the later BTC-rail witness. The amount is therefore the
-// minimum practical value for the three-Liquid-hop journey (receipt on 103 ->
-// autosweep drain -> Mobile return), matching the Page-102 witness exactly. At
-// f6eec5127 each app-driven hop pays the 0.1 sat/vByte min-relay rate
-// (RunAutoSweepUsecase + this spec's return send) — roughly 100-150 sats for a
-// 1-in/2-out confidential tx — against a 100-sat autosweep dust floor
-// (RunAutoSweepUsecase._dustThresholdSat). 2,000 sats leaves the final hop's
-// output near ~1,700 sats, ~17x the dust floor (well above the 3x margin we
-// want) without probing dust-edge behaviour. The max-fee ceiling stays well
-// above any single hop's fee.
+/// Default durable location for the fund-safety recovery capture. One file per
+/// run. Overridable with GETPAID_FUNDED_SEED_CAPTURE_DIR.
+const _defaultSeedCaptureDir =
+    '/home/francis/bull-bitcoin-workspace/.secrets-carry/getpaid-qa-seeds';
+
+// Scenario defaults. The POS wallet 103 is a Liquid wallet; the chosen receive
+// rail is the POS terminal's Lightning path (Boltz REVERSE swap LN->L-BTC,
+// claimed into a wallet-103 descriptor address). A reverse (submarine) swap is
+// NOT a Boltz CHAIN swap, so the 25,000-sat chain-swap minimum does NOT apply —
+// only the server's LNURL min_sendable bounds it from below. 2,000 sats is the
+// minimum practical value for the three-Liquid-hop journey (settlement onto 103,
+// autosweep drain 103 -> default, return default -> coordinator), matching the
+// Page-102 witness. At f6eec5127 each app-driven hop pays 0.1 sat/vByte against
+// a 100-sat autosweep dust floor (RunAutoSweepUsecase._dustThresholdSat), so the
+// final-hop output stays ~17x the dust floor.
 const _defaultAmountSat = 2000;
 const _defaultMaxFeeSat = 10000;
 const _defaultFeeRateSatPerVb = 0.1;
@@ -35,10 +45,10 @@ const _defaultPollIntervalSec = 15;
 
 /// Run configuration for the funded POS-103 spec, resolved from the process
 /// environment (operator-provided) with `--dart-define` fallbacks for device
-/// runs. The mnemonic is held only in memory and is NEVER logged or written to
-/// the handshake channel. The environment variable names are the shared
-/// `GETPAID_FUNDED_*` set (the coordinator reuses one contract across the
-/// funded witnesses); only the lane guard value differs from Page-102.
+/// runs. The environment variable names are the shared `GETPAID_FUNDED_*` set
+/// (the coordinator reuses one contract across the funded witnesses); only the
+/// lane guard value differs. NOTE: unlike the earlier design, NO mnemonic is
+/// injected — the app creates and owns its own seed.
 class FundedPos103Fixtures {
   static const _laneDefine = String.fromEnvironment('GETPAID_E2E_LANE');
   static const _nymDefine = String.fromEnvironment('GETPAID_FUNDED_NYM');
@@ -46,11 +56,14 @@ class FundedPos103Fixtures {
   static const _handshakeDefine = String.fromEnvironment(
     'GETPAID_FUNDED_HANDSHAKE_DIR',
   );
+  static const _seedCaptureDefine = String.fromEnvironment(
+    'GETPAID_FUNDED_SEED_CAPTURE_DIR',
+  );
 
-  final List<String> mnemonicWords;
   final String runId;
   final String nym;
   final Directory handshakeDir;
+  final Directory seedCaptureDir;
   final int targetAmountSat;
   final int maxFeeSat;
   final double feeRateSatPerVb;
@@ -59,10 +72,10 @@ class FundedPos103Fixtures {
   final Duration pollInterval;
 
   const FundedPos103Fixtures._({
-    required this.mnemonicWords,
     required this.runId,
     required this.nym,
     required this.handshakeDir,
+    required this.seedCaptureDir,
     required this.targetAmountSat,
     required this.maxFeeSat,
     required this.feeRateSatPerVb,
@@ -81,11 +94,6 @@ class FundedPos103Fixtures {
         'POS-103 run (got: ${lane ?? '<unset>'})',
       );
     }
-
-    final mnemonic = _requiredMnemonic(
-      env['GETPAID_FUNDED_MNEMONIC'],
-      'GETPAID_FUNDED_MNEMONIC',
-    );
 
     // Handshake-channel refusal. This is deliberately checked BEFORE any wallet
     // or network work: a funded journey with no channel back to the coordinator
@@ -110,6 +118,25 @@ class FundedPos103Fixtures {
       );
     }
 
+    // Fund-safety refusal: the app creates its own seed, so the ONLY durable
+    // copy of the recovery words is the capture file this run writes before
+    // funding. Refuse to proceed unless we can create/reach the capture dir.
+    final seedCapturePath = _firstNonEmpty([
+          env['GETPAID_FUNDED_SEED_CAPTURE_DIR'],
+          _seedCaptureDefine,
+        ]) ??
+        _defaultSeedCaptureDir;
+    final seedCaptureDir = Directory(seedCapturePath);
+    try {
+      seedCaptureDir.createSync(recursive: true);
+    } catch (e) {
+      throw StateError(
+        'GETPAID_FUNDED_SEED_CAPTURE_DIR ($seedCapturePath) is not creatable; '
+        'refusing to create + fund an app-owned wallet with nowhere durable to '
+        'capture its recovery material: $e',
+      );
+    }
+
     final runId = _cleanNymPart(
       _firstNonEmpty([env['GETPAID_FUNDED_RUN_ID'], _runIdDefine]) ??
           DateTime.now().millisecondsSinceEpoch.toRadixString(36),
@@ -126,10 +153,10 @@ class FundedPos103Fixtures {
     }
 
     return FundedPos103Fixtures._(
-      mnemonicWords: mnemonic,
       runId: runId,
       nym: nym,
       handshakeDir: handshakeDir,
+      seedCaptureDir: seedCaptureDir,
       targetAmountSat: _intFromEnv(
         env['GETPAID_FUNDED_AMOUNT_SAT'],
         'GETPAID_FUNDED_AMOUNT_SAT',
@@ -163,21 +190,28 @@ class FundedPos103Fixtures {
     );
   }
 
-  /// Spec -> coordinator: the payable addresses and the run parameters. Written
-  /// once the POS terminal and wallet 103 exist, before the spec starts waiting
-  /// for the payment. It also publishes the shared Lightning Address wallet-101
-  /// receive address so the coordinator's independent oracle can PROVE the
-  /// payment never touched it (destination isolation).
+  /// Spec -> coordinator: the POS receive surface (terminal URL) and the run
+  /// parameters. Written once the POS terminal and wallet 103 exist, before the
+  /// spec starts waiting for the payment. It also publishes the shared Lightning
+  /// Address wallet-101 receive address so the coordinator's independent oracle
+  /// can prove the payment never touched it (destination isolation). The pay
+  /// TARGET is the terminal URL (the server mints the invoice and derives the
+  /// wallet-103 settlement address), not a pre-known 103 address.
   File get requestFile => _fileIn('pos103_request.json');
 
   /// Coordinator -> spec: at minimum `return_address`; optionally `payment_txid`
   /// for the coordinator's own journal. Polled after the receipt/autosweep.
   File get responseFile => _fileIn('pos103_response.json');
 
-  /// Spec -> coordinator: the final observed state (autosweep + return txids and
-  /// closing balances, incl. the isolated wallet-101 balance). Written last,
-  /// atomically.
+  /// Spec -> coordinator: the final observed state (the discovered wallet-103
+  /// receipt outpoint, autosweep + return txids, and closing balances incl. the
+  /// isolated wallet-101 balance). Written last, atomically.
   File get resultFile => _fileIn('pos103_result.json');
+
+  /// The durable, mode-0600 fund-safety recovery capture for THIS run. One file
+  /// per run so a re-run never clobbers a prior wallet's material.
+  File get seedCaptureFile =>
+      File('${seedCaptureDir.path}${Platform.pathSeparator}$runId.seed.json');
 
   File _fileIn(String name) =>
       File('${handshakeDir.path}${Platform.pathSeparator}$name');
@@ -193,6 +227,31 @@ class FundedPos103Fixtures {
     await tmp.rename(file.path);
   }
 
+  /// Writes the fund-safety recovery capture with owner-only (0600) permissions,
+  /// BEFORE funding. The content is the recovery material; it is written only to
+  /// this local durable file and NEVER logged, printed, or sent on the
+  /// handshake. Returns the absolute path (safe to reference in a checkpoint).
+  Future<String> writeSeedCapture(Map<String, Object?> secret) async {
+    final file = seedCaptureFile;
+    // Create empty, lock down the mode, THEN write, so the secret bytes never
+    // exist on disk under a world-readable mode even briefly.
+    await file.create(recursive: true);
+    await _chmod('600', file.path);
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(secret),
+      flush: true,
+    );
+    await _chmod('600', file.path);
+    return file.path;
+  }
+
+  static Future<void> _chmod(String mode, String path) async {
+    final result = await Process.run('chmod', [mode, path]);
+    if (result.exitCode != 0) {
+      throw StateError('chmod $mode $path failed: ${result.stderr}');
+    }
+  }
+
   /// Reads and decodes a handshake file, or null when it is absent/unparseable
   /// (the caller keeps polling).
   Future<Map<String, Object?>?> readJson(File file) async {
@@ -205,18 +264,6 @@ class FundedPos103Fixtures {
     } catch (_) {
       return null;
     }
-  }
-
-  static List<String> _requiredMnemonic(String? raw, String name) {
-    final value = raw?.trim();
-    if (value == null || value.isEmpty) {
-      throw StateError('$name must be set for the funded POS-103 run');
-    }
-    final words = value.split(RegExp(r'\s+'));
-    if (words.length < 12) {
-      throw StateError('$name must contain a complete mnemonic');
-    }
-    return words;
   }
 
   static String? _firstNonEmpty(Iterable<String?> values) {
