@@ -69,7 +69,12 @@ Future<void> main({bool isInitialized = false}) async {
     )).first;
     final manifest = await locator<KeychainManifestFacade>()
         .buildManifestFilePayload(defaultWallet.masterFingerprint);
-    expect(manifest.entryCount, greaterThanOrEqualTo(3));
+    // A standalone fresh seed that has registered only the wallet-owned nym has
+    // a single keychain-manifest entry. The old >=3 expectation assumed the
+    // combined lifecycle (registration + payment page + POS) had all run on the
+    // same seed; after the test split (fresh seed per test) that no longer
+    // holds, so assert the manifest is populated (>=1) for this seed.
+    expect(manifest.entryCount, greaterThanOrEqualTo(1));
   });
 
   // TEST B — payment page, POS, invoice metadata, and Nostr remote recovery for
