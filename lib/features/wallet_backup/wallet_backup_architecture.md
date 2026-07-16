@@ -1,0 +1,96 @@
+# Wallet Backup Architecture
+
+## Scope
+
+`wallet_backup` owns the seed-bound encrypted Bull backup container. This slice
+introduces the outer envelope, the manifest section adapter, authenticated
+encryption, and BIP85 encryption-key derivation. Bullnym transport, durable
+state, lifecycle controls, scheduling, and recovery orchestration are added by
+their later owning PRs.
+
+This is one backup lifecycle, not a wrapper around separate manifest and
+metadata backup systems. `keychain_manifest` remains the source of truth for
+local derivation inventory and owns its canonical payload. `wallet_backup`
+consumes that payload only through `keychain_manifest/public`.
+
+## Envelope
+
+The current canonical plaintext is:
+
+```json
+{
+  "version": 1,
+  "contentType": "bullbitcoin.wallet_backup.v1",
+  "parentFingerprint": "fedcba98",
+  "createdAt": 1751328000,
+  "sections": {
+    "keychain_manifest": {
+      "version": 1,
+      "payload": {}
+    }
+  }
+}
+```
+
+`payload` is the canonical `bullbitcoin.keychain_manifest.v1` object produced
+by `KeychainManifestFacade.buildManifestFilePayload`. It is embedded as JSON,
+not as an escaped JSON string.
+
+At this point in the stack, `keychain_manifest` is the only supported section.
+An unknown section or unsupported section version is a write-blocking failure;
+an older client must never overwrite data it cannot understand. The metadata
+owning PR extends this fixed v1 section set with `wallet_metadata`; it does not
+introduce a generic section registry.
+
+Canonical form is fixed key order with no insignificant whitespace. Decode
+rejects a non-canonical outer structure, missing or unknown outer fields,
+invalid fingerprints, unsupported versions, and disagreement between the
+outer and manifest parent fingerprints. The caller supplies the expected
+active-seed fingerprint during decrypt, and a mismatch is a distinct typed
+failure.
+
+The manifest owner deliberately accepts unknown v1 manifest fields on read.
+An authenticated manifest section that is valid but cannot be reproduced in
+the owner's canonical form remains available for recovery with
+`isCanonical == false`. Encryption/publication refuses such a section, so an
+older client can recover known records without overwriting fields it cannot
+preserve.
+
+## Cryptography and Bounds
+
+The encryption key is deterministically derived at BIP85 path
+`1642'/0'/1'`, reserved as `wallet_backup_encryption_key`. No encryption key or
+plaintext private material is persisted.
+
+Ciphertext uses the existing RecoverBull-compatible authenticated format:
+
+```text
+base64(nonce16 || AES-256-CBC ciphertext || HMAC-SHA256)
+```
+
+Bullnym accepts at most 2 MiB of decoded ciphertext. The envelope enforces a
+pre-encryption aggregate plaintext limit of `2 MiB - 64 bytes`, leaving room
+for the nonce, maximum CBC padding, and HMAC. The existing section-specific
+record and nesting limits still apply. Chunking is out of scope.
+
+## Dependencies
+
+```text
+wallet_backup
+  -> keychain_manifest/public
+  -> bip85_registry/public
+```
+
+`keychain_manifest` never imports `wallet_backup`. The generic authenticated
+cipher stays in `core/backup` because it is provider-neutral infrastructure;
+the adapter that maps it to wallet-backup entities and failures belongs here.
+
+## Non-goals in This Slice
+
+- Bullnym fetch/store/delete
+- Nostr request signing
+- durable backup state
+- publication coordination
+- settings or onboarding UI
+- metadata payload semantics
+- compatibility with pre-release backup streams or encryption reservations

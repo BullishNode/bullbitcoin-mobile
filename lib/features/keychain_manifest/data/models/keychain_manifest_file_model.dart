@@ -106,6 +106,17 @@ class _KeychainManifestFileModel {
   factory _KeychainManifestFileModel.fromEntity(
     KeychainManifestFile manifestFile,
   ) {
+    final entries =
+        manifestFile.entries
+            .map(_KeychainManifestFileEntryModel.fromEntity)
+            .toList()
+          ..sort((left, right) {
+            final pathCompare = left.bip85DerivationPath.compareTo(
+              right.bip85DerivationPath,
+            );
+            if (pathCompare != 0) return pathCompare;
+            return left.entryId.compareTo(right.entryId);
+          });
     return _KeychainManifestFileModel(
       version: manifestFile.version,
       parentFingerprint: manifestFile.parentFingerprint,
@@ -113,9 +124,7 @@ class _KeychainManifestFileModel {
       inventoryUpdatedAt: manifestFile.inventoryUpdatedAt,
       entryCount: manifestFile.entryCount,
       materializationCount: manifestFile.materializationCount,
-      entries: manifestFile.entries
-          .map(_KeychainManifestFileEntryModel.fromEntity)
-          .toList(growable: false),
+      entries: List.unmodifiable(entries),
     );
   }
 
@@ -189,6 +198,15 @@ class _KeychainManifestFileEntryModel {
   factory _KeychainManifestFileEntryModel.fromEntity(
     KeychainManifestFileEntry entry,
   ) {
+    final materializations =
+        entry.materializations
+            .map(_KeychainManifestFileWalletMaterializationModel.fromEntity)
+            .toList()
+          ..sort((left, right) {
+            final networkCompare = left.network.compareTo(right.network);
+            if (networkCompare != 0) return networkCompare;
+            return left.walletId.compareTo(right.walletId);
+          });
     return _KeychainManifestFileEntryModel(
       entryId: entry.entryId,
       bip85DerivationPath: entry.bip85DerivationPath,
@@ -199,9 +217,7 @@ class _KeychainManifestFileEntryModel {
       bip85Index: entry.bip85Index,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
-      materializations: entry.materializations
-          .map(_KeychainManifestFileWalletMaterializationModel.fromEntity)
-          .toList(growable: false),
+      materializations: List.unmodifiable(materializations),
     );
   }
 
