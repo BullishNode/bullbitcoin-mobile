@@ -1,12 +1,13 @@
-import 'dart:convert';
-
+import 'package:bb_mobile/core/nostr/nostr_authenticated_cipher.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_nostr_encryption.dart';
-import 'package:hex/hex.dart';
-import 'package:recoverbull/recoverbull.dart';
 
 class KeychainManifestNostrEncryptionDatasource {
-  const KeychainManifestNostrEncryptionDatasource();
+  final RecoverBullNostrAuthenticatedCipher cipher;
+
+  const KeychainManifestNostrEncryptionDatasource({
+    this.cipher = const RecoverBullNostrAuthenticatedCipher(),
+  });
 
   /// Encrypts [plaintext] under [key] and returns the bare
   /// `base64(nonce16 ‖ AES-256-CBC ciphertext ‖ HMAC-SHA256 32)` blob.
@@ -21,11 +22,17 @@ class KeychainManifestNostrEncryptionDatasource {
     required KeychainManifestNostrEncryptionKey key,
   }) {
     try {
-      final backup = RecoverBull.createBackup(
-        secret: utf8.encode(plaintext),
-        backupKey: HEX.decode(key.hex),
+      return cipher
+          .encrypt(
+            plaintext: plaintext,
+            key: NostrAuthenticatedCipherKey(key.hex),
+          )
+          .value;
+    } on NostrAuthenticatedCipherException catch (e) {
+      throw KeychainManifestNostrEncryptionException(
+        'failed to encrypt manifest content',
+        cause: e,
       );
-      return base64.encode(backup.ciphertext);
     } catch (e) {
       throw KeychainManifestNostrEncryptionException(
         'failed to encrypt manifest content',
@@ -45,16 +52,15 @@ class KeychainManifestNostrEncryptionDatasource {
     required KeychainManifestNostrEncryptionKey key,
   }) {
     try {
-      final plaintext = RecoverBull.restoreBackup(
-        backup: BullBackup(
-          createdAt: 0,
-          id: const [],
-          ciphertext: base64.decode(base64Ciphertext),
-          salt: const [],
-        ),
-        backupKey: HEX.decode(key.hex),
+      return cipher.decrypt(
+        ciphertext: NostrAuthenticatedCiphertext(base64Ciphertext),
+        key: NostrAuthenticatedCipherKey(key.hex),
       );
-      return utf8.decode(plaintext);
+    } on NostrAuthenticatedCipherException catch (e) {
+      throw KeychainManifestNostrEncryptionException(
+        'failed to decrypt manifest content',
+        cause: e,
+      );
     } catch (e) {
       throw KeychainManifestNostrEncryptionException(
         'failed to decrypt manifest content',

@@ -1,13 +1,8 @@
 # Core Nostr
 
-`core/nostr` is the app-wide generic Nostr key boundary. It owns BIP85 path
-derivation, BIP340 hash signing, public-key access, and generic NIP-01 event-id
-calculation through the `nostr` package where that package provides the
-required generic Nostr primitive.
+`core/nostr` is the app-wide generic Nostr infrastructure boundary. It owns BIP85 path derivation, BIP340 hash signing, public-key access, generic NIP-01 event construction, signed-event serialization and verification, bare authenticated ciphertext, and bounded one-relay WebSocket mechanics.
 
-Feature-specific protocol semantics stay outside this package. Bullnym actions,
-Lightning Address message fields, wallet manifest events, profile content,
-public identity registration, DMs, and UI policy belong to feature layers.
+Feature-specific protocol semantics stay outside this package. Bullnym actions, Lightning Address message fields, wallet-manifest and wallet-metadata schemas, event kinds and tags, relay selection, candidate selection, consent, retries, restore behavior, profile content, public identity registration, DMs, and UI policy belong to feature layers.
 
 The app uses `nostr` `2.0.0` from `ethicnology/dart-nostr`, pinned by Git
 commit. The Git source is used instead of hosted pub resolution so the stack can
@@ -35,9 +30,18 @@ canonical registry suffix paths, such as `9000'/1'/1'`, from
 - `NostrKeychainHandle` derives keys from BIP85 hardened paths, returns
   x-only public keys, and signs explicit 32-byte hash hex values.
 
+## Encrypted Event Primitives
+
+- `NostrEventDraft`, `NostrSignedEvent`, and `NostrSignedEventCodec` validate generic NIP-01 fields, deep-freeze tags, calculate ids, serialize exact `EVENT` frames, and explicitly verify relay event ids and signatures.
+- `RecoverBullNostrAuthenticatedCipher` encrypts and authenticates opaque plaintext as bare `base64(nonce16 || AES-256-CBC ciphertext || HMAC-SHA256 32)` content without a RecoverBull envelope or public classifier.
+- `NostrRelayTransport` performs one-relay `EVENT`/`OK` publication and bounded `REQ`/`EOSE` collection. Callers supply the complete request frame, subscription id, event limit, UTF-8 frame-byte limit, and deadline, so event filters remain feature-owned.
+- Publish outcomes distinguish accepted, rejected, timed out, and unavailable. Fetch outcomes distinguish completed, timed out with any safely parsed partial events, and unavailable.
+
+The transport drops malformed, oversized, wrong-subscription, and package-invalid event frames. Feature codecs explicitly verify signed events again at their authenticity boundary, so changing transport parser settings cannot silently disable recovery verification.
+
 ## Boundaries
 
 - DTOs and persistence models must not contain `NostrKeychainHandle`.
 - Feature layers pass public keys and signatures across their own ports.
-- Feature layers own their protocol-specific event contents and relay behavior.
+- Feature layers own protocol-specific event contents, filters, relay aggregation, and recovery behavior.
 - `toString()` implementations must never include secret-key material.

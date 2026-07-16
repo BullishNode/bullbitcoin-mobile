@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:bb_mobile/core/nostr/nostr_relay_transport.dart';
 import 'package:bb_mobile/core/storage/sqlite_database.dart';
 import 'package:bb_mobile/core/utils/bip32_derivation.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
-import 'package:bb_mobile/features/keychain_manifest/data/datasources/keychain_manifest_nostr_relay_datasource.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/drift_keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/recoverbull_keychain_manifest_nostr_encryption_repository.dart';
@@ -29,9 +29,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../../integration_test/support/fake_nostr_relay.dart';
 import '../../../integration_test/support/get_paid_fixtures.dart';
 
-// SPEC-RT-01 / WIRE-01 at the DOMAIN/DATA layer (the reliable, headless-safe
-// layer per the harness design): the REAL keychain_manifest encrypt/sign/codec
-// wired against the injectable relay-datasource `connect` fake. No app pump.
+// SPEC-RT-01 / WIRE-01 runs the real keychain-manifest encrypt/sign/codec path against the injectable relay transport's `connect` fake, with no app pump.
 //
 // The full-app L1 variant (integration_test/get_paid_backup_roundtrip_test.dart)
 // is authored-but-CI-only — the live-startup timers make an app-process pump
@@ -78,7 +76,7 @@ void main() {
       deriveHandle: const DeriveNostrIdentityHandleUsecase(registry: registry),
     );
     final relayRepository = WebSocketKeychainManifestNostrRelayRepository(
-      datasource: KeychainManifestNostrRelayDatasource(connect: relay.connect),
+      transport: NostrRelayTransport(connect: relay.connect),
     );
 
     facade = KeychainManifestFacade(

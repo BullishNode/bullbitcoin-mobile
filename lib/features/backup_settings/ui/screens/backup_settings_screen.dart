@@ -40,12 +40,16 @@ class _Screen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocListener<BackupSettingsCubit, BackupSettingsState>(
-      listenWhen: (p, c) => p.failure != c.failure && c.failure != null,
+      listenWhen: (previous, current) =>
+          (previous.failure != current.failure && current.failure != null) ||
+          (previous.metadataActionStatus != current.metadataActionStatus &&
+              current.metadataActionStatus !=
+                  WalletMetadataBackupActionStatus.idle),
       listener: (context, state) {
-        SnackBarUtils.showSnackBar(
-          context,
-          state.failure!.toTranslated(context),
-        );
+        final message =
+            _metadataActionMessage(context, state) ??
+            state.failure?.toTranslated(context);
+        if (message != null) SnackBarUtils.showSnackBar(context, message);
       },
       child: BlocBuilder<BackupSettingsCubit, BackupSettingsState>(
         builder: (context, state) {
@@ -77,6 +81,9 @@ class _Screen extends StatelessWidget {
                           state.lastPhysicalBackup != null)
                         const _TestBackupButton(),
                       const _RecoverBullSettingsButton(),
+                      const Gap(16),
+                      const _WalletMetadataBackupControls(),
+                      const Gap(16),
                       const _Bip329LabelsButton(),
                       const _TransactionHistoryButton(),
                     ],
@@ -87,6 +94,127 @@ class _Screen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  String? _metadataActionMessage(
+    BuildContext context,
+    BackupSettingsState state,
+  ) {
+    return switch (state.metadataActionStatus) {
+      WalletMetadataBackupActionStatus.idle => null,
+      WalletMetadataBackupActionStatus.saved =>
+        context.loc.walletMetadataBackupSaved,
+      WalletMetadataBackupActionStatus.unchanged =>
+        context.loc.walletMetadataBackupUnchanged,
+      WalletMetadataBackupActionStatus.acceptedUnverified =>
+        context.loc.walletMetadataBackupAcceptedUnverified,
+      WalletMetadataBackupActionStatus.notReady =>
+        context.loc.walletMetadataBackupNotReady,
+      WalletMetadataBackupActionStatus.failed =>
+        context.loc.walletMetadataBackupFailed,
+    };
+  }
+}
+
+class _WalletMetadataBackupControls extends StatelessWidget {
+  const _WalletMetadataBackupControls();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<BackupSettingsCubit>().state;
+    final status = switch ((
+      state.metadataBackupEnabled,
+      state.metadataBackupBusy,
+      state.metadataBackupBlocked,
+      state.metadataBackupDirty,
+    )) {
+      (false, _, _, _) => context.loc.walletMetadataBackupStatusOff,
+      (true, true, _, _) => context.loc.walletMetadataBackupStatusWorking,
+      (true, false, true, _) => context.loc.walletMetadataBackupStatusBlocked,
+      (true, false, false, true) =>
+        context.loc.walletMetadataBackupStatusPending,
+      (true, false, false, false) =>
+        context.loc.walletMetadataBackupStatusCurrent,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          secondary: Icon(
+            Icons.cloud_upload_outlined,
+            color: context.appColors.onSurface,
+          ),
+          title: Text(
+            context.loc.walletMetadataBackupSettingsTitle,
+            style: context.font.bodyLarge,
+          ),
+          subtitle: Text(status, style: context.font.bodySmall),
+          value: state.metadataBackupEnabled,
+          onChanged:
+              state.metadataBackupBusy ||
+                  state.status == BackupSettingsStatus.loading
+              ? null
+              : (enabled) => _setEnabled(context, state, enabled),
+        ),
+        if (state.metadataBackupEnabled)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed:
+                  state.metadataBackupBusy ||
+                      state.metadataBackupBlocked ||
+                      state.status == BackupSettingsStatus.loading
+                  ? null
+                  : context.read<BackupSettingsCubit>().backupMetadataNow,
+              icon: const Icon(Icons.cloud_upload_outlined),
+              label: Text(context.loc.walletMetadataBackupNow),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _setEnabled(
+    BuildContext context,
+    BackupSettingsState state,
+    bool enabled,
+  ) async {
+    var disclosureAcceptedNow = false;
+    if (enabled && !state.metadataDisclosureAcknowledged) {
+      final accepted =
+          await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) => AlertDialog(
+              title: Text(dialogContext.loc.walletMetadataBackupConsentTitle),
+              content: Text(dialogContext.loc.walletMetadataBackupConsentBody),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(
+                    dialogContext.loc.walletMetadataBackupConsentCancel,
+                  ),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: Text(
+                    dialogContext.loc.walletMetadataBackupConsentContinue,
+                  ),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+      if (!accepted) return;
+      disclosureAcceptedNow = true;
+    }
+    if (!context.mounted) return;
+    await context.read<BackupSettingsCubit>().setMetadataBackupEnabled(
+      enabled: enabled,
+      disclosureAccepted: disclosureAcceptedNow,
     );
   }
 }

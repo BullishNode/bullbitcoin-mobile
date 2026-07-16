@@ -223,6 +223,7 @@ class RestoreKeychainManifestWalletsUsecase {
               intent: wallet.intent,
               status: _successStatus(wallet),
               materializedWalletId: wallet.walletId,
+              wasCreated: wallet.created,
             );
           })
           .toList(growable: false);

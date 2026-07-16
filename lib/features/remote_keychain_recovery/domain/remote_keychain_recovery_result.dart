@@ -72,12 +72,14 @@ class RemoteKeychainRecoveryRestoreSummary {
   /// The reservation ids of the restored products flagged for reactivation, so
   /// the orchestrator can drive the DG-3 auto-heal per product.
   final Set<String> reactivationReservationIds;
+  final Set<String> createdWalletRefs;
 
   const RemoteKeychainRecoveryRestoreSummary({
     required this.restoredCount,
     required this.failedCount,
     required this.hasProductReactivationRequired,
     this.reactivationReservationIds = const {},
+    this.createdWalletRefs = const {},
   });
 
   factory RemoteKeychainRecoveryRestoreSummary.fromResult(
@@ -93,6 +95,10 @@ class RemoteKeychainRecoveryRestoreSummary {
       hasProductReactivationRequired: result.hasProductReactivationRequired,
       reactivationReservationIds: result.productReactivationRequiredOutcomes
           .map((outcome) => outcome.intent.reservationId)
+          .toSet(),
+      createdWalletRefs: result.walletOutcomes
+          .where((outcome) => outcome.succeeded && outcome.wasCreated)
+          .map((outcome) => outcome.walletId)
           .toSet(),
     );
   }

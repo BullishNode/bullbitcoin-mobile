@@ -5975,6 +5975,68 @@
   "@remoteKeychainRecoveryDisclosureBlocked": {
     "description": "State copy shown behind the relay disclosure dialog"
   },
+  "walletMetadataRecoveryChecking": "Checking for wallet metadata…",
+  "@walletMetadataRecoveryChecking": {
+    "description": "Progress text while querying metadata backup relays"
+  },
+  "walletMetadataRecoveryRestoring": "Restoring wallet metadata…",
+  "@walletMetadataRecoveryRestoring": {
+    "description": "Progress text while applying a metadata recovery plan"
+  },
+  "walletMetadataRecoveryRestoredCount": "Restored {restored} records; {existing} were already present.",
+  "@walletMetadataRecoveryRestoredCount": {
+    "description": "Metadata apply success counts",
+    "placeholders": {
+      "restored": {
+        "type": "int"
+      },
+      "existing": {
+        "type": "int"
+      }
+    }
+  },
+  "walletMetadataRecoveryOlderResult": "This came from an older backup. Automatic metadata publication remains blocked to protect a newer relay snapshot.",
+  "@walletMetadataRecoveryOlderResult": {
+    "description": "No-clobber note after an older metadata restore"
+  },
+  "walletMetadataRecoveryResultDetails": "Preserved {conflicts} local choices, deferred {deferred} records for missing wallets, skipped {skipped}, and failed to store {failed}.",
+  "@walletMetadataRecoveryResultDetails": {
+    "description": "Detailed partial metadata recovery counts",
+    "placeholders": {
+      "conflicts": {
+        "type": "int"
+      },
+      "deferred": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "walletMetadataRecoveryNoSnapshot": "No wallet metadata backup was found on the relays.",
+  "@walletMetadataRecoveryNoSnapshot": {
+    "description": "Terminal message when no metadata snapshot exists"
+  },
+  "walletMetadataRecoveryRelaysUnavailable": "The metadata backup relays could not be reached. Check your connection and try again.",
+  "@walletMetadataRecoveryRelaysUnavailable": {
+    "description": "Terminal message when metadata relays are unavailable"
+  },
+  "walletMetadataRecoveryNoCompleteSnapshot": "A wallet metadata backup was found, but no complete verified snapshot could be recovered.",
+  "@walletMetadataRecoveryNoCompleteSnapshot": {
+    "description": "Terminal message for incomplete metadata root/chunk graphs"
+  },
+  "walletMetadataRecoveryUpdateRequired": "This wallet metadata backup uses a newer format. Update the app before restoring it.",
+  "@walletMetadataRecoveryUpdateRequired": {
+    "description": "Terminal message for an unsupported metadata envelope"
+  },
+  "walletMetadataRecoveryFailed": "Wallet metadata recovery failed. No automatic metadata backup was published.",
+  "@walletMetadataRecoveryFailed": {
+    "description": "Generic sanitized metadata recovery failure"
+  },
   "dcaSetRecurringBuyTitle": "Set Recurring Buy",
   "@dcaSetRecurringBuyTitle": {
     "description": "AppBar title for the main DCA setup screen"
@@ -16645,5 +16707,93 @@
         "type": "String"
       }
     }
+  },
+  "walletMetadataBackupSettingsTitle": "Wallet metadata backup",
+  "@walletMetadataBackupSettingsTitle": {
+    "description": "Title for the wallet metadata backup switch in backup settings."
+  },
+  "walletMetadataBackupStatusOff": "Off",
+  "@walletMetadataBackupStatusOff": {
+    "description": "Status when automatic wallet metadata backup is disabled."
+  },
+  "walletMetadataBackupStatusWorking": "Backing up…",
+  "@walletMetadataBackupStatusWorking": {
+    "description": "Status while a wallet metadata backup operation is running."
+  },
+  "walletMetadataBackupStatusBlocked": "Blocked to protect newer recovery data",
+  "@walletMetadataBackupStatusBlocked": {
+    "description": "Status when metadata publication is blocked after an unsafe or unsupported recovery result."
+  },
+  "walletMetadataBackupStatusPending": "Changes waiting to be backed up",
+  "@walletMetadataBackupStatusPending": {
+    "description": "Status when local wallet metadata changes have not yet been backed up."
+  },
+  "walletMetadataBackupStatusCurrent": "Up to date",
+  "@walletMetadataBackupStatusCurrent": {
+    "description": "Status when local wallet metadata matches the last verified backup."
+  },
+  "walletMetadataBackupConsentTitle": "Back up private wallet metadata?",
+  "@walletMetadataBackupConsentTitle": {
+    "description": "Title for the wallet metadata relay disclosure dialog."
+  },
+  "walletMetadataBackupConsentBody": "Bull Bitcoin will publish encrypted labels, frozen-coin state, and wallet preferences to public Nostr relays. Relay operators can observe the separate backup identity and network activity, but cannot read the encrypted metadata. This uses a different Nostr identity and encryption key from the keychain-manifest backup. Turning this off stops future backups but does not delete data already held by relays.",
+  "@walletMetadataBackupConsentBody": {
+    "description": "Privacy and retention disclosure shown before wallet metadata backup is enabled."
+  },
+  "walletMetadataBackupConsentCancel": "Cancel",
+  "@walletMetadataBackupConsentCancel": {
+    "description": "Cancel enabling wallet metadata backup."
+  },
+  "walletMetadataBackupConsentContinue": "Enable backup",
+  "@walletMetadataBackupConsentContinue": {
+    "description": "Accept the relay disclosure and enable wallet metadata backup."
+  },
+  "walletMetadataBackupNow": "Back up now",
+  "@walletMetadataBackupNow": {
+    "description": "Manually publish pending wallet metadata changes."
+  },
+  "walletMetadataBackupSaved": "Wallet metadata backup verified.",
+  "@walletMetadataBackupSaved": {
+    "description": "Confirmation after a wallet metadata backup is read back successfully."
+  },
+  "walletMetadataBackupUnchanged": "Wallet metadata is already up to date.",
+  "@walletMetadataBackupUnchanged": {
+    "description": "Confirmation when a manual metadata backup finds no changes."
+  },
+  "walletMetadataBackupAcceptedUnverified": "Relays accepted the backup, but it could not be verified yet.",
+  "@walletMetadataBackupAcceptedUnverified": {
+    "description": "Status when relays accept a metadata backup but read-back verification fails."
+  },
+  "walletMetadataBackupNotReady": "Wallet metadata could not be backed up right now.",
+  "@walletMetadataBackupNotReady": {
+    "description": "Status when wallet metadata publication is disabled, blocked, or rejected by relays."
+  },
+  "walletMetadataBackupFailed": "Wallet metadata backup failed.",
+  "@walletMetadataBackupFailed": {
+    "description": "Generic wallet metadata backup operation failure."
+  },
+  "wizardMetadataBackupTitle": "Keep your wallet organized after recovery",
+  "@wizardMetadataBackupTitle": {
+    "description": "Title of the onboarding wallet metadata backup choice."
+  },
+  "wizardMetadataBackupBody": "Automatically back up encrypted transaction labels, frozen-coin state, and wallet preferences to public Nostr relays. Relay operators can observe backup activity but cannot read the metadata. This uses a separate identity and encryption key from your wallet backup. Turning it off later stops new backups but cannot remove copies already held by relays.",
+  "@wizardMetadataBackupBody": {
+    "description": "Privacy disclosure for the onboarding wallet metadata backup choice."
+  },
+  "wizardMetadataBackupQuestion": "Back up wallet metadata automatically?",
+  "@wizardMetadataBackupQuestion": {
+    "description": "Question shown on the onboarding wallet metadata backup choice."
+  },
+  "wizardMetadataBackupEnable": "Enable backup",
+  "@wizardMetadataBackupEnable": {
+    "description": "Affirmative onboarding wallet metadata backup action."
+  },
+  "wizardMetadataBackupNotNow": "Not now",
+  "@wizardMetadataBackupNotNow": {
+    "description": "Negative onboarding wallet metadata backup action."
+  },
+  "wizardMetadataBackupRequired": "Choose whether to enable wallet metadata backup before continuing.",
+  "@wizardMetadataBackupRequired": {
+    "description": "Shown when onboarding is completed without a metadata backup preference."
   }
 }

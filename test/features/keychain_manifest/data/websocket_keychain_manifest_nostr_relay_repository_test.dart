@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:bb_mobile/features/keychain_manifest/data/datasources/keychain_manifest_nostr_relay_datasource.dart';
+import 'package:bb_mobile/core/nostr/nostr_relay_transport.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/websocket_keychain_manifest_nostr_relay_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
@@ -14,12 +14,12 @@ final _wellShapedCiphertext = base64.encode(
 
 void main() {
   test('publishes signed events and succeeds when any relay accepts', () async {
-    final datasource = _FakeKeychainManifestNostrRelayDatasource({
+    final transport = _FakeNostrRelayTransport({
       'wss://accepted.example': true,
       'wss://failed.example': false,
     });
     final repository = WebSocketKeychainManifestNostrRelayRepository(
-      datasource: datasource,
+      transport: transport,
     );
 
     final result = await repository.publish(
@@ -32,16 +32,15 @@ void main() {
     );
 
     expect(result, isTrue);
-    expect(datasource.eventMessages, hasLength(2));
-    expect(datasource.eventMessages, everyElement(contains('"EVENT"')));
+    expect(transport.eventMessages, hasLength(2));
+    expect(transport.eventMessages, everyElement(contains('"EVENT"')));
   });
 
   test('treats relay exceptions as failed relay attempts', () async {
-    final datasource = _FakeKeychainManifestNostrRelayDatasource({
-      'wss://accepted.example': true,
-    })..errorRelays.add('wss://error.example');
+    final transport = _FakeNostrRelayTransport({'wss://accepted.example': true})
+      ..errorRelays.add('wss://error.example');
     final repository = WebSocketKeychainManifestNostrRelayRepository(
-      datasource: datasource,
+      transport: transport,
     );
 
     final result = await repository.publish(
@@ -60,11 +59,11 @@ void main() {
     // frame must expose only public Nostr metadata - kind 30078, the d-tag
     // 'manifest', author pubkey and createdAt - with the content field a bare
     // base64 ciphertext and no bullbitcoin/recoverbull marker anywhere.
-    final datasource = _FakeKeychainManifestNostrRelayDatasource({
+    final transport = _FakeNostrRelayTransport({
       'wss://accepted.example': true,
     });
     final repository = WebSocketKeychainManifestNostrRelayRepository(
-      datasource: datasource,
+      transport: transport,
     );
 
     await repository.publish(
@@ -72,7 +71,7 @@ void main() {
       relayUrls: [KeychainManifestNostrRelayUrl('wss://accepted.example')],
     );
 
-    final frame = datasource.eventMessages.single;
+    final frame = transport.eventMessages.single;
     expect(frame, isNot(contains('bullbitcoin')));
     expect(frame, isNot(contains('recoverbull')));
 
@@ -97,11 +96,9 @@ void main() {
   });
 
   test('fails when no relay accepts', () async {
-    final datasource = _FakeKeychainManifestNostrRelayDatasource({
-      'wss://failed.example': false,
-    });
+    final transport = _FakeNostrRelayTransport({'wss://failed.example': false});
     final repository = WebSocketKeychainManifestNostrRelayRepository(
-      datasource: datasource,
+      transport: transport,
     );
 
     final result = await repository.publish(
@@ -128,16 +125,15 @@ KeychainManifestNostrSignedEvent _signedEvent() {
   );
 }
 
-class _FakeKeychainManifestNostrRelayDatasource
-    extends KeychainManifestNostrRelayDatasource {
+class _FakeNostrRelayTransport extends NostrRelayTransport {
   final Map<String, bool> relayResults;
   final errorRelays = <String>{};
   final eventMessages = <String>[];
 
-  _FakeKeychainManifestNostrRelayDatasource(this.relayResults);
+  _FakeNostrRelayTransport(this.relayResults);
 
   @override
-  Future<bool> publish({
+  Future<NostrRelayPublishOutcome> publish({
     required Uri relayUri,
     required String eventMessage,
     required String eventId,
@@ -147,6 +143,12 @@ class _FakeKeychainManifestNostrRelayDatasource
     if (errorRelays.contains(relayUri.toString())) {
       throw StateError('relay-secret-leak');
     }
-    return relayResults[relayUri.toString()] ?? false;
+    return NostrRelayPublishOutcome(
+      relayUri: relayUri,
+      status: relayResults[relayUri.toString()] ?? false
+          ? NostrRelayPublishStatus.accepted
+          : NostrRelayPublishStatus.rejected,
+      contactedRelay: true,
+    );
   }
 }

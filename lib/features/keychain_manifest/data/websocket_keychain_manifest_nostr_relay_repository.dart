@@ -1,4 +1,6 @@
-import 'package:bb_mobile/features/keychain_manifest/data/datasources/keychain_manifest_nostr_relay_datasource.dart';
+import 'dart:convert';
+
+import 'package:bb_mobile/core/nostr/nostr_relay_transport.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_nostr_event_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_relay.dart';
@@ -7,21 +9,21 @@ import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychai
 class WebSocketKeychainManifestNostrRelayRepository
     implements KeychainManifestNostrRelayRepository {
   static const _fetchLimit = 20;
+  static const _maxEventFrameBytes = 256 * 1024;
 
-  final KeychainManifestNostrRelayDatasource _datasource;
+  final NostrRelayTransport _transport;
   final KeychainManifestNostrSignedEventCodec _eventCodec;
   final Duration _timeout;
 
   const WebSocketKeychainManifestNostrRelayRepository({
-    KeychainManifestNostrRelayDatasource datasource =
-        const KeychainManifestNostrRelayDatasource(),
+    NostrRelayTransport transport = const NostrRelayTransport(),
     KeychainManifestNostrSignedEventCodec eventCodec =
         const KeychainManifestNostrSignedEventCodec(),
     Duration timeout = const Duration(seconds: 10),
-  }) : this._(datasource, eventCodec, timeout);
+  }) : this._(transport, eventCodec, timeout);
 
   const WebSocketKeychainManifestNostrRelayRepository._(
-    this._datasource,
+    this._transport,
     this._eventCodec,
     this._timeout,
   );
@@ -36,12 +38,13 @@ class WebSocketKeychainManifestNostrRelayRepository
     final outcomes = await Future.wait(
       uniqueRelayUrls.map((relayUrl) async {
         try {
-          return await _datasource.publish(
+          final outcome = await _transport.publish(
             relayUri: relayUrl.uri,
             eventMessage: eventMessage,
             eventId: event.id,
             timeout: _timeout,
           );
+          return outcome.accepted;
         } catch (_) {
           return false;
         }
@@ -62,15 +65,22 @@ class WebSocketKeychainManifestNostrRelayRepository
     await Future.wait(
       uniqueRelayUrls.map((relayUrl) async {
         try {
-          final events = await _datasource.fetchManifestEvents(
+          final subscriptionId =
+              'keychain-manifest-${normalizedAuthor.hashCode}';
+          final outcome = await _transport.fetch(
             relayUri: relayUrl.uri,
-            subscriptionId: 'keychain-manifest-${normalizedAuthor.hashCode}',
-            authorPublicKeyHex: normalizedAuthor,
+            requestMessage: _manifestRequest(
+              subscriptionId: subscriptionId,
+              authorPublicKeyHex: normalizedAuthor,
+            ),
+            subscriptionId: subscriptionId,
             limit: _fetchLimit,
+            maxFrameBytes: _maxEventFrameBytes,
             timeout: _timeout,
           );
+          if (!outcome.hasUsableResponse) return;
           contactedAnyRelay = true;
-          for (final event in events) {
+          for (final event in outcome.events) {
             try {
               final manifestEvent = _eventCodec.fromNostrEvent(event);
               if (manifestEvent.authorPublicKeyHex == normalizedAuthor) {
@@ -91,5 +101,21 @@ class WebSocketKeychainManifestNostrRelayRepository
       contactedAnyRelay: contactedAnyRelay,
       events: events,
     );
+  }
+
+  String _manifestRequest({
+    required String subscriptionId,
+    required String authorPublicKeyHex,
+  }) {
+    return jsonEncode([
+      'REQ',
+      subscriptionId,
+      {
+        'authors': [authorPublicKeyHex],
+        'kinds': [keychainManifestNostrEventKind],
+        '#d': [keychainManifestNostrDTag],
+        'limit': _fetchLimit,
+      },
+    ]);
   }
 }

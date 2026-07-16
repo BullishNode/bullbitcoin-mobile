@@ -5,6 +5,7 @@ enum Bip85ReservationOwner {
   pos,
   nostr,
   keychainManifest,
+  walletMetadataBackup,
 }
 
 enum Bip85ReservationPurpose {

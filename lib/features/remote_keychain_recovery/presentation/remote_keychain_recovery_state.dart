@@ -20,6 +20,15 @@ enum RemoteKeychainRecoveryStatus {
   unsupportedNewerManifest,
   defaultWalletUnavailable,
   failed,
+  checkingMetadata,
+  restoringMetadata,
+  metadataRestored,
+  metadataPartiallyRestored,
+  metadataNoSnapshot,
+  metadataRelaysUnavailable,
+  metadataNoCompleteSnapshot,
+  metadataUpdateRequired,
+  metadataFailed,
 }
 
 class RemoteKeychainRecoveryState {
@@ -53,6 +62,14 @@ class RemoteKeychainRecoveryState {
   /// The DG-3 auto-heal interpretation for the recovered Point of Sale (103).
   /// Null when the POS was not flagged for reactivation.
   final PosHealOutcome? posHealOutcome;
+  final int metadataRestoredCount;
+  final int metadataAlreadyPresentCount;
+  final int metadataConflictCount;
+  final int metadataDeferredCount;
+  final int metadataUnsupportedCount;
+  final int metadataInvalidCount;
+  final int metadataFailedCount;
+  final bool metadataIsOlder;
 
   const RemoteKeychainRecoveryState({
     this.status = RemoteKeychainRecoveryStatus.idle,
@@ -66,5 +83,13 @@ class RemoteKeychainRecoveryState {
     this.healOutcome,
     this.paymentPageHealOutcome,
     this.posHealOutcome,
+    this.metadataRestoredCount = 0,
+    this.metadataAlreadyPresentCount = 0,
+    this.metadataConflictCount = 0,
+    this.metadataDeferredCount = 0,
+    this.metadataUnsupportedCount = 0,
+    this.metadataInvalidCount = 0,
+    this.metadataFailedCount = 0,
+    this.metadataIsOlder = false,
   });
 }

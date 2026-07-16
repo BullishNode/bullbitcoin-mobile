@@ -1,6 +1,4 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
+import 'package:bb_mobile/core/nostr/nostr_authenticated_cipher.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 
 /// A structurally-validated Nostr manifest ciphertext payload.
@@ -14,33 +12,22 @@ import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_er
 /// actually decrypts.
 class KeychainManifestNostrCiphertext {
   /// 16-byte nonce + at least one 16-byte cipher block + 32-byte HMAC.
-  static const int minimumByteLength = 64;
+  static const int minimumByteLength =
+      NostrAuthenticatedCiphertext.minimumByteLength;
 
   final String value;
 
   const KeychainManifestNostrCiphertext._(this.value);
 
   factory KeychainManifestNostrCiphertext(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) {
-      throw KeychainManifestNostrEventException(
-        'encrypted Nostr event content is required',
-      );
-    }
-    final Uint8List bytes;
     try {
-      bytes = base64.decode(trimmed);
-    } on FormatException catch (e) {
+      final ciphertext = NostrAuthenticatedCiphertext(value);
+      return KeychainManifestNostrCiphertext._(ciphertext.value);
+    } on NostrAuthenticatedCipherException catch (e) {
       throw KeychainManifestNostrEventException(
-        'encrypted Nostr event content must be base64-encoded ciphertext',
+        'encrypted Nostr event content must be a valid ciphertext',
         cause: e,
       );
     }
-    if (bytes.length < minimumByteLength) {
-      throw KeychainManifestNostrEventException(
-        'encrypted Nostr event content is too short to be a ciphertext',
-      );
-    }
-    return KeychainManifestNostrCiphertext._(trimmed);
   }
 }

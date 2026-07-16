@@ -39,7 +39,7 @@ class _RemoteKeychainRecoveryScreenState
     if (accepted) {
       await cubit.acceptRelayDisclosure();
     } else {
-      cubit.skip();
+      await cubit.skip();
     }
   }
 
@@ -64,11 +64,15 @@ class _RemoteKeychainRecoveryScreenState
               RemoteKeychainRecoveryState
             >(
               listenWhen: (previous, current) =>
-                  current.status ==
-                      RemoteKeychainRecoveryStatus.requiresRelayDisclosure &&
-                  previous.status !=
-                      RemoteKeychainRecoveryStatus.requiresRelayDisclosure,
-              listener: (context, state) => _handleDisclosure(),
+                  previous.status != current.status &&
+                  (current.status ==
+                      RemoteKeychainRecoveryStatus.requiresRelayDisclosure),
+              listener: (context, state) {
+                if (state.status ==
+                    RemoteKeychainRecoveryStatus.requiresRelayDisclosure) {
+                  _handleDisclosure();
+                }
+              },
               builder: (context, state) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(
@@ -162,6 +166,49 @@ class _RemoteKeychainRecoveryScreenState
         context.loc.remoteKeychainRecoverySkipped,
         actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
         onAction: _exit,
+      ),
+      RemoteKeychainRecoveryStatus.checkingMetadata => _progress(
+        context,
+        context.loc.walletMetadataRecoveryChecking,
+      ),
+      RemoteKeychainRecoveryStatus.restoringMetadata => _progress(
+        context,
+        context.loc.walletMetadataRecoveryRestoring,
+      ),
+      RemoteKeychainRecoveryStatus.metadataRestored ||
+      RemoteKeychainRecoveryStatus.metadataPartiallyRestored => _metadataResult(
+        context,
+        state,
+      ),
+      RemoteKeychainRecoveryStatus.metadataNoSnapshot => _message(
+        context,
+        context.loc.walletMetadataRecoveryNoSnapshot,
+        actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
+        onAction: _exit,
+      ),
+      RemoteKeychainRecoveryStatus.metadataRelaysUnavailable => _message(
+        context,
+        context.loc.walletMetadataRecoveryRelaysUnavailable,
+        actionLabel: context.loc.remoteKeychainRecoveryRetryAction,
+        onAction: cubit.startMetadataRecovery,
+      ),
+      RemoteKeychainRecoveryStatus.metadataNoCompleteSnapshot => _message(
+        context,
+        context.loc.walletMetadataRecoveryNoCompleteSnapshot,
+        actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
+        onAction: _exit,
+      ),
+      RemoteKeychainRecoveryStatus.metadataUpdateRequired => _message(
+        context,
+        context.loc.walletMetadataRecoveryUpdateRequired,
+        actionLabel: context.loc.remoteKeychainRecoveryDoneAction,
+        onAction: _exit,
+      ),
+      RemoteKeychainRecoveryStatus.metadataFailed => _message(
+        context,
+        context.loc.walletMetadataRecoveryFailed,
+        actionLabel: context.loc.remoteKeychainRecoveryRetryAction,
+        onAction: cubit.startMetadataRecovery,
       ),
     };
   }
@@ -287,6 +334,66 @@ class _RemoteKeychainRecoveryScreenState
           textAlign: TextAlign.center,
         ),
         ..._healRows(context, state),
+        const SizedBox(height: 24),
+        FilledButton(
+          onPressed: _exit,
+          child: Text(context.loc.remoteKeychainRecoveryDoneAction),
+        ),
+      ],
+    );
+  }
+
+  Widget _metadataResult(
+    BuildContext context,
+    RemoteKeychainRecoveryState state,
+  ) {
+    final skipped = state.metadataUnsupportedCount + state.metadataInvalidCount;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (state.restoredCount > 0) ...[
+          Text(
+            state.failedCount > 0
+                ? context.loc.remoteKeychainRecoveryPartiallyRestored(
+                    state.restoredCount,
+                    state.failedCount,
+                  )
+                : context.loc.remoteKeychainRecoveryRestoredCount(
+                    state.restoredCount,
+                  ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+        ],
+        Text(
+          context.loc.walletMetadataRecoveryRestoredCount(
+            state.metadataRestoredCount,
+            state.metadataAlreadyPresentCount,
+          ),
+          style: context.font.titleMedium,
+          textAlign: TextAlign.center,
+        ),
+        if (state.metadataIsOlder) ...[
+          const SizedBox(height: 12),
+          Text(
+            context.loc.walletMetadataRecoveryOlderResult,
+            textAlign: TextAlign.center,
+          ),
+        ],
+        if (state.status ==
+            RemoteKeychainRecoveryStatus.metadataPartiallyRestored) ...[
+          const SizedBox(height: 12),
+          Text(
+            context.loc.walletMetadataRecoveryResultDetails(
+              state.metadataConflictCount,
+              state.metadataDeferredCount,
+              skipped,
+              state.metadataFailedCount,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
         const SizedBox(height: 24),
         FilledButton(
           onPressed: _exit,

@@ -195,6 +195,7 @@ void main() {
     expect(signed.tags, [
       ['d', keychainManifestNostrDTag],
     ]);
+    expect(signedCodec.serialize(signed), _signedEventFrame);
     expect(jsonDecode(signedCodec.serialize(signed)), [
       'EVENT',
       {
@@ -322,3 +323,12 @@ const _nostrSnapshotPayload =
 const _signatureHex =
     'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
     'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+const _signedEventFrame =
+    '["EVENT",{"id":"8924c440aec6da3657dba376305c10231cb0809384cd0c206877f6debc952b91",'
+    '"pubkey":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",'
+    '"created_at":123,"kind":30078,"tags":[["d","manifest"]],'
+    '"content":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    'AAAAAAAAAAAAAAAAAAAAAA==","sig":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    'bbbbbbbbbbbbbbbb"}]';

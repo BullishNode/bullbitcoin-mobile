@@ -5,11 +5,13 @@ const _walletManifestReservationId = 'nostr_wallet_manifest_key';
 const _bullnymServerAuthReservationId = 'nostr_bullnym_server_auth_key';
 const _bullnymNip05VerificationReservationId =
     'nostr_nip05_public_nym_verification_key';
+const _walletMetadataReservationId = 'nostr_wallet_metadata_key';
 
 enum NostrIdentityRole {
   walletManifest,
   bullnymServerAuth,
   bullnymNip05Verification,
+  walletMetadata,
 }
 
 class DeriveNostrIdentityHandleUsecase {
@@ -33,6 +35,7 @@ class DeriveNostrIdentityHandleUsecase {
       NostrIdentityRole.bullnymServerAuth => _bullnymServerAuthReservationId,
       NostrIdentityRole.bullnymNip05Verification =>
         _bullnymNip05VerificationReservationId,
+      NostrIdentityRole.walletMetadata => _walletMetadataReservationId,
     };
   }
 

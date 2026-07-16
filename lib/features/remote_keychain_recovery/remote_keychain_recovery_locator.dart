@@ -11,11 +11,15 @@ import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/data/default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/check_remote_keychain_recovery_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/check_remote_wallet_metadata_recovery_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/apply_remote_wallet_metadata_recovery_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/begin_wallet_metadata_recovery_session_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/heal_recovered_products_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/load_automated_backup_consent_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/publish_restored_keychain_backup_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/restore_remote_keychain_manifest_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/presentation/remote_keychain_recovery_cubit.dart';
+import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_facade.dart';
 import 'package:get_it/get_it.dart';
 
 class RemoteKeychainRecoveryLocator {
@@ -48,6 +52,23 @@ class RemoteKeychainRecoveryLocator {
         locator<GetPaidSettingsFacade>(),
       ),
     );
+    locator.registerFactory<CheckRemoteWalletMetadataRecoveryUsecase>(
+      () => CheckRemoteWalletMetadataRecoveryUsecase(
+        defaultWalletXprv:
+            locator<RemoteKeychainRecoveryDefaultWalletXprvPort>(),
+        metadataBackup: locator<WalletMetadataBackupFacade>(),
+      ),
+    );
+    locator.registerFactory<ApplyRemoteWalletMetadataRecoveryUsecase>(
+      () => ApplyRemoteWalletMetadataRecoveryUsecase(
+        locator<WalletMetadataBackupFacade>(),
+      ),
+    );
+    locator.registerFactory<BeginWalletMetadataRecoverySessionUsecase>(
+      () => BeginWalletMetadataRecoverySessionUsecase(
+        locator<WalletMetadataBackupFacade>(),
+      ),
+    );
     locator.registerFactory<HealRecoveredProductsUsecase>(
       () => HealRecoveredProductsUsecase(
         locator<LightningAddressFacade>(),
@@ -62,6 +83,12 @@ class RemoteKeychainRecoveryLocator {
         loadConsent: locator<LoadAutomatedBackupConsentUsecase>(),
         healRecoveredProducts: locator<HealRecoveredProductsUsecase>(),
         publishRestoredBackup: locator<PublishRestoredKeychainBackupUsecase>(),
+        checkMetadataRecovery:
+            locator<CheckRemoteWalletMetadataRecoveryUsecase>(),
+        applyMetadataRecovery:
+            locator<ApplyRemoteWalletMetadataRecoveryUsecase>(),
+        beginMetadataSession:
+            locator<BeginWalletMetadataRecoverySessionUsecase>(),
       ),
     );
   }

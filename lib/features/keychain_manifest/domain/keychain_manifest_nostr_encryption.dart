@@ -1,15 +1,20 @@
+import 'package:bb_mobile/core/nostr/nostr_authenticated_cipher.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 
 final class KeychainManifestNostrEncryptionKey {
-  static final _hex32Pattern = RegExp(r'^[0-9a-fA-F]{64}$');
-
   final String hex;
 
-  KeychainManifestNostrEncryptionKey(String hex)
-    : hex = hex.trim().toLowerCase() {
-    if (!_hex32Pattern.hasMatch(this.hex)) {
+  const KeychainManifestNostrEncryptionKey._(this.hex);
+
+  factory KeychainManifestNostrEncryptionKey(String hex) {
+    final normalized = hex.trim().toLowerCase();
+    try {
+      NostrAuthenticatedCipherKey(normalized);
+      return KeychainManifestNostrEncryptionKey._(normalized);
+    } on NostrAuthenticatedCipherException catch (e) {
       throw KeychainManifestNostrEncryptionException(
         'manifest encryption key must be a 32-byte hex value',
+        cause: e,
       );
     }
   }

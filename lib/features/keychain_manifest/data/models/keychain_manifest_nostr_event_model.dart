@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:bb_mobile/core/nostr/nostr_signed_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
@@ -67,45 +68,28 @@ class KeychainManifestNostrSnapshotCodec {
 }
 
 class KeychainManifestNostrSignedEventCodec {
-  const KeychainManifestNostrSignedEventCodec();
+  final NostrSignedEventCodec codec;
 
-  String serialize(KeychainManifestNostrSignedEvent event) {
-    return _toNostrEvent(event).serialize();
-  }
+  const KeychainManifestNostrSignedEventCodec({
+    this.codec = const NostrSignedEventCodec(),
+  });
+
+  String serialize(KeychainManifestNostrSignedEvent event) =>
+      codec.serialize(event.toNostrSignedEvent());
 
   KeychainManifestNostrSignedEvent fromNostrEvent(nostr.Event event) {
-    // Recovery authenticity boundary (P21a): re-verify the event explicitly
-    // instead of trusting Event.deserialize's verify:true default, so a
-    // transport-side perf tweak (verify:false "for faster deserialization")
-    // can never silently disable authenticity. isValid() checks the NIP-01 id
-    // and the BIP340 signature under the author key.
-    if (!event.isValid()) {
+    try {
+      return KeychainManifestNostrSignedEvent.fromVerifiedEvent(
+        codec.fromNostrEvent(event),
+      );
+    } on KeychainManifestException {
+      rethrow;
+    } on NostrEventException catch (e) {
       throw KeychainManifestNostrEventException(
         'Nostr manifest event failed authenticity verification',
+        cause: e,
       );
     }
-    return KeychainManifestNostrSignedEvent.fromRelay(
-      id: event.id,
-      authorPublicKeyHex: event.pubkey,
-      createdAt: event.createdAt,
-      kind: event.kind,
-      tags: event.tags,
-      encryptedContent: event.content,
-      signatureHex: event.sig,
-    );
-  }
-
-  nostr.Event _toNostrEvent(KeychainManifestNostrSignedEvent event) {
-    return nostr.Event(
-      event.id,
-      event.authorPublicKeyHex,
-      event.createdAt,
-      event.kind,
-      event.tags,
-      event.encryptedContent,
-      event.signatureHex,
-      verify: false,
-    );
   }
 }
 

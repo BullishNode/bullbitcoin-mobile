@@ -8,6 +8,10 @@ import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/get_paid_settings/data/get_paid_settings_default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/data/default_wallet_xprv_adapter.dart';
+import 'package:bb_mobile/features/wallet_metadata_backup/data/local_wallet_metadata_backup_root_adapter.dart';
+import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/core/utils/bip32_derivation.dart';
+import 'package:bip32_keys/bip32_keys.dart' as bip32;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -22,10 +26,12 @@ class _MockSettingsEntity extends Mock implements SettingsEntity {}
 class _MockWallet extends Mock implements Wallet {}
 
 void main() {
-  const fingerprint = 'fedcba98';
   final seedBytes = Uint8List.fromList(
     List<int>.generate(64, (index) => index + 1),
   );
+  final fingerprint = bip32.Bip32Keys.fromBase58(
+    Bip32Derivation.getXprvFromSeed(seedBytes, Network.bitcoinMainnet),
+  ).fingerprintHex;
 
   late _MockGetSettingsUsecase getSettings;
   late _MockWalletRepository walletRepository;
@@ -69,12 +75,26 @@ void main() {
         walletRepository: walletRepository,
         seedRepository: seedRepository,
       );
+      final metadataAdapter = LocalWalletMetadataBackupRootAdapter(
+        getSettings: getSettings,
+        walletRepository: walletRepository,
+        seedRepository: seedRepository,
+      );
 
       final publish = await publishAdapter.deriveDefaultWalletXprv();
       final recovery = await recoveryAdapter.deriveDefaultWalletXprv();
+      final metadataResult = await metadataAdapter.deriveLocalRoot();
+      final metadata = switch (metadataResult) {
+        Ok(:final value) => value,
+        Err(:final failure) => throw TestFailure(
+          'metadata root failed: ${failure.runtimeType}',
+        ),
+      };
 
       expect(publish.xprvBase58, recovery.xprvBase58);
+      expect(metadata.xprvBase58, recovery.xprvBase58);
       expect(publish.parentFingerprint, recovery.parentFingerprint);
+      expect(metadata.parentFingerprint, recovery.parentFingerprint);
       expect(publish.parentFingerprint, fingerprint);
     },
   );

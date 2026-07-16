@@ -23,7 +23,10 @@ class _StubRecoveryCubit extends Cubit<RemoteKeychainRecoveryState>
   Future<void> restoreOlderManifest() async {}
 
   @override
-  void skip() {}
+  Future<void> startMetadataRecovery() async {}
+
+  @override
+  Future<void> skip() async {}
 }
 
 Future<void> _pump(
@@ -129,6 +132,26 @@ void main() {
       ),
     );
     expect(find.text('Restored 2 Get Paid wallets.'), findsOneWidget);
+  });
+
+  testWidgets('metadata result retains the keychain recovery summary', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const RemoteKeychainRecoveryState(
+        status: RemoteKeychainRecoveryStatus.metadataRestored,
+        restoredCount: 2,
+        metadataRestoredCount: 3,
+        metadataAlreadyPresentCount: 1,
+      ),
+    );
+
+    expect(find.text('Restored 2 Get Paid wallets.'), findsOneWidget);
+    expect(
+      find.text('Restored 3 records; 1 were already present.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('restored + live shows NO reactivation UI (DG-3 negative)', (

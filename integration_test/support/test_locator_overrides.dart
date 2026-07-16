@@ -1,6 +1,6 @@
+import 'package:bb_mobile/core/nostr/nostr_relay_transport.dart';
 import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_client_port.dart';
-import 'package:bb_mobile/features/keychain_manifest/data/datasources/keychain_manifest_nostr_relay_datasource.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/websocket_keychain_manifest_nostr_relay_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_nostr_relay_repository.dart';
 import 'package:get_it/get_it.dart';
@@ -27,7 +27,7 @@ Future<void> overrideBoundariesForTest(
   await locator.unregister<KeychainManifestNostrRelayRepository>();
   locator.registerLazySingleton<KeychainManifestNostrRelayRepository>(
     () => WebSocketKeychainManifestNostrRelayRepository(
-      datasource: KeychainManifestNostrRelayDatasource(connect: relay.connect),
+      transport: NostrRelayTransport(connect: relay.connect),
     ),
   );
 

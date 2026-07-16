@@ -255,7 +255,9 @@ void main() {
           'nostr_wallet_manifest_key',
           'nostr_bullnym_server_auth_key',
           'nostr_nip05_public_nym_verification_key',
+          'nostr_wallet_metadata_key',
           'keychain_manifest_encryption_key',
+          'wallet_metadata_encryption_key',
         ],
       );
     });
@@ -293,6 +295,7 @@ void main() {
         Bip85ReservationOwner.pos,
         Bip85ReservationOwner.nostr,
         Bip85ReservationOwner.keychainManifest,
+        Bip85ReservationOwner.walletMetadataBackup,
       ]);
       expect(Bip85ReservationOwner.btcpay.name, 'btcpay');
       expect(Bip85ReservationOwner.lightningAddress.name, 'lightningAddress');
@@ -300,6 +303,10 @@ void main() {
       expect(Bip85ReservationOwner.pos.name, 'pos');
       expect(Bip85ReservationOwner.nostr.name, 'nostr');
       expect(Bip85ReservationOwner.keychainManifest.name, 'keychainManifest');
+      expect(
+        Bip85ReservationOwner.walletMetadataBackup.name,
+        'walletMetadataBackup',
+      );
     });
 
     test('frozen wire value: BIP85 reservation purpose names', () {

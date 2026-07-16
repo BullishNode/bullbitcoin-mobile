@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/nostr/nostr_event_id.dart';
+import 'package:bb_mobile/core/nostr/nostr_signed_event.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_nostr_ciphertext.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
@@ -34,61 +35,70 @@ class KeychainManifestNostrSnapshot {
 }
 
 class KeychainManifestNostrEventDraft {
-  static final _xOnlyPublicKeyPattern = RegExp(r'^[0-9a-fA-F]{64}$');
-
-  final String authorPublicKeyHex;
+  final NostrEventDraft _event;
   final KeychainManifestNostrCiphertext encryptedContent;
-  final int createdAt;
 
-  KeychainManifestNostrEventDraft({
+  factory KeychainManifestNostrEventDraft({
     required String authorPublicKeyHex,
-    required this.encryptedContent,
-    required this.createdAt,
-  }) : authorPublicKeyHex = authorPublicKeyHex.trim().toLowerCase() {
-    if (!_xOnlyPublicKeyPattern.hasMatch(this.authorPublicKeyHex)) {
-      throw KeychainManifestNostrEventException(
-        'author public key must be a 32-byte x-only hex key',
+    required KeychainManifestNostrCiphertext encryptedContent,
+    required int createdAt,
+  }) {
+    try {
+      return KeychainManifestNostrEventDraft._(
+        NostrEventDraft(
+          authorPublicKeyHex: authorPublicKeyHex,
+          createdAt: createdAt,
+          kind: keychainManifestNostrEventKind,
+          tags: const [
+            ['d', keychainManifestNostrDTag],
+          ],
+          content: encryptedContent.value,
+        ),
+        encryptedContent: encryptedContent,
       );
-    }
-    if (createdAt < 0) {
+    } on NostrEventException catch (e) {
       throw KeychainManifestNostrEventException(
-        'Nostr event timestamp must be non-negative',
+        'invalid keychain manifest Nostr event draft',
+        cause: e,
       );
     }
   }
 
-  int get kind => keychainManifestNostrEventKind;
+  const KeychainManifestNostrEventDraft._(
+    this._event, {
+    required this.encryptedContent,
+  });
 
-  List<List<String>> get tags => const [
-    ['d', keychainManifestNostrDTag],
-  ];
+  String get authorPublicKeyHex => _event.authorPublicKeyHex;
+
+  int get createdAt => _event.createdAt;
+
+  int get kind => _event.kind;
+
+  List<List<String>> get tags => _event.tags;
 }
 
 class KeychainManifestNostrSignedEvent {
-  static final _eventIdPattern = RegExp(r'^[0-9a-fA-F]{64}$');
-  static final _xOnlyPublicKeyPattern = RegExp(r'^[0-9a-fA-F]{64}$');
-  static final _signaturePattern = RegExp(r'^[0-9a-fA-F]{128}$');
+  final NostrSignedEvent _event;
 
-  final String id;
-  final String authorPublicKeyHex;
-  final int createdAt;
-  final int kind;
-  final List<List<String>> tags;
-  final String encryptedContent;
-  final String signatureHex;
-
-  KeychainManifestNostrSignedEvent.fromDraft({
+  factory KeychainManifestNostrSignedEvent.fromDraft({
     required KeychainManifestNostrEventDraft draft,
     required String signatureHex,
-  }) : this._(
-         id: keychainManifestNostrEventIdForDraft(draft),
-         authorPublicKeyHex: draft.authorPublicKeyHex,
-         createdAt: draft.createdAt,
-         kind: draft.kind,
-         tags: draft.tags,
-         encryptedContent: draft.encryptedContent.value,
-         signatureHex: signatureHex,
-       );
+  }) {
+    try {
+      return KeychainManifestNostrSignedEvent._(
+        NostrSignedEvent.fromDraft(
+          draft: draft._event,
+          signatureHex: signatureHex,
+        ),
+      );
+    } on NostrEventException catch (e) {
+      throw KeychainManifestNostrEventException(
+        'invalid signed keychain manifest Nostr event',
+        cause: e,
+      );
+    }
+  }
 
   factory KeychainManifestNostrSignedEvent.fromRelay({
     required String id,
@@ -99,17 +109,33 @@ class KeychainManifestNostrSignedEvent {
     required String encryptedContent,
     required String signatureHex,
   }) {
-    final event = KeychainManifestNostrSignedEvent._(
-      id: id,
-      authorPublicKeyHex: authorPublicKeyHex,
-      createdAt: createdAt,
-      kind: kind,
-      tags: tags,
-      encryptedContent: encryptedContent,
-      signatureHex: signatureHex,
-    );
-    if (kind != keychainManifestNostrEventKind ||
-        !tags.any(
+    try {
+      final ciphertext = KeychainManifestNostrCiphertext(encryptedContent);
+      final event = NostrSignedEvent.fromRelayFields(
+        id: id,
+        authorPublicKeyHex: authorPublicKeyHex,
+        createdAt: createdAt,
+        kind: kind,
+        tags: tags,
+        content: ciphertext.value,
+        signatureHex: signatureHex,
+      );
+      return KeychainManifestNostrSignedEvent.fromVerifiedEvent(event);
+    } on KeychainManifestException {
+      rethrow;
+    } on NostrEventException catch (e) {
+      throw KeychainManifestNostrEventException(
+        'invalid signed keychain manifest Nostr event',
+        cause: e,
+      );
+    }
+  }
+
+  factory KeychainManifestNostrSignedEvent.fromVerifiedEvent(
+    NostrSignedEvent event,
+  ) {
+    if (event.kind != keychainManifestNostrEventKind ||
+        !event.tags.any(
           (tag) =>
               tag.length >= 2 &&
               tag[0] == 'd' &&
@@ -119,78 +145,33 @@ class KeychainManifestNostrSignedEvent {
         'Nostr event is not a keychain manifest snapshot',
       );
     }
-    final draft = KeychainManifestNostrEventDraft(
-      authorPublicKeyHex: event.authorPublicKeyHex,
-      encryptedContent: KeychainManifestNostrCiphertext(event.encryptedContent),
-      createdAt: event.createdAt,
-    );
-    final expectedId = keychainManifestNostrEventId(
-      authorPublicKeyHex: draft.authorPublicKeyHex,
-      createdAt: draft.createdAt,
-      kind: event.kind,
-      tags: event.tags,
-      encryptedContent: draft.encryptedContent.value,
-    );
-    if (event.id != expectedId) {
-      throw KeychainManifestNostrEventException(
-        'Nostr event id does not match keychain manifest payload',
-      );
-    }
-    return event;
+    KeychainManifestNostrCiphertext(event.content);
+    return KeychainManifestNostrSignedEvent._(event);
   }
 
-  KeychainManifestNostrSignedEvent._({
-    required String id,
-    required String authorPublicKeyHex,
-    required this.createdAt,
-    required this.kind,
-    required List<List<String>> tags,
-    required this.encryptedContent,
-    required String signatureHex,
-  }) : id = id.trim().toLowerCase(),
-       authorPublicKeyHex = authorPublicKeyHex.trim().toLowerCase(),
-       tags = List<List<String>>.unmodifiable(
-         tags.map(List<String>.unmodifiable),
-       ),
-       signatureHex = signatureHex.trim().toLowerCase() {
-    if (!_eventIdPattern.hasMatch(this.id)) {
-      throw KeychainManifestNostrEventException(
-        'Nostr event id must be a 32-byte hex value',
-      );
-    }
-    if (!_xOnlyPublicKeyPattern.hasMatch(this.authorPublicKeyHex)) {
-      throw KeychainManifestNostrEventException(
-        'Nostr event author must be a 32-byte x-only hex key',
-      );
-    }
-    if (createdAt < 0) {
-      throw KeychainManifestNostrEventException(
-        'Nostr event timestamp must be non-negative',
-      );
-    }
-    if (encryptedContent.trim().isEmpty) {
-      throw KeychainManifestNostrEventException(
-        'encrypted Nostr event content is required',
-      );
-    }
-    if (!_signaturePattern.hasMatch(this.signatureHex)) {
-      throw KeychainManifestNostrEventException(
-        'Nostr event signature must be a 64-byte hex value',
-      );
-    }
-  }
+  const KeychainManifestNostrSignedEvent._(this._event);
+
+  String get id => _event.id;
+
+  String get authorPublicKeyHex => _event.authorPublicKeyHex;
+
+  int get createdAt => _event.createdAt;
+
+  int get kind => _event.kind;
+
+  List<List<String>> get tags => _event.tags;
+
+  String get encryptedContent => _event.content;
+
+  String get signatureHex => _event.signatureHex;
+
+  NostrSignedEvent toNostrSignedEvent() => _event;
 }
 
 String keychainManifestNostrEventIdForDraft(
   KeychainManifestNostrEventDraft draft,
 ) {
-  return keychainManifestNostrEventId(
-    authorPublicKeyHex: draft.authorPublicKeyHex,
-    createdAt: draft.createdAt,
-    kind: draft.kind,
-    tags: draft.tags,
-    encryptedContent: draft.encryptedContent.value,
-  );
+  return draft._event.id;
 }
 
 String keychainManifestNostrEventId({
