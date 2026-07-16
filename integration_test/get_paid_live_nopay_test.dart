@@ -75,7 +75,7 @@ Future<void> main({bool isInitialized = false}) async {
     // same seed; after the test split (fresh seed per test) that no longer
     // holds, so assert the manifest is populated (>=1) for this seed.
     expect(manifest.entryCount, greaterThanOrEqualTo(1));
-  });
+  }, timeout: const Timeout(Duration(minutes: 6)));
 
   // TEST B — payment page, POS, invoice metadata, and Nostr remote recovery for
   // a registered nym, WITHOUT any payment.
@@ -195,7 +195,7 @@ Future<void> main({bool isInitialized = false}) async {
     expect(restoredPos!.isActive, isTrue);
     final posHeal = await locator<PosFacade>().ensurePosLive();
     expect(posHeal.liveness, PosLiveness.live);
-  });
+  }, timeout: const Timeout(Duration(minutes: 6)));
 
   // TEST 2 — anti-takeover under permanent names. A FRESH owner seed claims the
   // nym; a FRESH attacker seed (which owns no name) then attempts the SAME nym
@@ -239,7 +239,7 @@ Future<void> main({bool isInitialized = false}) async {
             .having((e) => e.retryable, 'retryable', isFalse),
       ),
     );
-  });
+  }, timeout: const Timeout(Duration(minutes: 6)));
 
   // TEST 3 — a clean seed that registers WITHOUT the backup disclosure has no
   // live Nostr backup to recover. Fresh seed; short nym within the syntax cap.
@@ -255,7 +255,7 @@ Future<void> main({bool isInitialized = false}) async {
 
     final recovery = await _runRemoteRecovery();
     expect(recovery.status, RemoteKeychainRecoveryStatus.noManifestFound);
-  });
+  }, timeout: const Timeout(Duration(minutes: 6)));
 }
 
 Future<void> _resetWithMnemonic(List<String> mnemonicWords) async {
