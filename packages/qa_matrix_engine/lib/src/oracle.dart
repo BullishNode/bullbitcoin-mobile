@@ -40,6 +40,7 @@ class RecoveryOracle {
   ExpectedOutcome derive(ScenarioTuple t) {
     final manifest = t.get(ParameterModel.dManifest);
     final relay = t.get(ParameterModel.dRelay);
+    final server = t.get(ParameterModel.dServer);
     final network = t.get(ParameterModel.dNetwork);
     final seed = t.get(ParameterModel.dSeed);
 
@@ -51,11 +52,23 @@ class RecoveryOracle {
     // times out with whatever arrived — so it resolves to the normal
     // manifest/seed outcome (an absent/hostile coordinate => noManifestFound),
     // never `relaysUnavailable`.
-    final noRelayReachable = network == 'offline' || relay == 'all-down';
+    //
+    // Post-Nostr merge, backup fetch/store rides `BullnymClientPort` alone —
+    // there is no separate relay transport anymore, so a down Bullnym server
+    // (D5=down) or a network that never lands a connection (D6=flaky-drop,
+    // folded by the compiler onto the same fake-unreachable mode as offline)
+    // is the same "nothing contacted" fault as relay=all-down / network=offline.
+    final noRelayReachable =
+        network == 'offline' ||
+        network == 'flaky-drop' ||
+        relay == 'all-down' ||
+        server == 'down';
     if (noRelayReachable) {
       return const ExpectedOutcome(
         {ExpectedRecoveryClass.relaysUnavailable},
-        'no relay reachable within the per-relay timeout',
+        'no relay reachable within the per-relay timeout (post-merge: '
+        'server-down / flaky-drop present as the same unreachable-transport '
+        'fault over BullnymClientPort)',
       );
     }
 

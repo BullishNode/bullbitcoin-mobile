@@ -183,6 +183,20 @@ class ScenarioCompiler {
         'newer-version needs a signed-but-newer fixture backup (crafted staging)',
       );
     }
+    if (manifest == 'empty-newest') {
+      // The only staging path here is the pairing flow, which always backs up
+      // the just-created (non-empty) default wallets — there is no mechanism
+      // to publish a genuinely authentic, signed, EMPTY newest snapshot. If
+      // nothing is staged, "empty-newest" is indistinguishable from "none" and
+      // the case would vacuously pass without ever exercising P4 (never fake
+      // a "restored" from nothing). Route it to unsupported instead of
+      // improvising new fake behaviour on a money-adjacent staging path.
+      throw const ScenarioUnsupported(
+        'empty-newest needs a way to publish an authentic empty backup '
+        'snapshot; the pairing-only staging path here cannot produce one, so '
+        'the case would never actually exercise P4',
+      );
+    }
     // D3 (manifest integrity) and D4 (relay-transport fault) cells relied on
     // FakeNostrRelay hooks (tamper/forge/timeout/flood/size-cap/offline) that
     // have no equivalent on FakeBullnymClient today — see the class doc.
