@@ -148,7 +148,7 @@ class FakeBullnymClient implements BullnymClientPort {
       return const Err(
         BullnymFailure.serverRejectedRequest(
           code: 'ServiceUnavailable',
-          logMessage: 'fake relay unreachable',
+          logMessage: 'fake service unreachable',
           statusCode: 503,
           retryable: true,
         ),
@@ -194,7 +194,7 @@ class FakeBullnymClient implements BullnymClientPort {
         return const Err(
           BullnymFailure.serverRejectedRequest(
             code: 'ServiceUnavailable',
-            logMessage: 'fake relay unreachable',
+            logMessage: 'fake service unreachable',
             statusCode: 503,
             retryable: true,
           ),
