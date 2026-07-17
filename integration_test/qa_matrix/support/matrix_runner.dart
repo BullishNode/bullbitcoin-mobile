@@ -42,8 +42,10 @@ Future<EvidenceRecord> runCase(GetIt locator, GeneratedCase c) async {
 
   // Oracle check: an interrupted run was cut before a verdict, so its terminal
   // class is not scored against the oracle (P12 owns interrupt safety instead).
-  final oracleSatisfied = scenario.interrupted ||
-      (observed != null && c.expected.accepts(observed));
+  // mapRecoveryStatus is now total (every RemoteKeychainRecoveryStatus value
+  // is terminal and maps to a class), so there is no null case to guard.
+  final oracleSatisfied =
+      scenario.interrupted || c.expected.accepts(observed);
 
   final passed = violations.isEmpty && oracleSatisfied;
 

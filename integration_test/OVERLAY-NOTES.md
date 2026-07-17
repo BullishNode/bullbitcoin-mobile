@@ -23,32 +23,29 @@ ported**: there is no product surface left for them to attach to.
 `test_locator_overrides.dart` was rewritten to override `BullnymClientPort`
 only.
 
-## BLOCKED — `integration_test/qa_matrix/*` (pubspec fence)
+## RESOLVED — `integration_test/qa_matrix/*` (pubspec fence)
 
 `qa_matrix/support/scenario_compiler.dart`, `invariant_assertions.dart`,
 `recovery_status_mapping.dart`, `matrix_runner.dart`, `matrix_fixtures.dart`,
 `named_case.dart`, and the three `qa_matrix_*_test.dart` files were ported and
 adapted (see the WP-A1 report for the full list of adaptations), and the
 `packages/qa_matrix_engine` pure-Dart package was copied into this overlay
-unchanged. **None of it can `dart analyze`/`flutter analyze` clean** because
-`qa_matrix_engine` is not a workspace member / dev_dependency of this
-overlay's `pubspec.yaml` — every file that imports
-`package:qa_matrix_engine/qa_matrix_engine.dart` fails with
-`uri_does_not_exist`. This is the exact wiring the old overlay's `pubspec.yaml`
-had (a `workspace:` entry for `packages/qa_matrix_engine` + a
-`qa_matrix_engine:` dev_dependency — dev-only, zero build/APK impact).
+unchanged.
 
-This overlay's task fence explicitly forbids touching `pubspec.yaml`
-("NEVER modify product ... dependencies (pubspec)"), so the wiring was
-**not** added here. `qa_matrix/*` therefore analyzes as **BLOCKED, not
-PASS** — the 142 `dart analyze` issues under `integration_test/qa_matrix/`
-are 100% `uri_does_not_exist`/`undefined_*` fallout from the missing package,
-not defects in the ported/adapted code (verified: every non-`qa_matrix`,
-non-`qa_matrix_engine` file in this overlay analyzes with zero issues).
+This was previously **BLOCKED** because `qa_matrix_engine` was not a
+workspace member / dev_dependency of this overlay's `pubspec.yaml` — every
+file that imports `package:qa_matrix_engine/qa_matrix_engine.dart` failed
+with `uri_does_not_exist`. An owner decision authorized the same dev-only
+wiring the old overlay used: a `workspace:` entry for
+`packages/qa_matrix_engine` plus a `qa_matrix_engine:` `dev_dependencies:`
+entry in `pubspec.yaml`, both dev-only with zero build/APK impact (no `lib/`
+file imports `qa_matrix_engine`; the entry lives only under
+`dev_dependencies:`, never `dependencies:`).
 
-Resolving this needs an explicit owner/Codex decision to add the same
-dev-only `workspace:`/`qa_matrix_engine:` entries the old overlay used —
-treat it the same as a "needs a lib/ change" stop, just for pubspec instead.
+With the wiring in and `flutter pub get` re-run, `dart analyze
+integration_test/qa_matrix packages/qa_matrix_engine` is **clean — 0
+issues** (previously 142, all `uri_does_not_exist`/`undefined_*` fallout from
+the missing package, not defects in the ported/adapted code).
 
 ## Best-effort, unverified adaptation — `scenario_compiler.dart`
 

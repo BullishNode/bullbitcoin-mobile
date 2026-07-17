@@ -5,7 +5,6 @@ import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_service_port.da
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
-import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
 import 'package:get_it/get_it.dart';
 import 'package:qa_matrix_engine/qa_matrix_engine.dart';
