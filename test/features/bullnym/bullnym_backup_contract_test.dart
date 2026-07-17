@@ -248,4 +248,50 @@ final class _RecordingClient implements BullnymClientPort {
   @override
   Future<BullnymRegisterResult> register(BullnymRegisterRequest request) =>
       throw UnimplementedError();
+
+  @override
+  Future<BullnymDonationPage> getDonationPage({
+    required String nym,
+    required String kind,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymDonationPage> saveDonationPage(
+    BullnymSaveDonationPageRequest request,
+  ) => throw UnimplementedError();
+
+  @override
+  Future<BullnymDonationPage> archiveDonationPage(
+    BullnymArchiveDonationPageRequest request,
+  ) => throw UnimplementedError();
+
+  @override
+  Future<BullnymSupportedCurrencies> getSupportedCurrencies() =>
+      throw UnimplementedError();
+
+  @override
+  Future<BullnymCreateInvoiceResponse> createInvoice({
+    required BullnymAuthSigner signer,
+    String? nym,
+    required BullnymCreateInvoiceFields fields,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymCancelInvoiceResponse> cancelInvoice({
+    required BullnymAuthSigner signer,
+    String? nym,
+    required String invoiceId,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymListInvoicesResponse> listInvoices({
+    required BullnymAuthSigner signer,
+    required int page,
+    required int pageSize,
+    String? status,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymInvoiceStatus> getInvoiceStatus({required String invoiceId}) =>
+      throw UnimplementedError();
 }
