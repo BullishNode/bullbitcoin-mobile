@@ -37,6 +37,38 @@ const skip = {
   // SPEC-INV-01: same app-process non-determinism; the deterministic Invoices
   // gates are the L0 usecase/cubit suites.
   'invoices_lifecycle_test.dart',
+  // S-REAL-PROD-LIVE-NOPAY: production Bullnym/Nostr + real seed fixtures.
+  // This is an explicit external lane only; never include it in the default
+  // aggregate integration run.
+  'get_paid_live_nopay_test.dart',
+  // S-REAL-PROD-PAGE102-FUNDED: MOVES REAL FUNDS, coordinator-driven through a
+  // handshake directory. Explicit external lane only; never aggregate it.
+  'get_paid_page102_funded_test.dart',
+  // S-REAL-PROD-POS103-FUNDED: MOVES REAL FUNDS, coordinator-driven through a
+  // handshake directory. Explicit external lane only; never aggregate it.
+  'get_paid_pos103_funded_test.dart',
+  // S-REAL-PROD-LA101-FUNDED: MOVES REAL FUNDS, coordinator-driven through a
+  // handshake directory. Explicit external lane only; never aggregate it.
+  'get_paid_la101_funded_test.dart',
+  // S-REAL-PROD-BTCPAY100-FUNDED: MOVES REAL FUNDS (on-chain BTC), drives the
+  // real SamRock pairing with a run-time credential, coordinator-driven through
+  // a handshake directory. Explicit external lane only; never aggregate it.
+  'get_paid_btcpay100_funded_test.dart',
+  // SPEC-BTCPAY100-PAIRING: deterministic no-pay pairing prerequisites +
+  // redaction proof. App-process lifecycle spec; run via the explicit lane
+  // (non-deterministic in the single-process aggregate, like the others above).
+  'get_paid_btcpay100_pairing_test.dart',
+  // S-REAL-PROD-BTCPAY100-FUNDED (pair-only preserve): LIVE SamRock pairing
+  // against production that persists paired state for a later funded run.
+  // Explicit external lane only; never aggregate it.
+  'get_paid_btcpay100_pair_only_test.dart',
+  // qa_matrix/* needs the fork-only qa_matrix_engine workspace package, which
+  // is not wired into pubspec.yaml on this overlay (see the overlay NOTES) —
+  // exclude the whole subtree from the aggregate rather than let it fail to
+  // resolve.
+  'qa_matrix_generative_test.dart',
+  'qa_matrix_recovery_test.dart',
+  'qa_matrix_smoke_test.dart',
 };
 
 void main() {
