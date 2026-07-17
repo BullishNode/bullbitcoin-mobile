@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/storage/sqlite_database.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_entry.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/drift_keychain_manifest_entry_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,6 +75,39 @@ void main() {
         .get();
     expect(entries, hasLength(1));
     expect(bindings, hasLength(2));
+  });
+
+  test('fetches wallet materializations by parent fingerprint', () async {
+    await store.insertWalletMaterializationRecord(
+      _record(
+        walletId: 'z-wallet',
+        bip85DerivationPath: "39'/0'/12'/101'",
+        bip85Index: 101,
+      ),
+    );
+    await store.insertWalletMaterializationRecord(
+      _record(walletId: 'btc-wallet', network: 'bitcoinMainnet'),
+    );
+    await store.insertWalletMaterializationRecord(
+      _record(walletId: 'lbtc-wallet', network: 'liquidMainnet'),
+    );
+    await store.insertWalletMaterializationRecord(
+      _record(walletId: 'other-parent', parentFingerprint: '00112233'),
+    );
+
+    final records = await store
+        .fetchWalletMaterializationRecordsByParentFingerprint(' FEDCBA98 ');
+
+    // Order is unspecified at the repository boundary; deterministic file
+    // ordering is owned by the build usecase.
+    expect(
+      records.map((record) => record.walletId),
+      unorderedEquals(['btc-wallet', 'lbtc-wallet', 'z-wallet']),
+    );
+    expect(
+      records.every((record) => record.entry.parentFingerprint == 'fedcba98'),
+      isTrue,
+    );
   });
 }
 

@@ -19,9 +19,10 @@ If a multi-wallet record call partially succeeds and later materializations
 fail, the successfully recorded rows remain durable. A later retry must record
 missing proven materializations idempotently instead of rolling back valid rows.
 
-It does not create, export, import, publish, fetch, or restore a manifest file.
-It records local derivation metadata that may serve as input to a future
-snapshot design. This PR does not define a snapshot/export contract, and
+It can build an on-demand manifest file payload from local records for a
+requested parent fingerprint. The local Drift records remain the source of
+truth; the file payload is a read-only projection and is not cached as product
+state. This PR does not import, publish, fetch, or restore a manifest file, and
 non-wallet materialization types are out of scope.
 
 ## Boundaries
@@ -37,6 +38,8 @@ non-wallet materialization types are out of scope.
 - The public boundary records wallet materializations only. Product features do
   not receive inserted-row rollback tokens or a public delete API for
   current-attempt rollback.
+- The public boundary may build a manifest file payload, but file operations
+  must not mutate local manifest inventory.
 - `keychain_manifest` must not import BTCPay, Get Paid, external receive
   wallets, Nostr, or UI features.
 
@@ -60,5 +63,135 @@ dummy seed fingerprint.
 Wallet materializations store no wallet-purpose value. The network family is
 derivable from the stored `network`, and feature ownership already lives on the
 entry's `ownerFeature`, so a purpose column would duplicate both and freeze a
-redundant string into the persisted schema and the future manifest file
-contract.
+redundant string into the persisted schema and the manifest file contract.
+
+## Manifest File
+
+The manifest file is a serialized projection generated from local
+`keychain_manifest` records. It is not the current-device source of truth, is
+not maintained as a separate local file, and does not become a recovery artifact
+until a later restore flow defines those semantics.
+
+Current-device source of truth:
+
+- `bip85_registry` defines reserved paths and purposes.
+- `keychain_manifest` database records define which app-created BIP85 material
+  has been recorded for recovery/retry inventory.
+- The manifest file payload is the latest projection of those records at the
+  moment a caller builds it.
+- The payload does not prove that every recorded wallet still exists locally.
+  A future consumer that needs current wallet-existence guarantees must join
+  against wallet inventory and define missing-wallet behavior explicitly.
+
+The v1 file is deterministic JSON. Shown pretty-printed for readability; the
+serialized payload contains no whitespace (see canonical form below):
+
+```json
+{
+  "version": 1,
+  "parentFingerprint": "fedcba98",
+  "generatedAt": 1751328000,
+  "inventoryUpdatedAt": 1751241600,
+  "entryCount": 1,
+  "materializationCount": 1,
+  "entries": [
+    {
+      "entryId": "fedcba98:39'/0'/12'/100'",
+      "bip85DerivationPath": "39'/0'/12'/100'",
+      "reservationId": "btcpay_wallet_seed",
+      "entryType": "walletSeed",
+      "ownerFeature": "btcpay",
+      "bip85Application": 39,
+      "bip85Index": 100,
+      "createdAt": 1751241600,
+      "updatedAt": 1751241600,
+      "materializations": [
+        {
+          "type": "wallet",
+          "walletId": "wpkh([0123abcd/84h/0h/0h])",
+          "childSeedFingerprint": "0123abcd",
+          "network": "bitcoinMainnet",
+          "scriptType": "bip84",
+          "createdAt": 1751241600,
+          "updatedAt": 1751241600
+        }
+      ]
+    }
+  ]
+}
+```
+
+`walletId` is the wallet's descriptor-origin string, e.g.
+`wpkh([0123abcd/84h/0h/0h])` for a BIP84 Bitcoin mainnet wallet whose child
+seed fingerprint is `0123abcd`. It is deterministic from the child seed
+fingerprint, script type, and network.
+
+### Canonical form
+
+Every v1 payload has exactly one byte representation:
+
+- All timestamps (`generatedAt`, `inventoryUpdatedAt`, `createdAt`,
+  `updatedAt`) are Unix timestamps in seconds, UTC.
+- JSON object keys appear in the fixed order shown in the example above:
+  - top level: `version`, `parentFingerprint`, `generatedAt`,
+    `inventoryUpdatedAt`, `entryCount`, `materializationCount`, `entries`;
+  - entry: `entryId`, `bip85DerivationPath`, `reservationId`, `entryType`,
+    `ownerFeature`, `bip85Application`, `bip85Index`, `createdAt`,
+    `updatedAt`, `materializations`;
+  - materialization: `type`, `walletId`, `childSeedFingerprint`, `network`,
+    `scriptType`, `createdAt`, `updatedAt`.
+- Entries are sorted by `bip85DerivationPath`, then by `entryId`.
+- Materializations within an entry are sorted by `network`, then by
+  `walletId`.
+- The payload contains no whitespace: no spaces after separators, no
+  newlines, no indentation.
+- Unknown fields are ignored on read. This is a deliberate forward-compat
+  decision: a v1 reader accepts payloads that carry additional fields from a
+  newer writer, and it validates only the fields specified here. Writers must
+  not emit fields outside this specification.
+
+Rules:
+
+- `version` must be `1`.
+- Fingerprints must be normalized 8-character lowercase hex values.
+- `bip85DerivationPath` is the registry-relative hardened path.
+- `entryId` is derived from parent fingerprint and BIP85 path.
+- Entry ids must be unique across entries, and wallet ids must be unique
+  across all materializations in the file, mirroring local record uniqueness.
+- `entryCount` and `materializationCount` are integrity counts validated on
+  build: `entryCount` must equal the number of entries, and
+  `materializationCount` must equal the total number of materializations
+  across all entries.
+- `inventoryUpdatedAt` is the data-recency timestamp: the latest `updatedAt`
+  among included entries and materializations. An empty manifest serializes
+  `inventoryUpdatedAt` as `0`.
+- Cross-manifest recency ordering uses data recency (`inventoryUpdatedAt`),
+  so an empty manifest never outranks a populated one. `generatedAt` records
+  when the payload was built and is informational only; it must not be used
+  to rank manifests.
+- V1 supports only wallet materializations with `"type": "wallet"`.
+- Enumerated fields carry frozen wire vocabulary (see the table below).
+- Public callers must explicitly opt in before exporting an empty manifest.
+- This PR only encodes the v1 payload. Decoding, import validation, and restore
+  semantics belong to a later consumer PR.
+
+### Frozen wire vocabulary
+
+The enumerated v1 fields below serialize the `.name` of a production enum (or
+a serialization constant). These strings are frozen wire vocabulary: renaming
+a source enum must not change what is serialized, and a contract test pins
+every value. Adding or changing a value is a versioned wire-format decision,
+not a refactor.
+
+| Field | Allowed values | Source |
+| --- | --- | --- |
+| `type` (materialization) | `wallet` | `KeychainManifestFileWalletMaterialization.type` constant |
+| `entryType` | `walletSeed` | `Bip85ReservationPurpose` (`bip85_registry`) |
+| `ownerFeature` | `btcpay` | `Bip85ReservationOwner` (`bip85_registry`) |
+| `reservationId` | `btcpay_wallet_seed` | `bip85_registry` reservation ids |
+| `network` | `bitcoinMainnet`, `bitcoinTestnet`, `liquidMainnet`, `liquidTestnet` | `Network` (`core/wallet`) |
+| `scriptType` | `bip84`, `bip49`, `bip44` | `ScriptType` (`core/wallet`) |
+
+The payload is generated on demand by callers that need a serialized projection.
+Transport, import, restore, and UI flows are out of scope and are not specified
+by this PR.
