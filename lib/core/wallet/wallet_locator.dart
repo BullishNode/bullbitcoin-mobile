@@ -148,9 +148,8 @@ class WalletLocator {
       () => GetFrozenWalletOutpointsUsecase(locator<WalletUtxoRepository>()),
     );
     locator.registerFactory<RestoreFrozenWalletOutpointsUsecase>(
-      () => RestoreFrozenWalletOutpointsUsecase(
-        locator<WalletUtxoRepository>(),
-      ),
+      () =>
+          RestoreFrozenWalletOutpointsUsecase(locator<WalletUtxoRepository>()),
     );
     locator.registerFactory<CreateDefaultWalletsUsecase>(
       () => CreateDefaultWalletsUsecase(

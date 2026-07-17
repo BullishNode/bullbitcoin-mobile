@@ -44,10 +44,7 @@ class InvoiceFallbackOverview {
   final List<InvoiceFallbackSupervision> items;
   final bool hasMore;
 
-  const InvoiceFallbackOverview({
-    required this.items,
-    required this.hasMore,
-  });
+  const InvoiceFallbackOverview({required this.items, required this.hasMore});
 
   int get attentionCount =>
       items.where((item) => item.requiresAttention).length;
@@ -69,8 +66,10 @@ InvoiceFallbackState invoiceFallbackStateFromWire(String value) {
     'constructed' ||
     'broadcast_ambiguous' ||
     'in_progress' => InvoiceFallbackState.inProgress,
-    'refunded' || 'broadcast' || 'mempool' || 'confirming' =>
-      InvoiceFallbackState.confirming,
+    'refunded' ||
+    'broadcast' ||
+    'mempool' ||
+    'confirming' => InvoiceFallbackState.confirming,
     'confirmed' || 'finalized' || 'settled' => InvoiceFallbackState.settled,
     'integrity_hold' => InvoiceFallbackState.integrityHold,
     _ => InvoiceFallbackState.inProgress,
