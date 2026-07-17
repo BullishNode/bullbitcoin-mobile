@@ -45,7 +45,7 @@ The recipient wallet is **created on-device** by the normal wallet-creation flow
 owns a fresh seed, auto-backed-up over Nostr). No mnemonic is injected. Before any
 funds move, the app's own show-mnemonic/backup-export path
 (`GetMnemonicFromFingerprintUsecase`) captures the recovery material to a durable
-**mode-0600** file, one per run, at `GETPAID_FUNDED_SEED_CAPTURE_DIR` (default
+**mode-0600** file, one per run, at `GETPAID_FUNDED_SEED_EXPORT_DIR` (default
 `/home/francis/bull-bitcoin-workspace/.secrets-carry/getpaid-qa-seeds/`). The
 words/passphrase are written only to that local file and are **never** logged,
 printed, committed, or emitted on the handshake — only the capture-file PATH and
@@ -68,16 +68,15 @@ on-chain transaction touched it.
 |------|---------|
 | `env_check` | fixtures resolved (lane guard, handshake dir, seed-capture dir all present) |
 | `wallet_created` | default wallets CREATED on-device from a fresh app-owned seed |
-| `seed_captured` | recovery material written to the mode-0600 capture file (PATH + fingerprint only) |
+| `recovery_captured` | recovery material written to the mode-0600 capture file (PATH + fingerprint only) |
 | `lightning_registered` | wallet-owned Lightning Address nym registered (POS reuses it; materializes wallet 101) |
 | `wallet101_resolved` | Lightning Address wallet 101 resolved (the isolation guard's subject) |
 | `pos_provisioned` | POS terminal provisioned; wallet 103 (Liquid) materialized, descriptor registered, autosweep on |
 | `addresses_derived` | wallet-103 reference + wallet-101 + default-Liquid receive addresses derived |
 | `handshake_offer_written` | `pos103_request.json` published (terminal URL = pay target); now awaiting payment |
 | `awaiting_payment` | polling wallet-103 sync for the Bullnym settlement (status `waiting` / `timeout`) |
-| `payment_detected` | wallet-103 balance reached the target amount |
-| `receipt_asserted` | app wallet state reflects the settlement on wallet 103 |
-| `receipt_outpoint` | the on-chain receipt outpoint (txid:vout) read back from wallet 103's UTXO set |
+| `payment_detected` | wallet-103 balance turned positive (the reverse-swap credit is `target − swap_fee`) |
+| `receipt_asserted` | the ACTUAL server-derived receipt read from the synced tx list: `receipt_address` / `receipt_txid` / `receipt_vout` / `receipt_amount_sat` (the coordinator oracle grades these) |
 | `isolation_asserted` | wallet 101 balance UNCHANGED from baseline — POS funds never touched the LA wallet |
 | `autosweep_swept` | autosweep fired on sync; sweep txid captured |
 | `awaiting_sweep_drain` / `awaiting_sweep_credit` | polling 103 drain + default-Liquid credit |
@@ -103,7 +102,7 @@ other funded witnesses. **No mnemonic** variable — the app owns its seed.
 |-----|----------|---------|---------|
 | `GETPAID_E2E_LANE` | yes | — | must equal `S-REAL-PROD-POS103-FUNDED` |
 | `GETPAID_FUNDED_HANDSHAKE_DIR` | yes | — | existing writable directory for the handshake files |
-| `GETPAID_FUNDED_SEED_CAPTURE_DIR` | no | `.secrets-carry/getpaid-qa-seeds` | durable mode-0600 dir for the per-run recovery capture |
+| `GETPAID_FUNDED_SEED_EXPORT_DIR` | no | `.secrets-carry/getpaid-qa-seeds` | durable mode-0600 dir for the per-run recovery capture |
 | `GETPAID_FUNDED_NYM` | no | `bbe2epos103<runId>` | nym to register / reuse (sanitized to `[a-z0-9]`) |
 | `GETPAID_FUNDED_RUN_ID` | no | epoch ms in base36 | run correlation id |
 | `GETPAID_FUNDED_AMOUNT_SAT` | no | `2000` | amount wallet 103 must receive (LN reverse-swap; no 25k floor) |
@@ -115,7 +114,7 @@ other funded witnesses. **No mnemonic** variable — the app owns its seed.
 
 `--dart-define` fallbacks exist for `GETPAID_E2E_LANE`, `GETPAID_FUNDED_NYM`,
 `GETPAID_FUNDED_RUN_ID`, `GETPAID_FUNDED_HANDSHAKE_DIR`, and
-`GETPAID_FUNDED_SEED_CAPTURE_DIR`.
+`GETPAID_FUNDED_SEED_EXPORT_DIR`.
 
 Fail-fast refusals: if the handshake dir is unset/missing, OR the seed-capture dir
 cannot be created, fixtures construction throws before any wallet or network work
@@ -168,9 +167,10 @@ wallet 101.
   "nym": "bbe2epos103abc123",
   "network": "liquid-mainnet",
   "receive_rail": "lightning",
-  "pos103_receipt_txid": "<liquid txid>",
-  "pos103_receipt_vout": 0,
-  "pos103_receipt_amount_sat": "2000",
+  "receipt_txid": "<liquid txid>",
+  "receipt_vout": 0,
+  "receipt_address": "lq1...",
+  "receipt_amount_sat": 1850,
   "autosweep_txid": "<liquid txid>",
   "return_txid": "<liquid txid>",
   "return_address": "lq1...",
@@ -188,7 +188,7 @@ wallet 101.
 ```bash
 export GETPAID_E2E_LANE=S-REAL-PROD-POS103-FUNDED
 export GETPAID_FUNDED_HANDSHAKE_DIR="$HS"
-# optional: GETPAID_FUNDED_SEED_CAPTURE_DIR, GETPAID_FUNDED_AMOUNT_SAT,
+# optional: GETPAID_FUNDED_SEED_EXPORT_DIR, GETPAID_FUNDED_AMOUNT_SAT,
 # GETPAID_FUNDED_NYM, GETPAID_FUNDED_RUN_ID, GETPAID_FUNDED_*_TIMEOUT_SEC ...
 
 fvm flutter test integration_test/get_paid_pos103_funded_test.dart \

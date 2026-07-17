@@ -22,7 +22,7 @@ import 'dart:io';
 const fundedPos103LaneName = 'S-REAL-PROD-POS103-FUNDED';
 
 /// Default durable location for the fund-safety recovery capture. One file per
-/// run. Overridable with GETPAID_FUNDED_SEED_CAPTURE_DIR.
+/// run. Overridable with GETPAID_FUNDED_SEED_EXPORT_DIR.
 const _defaultSeedCaptureDir =
     '/home/francis/bull-bitcoin-workspace/.secrets-carry/getpaid-qa-seeds';
 
@@ -57,7 +57,7 @@ class FundedPos103Fixtures {
     'GETPAID_FUNDED_HANDSHAKE_DIR',
   );
   static const _seedCaptureDefine = String.fromEnvironment(
-    'GETPAID_FUNDED_SEED_CAPTURE_DIR',
+    'GETPAID_FUNDED_SEED_EXPORT_DIR',
   );
 
   final String runId;
@@ -122,7 +122,7 @@ class FundedPos103Fixtures {
     // copy of the recovery words is the capture file this run writes before
     // funding. Refuse to proceed unless we can create/reach the capture dir.
     final seedCapturePath = _firstNonEmpty([
-          env['GETPAID_FUNDED_SEED_CAPTURE_DIR'],
+          env['GETPAID_FUNDED_SEED_EXPORT_DIR'],
           _seedCaptureDefine,
         ]) ??
         _defaultSeedCaptureDir;
@@ -131,7 +131,7 @@ class FundedPos103Fixtures {
       seedCaptureDir.createSync(recursive: true);
     } catch (e) {
       throw StateError(
-        'GETPAID_FUNDED_SEED_CAPTURE_DIR ($seedCapturePath) is not creatable; '
+        'GETPAID_FUNDED_SEED_EXPORT_DIR ($seedCapturePath) is not creatable; '
         'refusing to create + fund an app-owned wallet with nowhere durable to '
         'capture its recovery material: $e',
       );

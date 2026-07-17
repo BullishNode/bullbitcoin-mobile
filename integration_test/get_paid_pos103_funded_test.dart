@@ -5,10 +5,11 @@ import 'package:bb_mobile/core/fees/domain/fees_entity.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/transaction_output.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_receive_address_usecase.dart';
-import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_utxos_usecase.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_transactions_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
@@ -26,46 +27,43 @@ import 'support/funded_pos103_fixtures.dart';
 import 'support/wipe_app_state.dart';
 
 // S-REAL-PROD-POS103-FUNDED: production Bullnym + production Nostr + real
-// seed-derived keys against the live network. Unlike every other lane this one
-// MOVES REAL FUNDS. It never executes a payment on its own: it publishes the
-// POS receive surface (the server-hosted terminal URL) to a handshake
-// directory, WAITS for an external coordinator to pay it, and observes the
-// receipt + autosweep through the app's own wallet sync, then returns the funds
-// via the app's real Liquid Send flow to an address the coordinator writes
-// back. Every phase emits a machine-readable CHECKPOINT line so the coordinator
-// can journal the run.
+// seed-derived keys against the live network. Like the funded Page-102 / LA-101
+// lanes this one MOVES REAL FUNDS, so it never executes a payment on its own: it
+// creates and owns its wallet, provisions a Point of Sale terminal (activating
+// wallet 103), publishes the POS receive surface (the server-hosted terminal
+// URL) to a handshake directory, WAITS for an external coordinator to pay the
+// POS checkout over Lightning, observes the receipt (the Boltz reverse-swap
+// claim credit) + autosweep through the app's own wallet sync, then returns the
+// funds via the app's real Liquid Send flow to an address the coordinator writes
+// back. Every phase emits a machine-readable CHECKPOINT line.
 //
-// REAL BULLNYM SETTLEMENT (not a direct address send). The POS terminal mints
-// its invoice entirely server-side; on payment Bullnym derives a wallet-103
-// address from the registered ct_descriptor and delivers L-BTC there (over the
-// Lightning rail this is a Boltz reverse swap claimed into that descriptor
-// address). The app mints no invoice and derives no pay target — it only
-// registers the descriptor (via POS provisioning) and observes wallet-103's
-// balance rise on sync. The coordinator pays the terminal URL this spec
-// publishes; the settlement address is chosen by the server, so the spec proves
-// receipt by the wallet-103 BALANCE increase and then discovers + publishes the
-// on-chain receipt outpoint for the coordinator's chain oracle.
+// REAL BULLNYM SETTLEMENT (verified at f6eec5127 + bullnym server). The POS
+// terminal mints its invoice entirely server-side (the app mints none). A POS
+// checkout paid over Lightning settles L-BTC into wallet 103 via a Boltz REVERSE
+// swap (not a chain swap, so the 25,000-sat Boltz chain-swap minimum does not
+// bind); the claim address is allocated SERVER-SIDE from the (nym,'pos')
+// descriptor at claim time, so the amount that lands is `target - swap_fee` and
+// the coordinator cannot know the address a priori. This spec reports the ACTUAL
+// credited address / outpoint / amount from the app's synced transaction list,
+// which the coordinator's independent oracle then grades on-chain.
 //
 // APP-OWNED WALLET. The recipient wallet is created on-device by the normal
 // wallet-creation flow (a fresh seed the app generates and owns, auto-backed-up
 // over Nostr) — NOT restored from an injected mnemonic. Before any funds move,
 // the app's own show-mnemonic/backup-export path captures the recovery material
-// to a durable mode-0600 file so an interrupted run is recoverable. The words
-// are NEVER logged, printed, committed, or emitted on the handshake.
+// to a durable mode-0600 file so an interrupted run is recoverable. The words are
+// NEVER logged, printed, committed, or emitted on the handshake — only the
+// capture-file PATH + master fingerprint appear in a checkpoint.
 //
-// DESTINATION ISOLATION. POS and the Lightning Address share one nym but must
-// never share a settlement destination: a POS sale settles to wallet 103 and
-// NEVER to the Lightning Address wallet 101 (provision_pos_usecase.dart: "POS
-// sales settle to 103, never 101/102"; server routes the pos checkout to the
-// (nym,'pos') descriptor, distinct from the users/101 descriptor). This spec
-// asserts BOTH that wallet 103 received the payment AND that wallet 101 did not
-// — the app-observed half. The coordinator's independent oracle proves the same
-// on-chain.
-//
-// The wallet-103 POS wallet is created with the reserved label below; resolving
-// it by label is the deterministic contract the app itself sets in
-// PreparePosWalletUsecase. The wallet-101 Lightning Address wallet is created by
-// the shared registration the POS provisioning reuses, with its own label.
+// DESTINATION ISOLATION. POS and the Lightning Address share one nym but never a
+// settlement destination: a POS sale settles to wallet 103 and NEVER to the
+// Lightning Address wallet 101 (provision_pos_usecase.dart "settle to 103, never
+// 101/102"; the server routes the pos checkout to the (nym,'pos') descriptor,
+// distinct from the users/101 descriptor). This spec asserts BOTH that wallet 103
+// received the payment AND that wallet 101 did not — the app-observed half. The
+// coordinator's independent oracle proves the same on-chain (expectNoTx on the
+// published wallet-101 address).
+
 const _posWalletLabel = 'POS Liquid';
 const _lightningAddressWalletLabel = 'Lightning Address Liquid';
 
@@ -100,8 +98,10 @@ Future<void> main({bool isInitialized = false}) async {
     final environment = settings.environment;
     final network = environment.isMainnet ? 'liquid-mainnet' : 'liquid-testnet';
 
-    // (a) CREATE the QA wallet on-device (fresh seed the app generates + owns).
-    // No mnemonic is injected; recovery is via the app's own Nostr backup.
+    // (a) Drive the app's OWN wallet-creation flow: with no mnemonic supplied,
+    // CreateDefaultWalletsUsecase generates the seed on-device, so the app owns
+    // it exactly like a fresh-install customer (which the app then auto-backs-up
+    // via the Nostr keychain). No externally-derived mnemonic is injected.
     await wipeAppState(locator);
     await locator<CreateDefaultWalletsUsecase>().execute();
     final defaultLiquid = await _defaultLiquidWallet(environment);
@@ -111,10 +111,13 @@ Future<void> main({bool isInitialized = false}) async {
       'network': network,
     });
 
-    // (a.1) FUND-SAFETY: capture the app-owned recovery material to a durable
-    // mode-0600 file BEFORE any funds move, via the app's own backup-export
-    // path. Only the capture PATH + fingerprint are checkpointed — never the
-    // words. An interrupted run is always recoverable from this file.
+    // (a.1) FUND-SAFETY: before any funding, persist the app-generated recovery
+    // material to the durable mode-0600 seed-carry dir so stranded funds are
+    // always recoverable. All wallets (default Bitcoin/Liquid + the BIP85 101 &
+    // 103 product wallets) derive from this one root seed, so a single backup
+    // covers the whole run. The words are read via the app's own seed-export API
+    // and are NEVER logged or checkpointed — only the export file path is
+    // surfaced.
     final fingerprint = defaultLiquid.masterFingerprint;
     if (fingerprint.isEmpty) {
       fail('app-created wallet has no master fingerprint to capture');
@@ -130,34 +133,27 @@ Future<void> main({bool isInitialized = false}) async {
       if (passphrase != null && passphrase.isNotEmpty) 'passphrase': passphrase,
       'captured_at': DateTime.now().toUtc().toIso8601String(),
     });
-    _checkpoint('seed_captured', data: {
-      // Path + fingerprint only. The recovery words live solely in the 0600
-      // file and are never emitted here.
-      'seed_capture_file': capturePath,
+    _checkpoint('recovery_captured', data: {
       'master_fingerprint': fingerprint,
+      'seed_capture_file': capturePath,
     });
 
-    // POS provisioning reuses the shared Lightning Address nym and only READS
-    // it (ROUTE-3W: one nym, wallet 101 for the LN address); register it first
-    // so both the nym and wallet 101 exist (matches the production Get Paid
-    // onboarding order). This gives us the wallet-101 destination the isolation
-    // assertion guards. Acknowledging the backup disclosure enables the
-    // automated Nostr backup of the app-owned wallet.
+    // (b) Register the shared Lightning Address (materializes wallet 101, which
+    // POS provisioning reuses as the identity). Acknowledge the backup disclosure
+    // first. Wallet 101 is the isolation guard's subject — it must NOT receive
+    // the POS sale.
     await locator<GetPaidSettingsFacade>().acknowledgeBackupDisclosure(
       automatedBackupEnabled: true,
     );
     final registration = await locator<LightningAddressFacade>()
         .registerWalletOwned(nym: fixtures.nym);
+    final lightningAddress101 = await _lightningAddressWallet(environment);
     _checkpoint('lightning_registered', data: {
       'nym': registration.registration.nym,
-    });
-
-    final lightningAddress101 = await _lightningAddressWallet(environment);
-    _checkpoint('wallet101_resolved', data: {
       'wallet101_id': lightningAddress101.id,
     });
 
-    // (b) Provision the POS terminal; provisioning materializes wallet 103
+    // (c) Provision the POS terminal; provisioning materializes wallet 103
     // (Liquid) and pins settlement to it by registering its ct_descriptor with
     // Bullnym. The terminal URL is the server-owned POS receive surface.
     final terminal = await locator<PosFacade>().provision(
@@ -172,9 +168,9 @@ Future<void> main({bool isInitialized = false}) async {
     final pos103 = await _posWallet(environment);
     expect(pos103.autoSweepEnabled, isTrue,
         reason: 'wallet 103 must have autosweep enabled');
-    // A wallet-103 reference address (for the record only). The actual
-    // settlement address is derived server-side by Bullnym from the descriptor,
-    // so the pay target is the terminal URL, not this address.
+    // A wallet-103 reference address (informational). The actual reverse-swap
+    // claim address is allocated server-side, so the coordinator grades the
+    // credit against the ACTUAL received address this spec reports later.
     final pos103ReferenceAddress =
         await locator<GetReceiveAddressUsecase>().execute(
       walletId: pos103.id,
@@ -202,10 +198,10 @@ Future<void> main({bool isInitialized = false}) async {
     final wallet101Before =
         (await _syncWallet(lightningAddress101.id)).balanceSat;
 
-    // (c) Publish the offer. The pay TARGET is the terminal URL (the coordinator
-    // pays the POS checkout over Lightning; Bullnym settles into wallet 103).
-    // The wallet-101 address rides along so the coordinator's oracle can prove
-    // no funds land there.
+    // (d) Publish the offer. The pay TARGET is the terminal URL (the coordinator
+    // pays the POS checkout over Lightning; Bullnym settles into wallet 103). The
+    // wallet-101 address rides along so the coordinator's oracle can prove no
+    // funds land there.
     await fixtures.writeJsonAtomic(fixtures.requestFile, {
       'schema': 'getpaid-pos103-funded/v1',
       'run_id': fixtures.runId,
@@ -225,39 +221,40 @@ Future<void> main({bool isInitialized = false}) async {
       'request_file': fixtures.requestFile.path,
     });
 
-    final target = BigInt.from(fixtures.targetAmountSat);
+    // (e) Wait for the settlement to arrive via sync. The reverse-swap credit is
+    // `target - swap_fee` so we cannot wait for the exact target; a fresh wallet
+    // 103 starts empty, so any positive balance is the reverse-swap claim.
     final fundedWallet103 = await _pollWallet(
       walletId: pos103.id,
       timeout: fixtures.paymentTimeout,
       interval: fixtures.pollInterval,
       step: 'awaiting_payment',
-      until: (w) => w.balanceSat >= target,
+      until: (w) => w.balanceSat > BigInt.zero,
     );
     _checkpoint('payment_detected', data: {
       'pos103_balance_sat': fundedWallet103.balanceSat.toString(),
     });
 
-    // (d) The app's wallet state reflects Bullnym's settlement on wallet 103.
-    expect(fundedWallet103.balanceSat, greaterThanOrEqualTo(target));
+    // (f) Resolve the actual receipt from the synced transaction list: the
+    // incoming claim tx and its own output give the credited amount + the
+    // outpoint the coordinator's oracle grades (expectCredit on the address,
+    // expectSpent on the outpoint once the autosweep drains it).
+    final receipt = await _resolveReceipt(pos103.id);
+    expect(receipt.amountSat, greaterThan(0));
+    expect(receipt.amountSat, lessThanOrEqualTo(fixtures.targetAmountSat),
+        reason: 'wallet-103 credit is target minus the reverse-swap fee');
     _checkpoint('receipt_asserted', data: {
       'pos103_balance_sat': fundedWallet103.balanceSat.toString(),
+      'receipt_txid': receipt.txId,
+      'receipt_vout': receipt.vout,
+      'receipt_address': receipt.address,
+      'receipt_amount_sat': receipt.amountSat,
     });
 
-    // (d.1) Discover the on-chain receipt outpoint the server settled to (the
-    // address is server-chosen, so we read it back from the wallet's own UTXO
-    // set). Published for the coordinator's chain oracle (expectSpent after the
-    // autosweep drains it).
-    final receipt = await _findReceiptOutpoint(pos103.id, target);
-    _checkpoint('receipt_outpoint', data: {
-      'pos103_receipt_txid': receipt.txId,
-      'pos103_receipt_vout': receipt.vout,
-      'pos103_receipt_amount_sat': receipt.amountSat.toString(),
-    });
-
-    // (d.2) DESTINATION ISOLATION (app-observed half): the shared Lightning
-    // Address wallet 101 must NOT have received the POS sale. Its balance must
-    // be unchanged from the pre-payment baseline. A leak into wallet 101 fails
-    // the run here, before the funds are ever swept or returned.
+    // (f.1) DESTINATION ISOLATION (app-observed half): the shared Lightning
+    // Address wallet 101 must NOT have received the POS sale. Its balance must be
+    // unchanged from the pre-payment baseline. A leak into wallet 101 fails the
+    // run here, before the funds are swept or returned.
     final wallet101After =
         (await _syncWallet(lightningAddress101.id)).balanceSat;
     expect(
@@ -273,9 +270,8 @@ Future<void> main({bool isInitialized = false}) async {
       'pos103_balance_sat': fundedWallet103.balanceSat.toString(),
     });
 
-    // (e) Autosweep fires on sync: 103 drains into the default Liquid wallet.
-    final defaultBefore =
-        (await _syncWallet(defaultLiquid.id)).balanceSat;
+    // (g) Autosweep fires on sync: 103 drains into the default Liquid wallet.
+    final defaultBefore = (await _syncWallet(defaultLiquid.id)).balanceSat;
     final sweep = await locator<RunWalletAutoSweepUsecase>().execute(
       fundedWallet103,
     );
@@ -309,8 +305,8 @@ Future<void> main({bool isInitialized = false}) async {
       'default_liquid_balance_after_sat': defaultCredited.balanceSat.toString(),
     });
 
-    // (f) Read the coordinator's return address, then drive the REAL Send flow
-    // to drain the default Liquid wallet (remaining balance minus fee) back.
+    // (h) Read the coordinator's return address, then drive the REAL Send flow to
+    // drain the default Liquid wallet (remaining balance minus fee) back.
     final returnAddress = await _pollReturnAddress(fixtures);
     _checkpoint('return_address_read', data: {'return_address': returnAddress});
 
@@ -336,9 +332,8 @@ Future<void> main({bool isInitialized = false}) async {
         .execute(signed, isTestnet: environment.isTestnet);
     _checkpoint('return_broadcast', data: {'return_txid': returnTxid});
 
-    // (g) Publish the final observed state for the coordinator's journal,
-    // including the discovered receipt outpoint and the still-isolated wallet-101
-    // balance.
+    // (i) Publish the final observed state for the coordinator's journal,
+    // including the receipt outpoint and the still-isolated wallet-101 balance.
     final finalDefault = await _syncWallet(defaultLiquid.id);
     final finalPos103 = await _syncWallet(pos103.id);
     final finalWallet101 = await _syncWallet(lightningAddress101.id);
@@ -348,9 +343,11 @@ Future<void> main({bool isInitialized = false}) async {
       'nym': fixtures.nym,
       'network': network,
       'receive_rail': 'lightning',
-      'pos103_receipt_txid': receipt.txId,
-      'pos103_receipt_vout': receipt.vout,
-      'pos103_receipt_amount_sat': receipt.amountSat.toString(),
+      'terminal_url': terminal.terminalUrl,
+      'receipt_txid': receipt.txId,
+      'receipt_vout': receipt.vout,
+      'receipt_address': receipt.address,
+      'receipt_amount_sat': receipt.amountSat,
       'autosweep_txid': sweepTxid,
       'return_txid': returnTxid,
       'return_address': returnAddress,
@@ -364,7 +361,7 @@ Future<void> main({bool isInitialized = false}) async {
     });
     _checkpoint('result_written', data: {'result_file': fixtures.resultFile.path});
     _checkpoint('done', data: {
-      'pos103_receipt_txid': receipt.txId,
+      'receipt_txid': receipt.txId,
       'autosweep_txid': sweepTxid,
       'return_txid': returnTxid,
     });
@@ -410,30 +407,36 @@ Future<Wallet> _lightningAddressWallet(Environment environment) async {
   );
 }
 
-/// Finds the wallet-103 UTXO that carries the POS settlement — the on-chain
-/// receipt Bullnym delivered. Prefers an exact target-amount match; otherwise
-/// the largest confirmed-or-mempool output at/above target. The server chooses
-/// the settlement address, so this is read back from the wallet's own UTXO set
-/// rather than assumed.
-Future<({String txId, int vout, BigInt amountSat})> _findReceiptOutpoint(
-  String walletId,
-  BigInt target,
-) async {
-  final utxos = await locator<GetWalletUtxosUsecase>().execute(
+/// The receipt outpoint the coordinator grades: the reverse-swap claim credit.
+typedef _Receipt = ({String txId, int vout, String address, int amountSat});
+
+/// Finds the incoming wallet-103 transaction (the Boltz reverse-swap claim) and
+/// extracts its own-output outpoint + credited amount + address. This is what
+/// the coordinator's oracle checks — the app never learns the address a priori
+/// because bullnym allocates it from the pos descriptor at claim time.
+Future<_Receipt> _resolveReceipt(String walletId) async {
+  final txs = await locator<GetWalletTransactionsUsecase>().execute(
     walletId: walletId,
+    sync: true,
   );
-  final atOrAbove = utxos.where((u) => u.amountSat >= target).toList()
+  final incoming = txs.where((t) => t.isIncoming && t.amountSat > 0).toList()
     ..sort((a, b) => b.amountSat.compareTo(a.amountSat));
-  if (atOrAbove.isEmpty) {
+  if (incoming.isEmpty) {
+    throw StateError('no incoming transaction on wallet 103 after receipt');
+  }
+  final tx = incoming.first;
+  final output = tx.destinationOutput;
+  if (output is! TransactionOutput || output.address == null) {
     throw StateError(
-      'no wallet-103 UTXO at/above the target $target sat after receipt',
+      'incoming wallet-103 tx ${tx.txId} has no own destination output',
     );
   }
-  final exact = atOrAbove.firstWhere(
-    (u) => u.amountSat == target,
-    orElse: () => atOrAbove.first,
+  return (
+    txId: tx.txId,
+    vout: output.vout,
+    address: output.address!,
+    amountSat: tx.amountSat,
   );
-  return (txId: exact.txId, vout: exact.vout, amountSat: exact.amountSat);
 }
 
 /// Syncs a single wallet and returns its fresh state (balance included). This is
