@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_auth_signer.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_backup_blob.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_error.dart';
@@ -27,7 +28,7 @@ Uint8List buildWalletBackupSchnorrMessage({
   required int ciphertextBytes,
   required int timestampSecs,
 }) {
-  validateBullnymNpubHex(npubHex);
+  _requireValidBackupNpub(npubHex);
   if (action != walletBackupFetchAction &&
       action != walletBackupStoreAction &&
       action != walletBackupDeleteAction) {
@@ -71,7 +72,7 @@ String computeWalletBackupEtag({
   required int generation,
   required String ciphertextSha256,
 }) {
-  validateBullnymNpubHex(npubHex);
+  _requireValidBackupNpub(npubHex);
   if (generation <= 0) {
     throw const BullnymException.invalidInput(
       'Backup ETag generation must be positive',
@@ -83,6 +84,15 @@ String computeWalletBackupEtag({
     '$generation\u0000$ciphertextSha256',
   );
   return sha256.convert(message).toString();
+}
+
+void _requireValidBackupNpub(String npubHex) {
+  switch (validateBullnymNpubHex(npubHex)) {
+    case Ok():
+      return;
+    case Err(:final failure):
+      throw BullnymException.invalidInput(failure.logMessage ?? failure.code);
+  }
 }
 
 Future<String> signWalletBackupAction({
