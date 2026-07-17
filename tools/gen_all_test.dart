@@ -53,6 +53,10 @@ const skip = {
   // redaction proof. App-process lifecycle spec; run via the explicit lane
   // (non-deterministic in the single-process aggregate, like the others above).
   'get_paid_btcpay100_pairing_test.dart',
+  // S-REAL-PROD-BTCPAY100-FUNDED (pair-only preserve): LIVE SamRock pairing
+  // against production that persists paired state for a later funded run.
+  // Explicit external lane only; never aggregate it.
+  'get_paid_btcpay100_pair_only_test.dart',
 };
 
 void main() {

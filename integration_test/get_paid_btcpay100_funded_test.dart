@@ -11,6 +11,7 @@ import 'package:bb_mobile/core/wallet/domain/usecases/get_receive_address_usecas
 import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_connection_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_bitcoin_tx_usecase.dart';
 import 'package:bb_mobile/features/test_wallet_backup/domain/usecases/get_mnemonic_from_fingerprint_usecase.dart';
@@ -77,7 +78,7 @@ Future<void> main({bool isInitialized = false}) async {
       'balance via the real Bitcoin Send flow', () async {
     _checkpoint(fixtures, 'env_check', data: {
       'run_id': fixtures.runId,
-      'handshake_dir': fixtures.handshakeDir.path,
+      'handshake_dir': fixtures.handshakeDir?.path,
       'target_amount_sat': fixtures.targetAmountSat,
       'max_fee_sat': fixtures.maxFeeSat,
     });
@@ -86,10 +87,15 @@ Future<void> main({bool isInitialized = false}) async {
     final environment = settings.environment;
     final network = environment.isMainnet ? 'bitcoin-mainnet' : 'bitcoin-testnet';
 
-    // (a) CREATE a fresh wallet OWNED BY THE APP. Passing no mnemonic makes the
-    // app generate the seed on-device (CreateDefaultWalletsUsecase +
-    // MnemonicGenerator) and stamp a birthday — nothing is injected or restored.
-    await wipeAppState(locator);
+    // (a) The recipient wallet is OWNED BY THE APP. In the default (fresh) mode
+    // we wipe and let the app generate a new seed on-device (no mnemonic
+    // injected). In REUSE mode (attaching to a pairing armed by the pair-only
+    // "preserve" lane) we do NOT wipe, so the persisted wallet + pairing in the
+    // durable data dir / keyring survive. CreateDefaultWallets is idempotent: it
+    // returns the existing default wallets when they are already present.
+    if (!fixtures.reusePaired) {
+      await wipeAppState(locator);
+    }
     await locator<CreateDefaultWalletsUsecase>().execute();
     final defaultBitcoin = await _defaultBitcoinWallet(environment);
     _checkpoint(fixtures, 'wallet_created', data: {
@@ -123,21 +129,38 @@ Future<void> main({bool isInitialized = false}) async {
       automatedBackupEnabled: true,
     );
 
-    // (b) Drive the REAL SamRock pairing with the credential from the
-    // environment. This prepares the BTCPay Bitcoin + Liquid wallets (BIP85 100)
-    // and submits the descriptors. The pairing URL is passed straight into the
-    // usecase and never captured anywhere loggable.
-    final pairing = await locator<CompleteBtcpaySamRockPairingUsecase>()
-        .execute(pairingUrl: fixtures.pairingUrl);
+    // (b) Obtain the BTCPay connection. In REUSE mode, resolve the pairing the
+    // pair-only lane already persisted (do NOT re-pair — a fresh OTP would be
+    // required). Otherwise drive the REAL SamRock pairing with the credential
+    // from the environment, which prepares the BTCPay Bitcoin + Liquid wallets
+    // (BIP85 100) and submits the descriptors. The pairing URL is passed
+    // straight into the usecase and never captured anywhere loggable.
     final BtcpayConnection connection;
-    switch (pairing) {
-      case Ok(:final value):
-        connection = value;
-      case Err(:final failure):
-        // Only the failure TYPE is surfaced (never server text or the URL);
-        // still routed through redact() as belt-and-braces.
-        fail(fixtures.redact('BTCPay SamRock pairing failed: '
-            '${failure.runtimeType}'));
+    if (fixtures.reusePaired) {
+      switch (await locator<GetBtcpayConnectionUsecase>().execute()) {
+        case Ok(:final value):
+          if (value == null) {
+            fail('GETPAID_BTCPAY_REUSE_PAIRED is set but no persisted BTCPay '
+                'connection was found; run the pair-only lane first under the '
+                'same user/HOME (same data dir + keyring)');
+          }
+          connection = value;
+        case Err(:final failure):
+          fail(fixtures.redact('could not load the persisted BTCPay '
+              'connection: ${failure.runtimeType}'));
+      }
+    } else {
+      final pairing = await locator<CompleteBtcpaySamRockPairingUsecase>()
+          .execute(pairingUrl: fixtures.pairingUrl);
+      switch (pairing) {
+        case Ok(:final value):
+          connection = value;
+        case Err(:final failure):
+          // Only the failure TYPE is surfaced (never server text or the URL);
+          // still routed through redact() as belt-and-braces.
+          fail(fixtures.redact('BTCPay SamRock pairing failed: '
+              '${failure.runtimeType}'));
+      }
     }
     expect(connection.isPaired, isTrue,
         reason: 'pairing must reach the paired state');
@@ -151,17 +174,21 @@ Future<void> main({bool isInitialized = false}) async {
     // (c) Resolve wallet 100 (the BTCPay Bitcoin wallet). It is a plain on-chain
     // Bitcoin wallet and — per the RC default — ships with auto-sweep OFF.
     var wallet100 = await _btcpayBitcoinWallet(environment);
-    expect(wallet100.autoSweepEnabled, isFalse,
-        reason: 'RC default: the BTCPay Bitcoin wallet is created with '
-            'auto-sweep disabled (only the BTCPay Liquid wallet defaults on)');
-
-    // Enable auto-sweep on wallet 100 — the editable BTCPay details setting a
-    // user toggles to route BTCPay Bitcoin receipts to their default wallet.
-    await locator<UpdateWalletBehaviorUsecase>().execute(
-      walletId: wallet100.id,
-      autoSweepEnabled: true,
-    );
-    wallet100 = await _btcpayBitcoinWallet(environment);
+    if (!fixtures.reusePaired) {
+      expect(wallet100.autoSweepEnabled, isFalse,
+          reason: 'RC default: the BTCPay Bitcoin wallet is created with '
+              'auto-sweep disabled (only the BTCPay Liquid wallet defaults on)');
+    }
+    if (!wallet100.autoSweepEnabled) {
+      // The editable BTCPay details setting a user toggles to route BTCPay
+      // Bitcoin receipts to their default wallet. In reuse mode the pair-only
+      // lane already enabled + persisted this, so this is skipped.
+      await locator<UpdateWalletBehaviorUsecase>().execute(
+        walletId: wallet100.id,
+        autoSweepEnabled: true,
+      );
+      wallet100 = await _btcpayBitcoinWallet(environment);
+    }
     expect(wallet100.autoSweepEnabled, isTrue,
         reason: 'auto-sweep must be enabled on wallet 100 before the sweep');
 

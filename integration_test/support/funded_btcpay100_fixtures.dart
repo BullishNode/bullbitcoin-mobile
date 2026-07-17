@@ -135,7 +135,11 @@ class FundedBtcpay100Fixtures {
   final String pairingUrl;
 
   final String runId;
-  final Directory handshakeDir;
+
+  /// The coordinator handshake directory. Non-null for the funded lane; null in
+  /// the pairing-only "preserve" lane (which has no coordinator and publishes no
+  /// request/response/result files).
+  final Directory? handshakeDir;
 
   /// Durable mode-600 directory the app-created wallet's recovery material is
   /// written into (one file per run). This is a fund-safety carry, kept OUT of
@@ -148,16 +152,23 @@ class FundedBtcpay100Fixtures {
   final Duration returnTimeout;
   final Duration pollInterval;
 
+  /// When true, the funded run REUSES a pairing already armed by the pair-only
+  /// "preserve" lane: it does NOT wipe app state and does NOT re-pair; it
+  /// resolves the persisted BTCPay connection + wallet 100 and funds those. Set
+  /// via GETPAID_BTCPAY_REUSE_PAIRED=1. The pairing URL is then not required.
+  final bool reusePaired;
+
   const FundedBtcpay100Fixtures._({
     required this.pairingUrl,
     required this.runId,
-    required this.handshakeDir,
     required this.seedCarryDir,
+    this.handshakeDir,
     required this.targetAmountSat,
     required this.maxFeeSat,
     required this.paymentTimeout,
     required this.returnTimeout,
     required this.pollInterval,
+    this.reusePaired = false,
   });
 
   factory FundedBtcpay100Fixtures.fromEnvironment() {
@@ -176,13 +187,20 @@ class FundedBtcpay100Fixtures {
     // credential must fail fast and loud rather than start any wallet work. It
     // is only read from the process environment — never a --dart-define, so it
     // cannot be baked into a build artifact.
-    final pairingUrl = env['GETPAID_BTCPAY_PAIRING_URL']?.trim();
-    if (pairingUrl == null || pairingUrl.isEmpty) {
+    final reusePaired = env['GETPAID_BTCPAY_REUSE_PAIRED'] == '1';
+
+    // The pairing URL is required only when this run will PAIR. In reuse mode
+    // (the funded run attaching to a pairing armed by the pair-only lane) no
+    // pairing happens, so no credential is needed.
+    final pairingUrl = env['GETPAID_BTCPAY_PAIRING_URL']?.trim() ?? '';
+    if (pairingUrl.isEmpty && !reusePaired) {
       throw StateError(
         'GETPAID_BTCPAY_PAIRING_URL is not set; refusing to run a funded '
         'BTCPay-100 pairing with no SamRock pairing URL. The operator sets it '
         'at run time from a mode-600 file (a fresh, short-lived OTP is minted '
-        'at pairing time); it is never committed, logged, or --dart-defined.',
+        'at pairing time); it is never committed, logged, or --dart-defined. '
+        '(Set GETPAID_BTCPAY_REUSE_PAIRED=1 to reuse a pairing already armed by '
+        'the pair-only lane instead.)',
       );
     }
 
@@ -247,6 +265,52 @@ class FundedBtcpay100Fixtures {
         'GETPAID_FUNDED_POLL_INTERVAL_SEC',
         _defaultPollIntervalSec,
       ),
+      reusePaired: reusePaired,
+    );
+  }
+
+  /// Pairing-only "preserve" lane: same lane guard, pairing-URL credential, and
+  /// fund-safety seed carry as the funded lane, but NO coordinator handshake
+  /// (this lane pairs and stops; it publishes nothing and funds nothing). Used
+  /// by get_paid_btcpay100_pair_only_test.dart to arm a paired wallet whose
+  /// state is preserved for a later funded run.
+  factory FundedBtcpay100Fixtures.pairingOnly() {
+    final env = Platform.environment;
+
+    final lane = _firstNonEmpty([env['GETPAID_E2E_LANE'], _laneDefine]);
+    if (lane != fundedBtcpay100LaneName) {
+      throw StateError(
+        'GETPAID_E2E_LANE must be $fundedBtcpay100LaneName for the BTCPay-100 '
+        'pairing-only run (got: ${lane ?? '<unset>'})',
+      );
+    }
+
+    final pairingUrl = env['GETPAID_BTCPAY_PAIRING_URL']?.trim();
+    if (pairingUrl == null || pairingUrl.isEmpty) {
+      throw StateError(
+        'GETPAID_BTCPAY_PAIRING_URL is not set; refusing to run BTCPay-100 '
+        'pairing with no SamRock pairing URL. The operator sets it at run time '
+        'from a mode-600 file (a fresh, short-lived OTP is minted at pairing '
+        'time); it is never committed, logged, or --dart-defined.',
+      );
+    }
+
+    final runId = _cleanRunId(
+      _firstNonEmpty([env['GETPAID_FUNDED_RUN_ID'], _runIdDefine]) ??
+          DateTime.now().millisecondsSinceEpoch.toRadixString(36),
+    );
+    final seedCarryPath =
+        _firstNonEmpty([env['GETPAID_SEED_CARRY_DIR']]) ?? _defaultSeedCarryDir;
+
+    return FundedBtcpay100Fixtures._(
+      pairingUrl: pairingUrl,
+      runId: runId,
+      seedCarryDir: Directory(seedCarryPath),
+      targetAmountSat: _defaultAmountSat,
+      maxFeeSat: _defaultMaxFeeSat,
+      paymentTimeout: const Duration(seconds: _defaultPaymentTimeoutSec),
+      returnTimeout: const Duration(seconds: _defaultReturnTimeoutSec),
+      pollInterval: const Duration(seconds: _defaultPollIntervalSec),
     );
   }
 
@@ -265,7 +329,7 @@ class FundedBtcpay100Fixtures {
   File get resultFile => _fileIn('btcpay100_result.json');
 
   File _fileIn(String name) =>
-      File('${handshakeDir.path}${Platform.pathSeparator}$name');
+      File('${handshakeDir!.path}${Platform.pathSeparator}$name');
 
   /// The per-run mode-600 file the recovery material is captured into
   /// (`<runId>.txt`, unique per run — the operator supplies a unique run id).
