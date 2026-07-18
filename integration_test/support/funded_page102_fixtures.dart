@@ -64,6 +64,9 @@ class FundedPage102Fixtures {
   final String nym;
   final Directory handshakeDir;
   final Directory seedCaptureDir;
+  final bool fiatDenominated;
+  final int fiatAmountMinor;
+  final String fiatCurrency;
   final int targetAmountSat;
   final int maxFeeSat;
   final double feeRateSatPerVb;
@@ -76,6 +79,9 @@ class FundedPage102Fixtures {
     required this.nym,
     required this.handshakeDir,
     required this.seedCaptureDir,
+    required this.fiatDenominated,
+    required this.fiatAmountMinor,
+    required this.fiatCurrency,
     required this.targetAmountSat,
     required this.maxFeeSat,
     required this.feeRateSatPerVb,
@@ -157,6 +163,14 @@ class FundedPage102Fixtures {
       nym: nym,
       handshakeDir: handshakeDir,
       seedCaptureDir: seedCaptureDir,
+      fiatDenominated: env['GETPAID_FUNDED_PRICING_MODE'] == 'fiat',
+      fiatAmountMinor: _intFromEnv(
+        env['GETPAID_FUNDED_FIAT_AMOUNT_MINOR'],
+        'GETPAID_FUNDED_FIAT_AMOUNT_MINOR',
+        100,
+      ),
+      fiatCurrency:
+          _firstNonEmpty([env['GETPAID_FUNDED_FIAT_CURRENCY']]) ?? 'CAD',
       targetAmountSat: _intFromEnv(
         env['GETPAID_FUNDED_AMOUNT_SAT'],
         'GETPAID_FUNDED_AMOUNT_SAT',

@@ -84,6 +84,7 @@ Future<void> main({bool isInitialized = false}) async {
       'run_id': fixtures.runId,
       'nym': fixtures.nym,
       'handshake_dir': fixtures.handshakeDir.path,
+      'pricing_mode': fixtures.fiatDenominated ? 'fiat' : 'sat',
       'target_amount_sat': fixtures.targetAmountSat,
       'max_fee_sat': fixtures.maxFeeSat,
     });
@@ -93,7 +94,7 @@ Future<void> main({bool isInitialized = false}) async {
     final network = environment.isMainnet ? 'liquid-mainnet' : 'liquid-testnet';
 
     // (a) CREATE the QA wallet on-device (fresh seed the app generates + owns).
-    // No mnemonic is injected; recovery is via the app's own Nostr backup.
+    // No mnemonic is injected; recovery is via the app's own Bullnym backup.
     await wipeAppState(locator);
     await locator<CreateDefaultWalletsUsecase>().execute();
     final defaultLiquid = await _defaultLiquidWallet(environment);
@@ -131,7 +132,7 @@ Future<void> main({bool isInitialized = false}) async {
 
     // Payment page save reuses the shared Lightning Address nym, so register it
     // first (matches the production Get Paid onboarding order). Acknowledging the
-    // backup disclosure enables the automated Nostr backup of the app-owned
+    // backup disclosure enables the automated Bullnym backup of the app-owned
     // wallet.
     await locator<GetPaidSettingsFacade>().setAutomatedBackupEnabled(true);
     final registration = await locator<LightningAddressFacade>()
@@ -186,6 +187,10 @@ Future<void> main({bool isInitialized = false}) async {
       'nym': fixtures.nym,
       'network': network,
       'receive_rail': 'lightning',
+      'pricing_mode': fixtures.fiatDenominated ? 'fiat' : 'sat',
+      if (fixtures.fiatDenominated)
+        'fiat_amount_minor': fixtures.fiatAmountMinor,
+      if (fixtures.fiatDenominated) 'fiat_currency': fixtures.fiatCurrency,
       'page_checkout_url': page.publicUrl,
       'page102_reference_address': page102ReferenceAddress.address,
       'default_liquid_address': defaultLiquidAddress.address,
