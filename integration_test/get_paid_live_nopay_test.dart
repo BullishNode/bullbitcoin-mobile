@@ -374,16 +374,10 @@ Future<void> main({bool isInitialized = false}) async {
     await locator<DeactivateWalletOwnedLightningAddressUsecase>().execute(
       nym: nym,
     );
-    await expectLater(
-      locator<LightningAddressFacade>().lookupWalletOwnedRegistration(),
-      throwsA(
-        isA<LightningAddressException>().having(
-          (error) => error.code,
-          'code',
-          'NymNotFound',
-        ),
-      ),
-    );
+    final deactivatedRegistration = await locator<LightningAddressFacade>()
+        .lookupWalletOwnedRegistration();
+    expect(deactivatedRegistration.nym, nym);
+    expect(deactivatedRegistration.active, isFalse);
     final reactivatedRegistration = await locator<LightningAddressFacade>()
         .registerWalletOwned(nym: nym);
     expect(reactivatedRegistration.registration.nym, nym);
