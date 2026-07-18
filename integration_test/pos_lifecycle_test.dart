@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'support/fake_bullnym_client.dart';
+import 'support/get_paid_fixtures.dart';
 
 // SPEC-POS-01 - the fake-backed Point of Sale lifecycle round-trip.
 //
@@ -47,6 +48,7 @@ Future<void> main({bool isInitialized = false}) async {
     final bullnym = FakeBullnymClient();
     await locator.unregister<BullnymClientPort>();
     locator.registerLazySingleton<BullnymClientPort>(() => bullnym);
+    await ensureFixtureSeed(_mnemonicWords);
     await locator<CreateDefaultWalletsUsecase>().execute(
       mnemonicWords: _mnemonicWords,
     );
@@ -98,6 +100,7 @@ Future<void> main({bool isInitialized = false}) async {
       final bullnym = FakeBullnymClient();
       await locator.unregister<BullnymClientPort>();
       locator.registerLazySingleton<BullnymClientPort>(() => bullnym);
+      await ensureFixtureSeed(_mnemonicWords);
       await locator<CreateDefaultWalletsUsecase>().execute(
         mnemonicWords: _mnemonicWords,
       );
