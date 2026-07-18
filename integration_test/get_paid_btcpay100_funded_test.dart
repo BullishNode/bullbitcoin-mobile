@@ -1,9 +1,6 @@
-import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_bitcoin_transaction_usecase.dart';
-import 'package:bb_mobile/core/fees/domain/get_network_fees_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/core/wallet/data/repositories/bitcoin_wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
@@ -13,7 +10,6 @@ import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_connection_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
-import 'package:bb_mobile/features/send/domain/usecases/sign_bitcoin_tx_usecase.dart';
 import 'package:bb_mobile/features/test_wallet_backup/domain/usecases/get_mnemonic_from_fingerprint_usecase.dart';
 import 'package:bb_mobile/features/wallet/domain/usecase/run_wallet_auto_sweep_usecase.dart';
 import 'package:bb_mobile/locator.dart';
@@ -22,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'support/funded_btcpay100_fixtures.dart';
+import 'support/return_liquid_to_bullstr.dart';
 import 'support/wipe_app_state.dart';
 
 // S-REAL-PROD-BTCPAY100-FUNDED: production SamRock pairing against the live
@@ -33,8 +30,8 @@ import 'support/wipe_app_state.dart';
 // the BTCPay on-chain BTC wallet (BIP85 wallet index 100), publishes the
 // wallet-100 receive address to a handshake directory, WAITS for an external
 // coordinator to fund it, observes the receipt + autosweep through the app's own
-// wallet sync, then returns the funds via the app's real Bitcoin Send flow to an
-// address the coordinator writes back. Recovery of a crashed run is via the
+// wallet sync, then returns the funds through the app's Bitcoin-to-Lightning
+// flow to the fixed Bullstr address. Recovery of a crashed run is via the
 // captured seed (and the app's own automated backup). Every phase emits a
 // machine-readable CHECKPOINT line — always redaction-scrubbed — so the
 // coordinator can journal the run.
@@ -283,33 +280,12 @@ Future<void> main({bool isInitialized = false}) async {
       'default_bitcoin_balance_after_sat': defaultCredited.balanceSat.toString(),
     });
 
-    // (g) Read the coordinator's return address, then drive the REAL Bitcoin
-    // Send flow to drain the default BTC wallet (remaining balance minus fee)
-    // back to the payer float.
-    final returnAddress = await _pollReturnAddress(fixtures);
-    _checkpoint(fixtures, 'return_address_read',
-        data: {'return_address': returnAddress});
-
-    final bitcoinRepo = locator<BitcoinWalletRepository>();
-    final fees = await locator<GetNetworkFeesUsecase>().execute(isLiquid: false);
-    final psbt = await bitcoinRepo.buildPsbt(
+    final returnResult = await returnBitcoinToBullstr(
       walletId: defaultBitcoin.id,
-      address: returnAddress,
-      networkFee: fees.economic,
-      drain: true,
+      maxFeeSat: fixtures.maxFeeSat,
     );
-    final feeSat = await bitcoinRepo.getTxFeeAmount(psbt: psbt);
-    expect(feeSat, lessThanOrEqualTo(fixtures.maxFeeSat),
-        reason: 'return fee must stay within the configured ceiling');
-    _checkpoint(fixtures, 'return_prepared', data: {'return_fee_sat': feeSat});
-
-    final signed = await locator<SignBitcoinTxUsecase>().execute(
-      psbt: psbt,
-      walletId: defaultBitcoin.id,
-    );
-    final returnTxid = await locator<BroadcastBitcoinTransactionUsecase>()
-        .execute(signed.signedPsbt, isPsbt: true);
-    _checkpoint(fixtures, 'return_broadcast', data: {'return_txid': returnTxid});
+    _checkpoint(fixtures, 'return_completed',
+        data: returnResult.toEvidenceJson());
 
     // (h) Publish the final observed state for the coordinator's journal.
     final finalDefault = await _syncWallet(defaultBitcoin.id);
@@ -319,9 +295,7 @@ Future<void> main({bool isInitialized = false}) async {
       'run_id': fixtures.runId,
       'network': network,
       'autosweep_txid': sweepTxid,
-      'return_txid': returnTxid,
-      'return_address': returnAddress,
-      'return_fee_sat': feeSat,
+      ...returnResult.toEvidenceJson(),
       'final_btcpay100_balance_sat': finalWallet100.balanceSat.toString(),
       'final_default_bitcoin_balance_sat': finalDefault.balanceSat.toString(),
       'status': 'complete',
@@ -331,7 +305,7 @@ Future<void> main({bool isInitialized = false}) async {
         data: {'result_file': fixtures.resultFile.path});
     _checkpoint(fixtures, 'done', data: {
       'autosweep_txid': sweepTxid,
-      'return_txid': returnTxid,
+      'return_txid': returnResult.lockupTxid,
     });
   }, timeout: const Timeout(Duration(minutes: 90)));
 }
@@ -405,33 +379,6 @@ Future<Wallet> _pollWallet(
       'last_balance_sat': wallet.balanceSat.toString(),
     });
     await Future<void>.delayed(interval);
-  }
-}
-
-Future<String> _pollReturnAddress(FundedBtcpay100Fixtures fixtures) async {
-  final deadline = DateTime.now().add(fixtures.returnTimeout);
-  var attempt = 0;
-  while (true) {
-    attempt++;
-    final response = await fixtures.readJson(fixtures.responseFile);
-    final address = response?['return_address'];
-    if (address is String && address.trim().isNotEmpty) {
-      return address.trim();
-    }
-    if (DateTime.now().isAfter(deadline)) {
-      _checkpoint(fixtures, 'awaiting_return_address', status: 'timeout', data: {
-        'attempts': attempt,
-        'response_file': fixtures.responseFile.path,
-      });
-      throw StateError(
-        'return address not provided within ${fixtures.returnTimeout.inSeconds}s'
-        ' (expected `return_address` in ${fixtures.responseFile.path})',
-      );
-    }
-    _checkpoint(fixtures, 'awaiting_return_address', status: 'waiting', data: {
-      'attempt': attempt,
-    });
-    await Future<void>.delayed(fixtures.pollInterval);
   }
 }
 

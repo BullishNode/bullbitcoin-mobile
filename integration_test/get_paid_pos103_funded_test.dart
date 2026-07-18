@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_liquid_transaction_usecase.dart';
-import 'package:bb_mobile/core/fees/domain/fees_entity.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -13,9 +11,6 @@ import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_transactions_us
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
-import 'package:bb_mobile/features/send/domain/usecases/calculate_liquid_absolute_fees_usecase.dart';
-import 'package:bb_mobile/features/send/domain/usecases/prepare_liquid_send_usecase.dart';
-import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.dart';
 import 'package:bb_mobile/features/test_wallet_backup/domain/usecases/get_mnemonic_from_fingerprint_usecase.dart';
 import 'package:bb_mobile/features/wallet/domain/usecase/run_wallet_auto_sweep_usecase.dart';
 import 'package:bb_mobile/locator.dart';
@@ -24,9 +19,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'support/funded_pos103_fixtures.dart';
+import 'support/return_liquid_to_bullstr.dart';
 import 'support/wipe_app_state.dart';
 
-// S-REAL-PROD-POS103-FUNDED: production Bullnym + production Nostr + real
+// S-REAL-PROD-POS103-FUNDED: production Bullnym + real
 // seed-derived keys against the live network. Like the funded Page-102 / LA-101
 // lanes this one MOVES REAL FUNDS, so it never executes a payment on its own: it
 // creates and owns its wallet, provisions a Point of Sale terminal (activating
@@ -34,8 +30,8 @@ import 'support/wipe_app_state.dart';
 // URL) to a handshake directory, WAITS for an external coordinator to pay the
 // POS checkout over Lightning, observes the receipt (the Boltz reverse-swap
 // claim credit) + autosweep through the app's own wallet sync, then returns the
-// funds via the app's real Liquid Send flow to an address the coordinator writes
-// back. Every phase emits a machine-readable CHECKPOINT line.
+// funds through the app's Liquid-to-Lightning flow to the fixed Bullstr return
+// address. Every phase emits a machine-readable CHECKPOINT line.
 //
 // REAL BULLNYM SETTLEMENT (verified at f6eec5127 + bullnym server). The POS
 // terminal mints its invoice entirely server-side (the app mints none). A POS
@@ -321,32 +317,11 @@ Future<void> main({bool isInitialized = false}) async {
       'default_liquid_balance_after_sat': defaultCredited.balanceSat.toString(),
     });
 
-    // (h) Read the coordinator's return address, then drive the REAL Send flow to
-    // drain the default Liquid wallet (remaining balance minus fee) back.
-    final returnAddress = await _pollReturnAddress(fixtures);
-    _checkpoint('return_address_read', data: {'return_address': returnAddress});
-
-    final feeRate = NetworkFee.relativeFromSatPerVbyte(fixtures.feeRateSatPerVb);
-    final pset = await locator<PrepareLiquidSendUsecase>().execute(
+    final returnResult = await returnLiquidToBullstr(
       walletId: defaultLiquid.id,
-      address: returnAddress,
-      feeRate: feeRate,
-      drain: true,
+      maxFeeSat: fixtures.maxFeeSat,
     );
-    final feeSat = await locator<CalculateLiquidAbsoluteFeesUsecase>().execute(
-      pset: pset,
-    );
-    expect(feeSat, lessThanOrEqualTo(fixtures.maxFeeSat),
-        reason: 'return fee must stay within the configured ceiling');
-    _checkpoint('return_prepared', data: {'return_fee_sat': feeSat});
-
-    final signed = await locator<SignLiquidTxUsecase>().execute(
-      pset: pset,
-      walletId: defaultLiquid.id,
-    );
-    final returnTxid = await locator<BroadcastLiquidTransactionUsecase>()
-        .execute(signed, isTestnet: environment.isTestnet);
-    _checkpoint('return_broadcast', data: {'return_txid': returnTxid});
+    _checkpoint('return_completed', data: returnResult.toEvidenceJson());
 
     // (i) Publish the final observed state for the coordinator's journal,
     // including the receipt outpoint and the still-isolated wallet-101 balance.
@@ -365,9 +340,7 @@ Future<void> main({bool isInitialized = false}) async {
       'receipt_address': receipt.address,
       'receipt_amount_sat': receipt.amountSat,
       'autosweep_txid': sweepTxid,
-      'return_txid': returnTxid,
-      'return_address': returnAddress,
-      'return_fee_sat': feeSat,
+      ...returnResult.toEvidenceJson(),
       'final_pos103_balance_sat': finalPos103.balanceSat.toString(),
       'final_default_liquid_balance_sat': finalDefault.balanceSat.toString(),
       'final_lightning_address_balance_sat':
@@ -379,7 +352,7 @@ Future<void> main({bool isInitialized = false}) async {
     _checkpoint('done', data: {
       'receipt_txid': receipt.txId,
       'autosweep_txid': sweepTxid,
-      'return_txid': returnTxid,
+      'return_txid': returnResult.lockupTxid,
     });
   }, timeout: const Timeout(Duration(minutes: 45)));
 }
@@ -497,33 +470,6 @@ Future<Wallet> _pollWallet({
       'last_balance_sat': wallet.balanceSat.toString(),
     });
     await Future<void>.delayed(interval);
-  }
-}
-
-Future<String> _pollReturnAddress(FundedPos103Fixtures fixtures) async {
-  final deadline = DateTime.now().add(fixtures.returnTimeout);
-  var attempt = 0;
-  while (true) {
-    attempt++;
-    final response = await fixtures.readJson(fixtures.responseFile);
-    final address = response?['return_address'];
-    if (address is String && address.trim().isNotEmpty) {
-      return address.trim();
-    }
-    if (DateTime.now().isAfter(deadline)) {
-      _checkpoint('awaiting_return_address', status: 'timeout', data: {
-        'attempts': attempt,
-        'response_file': fixtures.responseFile.path,
-      });
-      throw StateError(
-        'return address not provided within ${fixtures.returnTimeout.inSeconds}s'
-        ' (expected `return_address` in ${fixtures.responseFile.path})',
-      );
-    }
-    _checkpoint('awaiting_return_address', status: 'waiting', data: {
-      'attempt': attempt,
-    });
-    await Future<void>.delayed(fixtures.pollInterval);
   }
 }
 

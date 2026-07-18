@@ -1,21 +1,12 @@
 import 'dart:convert';
 
-import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_bitcoin_transaction_usecase.dart';
-import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_liquid_transaction_usecase.dart';
-import 'package:bb_mobile/core/fees/domain/fees_entity.dart';
-import 'package:bb_mobile/core/fees/domain/get_network_fees_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/core/wallet/data/repositories/bitcoin_wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
-import 'package:bb_mobile/features/send/domain/usecases/calculate_liquid_absolute_fees_usecase.dart';
-import 'package:bb_mobile/features/send/domain/usecases/prepare_liquid_send_usecase.dart';
-import 'package:bb_mobile/features/send/domain/usecases/sign_bitcoin_tx_usecase.dart';
-import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.dart';
 import 'package:bb_mobile/features/test_wallet_backup/domain/usecases/get_mnemonic_from_fingerprint_usecase.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:bb_mobile/main.dart';
@@ -23,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'support/funded_invoice_fixtures.dart';
+import 'support/return_liquid_to_bullstr.dart';
 import 'support/wipe_app_state.dart';
 
 T _unwrap<T>(Result<T, InvoicesFailure> result) => switch (result) {
@@ -155,20 +147,27 @@ Future<void> main({bool isInitialized = false}) async {
       'wallet_balance_sat': funded.balanceSat.toString(),
     });
 
-    final returnAddress = await _pollReturnAddress(fixtures);
-    final (:txid, :feeSat) = rail == FundedInvoiceRail.bitcoin
-        ? await _returnBitcoin(
-            walletId: receivingWallet.id,
-            address: returnAddress,
-            maxFeeSat: fixtures.maxFeeSat,
-          )
-        : await _returnLiquid(
-            walletId: receivingWallet.id,
-            address: returnAddress,
-            environment: environment,
-            feeRateSatPerVb: fixtures.liquidFeeRateSatPerVb,
-            maxFeeSat: fixtures.maxFeeSat,
-          );
+    late final Map<String, Object?> returnEvidence;
+    late final String returnTxid;
+    late final int returnFeeSat;
+    if (rail == FundedInvoiceRail.bitcoin) {
+      final result = await returnBitcoinToBullstr(
+        walletId: receivingWallet.id,
+        maxFeeSat: fixtures.maxFeeSat,
+      );
+      returnEvidence = result.toEvidenceJson();
+      returnTxid = result.lockupTxid;
+      returnFeeSat = result.totalFeeSat;
+    } else {
+      final result = await returnLiquidToBullstr(
+        walletId: receivingWallet.id,
+        maxFeeSat: fixtures.maxFeeSat,
+      );
+      returnEvidence = result.toEvidenceJson();
+      returnTxid = result.lockupTxid;
+      returnFeeSat = result.totalFeeSat;
+    }
+    _checkpoint('return_completed', returnEvidence);
 
     final finalWallet = await _syncWallet(receivingWallet.id);
     await fixtures.writeJsonAtomic(fixtures.resultFile, {
@@ -179,13 +178,14 @@ Future<void> main({bool isInitialized = false}) async {
       'paid_amount_sat': settled.paidAmountSat,
       'payment_event_count': settled.paymentEvents.length,
       'payment_txid': paymentEvent.transactionId,
-      'return_txid': txid,
-      'return_fee_sat': feeSat,
-      'return_address': returnAddress,
+      ...returnEvidence,
       'final_wallet_balance_sat': finalWallet.balanceSat.toString(),
       'status': 'complete',
     });
-    _checkpoint('done', {'return_txid': txid, 'return_fee_sat': feeSat});
+    _checkpoint('done', {
+      'return_txid': returnTxid,
+      'return_fee_sat': returnFeeSat,
+    });
   }, timeout: const Timeout(Duration(minutes: 90)));
 }
 
@@ -265,73 +265,6 @@ Future<Wallet> _pollWalletCredit(
     }
     await Future<void>.delayed(fixtures.pollInterval);
   }
-}
-
-Future<String> _pollReturnAddress(FundedInvoiceFixtures fixtures) async {
-  final deadline = DateTime.now().add(fixtures.returnTimeout);
-  while (true) {
-    final response = await fixtures.readJson(fixtures.responseFile);
-    final address = response?['return_address'];
-    if (address is String && address.trim().isNotEmpty) return address.trim();
-    if (DateTime.now().isAfter(deadline)) {
-      throw StateError('coordinator did not provide a return address');
-    }
-    await Future<void>.delayed(fixtures.pollInterval);
-  }
-}
-
-Future<({String txid, int feeSat})> _returnBitcoin({
-  required String walletId,
-  required String address,
-  required int maxFeeSat,
-}) async {
-  final repository = locator<BitcoinWalletRepository>();
-  final fees = await locator<GetNetworkFeesUsecase>().execute(isLiquid: false);
-  final psbt = await repository.buildPsbt(
-    walletId: walletId,
-    address: address,
-    networkFee: fees.economic,
-    drain: true,
-  );
-  final feeSat = await repository.getTxFeeAmount(psbt: psbt);
-  expect(feeSat, lessThanOrEqualTo(maxFeeSat));
-  final signed = await locator<SignBitcoinTxUsecase>().execute(
-    psbt: psbt,
-    walletId: walletId,
-  );
-  final txid = await locator<BroadcastBitcoinTransactionUsecase>().execute(
-    signed.signedPsbt,
-    isPsbt: true,
-  );
-  return (txid: txid, feeSat: feeSat);
-}
-
-Future<({String txid, int feeSat})> _returnLiquid({
-  required String walletId,
-  required String address,
-  required Environment environment,
-  required double feeRateSatPerVb,
-  required int maxFeeSat,
-}) async {
-  final pset = await locator<PrepareLiquidSendUsecase>().execute(
-    walletId: walletId,
-    address: address,
-    feeRate: NetworkFee.relativeFromSatPerVbyte(feeRateSatPerVb),
-    drain: true,
-  );
-  final feeSat = await locator<CalculateLiquidAbsoluteFeesUsecase>().execute(
-    pset: pset,
-  );
-  expect(feeSat, lessThanOrEqualTo(maxFeeSat));
-  final signed = await locator<SignLiquidTxUsecase>().execute(
-    pset: pset,
-    walletId: walletId,
-  );
-  final txid = await locator<BroadcastLiquidTransactionUsecase>().execute(
-    signed,
-    isTestnet: environment.isTestnet,
-  );
-  return (txid: txid, feeSat: feeSat);
 }
 
 void _checkpoint(String step, Map<String, Object?> data) {

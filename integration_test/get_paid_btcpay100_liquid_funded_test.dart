@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_liquid_transaction_usecase.dart';
-import 'package:bb_mobile/core/fees/domain/fees_entity.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
@@ -14,9 +12,6 @@ import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_connection_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
-import 'package:bb_mobile/features/send/domain/usecases/calculate_liquid_absolute_fees_usecase.dart';
-import 'package:bb_mobile/features/send/domain/usecases/prepare_liquid_send_usecase.dart';
-import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.dart';
 import 'package:bb_mobile/features/test_wallet_backup/domain/usecases/get_mnemonic_from_fingerprint_usecase.dart';
 import 'package:bb_mobile/features/wallet/domain/usecase/run_wallet_auto_sweep_usecase.dart';
 import 'package:bb_mobile/locator.dart';
@@ -25,6 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'support/funded_btcpay100_fixtures.dart';
+import 'support/return_liquid_to_bullstr.dart';
 import 'support/wipe_app_state.dart';
 
 const _dustCeilingSat = 100;
@@ -152,31 +148,18 @@ Future<void> main({bool isInitialized = false}) async {
             .toString(),
       });
 
-      final returnAddress = await _pollReturnAddress(fixtures);
-      final pset = await locator<PrepareLiquidSendUsecase>().execute(
+      final returnResult = await returnLiquidToBullstr(
         walletId: defaultLiquid.id,
-        address: returnAddress,
-        feeRate: NetworkFee.relativeFromSatPerVbyte(0.1),
-        drain: true,
+        maxFeeSat: fixtures.maxFeeSat,
       );
-      final feeSat = await locator<CalculateLiquidAbsoluteFeesUsecase>()
-          .execute(pset: pset);
-      expect(feeSat, lessThanOrEqualTo(fixtures.maxFeeSat));
-      final signed = await locator<SignLiquidTxUsecase>().execute(
-        pset: pset,
-        walletId: defaultLiquid.id,
-      );
-      final returnTxid = await locator<BroadcastLiquidTransactionUsecase>()
-          .execute(signed, isTestnet: environment.isTestnet);
+      _checkpoint(fixtures, 'return_completed', returnResult.toEvidenceJson());
 
       await fixtures.writeJsonAtomic(fixtures.resultFile, {
         'schema': 'getpaid-btcpay100-funded-result/v2',
         'run_id': fixtures.runId,
         'rail': 'liquid',
         'autosweep_txid': sweepTxid,
-        'return_txid': returnTxid,
-        'return_address': returnAddress,
-        'return_fee_sat': feeSat,
+        ...returnResult.toEvidenceJson(),
         'final_btcpay100_balance_sat': (await _syncWallet(
           wallet100.id,
         )).balanceSat.toString(),
@@ -187,7 +170,7 @@ Future<void> main({bool isInitialized = false}) async {
       });
       _checkpoint(fixtures, 'done', {
         'autosweep_txid': sweepTxid,
-        'return_txid': returnTxid,
+        'return_txid': returnResult.lockupTxid,
       });
     },
     timeout: const Timeout(Duration(minutes: 90)),
@@ -237,19 +220,6 @@ Future<Wallet> _pollWallet(
     if (until(wallet)) return wallet;
     if (DateTime.now().isAfter(deadline)) {
       throw StateError('$step timed out with ${wallet.balanceSat} sat');
-    }
-    await Future<void>.delayed(fixtures.pollInterval);
-  }
-}
-
-Future<String> _pollReturnAddress(FundedBtcpay100Fixtures fixtures) async {
-  final deadline = DateTime.now().add(fixtures.returnTimeout);
-  while (true) {
-    final response = await fixtures.readJson(fixtures.responseFile);
-    final address = response?['return_address'];
-    if (address is String && address.trim().isNotEmpty) return address.trim();
-    if (DateTime.now().isAfter(deadline)) {
-      throw StateError('coordinator did not provide a return address');
     }
     await Future<void>.delayed(fixtures.pollInterval);
   }

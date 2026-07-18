@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_liquid_transaction_usecase.dart';
-import 'package:bb_mobile/core/fees/domain/fees_entity.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
@@ -12,9 +10,6 @@ import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_utxos_usecase.d
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
-import 'package:bb_mobile/features/send/domain/usecases/calculate_liquid_absolute_fees_usecase.dart';
-import 'package:bb_mobile/features/send/domain/usecases/prepare_liquid_send_usecase.dart';
-import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.dart';
 import 'package:bb_mobile/features/test_wallet_backup/domain/usecases/get_mnemonic_from_fingerprint_usecase.dart';
 import 'package:bb_mobile/features/wallet/domain/usecase/run_wallet_auto_sweep_usecase.dart';
 import 'package:bb_mobile/locator.dart';
@@ -23,15 +18,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'support/funded_page102_fixtures.dart';
+import 'support/return_liquid_to_bullstr.dart';
 import 'support/wipe_app_state.dart';
 
-// S-REAL-PROD-PAGE102-FUNDED: production Bullnym + production Nostr + real
+// S-REAL-PROD-PAGE102-FUNDED: production Bullnym + real
 // seed-derived keys against the live network. Unlike every other lane this one
 // MOVES REAL FUNDS. It never executes a payment on its own: it publishes the
 // Payment Page receive surface (the server-hosted checkout public URL) to a
 // handshake directory, WAITS for an external coordinator to pay it, observes the
 // receipt + autosweep through the app's own wallet sync, then returns the funds
-// via the app's real Liquid Send flow to an address the coordinator writes back.
+// via the app's Liquid-to-Lightning flow to the fixed Bullstr return address.
 // Every phase emits a machine-readable CHECKPOINT line so the coordinator can
 // journal the run.
 //
@@ -271,32 +267,11 @@ Future<void> main({bool isInitialized = false}) async {
       'default_liquid_balance_after_sat': defaultCredited.balanceSat.toString(),
     });
 
-    // (f) Read the coordinator's return address, then drive the REAL Send flow
-    // to drain the default Liquid wallet (remaining balance minus fee) back.
-    final returnAddress = await _pollReturnAddress(fixtures);
-    _checkpoint('return_address_read', data: {'return_address': returnAddress});
-
-    final feeRate = NetworkFee.relativeFromSatPerVbyte(fixtures.feeRateSatPerVb);
-    final pset = await locator<PrepareLiquidSendUsecase>().execute(
+    final returnResult = await returnLiquidToBullstr(
       walletId: defaultLiquid.id,
-      address: returnAddress,
-      feeRate: feeRate,
-      drain: true,
+      maxFeeSat: fixtures.maxFeeSat,
     );
-    final feeSat = await locator<CalculateLiquidAbsoluteFeesUsecase>().execute(
-      pset: pset,
-    );
-    expect(feeSat, lessThanOrEqualTo(fixtures.maxFeeSat),
-        reason: 'return fee must stay within the configured ceiling');
-    _checkpoint('return_prepared', data: {'return_fee_sat': feeSat});
-
-    final signed = await locator<SignLiquidTxUsecase>().execute(
-      pset: pset,
-      walletId: defaultLiquid.id,
-    );
-    final returnTxid = await locator<BroadcastLiquidTransactionUsecase>()
-        .execute(signed, isTestnet: environment.isTestnet);
-    _checkpoint('return_broadcast', data: {'return_txid': returnTxid});
+    _checkpoint('return_completed', data: returnResult.toEvidenceJson());
 
     // (g) Publish the final observed state for the coordinator's journal,
     // including the discovered receipt outpoint + app-read amount.
@@ -312,9 +287,7 @@ Future<void> main({bool isInitialized = false}) async {
       'page102_receipt_vout': receipt.vout,
       'page102_receipt_amount_sat': receipt.amountSat.toString(),
       'autosweep_txid': sweepTxid,
-      'return_txid': returnTxid,
-      'return_address': returnAddress,
-      'return_fee_sat': feeSat,
+      ...returnResult.toEvidenceJson(),
       'final_page102_balance_sat': finalPage102.balanceSat.toString(),
       'final_default_liquid_balance_sat': finalDefault.balanceSat.toString(),
       'status': 'complete',
@@ -324,7 +297,7 @@ Future<void> main({bool isInitialized = false}) async {
     _checkpoint('done', data: {
       'page102_receipt_txid': receipt.txId,
       'autosweep_txid': sweepTxid,
-      'return_txid': returnTxid,
+      'return_txid': returnResult.lockupTxid,
     });
   }, timeout: const Timeout(Duration(minutes: 45)));
 }
@@ -416,33 +389,6 @@ Future<Wallet> _pollWallet({
       'last_balance_sat': wallet.balanceSat.toString(),
     });
     await Future<void>.delayed(interval);
-  }
-}
-
-Future<String> _pollReturnAddress(FundedPage102Fixtures fixtures) async {
-  final deadline = DateTime.now().add(fixtures.returnTimeout);
-  var attempt = 0;
-  while (true) {
-    attempt++;
-    final response = await fixtures.readJson(fixtures.responseFile);
-    final address = response?['return_address'];
-    if (address is String && address.trim().isNotEmpty) {
-      return address.trim();
-    }
-    if (DateTime.now().isAfter(deadline)) {
-      _checkpoint('awaiting_return_address', status: 'timeout', data: {
-        'attempts': attempt,
-        'response_file': fixtures.responseFile.path,
-      });
-      throw StateError(
-        'return address not provided within ${fixtures.returnTimeout.inSeconds}s'
-        ' (expected `return_address` in ${fixtures.responseFile.path})',
-      );
-    }
-    _checkpoint('awaiting_return_address', status: 'waiting', data: {
-      'attempt': attempt,
-    });
-    await Future<void>.delayed(fixtures.pollInterval);
   }
 }
 
