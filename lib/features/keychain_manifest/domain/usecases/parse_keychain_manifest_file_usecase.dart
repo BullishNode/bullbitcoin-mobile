@@ -4,6 +4,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_ma
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_file_decoder.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_reservation_support.dart';
 
 class ParseKeychainManifestFileUsecase {
   final KeychainManifestFileDecoder _codec;
@@ -66,10 +67,19 @@ class ParseKeychainManifestFileUsecase {
         reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
     }
+    // V1 wallet manifest files carry wallet-seed reservations only, so the
+    // support gate also proves the wallet-seed scope shape (and its typed
+    // wallet index).
+    if (reservation is! Bip85WalletSeedReservation ||
+        !_supportsWalletManifestImport(reservation)) {
+      throw KeychainManifestFileParseException(
+        reason: KeychainManifestFileParseFailureReason.invalidMetadata,
+      );
+    }
     if (reservation.owner.name != entry.ownerFeature ||
         reservation.purpose.name != entry.entryType ||
         reservation.application.number != entry.bip85Application ||
-        reservation.scope.segmentValue('index') != entry.bip85Index) {
+        reservation.walletIndex != entry.bip85Index) {
       throw KeychainManifestFileParseException(
         reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
@@ -78,6 +88,13 @@ class ParseKeychainManifestFileUsecase {
       entry,
       walletMaterializations: _walletMaterializations(entry),
     );
+  }
+
+  bool _supportsWalletManifestImport(Bip85Reservation reservation) {
+    // Import plans cover every EXPORTABLE product (100/101/102) so the frozen
+    // v1 format can round-trip all of them; recovery separately decides which
+    // are materialized (R2-KC3/F1b, ruling A/B).
+    return KeychainManifestReservationSupport.supportsV1Export(reservation);
   }
 
   List<KeychainManifestWalletMaterializationIntent> _walletMaterializations(
