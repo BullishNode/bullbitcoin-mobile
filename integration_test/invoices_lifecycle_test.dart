@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_use
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_client_port.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
+import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:bb_mobile/main.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +26,13 @@ T _unwrap<T>(Result<T, InvoicesFailure> result) => switch (result) {
   ),
 };
 
+List<Label> _invoiceReservationLabels(List<Label> labels) => labels
+    .where(
+      (label) =>
+          label.label == LabelSystem.invoice.label && label.origin == 'invoice',
+    )
+    .toList();
+
 Future<void> main({bool isInitialized = false}) async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   if (!isInitialized) await Bull.init();
@@ -33,6 +41,7 @@ Future<void> main({bool isInitialized = false}) async {
     await locator.unregister<BullnymClientPort>();
     locator.registerLazySingleton<BullnymClientPort>(() => bullnym);
     // Default wallets only: invoices own no reserved wallet and need no nym.
+    await ensureFixtureSeed();
     await locator<CreateDefaultWalletsUsecase>().execute(
       mnemonicWords: getPaidFixtureMnemonicWords,
     );
@@ -116,6 +125,69 @@ Future<void> main({bool isInitialized = false}) async {
   );
 
   test(
+    'reused Liquid address twice: typed failure releases reservations',
+    () async {
+      final bullnym = FakeBullnymClient()
+        ..invoiceMode = FakeInvoiceMode.reusedLiquidAddressOnSelectedAttempts
+        ..reusedLiquidAddressAttemptOrdinals.addAll({1, 2});
+      await bootstrap(bullnym);
+
+      final failed = await locator<InvoicesFacade>().create(liquidInvoice());
+
+      expect(
+        failed,
+        isA<Err<CreateInvoiceResult, InvoicesFailure>>().having(
+          (error) => error.failure.kind,
+          'failure kind',
+          InvoicesFailureKind.reusedLiquidAddress,
+        ),
+      );
+      expect(bullnym.createInvoiceCalls, hasLength(2));
+
+      final firstFields = bullnym.createInvoiceCalls[0].fields;
+      final retryFields = bullnym.createInvoiceCalls[1].fields;
+      expect(firstFields.liquidAddress, isNotEmpty);
+      expect(retryFields.liquidAddress, isNotEmpty);
+      expect(firstFields.liquidBlindingKeyHex, isNotEmpty);
+      expect(retryFields.liquidBlindingKeyHex, isNotEmpty);
+      expect(firstFields.liquidAddress, isNot(retryFields.liquidAddress));
+      expect(
+        firstFields.liquidBlindingKeyHex,
+        isNot(retryFields.liquidBlindingKeyHex),
+      );
+
+      final listedAfterFailure = _unwrap(
+        await locator<InvoicesFacade>().list(const ListInvoicesCommand()),
+      );
+      expect(listedAfterFailure.invoices, isEmpty);
+
+      final labels = locator<LabelsFacade>();
+      final firstAttemptLabels = await labels.fetchByReference(
+        firstFields.liquidAddress!,
+      );
+      final retryAttemptLabels = await labels.fetchByReference(
+        retryFields.liquidAddress!,
+      );
+      expect(_invoiceReservationLabels(firstAttemptLabels), isEmpty);
+      expect(_invoiceReservationLabels(retryAttemptLabels), isEmpty);
+
+      final later = _unwrap(
+        await locator<InvoicesFacade>().create(liquidInvoice()),
+      );
+      expect(later.shareUrl.value, contains('/invoice/'));
+      expect(bullnym.createInvoiceCalls, hasLength(3));
+
+      final listedAfterSuccess = _unwrap(
+        await locator<InvoicesFacade>().list(const ListInvoicesCommand()),
+      );
+      expect(
+        listedAfterSuccess.invoices.map((invoice) => invoice.id.value),
+        contains(later.invoiceId.value),
+      );
+    },
+  );
+
+  test(
     'two back-to-back invoices reserve DISTINCT Liquid addresses + keys',
     () async {
       // No funding between creates: the first invoice's unfunded address must be
@@ -163,6 +235,16 @@ Future<void> main({bool isInitialized = false}) async {
           InvoicesFailureKind.server,
         ),
       );
+
+      final listed = await locator<InvoicesFacade>().list(
+        const ListInvoicesCommand(),
+      );
+      expect(listed, isA<Err<ListInvoicesResult, InvoicesFailure>>());
+
+      final cancelled = await locator<InvoicesFacade>().cancel(
+        CancelInvoiceCommand(invoiceId: InvoiceId('feature-disabled-id')),
+      );
+      expect(cancelled, isA<Err<CancelInvoiceResult, InvoicesFailure>>());
     },
   );
 }

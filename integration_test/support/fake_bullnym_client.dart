@@ -20,8 +20,25 @@ enum FakeBullnymMode {
   serverUnreachable,
 }
 
+enum FakeDeleteRegistrationMode {
+  normal,
+
+  /// The delete is committed server-side, but the response is lost before the
+  /// client can observe success. Clears itself after the next delete call.
+  commitThenTimeoutOnce,
+}
+
 /// Donation-page fault modes for the payment-page/POS recovery matrix.
-enum FakeDonationPageMode { normal, missing, archived, serverUnreachable }
+enum FakeDonationPageMode {
+  normal,
+  missing,
+  archived,
+  serverUnreachable,
+
+  /// The next kind=payment_page save returns a non-retryable server rejection
+  /// before changing the stored row, then automatically clears to [normal].
+  rejectNextSave,
+}
 
 /// Point-of-sale fault modes. Independent of both
 /// [FakeBullnymMode] and [FakeDonationPageMode] so a single instance can hold a
@@ -67,6 +84,10 @@ enum FakeInvoiceMode {
   /// `LiquidAddressAlreadyUsed`, then clears to [normal].
   reusedLiquidAddressOnce,
 
+  /// Selected Liquid create attempts throw `LiquidAddressAlreadyUsed`, then
+  /// later creates are allowed normally once the selection is consumed.
+  reusedLiquidAddressOnSelectedAttempts,
+
   /// Every signed call fails with `AuthError` (wrong-key / clock-skew device).
   authError,
 
@@ -104,17 +125,25 @@ class _FakeInvoice {
 /// lapsed / missing / unreachable).
 class FakeBullnymClient implements BullnymClientPort {
   FakeBullnymMode mode = FakeBullnymMode.live;
+  FakeDeleteRegistrationMode deleteRegistrationMode =
+      FakeDeleteRegistrationMode.normal;
   FakeDonationPageMode donationPageMode = FakeDonationPageMode.normal;
   FakePosMode posMode = FakePosMode.normal;
   FakeInvoiceMode invoiceMode = FakeInvoiceMode.normal;
+  int walletMetadataStoreConflictCount = 0;
+  int _walletMetadataConflictCursor = 0;
   String nym = 'alice';
   String? permanentAlias;
   bool permanentNamesCapable = true;
   String? recoveryAddress;
 
   final List<String> registeredNyms = [];
+  final List<BullnymDeleteRegistrationRequest> deleteRegistrationCalls = [];
   final List<BullnymSaveDonationPageRequest> saveDonationPageCalls = [];
   final List<BullnymArchiveDonationPageRequest> archiveDonationPageCalls = [];
+  final List<BullnymBackupHead> backupFetchResults = [];
+  final List<BullnymBackupStoreRequest> backupStoreCalls = [];
+  final List<BullnymBackupDeleteRequest> backupDeleteCalls = [];
   final Map<String, BullnymBackupHead> _backups = {};
 
   // Server-side invoice state keyed by id; independent of the page/pos stores
@@ -124,7 +153,9 @@ class FakeBullnymClient implements BullnymClientPort {
   final Map<String, _FakeInvoice> _invoices = {};
   final List<({String npub, String? nym, BullnymCreateInvoiceFields fields})>
   createInvoiceCalls = [];
+  final Set<int> reusedLiquidAddressAttemptOrdinals = <int>{};
   int _nextInvoiceSeq = 1;
+  int _liquidInvoiceCreateAttemptOrdinal = 0;
 
   // Server-side donation-page state keyed `(nym, kind)`; survives local
   // app-state resets.
@@ -146,10 +177,11 @@ class FakeBullnymClient implements BullnymClientPort {
     if (mode == FakeBullnymMode.serverUnreachable) {
       return Err(_unavailable());
     }
-    return Ok(
-      _backups[_backupKey(request.stream, request.npubHex)] ??
-          BullnymBackupHead.absent(generation: 0, etag: null),
-    );
+    final head =
+        _backups[_backupKey(request.stream, request.npubHex)] ??
+        BullnymBackupHead.absent(generation: 0, etag: null);
+    backupFetchResults.add(head);
+    return Ok(head);
   }
 
   @override
@@ -159,7 +191,25 @@ class FakeBullnymClient implements BullnymClientPort {
     if (mode == FakeBullnymMode.serverUnreachable) {
       return Err(_unavailable());
     }
+    backupStoreCalls.add(request);
     final key = _backupKey(request.stream, request.npubHex);
+    if (request.stream == BullnymBackupStream.walletMetadata &&
+        walletMetadataStoreConflictCount > 0) {
+      walletMetadataStoreConflictCount--;
+      final current = _backups[key];
+      if (current != null && current.found) {
+        _backups[key] = BullnymBackupHead.present(
+          generation: current.generation,
+          etag: _nextWalletMetadataConflictEtag(),
+          ciphertext: current.ciphertext!,
+          ciphertextSha256: current.ciphertextSha256!,
+          updatedAtSecs: current.updatedAtSecs!,
+        );
+      } else {
+        _backups.remove(key);
+      }
+      return Err(_conflict());
+    }
     final current = _backups[key];
     if (request.expectedEtag != current?.etag) return Err(_conflict());
     final computed = computeWalletBackupEtag(
@@ -214,12 +264,21 @@ class FakeBullnymClient implements BullnymClientPort {
       generation: request.generation,
       etag: etag,
     );
+    backupDeleteCalls.add(request);
     return Ok(
       BullnymBackupDeleteReceipt(generation: request.generation, etag: etag),
     );
   }
 
   String get _lightningAddress => '$nym@example.invalid';
+
+  String _nextWalletMetadataConflictEtag() {
+    final cursor = (++_walletMetadataConflictCursor).toString().padLeft(
+      64,
+      '0',
+    );
+    return cursor;
+  }
 
   String _backupKey(BullnymBackupStream stream, String npubHex) =>
       '${stream.wireName}|$npubHex';
@@ -279,6 +338,7 @@ class FakeBullnymClient implements BullnymClientPort {
   Future<Result<void, BullnymFailure>> deleteRegistration(
     BullnymDeleteRegistrationRequest request,
   ) async {
+    deleteRegistrationCalls.add(request);
     if (request.nym != nym) {
       return Err(
         BullnymFailure.serverRejectedRequest(
@@ -294,6 +354,15 @@ class FakeBullnymClient implements BullnymClientPort {
       );
     }
     mode = FakeBullnymMode.inactiveWithPreviousNym;
+    if (deleteRegistrationMode ==
+        FakeDeleteRegistrationMode.commitThenTimeoutOnce) {
+      deleteRegistrationMode = FakeDeleteRegistrationMode.normal;
+      return const Err(
+        BullnymFailure.timeout(
+          logMessage: 'fake delete response lost after commit',
+        ),
+      );
+    }
     return const Ok(null);
   }
 
@@ -379,7 +448,13 @@ class FakeBullnymClient implements BullnymClientPort {
       // KR-1 server backstop: a kind=pos save has NO LA-cursor fallback, so a
       // descriptorless pos save is HARD-REJECTED here (never silently routed to
       // the LA wallet 101). The client must make an empty descriptor impossible.
-      if (request.ctDescriptor.isEmpty) return Err(_donationPageInvalid());
+      if (request.ctDescriptor.isEmpty) {
+        return Err(
+          _donationPageInvalid(
+            logMessage: 'kind=pos save requires a non-empty ct_descriptor',
+          ),
+        );
+      }
       if (posMode == FakePosMode.serverUnreachable) {
         return Err(_serverUnreachable());
       }
@@ -387,6 +462,14 @@ class FakeBullnymClient implements BullnymClientPort {
     } else {
       if (donationPageMode == FakeDonationPageMode.serverUnreachable) {
         return Err(_serverUnreachable());
+      }
+      if (donationPageMode == FakeDonationPageMode.rejectNextSave) {
+        donationPageMode = FakeDonationPageMode.normal;
+        return Err(
+          _donationPageInvalid(
+            logMessage: 'payment-page save rejected before mutation',
+          ),
+        );
       }
     }
     switch (request.aliasIntent) {
@@ -563,14 +646,27 @@ class FakeBullnymClient implements BullnymClientPort {
       return Err(_invalidAmount('amount must be exactly one of sat or fiat'));
     }
 
+    final isLiquidInvoiceCreate = fields.acceptLn || fields.acceptLiquid;
+    if (isLiquidInvoiceCreate) _liquidInvoiceCreateAttemptOrdinal++;
+
     if (invoiceMode == FakeInvoiceMode.reusedBitcoinAddressOnce &&
         fields.acceptBtc) {
       invoiceMode = FakeInvoiceMode.normal;
       return Err(_bitcoinAddressAlreadyUsed());
     }
     if (invoiceMode == FakeInvoiceMode.reusedLiquidAddressOnce &&
-        (fields.acceptLn || fields.acceptLiquid)) {
+        isLiquidInvoiceCreate) {
       invoiceMode = FakeInvoiceMode.normal;
+      return Err(_liquidAddressAlreadyUsed());
+    }
+    if (invoiceMode == FakeInvoiceMode.reusedLiquidAddressOnSelectedAttempts &&
+        isLiquidInvoiceCreate &&
+        reusedLiquidAddressAttemptOrdinals.remove(
+          _liquidInvoiceCreateAttemptOrdinal,
+        )) {
+      if (reusedLiquidAddressAttemptOrdinals.isEmpty) {
+        invoiceMode = FakeInvoiceMode.normal;
+      }
       return Err(_liquidAddressAlreadyUsed());
     }
 
@@ -823,10 +919,10 @@ class FakeBullnymClient implements BullnymClientPort {
 
   // The kind=pos server backstop for a descriptorless save (KR-1): the server
   // rejects it as invalid rather than falling back to any wallet.
-  BullnymFailure _donationPageInvalid() =>
-      const BullnymFailure.serverRejectedRequest(
+  BullnymFailure _donationPageInvalid({required String logMessage}) =>
+      BullnymFailure.serverRejectedRequest(
         code: 'DonationPageInvalid',
-        logMessage: 'kind=pos save requires a non-empty ct_descriptor',
+        logMessage: logMessage,
         statusCode: 400,
         retryable: false,
       );
