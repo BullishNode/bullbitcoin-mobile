@@ -276,7 +276,6 @@ Future<void> main({bool isInitialized = false}) async {
     // (g) Publish the final observed state for the coordinator's journal,
     // including the discovered receipt outpoint + app-read amount.
     final finalDefault = await _syncWallet(defaultLiquid.id);
-    final finalPage102 = await _syncWallet(page102.id);
     await fixtures.writeJsonAtomic(fixtures.resultFile, {
       'schema': 'getpaid-page102-funded-result/v2',
       'run_id': fixtures.runId,
@@ -288,7 +287,10 @@ Future<void> main({bool isInitialized = false}) async {
       'page102_receipt_amount_sat': receipt.amountSat.toString(),
       'autosweep_txid': sweepTxid,
       ...returnResult.toEvidenceJson(),
-      'final_page102_balance_sat': finalPage102.balanceSat.toString(),
+      // Preserve the state that the test explicitly polled and asserted after
+      // autosweep. A later one-shot Esplora sync can transiently return a stale
+      // pre-sweep balance while its index catches up.
+      'final_page102_balance_sat': drained102.balanceSat.toString(),
       'final_default_liquid_balance_sat': finalDefault.balanceSat.toString(),
       'status': 'complete',
       'written_at': DateTime.now().toUtc().toIso8601String(),
