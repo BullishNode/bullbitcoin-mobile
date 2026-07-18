@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/deactivate_wallet_owned_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
@@ -369,6 +370,24 @@ Future<void> main({bool isInitialized = false}) async {
         LightningAddressRegistrationLiveness.reregistered,
       ),
     );
+
+    await locator<DeactivateWalletOwnedLightningAddressUsecase>().execute(
+      nym: nym,
+    );
+    await expectLater(
+      locator<LightningAddressFacade>().lookupWalletOwnedRegistration(),
+      throwsA(
+        isA<LightningAddressException>().having(
+          (error) => error.code,
+          'code',
+          'NymNotFound',
+        ),
+      ),
+    );
+    final reactivatedRegistration = await locator<LightningAddressFacade>()
+        .registerWalletOwned(nym: nym);
+    expect(reactivatedRegistration.registration.nym, nym);
+    expect(reactivatedRegistration.walletId, registration.walletId);
 
     final restoredPage = await locator<PaymentPageFacade>().find(nym: nym);
     expect(restoredPage, isNotNull);
