@@ -21,6 +21,10 @@ Future<void> wipeAppState(GetIt locator) async {
     await db.delete(db.keychainManifestEntries).go();
     await db.delete(db.keychainManifestBackupStates).go();
     await db.delete(db.walletMetadataBackupStates).go();
+    // These are the portable metadata payloads. Leaving them behind makes a
+    // remote-recovery test pass even when Bullnym returned no usable backup.
+    await db.delete(db.frozenUtxos).go();
+    await db.delete(db.labels).go();
     await db.delete(db.walletMetadatas).go();
   });
 
