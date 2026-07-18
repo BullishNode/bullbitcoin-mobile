@@ -249,7 +249,6 @@ Future<void> main({bool isInitialized = false}) async {
 
     // (h) Publish the final observed state for the coordinator's journal.
     final finalDefault = await _syncWallet(defaultLiquid.id);
-    final finalWallet101 = await _syncWallet(wallet101.id);
     await fixtures.writeJsonAtomic(fixtures.resultFile, {
       'schema': 'getpaid-la101-funded-result/v1',
       'run_id': fixtures.runId,
@@ -262,7 +261,9 @@ Future<void> main({bool isInitialized = false}) async {
       'receipt_amount_sat': receipt.amountSat,
       'autosweep_txid': sweepTxid,
       ...returnResult.toEvidenceJson(),
-      'final_wallet101_balance_sat': finalWallet101.balanceSat.toString(),
+      // Keep the balance that was polled and asserted after autosweep. A later
+      // one-shot Esplora sync may briefly return its pre-sweep indexed state.
+      'final_wallet101_balance_sat': drained101.balanceSat.toString(),
       'final_default_liquid_balance_sat': finalDefault.balanceSat.toString(),
       'status': 'complete',
       'written_at': DateTime.now().toUtc().toIso8601String(),
