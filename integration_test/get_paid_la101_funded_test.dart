@@ -66,16 +66,13 @@ Future<void> main({bool isInitialized = false}) async {
   test('funded LA-101 journey: receive on 101 over the Lightning Address, '
       'autosweep to the default Liquid wallet, then return the balance via the '
       'real Send flow', () async {
-    _checkpoint(
-      'env_check',
-      data: {
-        'run_id': fixtures.runId,
-        'nym': fixtures.nym,
-        'handshake_dir': fixtures.handshakeDir.path,
-        'target_amount_sat': fixtures.targetAmountSat,
-        'max_fee_sat': fixtures.maxFeeSat,
-      },
-    );
+    _checkpoint('env_check', data: {
+      'run_id': fixtures.runId,
+      'nym': fixtures.nym,
+      'handshake_dir': fixtures.handshakeDir.path,
+      'target_amount_sat': fixtures.targetAmountSat,
+      'max_fee_sat': fixtures.maxFeeSat,
+    });
 
     final settings = await locator<GetSettingsUsecase>().execute();
     final environment = settings.environment;
@@ -88,10 +85,10 @@ Future<void> main({bool isInitialized = false}) async {
     await wipeAppState(locator);
     await locator<CreateDefaultWalletsUsecase>().execute();
     final defaultLiquid = await _defaultLiquidWallet(environment);
-    _checkpoint(
-      'wallet_created',
-      data: {'default_liquid_wallet_id': defaultLiquid.id, 'network': network},
-    );
+    _checkpoint('wallet_created', data: {
+      'default_liquid_wallet_id': defaultLiquid.id,
+      'network': network,
+    });
 
     // FUND-SAFETY: before any funding, persist the app-generated recovery
     // material to the durable mode-0600 seed-carry dir so stranded funds are
@@ -99,25 +96,19 @@ Future<void> main({bool isInitialized = false}) async {
     // wallet 101) derive from this one root seed, so a single backup covers the
     // whole run. The words are read via the app's own seed-export API and are
     // NEVER logged or checkpointed — only the export file path is surfaced.
-    final (
-      mnemonicWords,
-      passphrase,
-    ) = await locator<GetMnemonicFromFingerprintUsecase>().execute(
-      defaultLiquid.masterFingerprint,
-    );
+    final (mnemonicWords, passphrase) =
+        await locator<GetMnemonicFromFingerprintUsecase>()
+            .execute(defaultLiquid.masterFingerprint);
     final seedBackupFile = await fixtures.writeSeedBackup(
       masterFingerprint: defaultLiquid.masterFingerprint,
       mnemonicWords: mnemonicWords,
       passphrase: passphrase,
       network: network,
     );
-    _checkpoint(
-      'recovery_captured',
-      data: {
-        'master_fingerprint': defaultLiquid.masterFingerprint,
-        'seed_backup_file': seedBackupFile,
-      },
-    );
+    _checkpoint('recovery_captured', data: {
+      'master_fingerprint': defaultLiquid.masterFingerprint,
+      'seed_backup_file': seedBackupFile,
+    });
 
     // (b) Register a wallet-owned Lightning Address. This materializes wallet
     // 101 (Liquid) and publishes the registration to Bullnym/Nostr, matching the
@@ -127,27 +118,18 @@ Future<void> main({bool isInitialized = false}) async {
     final registration = await locator<LightningAddressFacade>()
         .registerWalletOwned(nym: fixtures.nym);
     final lightningAddress = registration.registration.lightningAddress;
-    expect(
-      lightningAddress,
-      contains('@'),
-      reason: 'registration must yield a full nym@domain Lightning Address',
-    );
+    expect(lightningAddress, contains('@'),
+        reason: 'registration must yield a full nym@domain Lightning Address');
     final wallet101 = await _walletById(registration.walletId);
-    expect(
-      wallet101.autoSweepEnabled,
-      isTrue,
-      reason: 'wallet 101 must have autosweep enabled',
-    );
+    expect(wallet101.autoSweepEnabled, isTrue,
+        reason: 'wallet 101 must have autosweep enabled');
     expect(wallet101.isDefault, isFalse);
-    _checkpoint(
-      'lightning_registered',
-      data: {
-        'nym': registration.registration.nym,
-        'lightning_address': lightningAddress,
-        'wallet101_wallet_id': wallet101.id,
-        'wallet_created': registration.walletCreated,
-      },
-    );
+    _checkpoint('lightning_registered', data: {
+      'nym': registration.registration.nym,
+      'lightning_address': lightningAddress,
+      'wallet101_wallet_id': wallet101.id,
+      'wallet_created': registration.walletCreated,
+    });
 
     // (c) Derive the addresses and publish the offer. The wallet-101 receive
     // address is informational only: the reverse-swap claim is paid to a
@@ -160,13 +142,10 @@ Future<void> main({bool isInitialized = false}) async {
     );
     final defaultLiquidAddress = await locator<GetReceiveAddressUsecase>()
         .execute(walletId: defaultLiquid.id, generateNew: true);
-    _checkpoint(
-      'addresses_derived',
-      data: {
-        'wallet101_receive_address': wallet101Address.address,
-        'default_liquid_address': defaultLiquidAddress.address,
-      },
-    );
+    _checkpoint('addresses_derived', data: {
+      'wallet101_receive_address': wallet101Address.address,
+      'default_liquid_address': defaultLiquidAddress.address,
+    });
 
     await fixtures.writeJsonAtomic(fixtures.requestFile, {
       'schema': 'getpaid-la101-funded/v1',
@@ -181,10 +160,9 @@ Future<void> main({bool isInitialized = false}) async {
       'status': 'awaiting_payment',
       'written_at': DateTime.now().toUtc().toIso8601String(),
     });
-    _checkpoint(
-      'handshake_offer_written',
-      data: {'request_file': fixtures.requestFile.path},
-    );
+    _checkpoint('handshake_offer_written', data: {
+      'request_file': fixtures.requestFile.path,
+    });
 
     // (d) Wait for the payment to arrive via sync. The credit is `target -
     // swap_fee` so we cannot wait for the exact target; a fresh QA wallet 101
@@ -196,10 +174,9 @@ Future<void> main({bool isInitialized = false}) async {
       step: 'awaiting_payment',
       until: (w) => w.balanceSat > BigInt.zero,
     );
-    _checkpoint(
-      'payment_detected',
-      data: {'wallet101_balance_sat': fundedWallet101.balanceSat.toString()},
-    );
+    _checkpoint('payment_detected', data: {
+      'wallet101_balance_sat': fundedWallet101.balanceSat.toString(),
+    });
 
     // (e) Resolve the actual receipt from the synced transaction list: the
     // incoming claim tx and its own output give the credited amount + the
@@ -213,9 +190,7 @@ Future<void> main({bool isInitialized = false}) async {
     // <= target (which would wrongly fail on a target+1 net), matching Page-102.
     expect(
       receipt.amountSat,
-      greaterThanOrEqualTo(
-        fixtures.targetAmountSat - _reverseSwapNetToleranceSat,
-      ),
+      greaterThanOrEqualTo(fixtures.targetAmountSat - _reverseSwapNetToleranceSat),
       reason: 'wallet-101 credit should be ~= target (reverse-swap net)',
     );
     expect(
@@ -223,16 +198,13 @@ Future<void> main({bool isInitialized = false}) async {
       lessThanOrEqualTo(fixtures.targetAmountSat + _reverseSwapNetToleranceSat),
       reason: 'wallet-101 credit should be ~= target (reverse-swap net)',
     );
-    _checkpoint(
-      'receipt_asserted',
-      data: {
-        'wallet101_balance_sat': fundedWallet101.balanceSat.toString(),
-        'receipt_txid': receipt.txId,
-        'receipt_vout': receipt.vout,
-        'receipt_address': receipt.address,
-        'receipt_amount_sat': receipt.amountSat,
-      },
-    );
+    _checkpoint('receipt_asserted', data: {
+      'wallet101_balance_sat': fundedWallet101.balanceSat.toString(),
+      'receipt_txid': receipt.txId,
+      'receipt_vout': receipt.vout,
+      'receipt_address': receipt.address,
+      'receipt_amount_sat': receipt.amountSat,
+    });
 
     // (f) Autosweep fires on sync: 101 drains into the default Liquid wallet.
     final defaultBefore = (await _syncWallet(defaultLiquid.id)).balanceSat;
@@ -241,12 +213,10 @@ Future<void> main({bool isInitialized = false}) async {
     );
     final sweepTxid = switch (sweep) {
       AutosweepSwept(:final txid) => txid,
-      AutosweepSkipped(:final reason) => fail(
-        'autosweep skipped unexpectedly: $reason',
-      ),
-      AutosweepFailed(:final error) => fail(
-        'autosweep failed unexpectedly: $error',
-      ),
+      AutosweepSkipped(:final reason) =>
+        fail('autosweep skipped unexpectedly: $reason'),
+      AutosweepFailed(:final error) =>
+        fail('autosweep failed unexpectedly: $error'),
     };
     _checkpoint('autosweep_swept', data: {'autosweep_txid': sweepTxid});
 
@@ -265,15 +235,11 @@ Future<void> main({bool isInitialized = false}) async {
       until: (w) => w.balanceSat > defaultBefore,
     );
     expect(defaultCredited.balanceSat, greaterThan(defaultBefore));
-    _checkpoint(
-      'sweep_asserted',
-      data: {
-        'wallet101_balance_sat': drained101.balanceSat.toString(),
-        'default_liquid_balance_before_sat': defaultBefore.toString(),
-        'default_liquid_balance_after_sat': defaultCredited.balanceSat
-            .toString(),
-      },
-    );
+    _checkpoint('sweep_asserted', data: {
+      'wallet101_balance_sat': drained101.balanceSat.toString(),
+      'default_liquid_balance_before_sat': defaultBefore.toString(),
+      'default_liquid_balance_after_sat': defaultCredited.balanceSat.toString(),
+    });
 
     final returnResult = await returnLiquidToBullstr(
       walletId: defaultLiquid.id,
@@ -283,6 +249,7 @@ Future<void> main({bool isInitialized = false}) async {
 
     // (h) Publish the final observed state for the coordinator's journal.
     final finalDefault = await _syncWallet(defaultLiquid.id);
+    final finalWallet101 = await _syncWallet(wallet101.id);
     await fixtures.writeJsonAtomic(fixtures.resultFile, {
       'schema': 'getpaid-la101-funded-result/v1',
       'run_id': fixtures.runId,
@@ -295,24 +262,16 @@ Future<void> main({bool isInitialized = false}) async {
       'receipt_amount_sat': receipt.amountSat,
       'autosweep_txid': sweepTxid,
       ...returnResult.toEvidenceJson(),
-      // Keep the balance that was polled and asserted after autosweep. A later
-      // one-shot Esplora sync may briefly return its pre-sweep indexed state.
-      'final_wallet101_balance_sat': drained101.balanceSat.toString(),
+      'final_wallet101_balance_sat': finalWallet101.balanceSat.toString(),
       'final_default_liquid_balance_sat': finalDefault.balanceSat.toString(),
       'status': 'complete',
       'written_at': DateTime.now().toUtc().toIso8601String(),
     });
-    _checkpoint(
-      'result_written',
-      data: {'result_file': fixtures.resultFile.path},
-    );
-    _checkpoint(
-      'done',
-      data: {
-        'autosweep_txid': sweepTxid,
-        'return_txid': returnResult.lockupTxid,
-      },
-    );
+    _checkpoint('result_written', data: {'result_file': fixtures.resultFile.path});
+    _checkpoint('done', data: {
+      'autosweep_txid': sweepTxid,
+      'return_txid': returnResult.lockupTxid,
+    });
   }, timeout: const Timeout(Duration(minutes: 45)));
 }
 
@@ -395,28 +354,20 @@ Future<Wallet> _pollWallet({
     final wallet = await _syncWallet(walletId);
     if (until(wallet)) return wallet;
     if (DateTime.now().isAfter(deadline)) {
-      _checkpoint(
-        step,
-        status: 'timeout',
-        data: {
-          'wallet_id': walletId,
-          'attempts': attempt,
-          'last_balance_sat': wallet.balanceSat.toString(),
-        },
-      );
+      _checkpoint(step, status: 'timeout', data: {
+        'wallet_id': walletId,
+        'attempts': attempt,
+        'last_balance_sat': wallet.balanceSat.toString(),
+      });
       throw StateError(
         '$step timed out after ${timeout.inSeconds}s (last balance '
         '${wallet.balanceSat} sat on $walletId)',
       );
     }
-    _checkpoint(
-      step,
-      status: 'waiting',
-      data: {
-        'attempt': attempt,
-        'last_balance_sat': wallet.balanceSat.toString(),
-      },
-    );
+    _checkpoint(step, status: 'waiting', data: {
+      'attempt': attempt,
+      'last_balance_sat': wallet.balanceSat.toString(),
+    });
     await Future<void>.delayed(interval);
   }
 }
