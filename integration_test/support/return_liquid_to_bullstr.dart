@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/blockchain/domain/usecases/broadcast_liquid_trans
 import 'package:bb_mobile/core/fees/domain/fees_entity.dart';
 import 'package:bb_mobile/core/fees/domain/get_network_fees_usecase.dart';
 import 'package:bb_mobile/core/swaps/domain/entity/swap.dart';
+import 'package:bb_mobile/core/swaps/domain/usecases/ensure_swap_master_key_usecase.dart';
 import 'package:bb_mobile/core/swaps/domain/usecases/get_swap_limits_usecase.dart';
 import 'package:bb_mobile/core/swaps/domain/usecases/watch_swap_usecase.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/bitcoin_wallet_repository.dart';
@@ -102,6 +103,7 @@ Future<BullstrLiquidReturnResult> returnLiquidToBullstr({
     throw ArgumentError.value(maxFeeSat, 'maxFeeSat');
   }
 
+  await locator<EnsureSwapMasterKeyUsecase>().execute();
   final wallet = await locator<WalletRepository>().getWallet(
     walletId,
     sync: true,
@@ -195,6 +197,7 @@ Future<BullstrBitcoinReturnResult> returnBitcoinToBullstr({
     throw ArgumentError.value(maxFeeSat, 'maxFeeSat');
   }
 
+  await locator<EnsureSwapMasterKeyUsecase>().execute();
   final wallet = await locator<WalletRepository>().getWallet(
     walletId,
     sync: true,
