@@ -115,6 +115,8 @@ class FakeBullnymClient implements BullnymClientPort {
   final List<String> registeredNyms = [];
   final List<BullnymSaveDonationPageRequest> saveDonationPageCalls = [];
   final List<BullnymArchiveDonationPageRequest> archiveDonationPageCalls = [];
+  final List<BullnymBackupStoreRequest> backupStoreCalls = [];
+  final List<BullnymBackupDeleteRequest> backupDeleteCalls = [];
   final Map<String, BullnymBackupHead> _backups = {};
 
   // Server-side invoice state keyed by id; independent of the page/pos stores
@@ -182,6 +184,7 @@ class FakeBullnymClient implements BullnymClientPort {
       ciphertextSha256: request.ciphertextSha256,
       updatedAtSecs: request.timestamp,
     );
+    backupStoreCalls.add(request);
     return Ok(
       BullnymBackupStoreReceipt(generation: request.generation, etag: etag),
     );
@@ -214,6 +217,7 @@ class FakeBullnymClient implements BullnymClientPort {
       generation: request.generation,
       etag: etag,
     );
+    backupDeleteCalls.add(request);
     return Ok(
       BullnymBackupDeleteReceipt(generation: request.generation, etag: etag),
     );

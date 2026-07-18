@@ -1,0 +1,21 @@
+name: qa_matrix_engine
+description: >-
+  Seeded combinatorial QA engine for the Get Paid app E2E failure matrix
+  (GETPAID-APP-E2E-FAILURE-MATRIX §5/§6/§12). Pure Dart: the state-dimension
+  parameter model, a seeded IPOG covering-array generator, the scenario tuple +
+  feasibility filter, the analytic recovery oracle, the P1-P14 invariant
+  registry, the rich outcome model, and the evidence reporter. Fork-only overlay
+  tooling; imported by the qa/e2e-matrix integration specs, never shipped.
+publish_to: "none"
+version: 0.0.1
+resolution: workspace
+
+environment:
+  sdk: "3.12.2"
+
+dependencies:
+  meta: ^1.16.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.26.3
