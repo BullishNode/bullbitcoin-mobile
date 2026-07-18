@@ -37,7 +37,7 @@ const _defaultSeedCaptureDir =
 // a 100-sat autosweep dust floor (RunAutoSweepUsecase._dustThresholdSat), so the
 // final-hop output stays ~17x the dust floor.
 const _defaultAmountSat = 2000;
-const _defaultMaxFeeSat = 10000;
+const _defaultMaxFeeSat = 5000;
 const _defaultFeeRateSatPerVb = 0.1;
 const _defaultPaymentTimeoutSec = 900; // 15 minutes
 const _defaultReturnTimeoutSec = 900; // 15 minutes
@@ -151,6 +151,14 @@ class FundedPos103Fixtures {
     if (nym.isEmpty) {
       throw StateError('GETPAID_FUNDED_NYM produced an empty nym');
     }
+    final maxFeeSat = _intFromEnv(
+      env['GETPAID_FUNDED_MAX_FEE_SAT'],
+      'GETPAID_FUNDED_MAX_FEE_SAT',
+      _defaultMaxFeeSat,
+    );
+    if (maxFeeSat > 5000) {
+      throw StateError('GETPAID_FUNDED_MAX_FEE_SAT must not exceed 5000');
+    }
 
     return FundedPos103Fixtures._(
       runId: runId,
@@ -162,11 +170,7 @@ class FundedPos103Fixtures {
         'GETPAID_FUNDED_AMOUNT_SAT',
         _defaultAmountSat,
       ),
-      maxFeeSat: _intFromEnv(
-        env['GETPAID_FUNDED_MAX_FEE_SAT'],
-        'GETPAID_FUNDED_MAX_FEE_SAT',
-        _defaultMaxFeeSat,
-      ),
+      maxFeeSat: maxFeeSat,
       feeRateSatPerVb: _doubleFromEnv(
         env['GETPAID_FUNDED_FEE_RATE'],
         'GETPAID_FUNDED_FEE_RATE',

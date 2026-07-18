@@ -35,11 +35,10 @@ const _defaultSeedCarryDir =
 //     high (the spec fails loud with `autosweep skipped: feePolicy` if the
 //     amount is too small for the prevailing rate).
 const _defaultAmountSat = 50000;
-// Ceiling asserted on the app's on-chain BTC return-send fee. This is the app's
-// own Send (NOT the guarded payer), so it is NOT bound by the payer's
-// MAX_INTENT_FEE_SAT = 5,000 hard cap; a BTC return tx can legitimately cost
-// more than 5,000 sats during a fee spike, so the default headroom is generous.
-const _defaultMaxFeeSat = 20000;
+// Ceiling asserted on the app's on-chain BTC return-send fee. Keep this aligned
+// with the shared Bullstr return helper so an unsafe value is rejected before
+// the wallet is created or funded.
+const _defaultMaxFeeSat = 5000;
 const _defaultPaymentTimeoutSec = 3600; // 60 minutes (on-chain confirmation)
 const _defaultReturnTimeoutSec = 3600; // 60 minutes
 const _defaultPollIntervalSec = 30;
@@ -234,6 +233,14 @@ class FundedBtcpay100Fixtures {
     // Fund-safety carry directory for the app-generated recovery material.
     final seedCarryPath =
         _firstNonEmpty([env['GETPAID_SEED_CARRY_DIR']]) ?? _defaultSeedCarryDir;
+    final maxFeeSat = _intFromEnv(
+      env['GETPAID_BTCPAY_MAX_FEE_SAT'] ?? env['GETPAID_FUNDED_MAX_FEE_SAT'],
+      'GETPAID_BTCPAY_MAX_FEE_SAT',
+      _defaultMaxFeeSat,
+    );
+    if (maxFeeSat > 5000) {
+      throw StateError('GETPAID_BTCPAY_MAX_FEE_SAT must not exceed 5000');
+    }
 
     return FundedBtcpay100Fixtures._(
       pairingUrl: pairingUrl,
@@ -245,11 +252,7 @@ class FundedBtcpay100Fixtures {
         'GETPAID_FUNDED_AMOUNT_SAT',
         _defaultAmountSat,
       ),
-      maxFeeSat: _intFromEnv(
-        env['GETPAID_BTCPAY_MAX_FEE_SAT'] ?? env['GETPAID_FUNDED_MAX_FEE_SAT'],
-        'GETPAID_BTCPAY_MAX_FEE_SAT',
-        _defaultMaxFeeSat,
-      ),
+      maxFeeSat: maxFeeSat,
       paymentTimeout: _durationFromEnvSec(
         env['GETPAID_FUNDED_PAYMENT_TIMEOUT_SEC'],
         'GETPAID_FUNDED_PAYMENT_TIMEOUT_SEC',

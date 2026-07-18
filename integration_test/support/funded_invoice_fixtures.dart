@@ -62,6 +62,14 @@ class FundedInvoiceFixtures {
     seedCaptureDir.createSync(recursive: true);
 
     final defaultAmount = rail == FundedInvoiceRail.bitcoin ? 50000 : 2000;
+    final maxFeeSat = _positiveInt(
+      env['GETPAID_FUNDED_MAX_FEE_SAT'],
+      'GETPAID_FUNDED_MAX_FEE_SAT',
+      5000,
+    );
+    if (maxFeeSat > 5000) {
+      throw StateError('GETPAID_FUNDED_MAX_FEE_SAT must not exceed 5000');
+    }
     return FundedInvoiceFixtures._(
       runId: _required(env, 'GETPAID_FUNDED_RUN_ID'),
       rail: rail,
@@ -72,11 +80,7 @@ class FundedInvoiceFixtures {
         'GETPAID_FUNDED_AMOUNT_SAT',
         defaultAmount,
       ),
-      maxFeeSat: _positiveInt(
-        env['GETPAID_FUNDED_MAX_FEE_SAT'],
-        'GETPAID_FUNDED_MAX_FEE_SAT',
-        rail == FundedInvoiceRail.bitcoin ? 20000 : 10000,
-      ),
+      maxFeeSat: maxFeeSat,
       liquidFeeRateSatPerVb: _positiveDouble(
         env['GETPAID_FUNDED_FEE_RATE'],
         'GETPAID_FUNDED_FEE_RATE',

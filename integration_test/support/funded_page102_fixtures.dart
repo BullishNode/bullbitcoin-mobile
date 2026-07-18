@@ -37,7 +37,7 @@ const _defaultSeedCaptureDir =
 // the coordinator's known payer debit + global conservation, not by inspecting
 // the confidential Liquid output amount on-chain.
 const _defaultAmountSat = 2000;
-const _defaultMaxFeeSat = 10000;
+const _defaultMaxFeeSat = 5000;
 const _defaultFeeRateSatPerVb = 0.1;
 const _defaultPaymentTimeoutSec = 900; // 15 minutes
 const _defaultReturnTimeoutSec = 900; // 15 minutes
@@ -157,6 +157,14 @@ class FundedPage102Fixtures {
     if (nym.isEmpty) {
       throw StateError('GETPAID_FUNDED_NYM produced an empty nym');
     }
+    final maxFeeSat = _intFromEnv(
+      env['GETPAID_FUNDED_MAX_FEE_SAT'],
+      'GETPAID_FUNDED_MAX_FEE_SAT',
+      _defaultMaxFeeSat,
+    );
+    if (maxFeeSat > 5000) {
+      throw StateError('GETPAID_FUNDED_MAX_FEE_SAT must not exceed 5000');
+    }
 
     return FundedPage102Fixtures._(
       runId: runId,
@@ -176,11 +184,7 @@ class FundedPage102Fixtures {
         'GETPAID_FUNDED_AMOUNT_SAT',
         _defaultAmountSat,
       ),
-      maxFeeSat: _intFromEnv(
-        env['GETPAID_FUNDED_MAX_FEE_SAT'],
-        'GETPAID_FUNDED_MAX_FEE_SAT',
-        _defaultMaxFeeSat,
-      ),
+      maxFeeSat: maxFeeSat,
       feeRateSatPerVb: _doubleFromEnv(
         env['GETPAID_FUNDED_FEE_RATE'],
         'GETPAID_FUNDED_FEE_RATE',
