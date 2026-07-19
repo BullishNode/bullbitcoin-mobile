@@ -1,3 +1,8 @@
+import 'package:bb_mobile/features/invoices/application/usecases/cancel_invoice_usecase.dart';
+import 'package:bb_mobile/features/invoices/application/usecases/get_invoice_usecase.dart';
+import 'package:bb_mobile/features/invoices/application/usecases/get_merchant_invoice_usecase.dart';
+import 'package:bb_mobile/features/invoices/application/usecases/list_invoice_fallback_supervision_usecase.dart';
+import 'package:bb_mobile/features/invoices/domain/usecases/get_private_invoice_link_usecase.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_detail_cubit.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_list_cubit.dart';
@@ -34,7 +39,7 @@ class InvoicesRoutes {
         name: InvoicesRoute.create.name,
         path: InvoicesRoute.create.path,
         builder: (context, state) => BlocProvider(
-          create: (_) => locator<InvoiceCreateCubit>()..loadCurrencies(),
+          create: (_) => locator<InvoiceCreateCubit>()..initialize(),
           child: const InvoiceCreateScreen(),
         ),
       ),
@@ -48,7 +53,17 @@ class InvoicesRoutes {
               : null;
           return BlocProvider(
             create: (_) => InvoiceDetailCubit(
-              facade: locator<InvoicesFacade>(),
+              getPrivateLink: locator<GetPrivateInvoiceLinkUsecase>().execute,
+              getStatus: locator<GetInvoiceUsecase>().execute,
+              getMerchantInvoice: locator<GetMerchantInvoiceUsecase>().execute,
+              getFallbackSupervision:
+                  locator<ListInvoiceFallbackSupervisionUsecase>().execute,
+              getQuote: ({required invoiceId, required rail}) =>
+                  locator<GetInvoiceUsecase>().quote(
+                    invoiceId: invoiceId,
+                    rail: rail,
+                  ),
+              cancelInvoice: locator<CancelInvoiceUsecase>().execute,
               invoiceId: InvoiceId(id),
               invoice: invoice,
             )..load(),
