@@ -31,6 +31,7 @@ import 'package:bb_mobile/features/electrum_settings/electrum_settings_locator.d
 import 'package:bb_mobile/features/exchange/exchange_locator.dart';
 import 'package:bb_mobile/features/exchange_settings/exchange_settings_locator.dart';
 import 'package:bb_mobile/features/mempool_settings/mempool_settings_locator.dart';
+import 'package:bb_mobile/features/fiat_settlement/fiat_settlement_locator.dart';
 import 'package:bb_mobile/features/fund_exchange/fund_exchange_locator.dart';
 import 'package:bb_mobile/features/get_paid/get_paid_locator.dart';
 import 'package:bb_mobile/features/get_paid_settings/get_paid_settings_locator.dart';
@@ -146,6 +147,7 @@ class AppLocator {
 
     ExchangeLocator.setup(locator);
     ExchangeSettingsLocator.setup(locator);
+    FiatSettlementLocator.setup(locator);
     BuyLocator.setup(locator);
     SellLocator.setup(locator);
     WithdrawLocator.setup(locator);
