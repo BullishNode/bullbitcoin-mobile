@@ -205,6 +205,35 @@ class LwkWalletDatasource {
     }
   }
 
+  // Returns the address and its matching per-address blinding secret as one
+  // SDK result so callers cannot accidentally pair key material from another
+  // derivation index.
+  Future<
+    ({String standard, String confidential, int index, String blindingSecret})
+  >
+  getAddressWithBlindingSecretByIndex(
+    int index, {
+    required WalletModel wallet,
+  }) async {
+    try {
+      final lwkWallet = await LwkFacade.createPublicWallet(wallet);
+      final derived = await lwkWallet.addressWithBlindingSecret(index: index);
+      final addressInfo = derived.address;
+      return (
+        index: addressInfo.index!,
+        standard: addressInfo.standard,
+        confidential: addressInfo.confidential,
+        blindingSecret: derived.blindingSecret,
+      );
+    } catch (e) {
+      if (e is lwk.LwkError) {
+        throw e.msg;
+      } else {
+        rethrow;
+      }
+    }
+  }
+
   Future<bool> isAddressUsed(
     String address, {
     required WalletModel wallet,
