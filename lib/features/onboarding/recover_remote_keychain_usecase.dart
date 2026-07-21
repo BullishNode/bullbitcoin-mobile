@@ -8,11 +8,14 @@ final class RecoverRemoteKeychainUsecase {
 
   const RecoverRemoteKeychainUsecase(this.remoteRecovery);
 
-  void execute() => unawaited(_recover());
+  void execute({required Set<String> defaultCreatedWalletIds}) =>
+      unawaited(_recover(defaultCreatedWalletIds));
 
-  Future<void> _recover() async {
+  Future<void> _recover(Set<String> defaultCreatedWalletIds) async {
     try {
-      final result = await remoteRecovery.recover();
+      final result = await remoteRecovery.recover(
+        defaultCreatedWalletIds: defaultCreatedWalletIds,
+      );
       if (result.status != RemoteKeychainRecoveryStatus.noBackup &&
           result.status != RemoteKeychainRecoveryStatus.restored) {
         log.warning(
@@ -20,7 +23,7 @@ final class RecoverRemoteKeychainUsecase {
           '${result.status.name}',
         );
       }
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       log.warning(
         'Optional remote keychain recovery failed',
         error: error,
