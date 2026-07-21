@@ -1,3 +1,5 @@
+import 'dart:async';
+
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart'
     show
         KeychainManifestDuplicateException,
@@ -37,6 +39,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keych
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/delete_keychain_manifest_backup_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/get_keychain_manifest_backup_state_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/fetch_keychain_manifest_remote_import_plan_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/flush_keychain_manifest_backup_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/set_keychain_manifest_backup_enabled_usecase.dart';
@@ -51,6 +54,7 @@ class KeychainManifestFacade {
   final SetKeychainManifestBackupEnabledUsecase _setBackupEnabled;
   final DeleteKeychainManifestBackupUsecase _deleteBackup;
   final FetchKeychainManifestRemoteImportPlanUsecase _fetchRemoteImportPlan;
+  final FlushKeychainManifestBackupUsecase _flushBackup;
 
   KeychainManifestFacade({
     required this._recordEntry,
@@ -60,6 +64,7 @@ class KeychainManifestFacade {
     required this._setBackupEnabled,
     required this._deleteBackup,
     required this._fetchRemoteImportPlan,
+    required this._flushBackup,
   });
 
   Future<KeychainManifestBackupState> getBackupState() =>
@@ -71,6 +76,8 @@ class KeychainManifestFacade {
   Future<void> setBackupEnabled(bool enabled) =>
       _setBackupEnabled.execute(enabled);
 
+  Future<void> backupNow() => _flushBackup.execute();
+
   Future<void> deleteRemoteBackup({required bool confirmed}) =>
       _deleteBackup.execute(confirmed: confirmed);
 
@@ -80,7 +87,12 @@ class KeychainManifestFacade {
   Future<void> recordReservedDerivation(
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
-  }) => _recordReservedDerivation(request, now: now, flushAfterCommit: true);
+    bool scheduleBackup = true,
+  }) => _recordReservedDerivation(
+    request,
+    now: now,
+    flushAfterCommit: scheduleBackup,
+  );
 
   /// Records inventory restored from a remote snapshot without publishing it.
   ///
@@ -99,6 +111,16 @@ class KeychainManifestFacade {
   }) async {
     try {
       await _recordEntry.execute(request, now: now);
+      if (!flushAfterCommit) return;
+      unawaited(
+        _flushBackup.execute().catchError((Object error, StackTrace stack) {
+          log.warning(
+            'Post-materialization keychain backup failed',
+            error: error,
+            trace: stack,
+          );
+        }),
+      );
     } catch (e) {
       throw KeychainManifestException.fromInternal(e);
     }
