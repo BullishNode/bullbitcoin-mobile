@@ -277,6 +277,24 @@ void main() {
       ).called(1);
     });
   });
+
+  group('hasApiKey', () {
+    test('reports true when a key is stored for the environment', () async {
+      when(
+        () => datasource.get(isTestnet: false),
+      ).thenAnswer((_) async => _FakeExchangeApiKeyModel());
+
+      expect(await repository.hasApiKey(isTestnet: false), isTrue);
+      verify(() => datasource.get(isTestnet: false)).called(1);
+    });
+
+    test('reports false when no key is stored', () async {
+      when(() => datasource.get(isTestnet: true)).thenAnswer((_) async => null);
+
+      expect(await repository.hasApiKey(isTestnet: true), isFalse);
+      verify(() => datasource.get(isTestnet: true)).called(1);
+    });
+  });
 }
 
 Map<String, dynamic> _validResponse() => {

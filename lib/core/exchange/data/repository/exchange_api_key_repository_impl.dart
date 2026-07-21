@@ -99,6 +99,12 @@ class ExchangeApiKeyRepositoryImpl implements ExchangeApiKeyRepository {
   }
 
   @override
+  Future<bool> hasApiKey({required bool isTestnet}) async {
+    final key = await _bullbitcoinApiKeyDatasource.get(isTestnet: isTestnet);
+    return key != null;
+  }
+
+  @override
   Future<void> deleteApiKey({required bool isTestnet}) async {
     var failed = false;
     try {
