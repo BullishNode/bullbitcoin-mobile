@@ -153,6 +153,11 @@ container-app: container-tools
 MODE ?= debug
 FORMAT ?= apk
 FLAVOR ?= production
+# Optional build-time service origins, expressed as whitespace-separated
+# KEY=VALUE entries. Production builds omit this and retain the app defaults.
+# Example: make android beta DART_DEFINES='BB_API_BASE_URL=https://example.test BB_AUTH_BASE_URL=https://accounts.example.test'
+DART_DEFINES ?=
+DART_DEFINE_ARGS = $(addprefix --dart-define=,$(DART_DEFINES))
 
 # Allow "make android release", "make android debug" or "make android beta".
 # release/debug build the production flavor; beta is the tester channel — the
@@ -198,11 +203,11 @@ endif
 ifeq ($(FORMAT),aab)
   CONTAINER_OUTPUT := /app/build/app/outputs/bundle/$(FLAVOR)$(MODE_CAP)/app-$(FLAVOR)-$(MODE).aab
   HOST_OUTPUT := ./BULL-$(HOST_NAME).aab
-  FLUTTER_BUILD := fvm flutter build appbundle --$(MODE) --flavor $(FLAVOR)
+  FLUTTER_BUILD := fvm flutter build appbundle --$(MODE) --flavor $(FLAVOR) $(DART_DEFINE_ARGS)
 else
   CONTAINER_OUTPUT := /app/build/app/outputs/flutter-apk/app-$(FLAVOR)-$(MODE).apk
   HOST_OUTPUT := ./BULL-$(HOST_NAME).apk
-  FLUTTER_BUILD := fvm flutter build apk --$(MODE) --flavor $(FLAVOR)
+  FLUTTER_BUILD := fvm flutter build apk --$(MODE) --flavor $(FLAVOR) $(DART_DEFINE_ARGS)
 endif
 
 android: container-app
@@ -369,7 +374,17 @@ unit-test:
 integration-test:
 	@echo "🧪 integration tests"
 	@fvm dart run tools/gen_all_test.dart
-	@fvm flutter test integration_test/all_test.dart --reporter=expanded
+	@integration_root="$$(mktemp -d)"; \
+	trap 'rm -rf "$$integration_root"' EXIT; \
+	mkdir -p "$$integration_root/data" "$$integration_root/config" \
+		"$$integration_root/cache" "$$integration_root/profile"; \
+	XDG_DATA_HOME="$$integration_root/data" \
+	XDG_CONFIG_HOME="$$integration_root/config" \
+	XDG_CACHE_HOME="$$integration_root/cache" \
+	fvm flutter test integration_test/all_test.dart --reporter=expanded \
+		--dart-define=BULL_INTEGRATION_DATA_DIR="$$integration_root/profile" \
+		--dart-define=BULLNYM_BASE_URL=https://127.0.0.1:1 \
+		--dart-define=BULLNYM_PUBLIC_BASE_URL=https://127.0.0.1:1
 
 # Build & render the bull_ui design-system catalogue (Widgetbook) locally in the
 # browser. Dev-only tooling — never shipped in the app. Regenerates the
