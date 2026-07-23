@@ -19,10 +19,6 @@ class FiatSettlementEditorState {
   final FiatCurrency? currency;
   final bool understood;
 
-  /// Whether a Bull Bitcoin account is connected on THIS device (a purely local
-  /// check). Fiat/mixed modes require a connection; Bitcoin mode never does.
-  final bool hasBullBitcoinAccount;
-
   /// The last operation's failure (save/disable), for the outcome UI.
   final FiatSettlementFailure? failure;
 
@@ -34,7 +30,6 @@ class FiatSettlementEditorState {
     this.mixFiatPercentage = 50,
     this.currency,
     this.understood = false,
-    this.hasBullBitcoinAccount = true,
     this.failure,
   });
 
@@ -85,7 +80,6 @@ class FiatSettlementEditorState {
     int? mixFiatPercentage,
     FiatCurrency? currency,
     bool? understood,
-    bool? hasBullBitcoinAccount,
     FiatSettlementFailure? failure,
     bool clearFailure = false,
     bool clearCurrency = false,
@@ -98,8 +92,6 @@ class FiatSettlementEditorState {
       mixFiatPercentage: mixFiatPercentage ?? this.mixFiatPercentage,
       currency: clearCurrency ? null : (currency ?? this.currency),
       understood: understood ?? this.understood,
-      hasBullBitcoinAccount:
-          hasBullBitcoinAccount ?? this.hasBullBitcoinAccount,
       failure: clearFailure ? null : (failure ?? this.failure),
     );
   }

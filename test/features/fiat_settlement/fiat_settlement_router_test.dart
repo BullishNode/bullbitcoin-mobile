@@ -2,7 +2,12 @@ import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/fiat_settlement/domain/usecases/has_bull_bitcoin_account_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/disable_fiat_settlement_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_configuration_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_connection_status_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/is_fiat_settlement_available_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/set_fiat_settlement_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_configuration_events.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/ui/fiat_settlement_router.dart';
 import 'package:bb_mobile/features/fiat_settlement/ui/screens/fiat_settlement_editor_screen.dart';
@@ -15,7 +20,15 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockFacade extends Mock implements FiatSettlementFacade {}
 
-class _MockHasAccount extends Mock implements HasBullBitcoinAccountUsecase {}
+class _MockGetConfiguration extends Mock
+    implements GetFiatSettlementConfigurationUsecase {}
+
+class _MockGetConnectionStatus extends Mock
+    implements GetFiatSettlementConnectionStatusUsecase {}
+
+class _MockSet extends Mock implements SetFiatSettlementUsecase {}
+
+class _MockDisable extends Mock implements DisableFiatSettlementUsecase {}
 
 class _FakeGetSettings implements GetSettingsUsecase {
   _FakeGetSettings(this.environment);
@@ -59,18 +72,41 @@ void main() {
   });
   tearDown(() => locator.reset());
 
+  void registerAvailability() {
+    locator.registerFactory<IsFiatSettlementAvailableUsecase>(
+      () => IsFiatSettlementAvailableUsecase(locator<GetSettingsUsecase>()),
+    );
+  }
+
   void registerEditorDependencies() {
+    registerAvailability();
     final facade = _MockFacade();
     when(() => facade.configuration()).thenAnswer(
       (_) async => const Ok(
         FiatSettlementConfigurationView(products: [], credentialActive: false),
       ),
     );
-    final hasAccount = _MockHasAccount();
-    when(() => hasAccount.execute()).thenAnswer((_) async => true);
-    locator
-      ..registerSingleton<FiatSettlementFacade>(facade)
-      ..registerSingleton<HasBullBitcoinAccountUsecase>(hasAccount);
+    final getConfiguration = _MockGetConfiguration();
+    final getConnectionStatus = _MockGetConnectionStatus();
+    final setSettlement = _MockSet();
+    final disableSettlement = _MockDisable();
+    when(
+      () => getConfiguration.execute(),
+    ).thenAnswer((_) => facade.configuration());
+    when(
+      () => getConnectionStatus.execute(),
+    ).thenAnswer((_) async => FiatSettlementConnectionStatus.connected);
+    locator.registerSingleton<GetFiatSettlementConfigurationUsecase>(
+      getConfiguration,
+    );
+    locator.registerSingleton<GetFiatSettlementConnectionStatusUsecase>(
+      getConnectionStatus,
+    );
+    locator.registerSingleton<SetFiatSettlementUsecase>(setSettlement);
+    locator.registerSingleton<DisableFiatSettlementUsecase>(disableSettlement);
+    locator.registerSingleton<FiatSettlementConfigurationEvents>(
+      FiatSettlementConfigurationEvents(),
+    );
   }
 
   testWidgets('opens the editor for each valid product on mainnet', (
@@ -109,6 +145,7 @@ void main() {
     locator.registerSingleton<GetSettingsUsecase>(
       _FakeGetSettings(Environment.mainnet),
     );
+    registerAvailability();
     final router = _router();
     addTearDown(router.dispose);
     await _pump(tester, router);
@@ -128,6 +165,7 @@ void main() {
     locator.registerSingleton<GetSettingsUsecase>(
       _FakeGetSettings(Environment.testnet),
     );
+    registerAvailability();
     final router = _router();
     addTearDown(router.dispose);
     await _pump(tester, router);

@@ -1,5 +1,4 @@
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/fiat_settlement/domain/usecases/has_bull_bitcoin_account_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/presentation/fiat_settlement_editor_cubit.dart';
 import 'package:bb_mobile/features/fiat_settlement/presentation/fiat_settlement_editor_state.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
@@ -7,8 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockFacade extends Mock implements FiatSettlementFacade {}
-
-class _MockHasAccount extends Mock implements HasBullBitcoinAccountUsecase {}
 
 FiatSettlementConfigurationView _view(
   FiatSettlementProduct product,
@@ -29,7 +26,6 @@ FiatSettlementConfigurationView _view(
 
 void main() {
   late _MockFacade facade;
-  late _MockHasAccount hasAccount;
   const product = FiatSettlementProduct.paymentPage;
 
   setUpAll(() {
@@ -39,18 +35,16 @@ void main() {
 
   setUp(() {
     facade = _MockFacade();
-    hasAccount = _MockHasAccount();
     when(
       () => facade.configuration(),
     ).thenAnswer((_) async => Ok(_view(product, 0)));
-    when(() => hasAccount.execute()).thenAnswer((_) async => true);
   });
 
-  FiatSettlementEditorCubit build() => FiatSettlementEditorCubit(
-    facade: facade,
-    hasBullBitcoinAccount: hasAccount,
-    product: product,
-  );
+  // The cubit has NO local exchange-account dependency: a fiat change is an
+  // npub-signed keyless save; a missing server credential is discovered from
+  // the server (credentialProblem), never assumed from local state.
+  FiatSettlementEditorCubit build() =>
+      FiatSettlementEditorCubit(facade: facade, product: product);
 
   test('load maps a saved bitcoin-only config to the bitcoin mode', () async {
     final cubit = build();
@@ -249,26 +243,12 @@ void main() {
     ).called(1);
   });
 
-  test('load reflects a connected Bull Bitcoin account', () async {
-    when(() => hasAccount.execute()).thenAnswer((_) async => true);
-    final cubit = build();
-    await cubit.load();
-    expect(cubit.state.hasBullBitcoinAccount, isTrue);
-  });
-
-  test('load reflects a missing Bull Bitcoin connection', () async {
-    when(() => hasAccount.execute()).thenAnswer((_) async => false);
-    final cubit = build();
-    await cubit.load();
-    expect(cubit.state.hasBullBitcoinAccount, isFalse);
-  });
-
   test(
-    'an unauthenticated load still exposes the saved split as truth',
+    'a saved split is exposed as truth and is savable with no local account',
     () async {
-      // The owner's bug: a saved 50/50 must render regardless of local auth. The
-      // state carries the saved split; only the SAVE action is gated (view).
-      when(() => hasAccount.execute()).thenAnswer((_) async => false);
+      // The owner's bug: a saved 50/50 must render, AND be editable, without any
+      // local exchange login. canSave depends only on form validity — never on
+      // an account precondition.
       when(() => facade.configuration()).thenAnswer(
         (_) async => Ok(_view(product, 50, currency: FiatCurrency.cad)),
       );
@@ -279,9 +259,50 @@ void main() {
       expect(cubit.state.mixFiatPercentage, 50);
       expect(cubit.state.currency, FiatCurrency.cad);
       expect(cubit.state.saved?.isBitcoinOnly, isFalse);
-      expect(cubit.state.hasBullBitcoinAccount, isFalse);
+      // A percentage move on the same currency is immediately savable.
+      cubit.setMixPercentage(30);
+      expect(cubit.state.canSave, isTrue);
     },
   );
+
+  test('a save is attempted keyless; the server credential-required outcome '
+      'surfaces as credentialProblem (no local precondition)', () async {
+    when(
+      () => facade.configuration(),
+    ).thenAnswer((_) async => Ok(_view(product, 0)));
+    when(
+      () => facade.set(
+        product: any(named: 'product'),
+        fiatPercentage: any(named: 'fiatPercentage'),
+        currency: any(named: 'currency'),
+      ),
+    ).thenAnswer(
+      (_) async => const Err(FiatSettlementFailure.credentialProblem()),
+    );
+    final cubit = build();
+    await cubit.load();
+    cubit.selectMode(FiatSettlementReceiveMode.fiat);
+    cubit.selectCurrency(FiatCurrency.cad);
+    cubit.setUnderstood(true);
+    // No account was ever set up in this cubit — the save still proceeds.
+    expect(cubit.state.canSave, isTrue);
+
+    await cubit.save();
+
+    // The facade's keyless-first set was attempted and the server's
+    // credential-required answer became the reconnect-driving outcome.
+    verify(
+      () => facade.set(
+        product: any(named: 'product'),
+        fiatPercentage: any(named: 'fiatPercentage'),
+        currency: any(named: 'currency'),
+      ),
+    ).called(1);
+    expect(
+      cubit.state.failure?.kind,
+      FiatSettlementFailureKind.credentialProblem,
+    );
+  });
 
   test('a configuration read failure is a loadError, never a Bitcoin-only '
       'guess', () async {
@@ -295,18 +316,16 @@ void main() {
     expect(cubit.state.saved, isNull);
   });
 
-  test('refreshConnection updates the connection flag and preserves the '
-      'draft (post-reconnect, no server re-read)', () async {
-    when(() => hasAccount.execute()).thenAnswer((_) async => false);
+  test('refreshConnection preserves the draft and does not re-read the '
+      'server config (post-reconnect)', () async {
     final cubit = build();
     await cubit.load();
     cubit.selectMode(FiatSettlementReceiveMode.fiat);
     cubit.selectCurrency(FiatCurrency.eur);
     cubit.setUnderstood(true);
 
-    // The user returns from the login WebView, now connected.
-    when(() => hasAccount.execute()).thenAnswer((_) async => true);
-    // A server re-read here would reset the draft — assert it is NOT called.
+    // The user returns from the login WebView. A server re-read here would
+    // reset the draft — assert it is NOT called.
     var configReads = 0;
     when(() => facade.configuration()).thenAnswer((_) async {
       configReads++;
@@ -315,7 +334,6 @@ void main() {
 
     await cubit.refreshConnection();
 
-    expect(cubit.state.hasBullBitcoinAccount, isTrue);
     expect(cubit.state.mode, FiatSettlementReceiveMode.fiat);
     expect(cubit.state.currency, FiatCurrency.eur);
     expect(cubit.state.understood, isTrue);
@@ -354,11 +372,9 @@ void main() {
   );
 
   test('refreshConnection is a no-op off the ready form', () async {
-    when(() => hasAccount.execute()).thenAnswer((_) async => false);
     final cubit = build();
     // Still in the initial loading state (never loaded).
     await cubit.refreshConnection();
     expect(cubit.state.status, FiatSettlementEditorStatus.loading);
-    expect(cubit.state.hasBullBitcoinAccount, isTrue);
   });
 }
