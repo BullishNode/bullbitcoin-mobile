@@ -25,7 +25,10 @@ class LightningAddressFacade {
   _registerWalletOwnedCallback;
   final Future<LightningAddressStatus> Function()
   _lookupWalletOwnedRegistrationCallback;
-  final Future<LightningAddressHealOutcome> Function({DateTime? deadline})
+  final Future<LightningAddressHealOutcome> Function({
+    DateTime? deadline,
+    bool allowReregister,
+  })
   _ensureRegistrationLiveCallback;
 
   const LightningAddressFacade({
@@ -38,7 +41,10 @@ class LightningAddressFacade {
     registerWalletOwned,
     required Future<LightningAddressStatus> Function()
     lookupWalletOwnedRegistration,
-    required Future<LightningAddressHealOutcome> Function({DateTime? deadline})
+    required Future<LightningAddressHealOutcome> Function({
+      DateTime? deadline,
+      bool allowReregister,
+    })
     ensureRegistrationLive,
   }) : _prepareWalletCallback = prepareWallet,
        _lookupRegistrationCallback = lookupRegistration,
@@ -66,7 +72,11 @@ class LightningAddressFacade {
 
   Future<LightningAddressHealOutcome> ensureRegistrationLive({
     DateTime? deadline,
+    bool allowReregister = true,
   }) {
-    return _ensureRegistrationLiveCallback(deadline: deadline);
+    return _ensureRegistrationLiveCallback(
+      deadline: deadline,
+      allowReregister: allowReregister,
+    );
   }
 }

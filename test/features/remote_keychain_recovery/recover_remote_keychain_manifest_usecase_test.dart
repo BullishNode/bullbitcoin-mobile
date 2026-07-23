@@ -184,6 +184,7 @@ void main() {
     expect(result.status, RemoteKeychainRecoveryStatus.restored);
     expect(result.createdWalletIds, ['lightning-wallet']);
     expect(lightningAddress.ensureCalls, 1);
+    expect(lightningAddress.allowReregisterCalls, [false]);
   });
 
   test('heals a restored payment page that requests reactivation', () async {
@@ -677,6 +678,7 @@ final class _FakeKeychainRecoveryFacade implements KeychainRecoveryFacade {
 
 final class _FakeLightningAddressFacade implements LightningAddressFacade {
   int ensureCalls = 0;
+  final allowReregisterCalls = <bool>[];
   LightningAddressHealOutcome outcome = const LightningAddressHealOutcome(
     liveness: LightningAddressRegistrationLiveness.live,
   );
@@ -684,8 +686,10 @@ final class _FakeLightningAddressFacade implements LightningAddressFacade {
   @override
   Future<LightningAddressHealOutcome> ensureRegistrationLive({
     DateTime? deadline,
+    bool allowReregister = true,
   }) async {
     ensureCalls++;
+    allowReregisterCalls.add(allowReregister);
     return outcome;
   }
 

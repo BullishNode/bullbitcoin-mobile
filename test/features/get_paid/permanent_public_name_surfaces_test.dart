@@ -203,6 +203,7 @@ class _OwnerLookup {
       if (currentError != null) throw currentError;
       return status;
     },
-    ensureRegistrationLive: ({deadline}) => throw UnimplementedError(),
+    ensureRegistrationLive: ({deadline, bool allowReregister = true}) =>
+        throw UnimplementedError(),
   );
 }

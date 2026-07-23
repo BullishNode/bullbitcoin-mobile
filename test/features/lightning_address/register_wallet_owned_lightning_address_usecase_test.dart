@@ -321,10 +321,11 @@ void main() {
           ),
       registerWalletOwned: ({required nym}) => walletOwned.execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
-      ensureRegistrationLive: ({DateTime? deadline}) async =>
-          const LightningAddressHealOutcome(
-            liveness: LightningAddressRegistrationLiveness.live,
-          ),
+      ensureRegistrationLive:
+          ({DateTime? deadline, bool allowReregister = true}) async =>
+              const LightningAddressHealOutcome(
+                liveness: LightningAddressRegistrationLiveness.live,
+              ),
     );
 
     final result = await facade.registerWalletOwned(nym: 'alice');
@@ -345,10 +346,11 @@ void main() {
       registerWalletOwned: ({required nym}) =>
           _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
-      ensureRegistrationLive: ({DateTime? deadline}) async =>
-          const LightningAddressHealOutcome(
-            liveness: LightningAddressRegistrationLiveness.live,
-          ),
+      ensureRegistrationLive:
+          ({DateTime? deadline, bool allowReregister = true}) async =>
+              const LightningAddressHealOutcome(
+                liveness: LightningAddressRegistrationLiveness.live,
+              ),
     );
 
     final result = await facade.lookupWalletOwnedRegistration();

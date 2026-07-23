@@ -5,12 +5,16 @@ import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_use
 import 'package:bb_mobile/features/onboarding/complete_physical_backup_verification_usecase.dart';
 import 'package:bb_mobile/features/onboarding/presentation/bloc/onboarding_bloc.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/recover_remote_keychain_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockCreateDefaultWallets extends Mock
     implements CreateDefaultWalletsUsecase {}
+
+class _MockRecoveryFacade extends Mock
+    implements RemoteKeychainRecoveryFacade {}
 
 class _MockCompletePhysicalBackup extends Mock
     implements CompletePhysicalBackupVerificationUsecase {}
@@ -43,6 +47,10 @@ void main() {
     completePhysicalBackupVerificationUsecase: completePhysicalBackup,
     recoverRemoteKeychainUsecase: recoverRemoteKeychain,
   );
+
+  setUpAll(() {
+    registerFallbackValue(<String>{});
+  });
 
   setUp(() {
     createDefaultWallets = _MockCreateDefaultWallets();
@@ -132,5 +140,30 @@ void main() {
         mnemonicWords: any(named: 'mnemonicWords'),
       ),
     ).called(1);
+  });
+
+  test('emits success even when the recovery graph throws an Error', () async {
+    // Drive the REAL recovery wrapper over a facade that throws a StateError:
+    // the wrapper must swallow it so onboarding never fails on optional
+    // recovery (the old fire-and-forget could never take onboarding down).
+    final facade = _MockRecoveryFacade();
+    when(
+      () => facade.recover(
+        defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
+      ),
+    ).thenThrow(StateError('bug in recovery graph'));
+
+    final bloc = OnboardingBloc(
+      createDefaultWalletsUsecase: createDefaultWallets,
+      completePhysicalBackupVerificationUsecase: completePhysicalBackup,
+      recoverRemoteKeychainUsecase: RecoverRemoteKeychainUsecase(facade),
+    );
+    addTearDown(bloc.close);
+
+    bloc.add(OnboardingRecoverWalletClicked(mnemonic: mnemonic()));
+    await pumpEventQueue();
+
+    expect(bloc.state.onboardingStepStatus, OnboardingStepStatus.success);
+    expect(bloc.state.statusError, isEmpty);
   });
 }
