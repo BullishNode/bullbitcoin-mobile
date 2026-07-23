@@ -51,6 +51,7 @@ PaymentPageFacade _pageFacade(
     archive: () async => throw UnimplementedError(),
     supportedCurrencies: () async => throw UnimplementedError(),
     ensurePageLive: () async => throw UnimplementedError(),
+    prepareWallet: () async => throw UnimplementedError(),
   );
 }
 
@@ -63,6 +64,7 @@ PosFacade _posFacade(
     archive: () async => throw UnimplementedError(),
     supportedCurrencies: () async => throw UnimplementedError(),
     ensurePosLive: () async => throw UnimplementedError(),
+    prepareWallet: () async => throw UnimplementedError(),
   );
 }
 

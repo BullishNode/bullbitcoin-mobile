@@ -453,4 +453,8 @@ class _FakePaymentPageFacade implements PaymentPageFacade {
   @override
   Future<PaymentPageHealOutcome> ensurePageLive() async =>
       throw UnimplementedError();
+
+  @override
+  Future<PreparedPaymentPageWallet> prepareWallet() async =>
+      throw UnimplementedError();
 }
