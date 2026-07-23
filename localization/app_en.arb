@@ -17451,5 +17451,82 @@
         "type": "String"
       }
     }
+  },
+  "metadataBackupStateOff": "Automatic backup is off",
+  "@metadataBackupStateOff": {
+    "description": "Metadata backup page: off state title"
+  },
+  "metadataBackupStateOffBody": "Your Get Paid wallets and products are not being backed up. Turn on automatic backup to protect them.",
+  "@metadataBackupStateOffBody": {
+    "description": "Metadata backup page: off state explanation"
+  },
+  "metadataBackupStateCurrent": "Backed up",
+  "@metadataBackupStateCurrent": {
+    "description": "Metadata backup page: current state title"
+  },
+  "metadataBackupStateCurrentBody": "Your encrypted backup is up to date. Last backed up {when}.",
+  "@metadataBackupStateCurrentBody": {
+    "description": "Metadata backup page: current state explanation",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "metadataBackupStateBackingUp": "Backing up automatically",
+  "@metadataBackupStateBackingUp": {
+    "description": "Metadata backup page: pending publication title"
+  },
+  "metadataBackupStateBackingUpBody": "Recent changes will be published to your encrypted backup shortly.",
+  "@metadataBackupStateBackingUpBody": {
+    "description": "Metadata backup page: pending publication explanation"
+  },
+  "metadataBackupStateRetryable": "Last backup attempt failed",
+  "@metadataBackupStateRetryable": {
+    "description": "Metadata backup page: retryable failure title"
+  },
+  "metadataBackupStateRetryableBody": "The most recent automatic backup did not complete. You can retry now; the app will also keep retrying automatically.",
+  "@metadataBackupStateRetryableBody": {
+    "description": "Metadata backup page: retryable failure explanation"
+  },
+  "metadataBackupStateNewerFormat": "Backup from a newer app version",
+  "@metadataBackupStateNewerFormat": {
+    "description": "Metadata backup page: newer-format title"
+  },
+  "metadataBackupStateNewerFormatBody": "Your backup was written by a newer version of the app. Update the app to keep backing up. Nothing will be overwritten.",
+  "@metadataBackupStateNewerFormatBody": {
+    "description": "Metadata backup page: newer-format explanation"
+  },
+  "metadataBackupStateRecoveryApplying": "Restoring wallets",
+  "@metadataBackupStateRecoveryApplying": {
+    "description": "Metadata backup page: recovery applying title"
+  },
+  "metadataBackupStateRecoveryApplyingBody": "Wallet recovery is running. This usually takes a few seconds.",
+  "@metadataBackupStateRecoveryApplyingBody": {
+    "description": "Metadata backup page: recovery applying explanation"
+  },
+  "metadataBackupStateRecoveryIncomplete": "Wallet recovery incomplete",
+  "@metadataBackupStateRecoveryIncomplete": {
+    "description": "Metadata backup page: recovery incomplete title"
+  },
+  "metadataBackupStateRecoveryIncompleteBody": "The last restore did not recover everything. Backup is paused to protect the remaining data. Retry the recovery when you have a good connection.",
+  "@metadataBackupStateRecoveryIncompleteBody": {
+    "description": "Metadata backup page: recovery incomplete explanation"
+  },
+  "metadataBackupStateUnavailable": "Backup status unavailable",
+  "@metadataBackupStateUnavailable": {
+    "description": "Metadata backup page: unavailable state title"
+  },
+  "metadataBackupStateUnavailableBody": "The backup status could not be loaded. Pull to refresh or try again later.",
+  "@metadataBackupStateUnavailableBody": {
+    "description": "Metadata backup page: unavailable explanation"
+  },
+  "metadataBackupRetryRecovery": "Retry wallet recovery",
+  "@metadataBackupRetryRecovery": {
+    "description": "Metadata backup page: manual recovery retry action"
+  },
+  "metadataBackupRetryBackup": "Retry backup",
+  "@metadataBackupRetryBackup": {
+    "description": "Metadata backup page: retry failed publication action"
   }
 }

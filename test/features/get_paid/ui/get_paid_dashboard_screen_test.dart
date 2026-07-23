@@ -4,7 +4,6 @@ import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_stat
 import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
 import 'package:bb_mobile/features/get_paid/ui/widgets/get_paid_slot_card.dart';
-import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_routes.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -329,11 +328,6 @@ void main() {
 
       expect(find.byIcon(Icons.settings), findsNothing);
       expect(tester.takeException(), isNull);
-    });
-
-    test('the Get Paid settings route stays constructible after gear '
-        'removal (still reachable from app Settings)', () {
-      expect(GetPaidSettingsRoute.getPaidSettings.name, isNotEmpty);
     });
 
     testWidgets('an archived product shows an Archived status chip', (

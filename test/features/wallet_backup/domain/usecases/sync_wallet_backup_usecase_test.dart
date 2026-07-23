@@ -11,6 +11,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_ma
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/get_keychain_manifest_reservation_wallet_ids_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/merge_keychain_manifest_file_payloads_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
@@ -472,6 +473,9 @@ final class _Fixture {
         parseManifest: parser,
       ),
       parseManifestFile: parser,
+      reservationWalletIds: GetKeychainManifestReservationWalletIdsUsecase(
+        repository: store,
+      ),
     );
   }
 

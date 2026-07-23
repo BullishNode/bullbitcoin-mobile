@@ -9,11 +9,10 @@ class GetPaidSettingsFacade {
   final GetGetPaidWalletBehaviorsUsecase _getWalletBehaviors;
   final UpdateWalletBehaviorUsecase _updateWalletBehavior;
 
-  const GetPaidSettingsFacade({
-    required GetGetPaidWalletBehaviorsUsecase getWalletBehaviors,
-    required UpdateWalletBehaviorUsecase updateWalletBehavior,
-  }) : _getWalletBehaviors = getWalletBehaviors,
-       _updateWalletBehavior = updateWalletBehavior;
+  const GetPaidSettingsFacade(
+    this._getWalletBehaviors,
+    this._updateWalletBehavior,
+  );
 
   Future<List<GetPaidWalletBehavior>> walletBehaviors({
     GetPaidWalletProduct? only,

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
+import 'package:bb_mobile/core/storage/data/datasources/key_value_storage/key_value_storage_datasource.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/data/remote_recovery_outcome_store.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/recover_remote_wallet_backups_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_facade.dart';
@@ -282,6 +284,109 @@ void main() {
       expect(lease.closeCalls, 1);
     },
   );
+  group('persists the last unified wallet recovery outcome', () {
+    test('a completed pass records status, timestamp, and counts - nothing '
+        'else', () async {
+      final store = RemoteRecoveryOutcomeStore(_MemoryKv());
+      final usecase = RecoverRemoteWalletBackupsUsecase(
+        (_) async => const RemoteKeychainRecoveryResult(
+          status: RemoteKeychainRecoveryStatus.partiallyRestored,
+          restoredCount: 2,
+          failedCount: 1,
+          createdWalletIds: ['wallet-alpha'],
+        ),
+        walletBackup,
+        metadataBackup,
+        outcomeStore: store,
+      );
+
+      await usecase.execute(defaultCreatedWalletIds: {'bitcoin-default'});
+
+      final outcome = await store.read();
+      expect(outcome, isNotNull);
+      expect(outcome!.status, RemoteKeychainRecoveryStatus.partiallyRestored);
+      expect(outcome.restoredCount, 2);
+      expect(outcome.failedCount, 1);
+      expect(outcome.isIncomplete, isTrue);
+      // Sanitization: the record carries exactly status/at/counts - never
+      // wallet ids or manifest entries.
+      expect(outcome.toJsonString(), isNot(contains('wallet-alpha')));
+    });
+
+    test('a pass that exceeds its budget records timedOut', () async {
+      final store = RemoteRecoveryOutcomeStore(_MemoryKv());
+      when(walletBackup.fetchRemoteIdentity).thenAnswer(
+        (_) =>
+            Completer<Result<WalletBackupRemoteIdentity, WalletBackupFailure>>()
+                .future,
+      );
+      final usecase = RecoverRemoteWalletBackupsUsecase(
+        (_) async => const RemoteKeychainRecoveryResult(
+          status: RemoteKeychainRecoveryStatus.restored,
+        ),
+        walletBackup,
+        metadataBackup,
+        outcomeStore: store,
+        budget: const Duration(milliseconds: 10),
+      );
+
+      await usecase.execute(defaultCreatedWalletIds: const {});
+
+      final outcome = await store.read();
+      expect(outcome!.status, RemoteKeychainRecoveryStatus.timedOut);
+      expect(outcome.isIncomplete, isTrue);
+    });
+
+    test('a persistence failure never affects the recovery result', () async {
+      final usecase = RecoverRemoteWalletBackupsUsecase(
+        (_) async => const RemoteKeychainRecoveryResult(
+          status: RemoteKeychainRecoveryStatus.restored,
+        ),
+        walletBackup,
+        metadataBackup,
+        outcomeStore: RemoteRecoveryOutcomeStore(_ThrowingKv()),
+      );
+
+      final result = await usecase.execute(defaultCreatedWalletIds: const {});
+
+      expect(result.status, RemoteKeychainRecoveryStatus.restored);
+    });
+  });
+}
+
+class _MemoryKv implements KeyValueStorageDatasource<String> {
+  final Map<String, String> _values = {};
+
+  @override
+  Future<void> saveValue({required String key, required String value}) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<String?> getValue(String key) async => _values[key];
+
+  @override
+  Future<Map<String, String>> getAll() async => Map.of(_values);
+
+  @override
+  Future<bool> hasValue(String key) async => _values.containsKey(key);
+
+  @override
+  Future<void> deleteValue(String key) async {
+    _values.remove(key);
+  }
+
+  @override
+  Future<void> deleteAll() async {
+    _values.clear();
+  }
+}
+
+final class _ThrowingKv extends _MemoryKv {
+  @override
+  Future<void> saveValue({required String key, required String value}) async {
+    throw StateError('disk full');
+  }
 }
 
 RecoverRemoteWalletBackupsUsecase _usecase({
