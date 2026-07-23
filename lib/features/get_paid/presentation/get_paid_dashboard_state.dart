@@ -5,6 +5,29 @@ import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 
 enum GetPaidDashboardCardStatus { loading, loaded }
 
+/// Per-product truth for the three Bullnym-backed products (Lightning Address,
+/// Donation Page, POS), queried on every refresh. A server failure or timeout
+/// is [unavailable] (with Retry), never [absent]: the manifest never creates an
+/// active product card, so "not configured" is only ever a CONFIRMED empty read.
+enum GetPaidProductStatus {
+  /// The product query is in flight.
+  loading,
+
+  /// The product exists and is live on the server.
+  active,
+
+  /// The product exists but is archived (deactivated) — a status-only card;
+  /// reactivation lives on the product screen.
+  archived,
+
+  /// A confirmed read found no product configured yet.
+  absent,
+
+  /// The product query failed/timed out; its truth is unknown. Shown with
+  /// Retry; the card stays tappable so the product screen can re-query.
+  unavailable,
+}
+
 /// Read-only snapshot of every Get Paid product's status, assembled from the
 /// public facades. Holds no money logic, no balances and no protocol internals
 /// — only what the hub renders (a status chip + a contextual subtitle per
@@ -30,11 +53,18 @@ class GetPaidDashboardState {
   /// means unavailable or not applicable; zero is a successful empty result.
   final int? fallbackAttentionCount;
   final String? error;
-  final GetPaidDashboardCardStatus lightningStatus;
-  final GetPaidDashboardCardStatus paymentPageStatus;
-  final GetPaidDashboardCardStatus posStatus;
+  final GetPaidProductStatus lightningStatus;
+  final GetPaidProductStatus paymentPageStatus;
+  final GetPaidProductStatus posStatus;
   final GetPaidDashboardCardStatus invoicesStatus;
   final GetPaidDashboardCardStatus btcpayStatus;
+
+  /// True when a product is ACTIVE but its fixed-derivation wallet could not be
+  /// re-derived locally (contract #4 Q9/Q9b self-heal failed) — the card shows a
+  /// missing-wallet warning and its wallet-dependent controls are disabled.
+  final bool lightningWalletWarning;
+  final bool paymentPageWalletWarning;
+  final bool posWalletWarning;
 
   /// Server-confirmed fiat-settlement configuration per product, for the slot
   /// badges. Null when not applicable (testnet / feature off) — no badge. On a
@@ -58,13 +88,16 @@ class GetPaidDashboardState {
     this.invoicesWalletReady = false,
     this.fallbackAttentionCount,
     this.error,
-    this.lightningStatus = GetPaidDashboardCardStatus.loading,
-    this.paymentPageStatus = GetPaidDashboardCardStatus.loading,
-    this.posStatus = GetPaidDashboardCardStatus.loading,
+    this.lightningStatus = GetPaidProductStatus.loading,
+    this.paymentPageStatus = GetPaidProductStatus.loading,
+    this.posStatus = GetPaidProductStatus.loading,
     this.invoicesStatus = GetPaidDashboardCardStatus.loading,
     this.btcpayStatus = GetPaidDashboardCardStatus.loading,
     this.fiatSettlement,
     this.fiatSettlementUnavailable = false,
+    this.lightningWalletWarning = false,
+    this.paymentPageWalletWarning = false,
+    this.posWalletWarning = false,
   });
 
   bool get hasLightningAddress =>
@@ -92,14 +125,17 @@ class GetPaidDashboardState {
     bool clearFallbackAttention = false,
     String? error,
     bool clearError = false,
-    GetPaidDashboardCardStatus? lightningStatus,
-    GetPaidDashboardCardStatus? paymentPageStatus,
-    GetPaidDashboardCardStatus? posStatus,
+    GetPaidProductStatus? lightningStatus,
+    GetPaidProductStatus? paymentPageStatus,
+    GetPaidProductStatus? posStatus,
     GetPaidDashboardCardStatus? invoicesStatus,
     GetPaidDashboardCardStatus? btcpayStatus,
     Map<FiatSettlementProduct, FiatSettlementProductConfig>? fiatSettlement,
     bool clearFiatSettlement = false,
     bool? fiatSettlementUnavailable,
+    bool? lightningWalletWarning,
+    bool? paymentPageWalletWarning,
+    bool? posWalletWarning,
   }) {
     return GetPaidDashboardState(
       isLoading: isLoading ?? this.isLoading,
@@ -128,6 +164,11 @@ class GetPaidDashboardState {
           : fiatSettlement ?? this.fiatSettlement,
       fiatSettlementUnavailable:
           fiatSettlementUnavailable ?? this.fiatSettlementUnavailable,
+      lightningWalletWarning:
+          lightningWalletWarning ?? this.lightningWalletWarning,
+      paymentPageWalletWarning:
+          paymentPageWalletWarning ?? this.paymentPageWalletWarning,
+      posWalletWarning: posWalletWarning ?? this.posWalletWarning,
     );
   }
 }

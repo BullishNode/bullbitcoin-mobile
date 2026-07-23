@@ -122,6 +122,21 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
       FiatSettlementProduct.pos,
       active: state.hasPos,
     );
+    // Per-product truth chips (active / archived / absent / unavailable). LA is
+    // "active" whenever a registration is present; its green dot tracks the
+    // registration's own active flag.
+    final lightning = _productChip(
+      context,
+      state.lightningStatus,
+      activeGreen: state.lightningActive,
+    );
+    final pageChip = _productChip(
+      context,
+      state.paymentPageStatus,
+      activeGreen: true,
+    );
+    final posChip = _productChip(context, state.posStatus, activeGreen: true);
+    final refresh = context.read<GetPaidDashboardCubit>().refresh;
     return [
       GetPaidSlotCard(
         icon: Icons.payments_outlined,
@@ -138,12 +153,17 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
         subtitle: state.hasLightningAddress
             ? state.lightningAddress!
             : loc.getPaidDashboardLightningAddressSubtitle,
-        isLoading: state.lightningStatus == GetPaidDashboardCardStatus.loading,
-        // Active green when the registration itself is ACTIVE.
-        statusLabel: state.lightningActive ? loc.getPaidDashboardActive : null,
-        statusActive: state.lightningActive,
+        isLoading: state.lightningStatus == GetPaidProductStatus.loading,
+        statusLabel: lightning.label,
+        statusActive: lightning.active,
         settlementLabel: lightningSettlement.label,
         settlementUnavailable: lightningSettlement.unavailable,
+        retry: lightning.showRetry
+            ? (label: loc.getPaidDashboardRetry, onTap: refresh)
+            : null,
+        warningLabel: state.lightningWalletWarning
+            ? loc.getPaidDashboardWalletWarning
+            : null,
         onTap: () => _open(LightningAddressRoute.lightningAddressSettings.name),
       ),
       const Gap(12),
@@ -151,13 +171,17 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
         icon: Icons.storefront,
         title: loc.getPaidDashboardDonationPageTitle,
         subtitle: page?.publicUrl ?? loc.getPaidDashboardDonationPageSubtitle,
-        isLoading:
-            state.paymentPageStatus == GetPaidDashboardCardStatus.loading,
-        // Active green when a (non-archived) payment page exists.
-        statusLabel: state.hasPaymentPage ? loc.getPaidDashboardActive : null,
-        statusActive: state.hasPaymentPage,
+        isLoading: state.paymentPageStatus == GetPaidProductStatus.loading,
+        statusLabel: pageChip.label,
+        statusActive: pageChip.active,
         settlementLabel: pageSettlement.label,
         settlementUnavailable: pageSettlement.unavailable,
+        retry: pageChip.showRetry
+            ? (label: loc.getPaidDashboardRetry, onTap: refresh)
+            : null,
+        warningLabel: state.paymentPageWalletWarning
+            ? loc.getPaidDashboardWalletWarning
+            : null,
         onTap: () => _open(PaymentPageRoute.paymentPageSettings.name),
       ),
       const Gap(12),
@@ -165,12 +189,17 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
         icon: Icons.point_of_sale,
         title: loc.getPaidDashboardPosTitle,
         subtitle: pos?.terminalUrl ?? loc.getPaidDashboardPosSubtitle,
-        isLoading: state.posStatus == GetPaidDashboardCardStatus.loading,
-        // Active green when a (non-archived) POS terminal exists.
-        statusLabel: state.hasPos ? loc.getPaidDashboardActive : null,
-        statusActive: state.hasPos,
+        isLoading: state.posStatus == GetPaidProductStatus.loading,
+        statusLabel: posChip.label,
+        statusActive: posChip.active,
         settlementLabel: posSettlement.label,
         settlementUnavailable: posSettlement.unavailable,
+        retry: posChip.showRetry
+            ? (label: loc.getPaidDashboardRetry, onTap: refresh)
+            : null,
+        warningLabel: state.posWalletWarning
+            ? loc.getPaidDashboardWalletWarning
+            : null,
         onTap: () => _open(PosRoute.posSettings.name),
       ),
       const Gap(12),
@@ -239,6 +268,49 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
       );
     }
     return (label: null, unavailable: false);
+  }
+
+  /// Maps a product's queried status to its card chip. [activeGreen] gates the
+  /// green "Active" chip (Page/POS: always when active; LA: only when the
+  /// registration itself is active). `showRetry` is set for the unavailable
+  /// (failed/timed-out) state — the card stays tappable to the product screen
+  /// regardless.
+  ({String? label, bool active, bool showRetry}) _productChip(
+    BuildContext context,
+    GetPaidProductStatus status, {
+    required bool activeGreen,
+  }) {
+    final loc = context.loc;
+    return switch (status) {
+      GetPaidProductStatus.loading => (
+        label: null,
+        active: false,
+        showRetry: false,
+      ),
+      GetPaidProductStatus.active =>
+        activeGreen
+            ? (
+                label: loc.getPaidDashboardActive,
+                active: true,
+                showRetry: false,
+              )
+            : (label: null, active: false, showRetry: false),
+      GetPaidProductStatus.archived => (
+        label: loc.getPaidDashboardArchived,
+        active: false,
+        showRetry: false,
+      ),
+      GetPaidProductStatus.absent => (
+        label: loc.getPaidDashboardNotSetUp,
+        active: false,
+        showRetry: false,
+      ),
+      GetPaidProductStatus.unavailable => (
+        label: loc.getPaidDashboardUnavailable,
+        active: false,
+        showRetry: true,
+      ),
+    };
   }
 
   Future<void> _open(String routeName) async {
