@@ -56,6 +56,38 @@ class WalletBackupControls extends StatelessWidget {
                       color: context.appColors.textMuted,
                     ),
                   ),
+                  if (state.lastRecoveryOutcome?.isIncomplete ?? false) ...[
+                    const Gap(12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        Icons.warning_amber_outlined,
+                        color: context.appColors.error,
+                      ),
+                      title: Text(
+                        context.loc.metadataBackupStateRecoveryIncomplete,
+                      ),
+                      subtitle: Text(
+                        context.loc.metadataBackupStateRecoveryIncompleteBody,
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: state.canRetryRecovery
+                          ? context
+                                .read<WalletBackupSettingsCubit>()
+                                .retryRecovery
+                          : null,
+                      icon:
+                          state.operation ==
+                              WalletBackupSettingsOperation.recovering
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.restore),
+                      label: Text(context.loc.metadataBackupRetryRecovery),
+                    ),
+                  ],
                   const Gap(12),
                   Row(
                     children: [

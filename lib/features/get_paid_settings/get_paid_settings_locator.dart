@@ -15,8 +15,8 @@ final class GetPaidSettingsLocator {
     );
     locator.registerFactory<GetPaidSettingsFacade>(
       () => GetPaidSettingsFacade(
-        getWalletBehaviors: locator<GetGetPaidWalletBehaviorsUsecase>(),
-        updateWalletBehavior: locator<UpdateWalletBehaviorUsecase>(),
+        locator<GetGetPaidWalletBehaviorsUsecase>(),
+        locator<UpdateWalletBehaviorUsecase>(),
       ),
     );
   }

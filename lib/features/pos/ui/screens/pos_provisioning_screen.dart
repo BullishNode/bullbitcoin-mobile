@@ -641,6 +641,50 @@ class _AdvancedSettingsButton extends StatelessWidget {
   }
 }
 
+/// Reserved-wallet behavior controls shown when the online product is
+/// unavailable but its deterministic wallet still exists.
+class _WalletBehaviorControls extends StatelessWidget {
+  final GetPaidWalletBehavior behavior;
+  final bool saving;
+
+  const _WalletBehaviorControls({required this.behavior, required this.saving});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<PosCubit>();
+    return Card(
+      margin: const EdgeInsets.only(top: 24),
+      child: Column(
+        children: [
+          ListTile(title: Text(context.loc.getPaidWalletSettingsSectionTitle)),
+          SwitchListTile(
+            value: behavior.autoSweepEnabled,
+            onChanged: saving
+                ? null
+                : (value) => cubit.updateWalletBehavior(
+                    walletId: behavior.walletId,
+                    autoSweepEnabled: value,
+                  ),
+            title: Text(context.loc.getPaidWalletAutoSweepLabel),
+            subtitle: Text(context.loc.getPaidWalletAutoSweepInfo),
+          ),
+          SwitchListTile(
+            value: behavior.hideOnHome,
+            onChanged: saving
+                ? null
+                : (value) => cubit.updateWalletBehavior(
+                    walletId: behavior.walletId,
+                    hideOnHome: value,
+                  ),
+            title: Text(context.loc.getPaidWalletHideOnHomeLabel),
+            subtitle: Text(context.loc.getPaidWalletHideOnHomeInfo),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatusNotice extends StatelessWidget {
   final IconData icon;
   final String title;
