@@ -7,6 +7,7 @@ final class GetPaidSettingsLocator {
     locator.registerFactory<GetGetPaidWalletBehaviorsUsecase>(
       () => GetGetPaidWalletBehaviorsUsecase(
         getWallets: locator<GetWalletsUsecase>(),
+        manifest: locator<KeychainManifestFacade>(),
       ),
     );
   }
