@@ -712,16 +712,16 @@ class _ActiveView extends StatelessWidget {
         ],
         if (canManage) ...[
           const Gap(32),
+          const FiatSettlementEntryTile(
+            product: FiatSettlementProduct.lightningAddress,
+          ),
+          const Gap(16),
           _AdvancedSettingsButton(
             online: true,
             onlineSaving: onlineSaving,
             onOnlineChanged: onOnlineChanged,
             walletBehavior: walletBehavior,
             walletBehaviorSaving: walletBehaviorSaving,
-          ),
-          const Gap(16),
-          const FiatSettlementEntryTile(
-            product: FiatSettlementProduct.lightningAddress,
           ),
         ],
       ],
@@ -898,16 +898,16 @@ class _ActiveLocalSetupFailedView extends StatelessWidget {
           ),
         ],
         const Gap(24),
+        const FiatSettlementEntryTile(
+          product: FiatSettlementProduct.lightningAddress,
+        ),
+        const Gap(16),
         _AdvancedSettingsButton(
           online: true,
           onlineSaving: onlineSaving,
           onOnlineChanged: onOnlineChanged,
           walletBehavior: walletBehavior,
           walletBehaviorSaving: walletBehaviorSaving,
-        ),
-        const Gap(16),
-        const FiatSettlementEntryTile(
-          product: FiatSettlementProduct.lightningAddress,
         ),
       ],
     );

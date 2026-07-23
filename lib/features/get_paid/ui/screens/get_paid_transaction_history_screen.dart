@@ -1,5 +1,6 @@
+import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
+import 'package:bb_mobile/features/bitcoin_price/ui/currency_text.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_state.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 class GetPaidTransactionHistoryScreen extends StatefulWidget {
   const GetPaidTransactionHistoryScreen({super.key});
@@ -164,6 +166,11 @@ class _DayHeader extends StatelessWidget {
   }
 }
 
+/// One Get Paid receipt, sharing the wallet transaction list's visual grammar
+/// (bordered icon, amount, source chip, network pill, timeago) without reusing
+/// the wallet Transaction widgets. Every Get Paid row is a receive, so the
+/// leading glyph is always a down-arrow. Settled rows stay quiet, like a
+/// confirmed wallet row; only a payment that needs action carries a chip.
 class _TransactionRow extends StatelessWidget {
   final GetPaidTransaction transaction;
   final VoidCallback onTap;
@@ -172,62 +179,125 @@ class _TransactionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.bull;
-    return ListTile(
+    final needsAttention =
+        transaction.settlementState == GetPaidSettlementState.problem;
+    return InkWell(
       key: ValueKey('get-paid-transaction-${transaction.stableKey}'),
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: BullIcon(
-        getPaidTransactionSourceIcon(transaction.source),
-        color: colors.primary,
-      ),
-      title: Text(
-        getPaidTransactionAmountText(context, transaction.amountSat),
-        style: context.bullText.titleMedium,
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8.0),
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: context.appColors.surface,
+          borderRadius: BorderRadius.circular(2.0),
+          boxShadow: const [],
+        ),
+        child: Row(
           children: [
-            Text(getPaidTransactionSourceText(context, transaction.source)),
-            const SizedBox(height: 2),
-            Text(
-              '${getPaidTransactionRailText(context, transaction.rail)} · '
-              '${getPaidSettlementStateText(context, transaction.settlementState)}',
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: context.appColors.surface,
+                border: Border.all(color: context.appColors.border),
+                borderRadius: BorderRadius.circular(2.0),
+              ),
+              child: Icon(
+                Icons.arrow_downward,
+                color: context.appColors.onSurface,
+              ),
             ),
-            // Render the classification label ONLY from an explicit
-            // server-provided settlement kind. A no-data row (null) omits the
-            // label — it is never printed as Bitcoin without evidence.
-            if (transaction.settlement case final settlement?) ...[
-              const SizedBox(height: 2),
-              Builder(
-                builder: (context) {
-                  final inlineFiat = getPaidSettledFiatInline(
-                    context,
-                    settlement,
-                  );
-                  final kindLabel = getPaidSettlementKindLabel(
-                    context,
-                    settlement.kind,
-                  );
-                  return Text(
-                    inlineFiat == null ? kindLabel : '$kindLabel · $inlineFiat',
-                  );
-                },
+            const Gap(16.0),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CurrencyText(
+                    transaction.amountSat,
+                    showFiat: false,
+                    style: context.font.bodyLarge,
+                  ),
+                  const Gap(4.0),
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 4.0,
+                    children: [
+                      _RowChip(
+                        text: getPaidTransactionSourceText(
+                          context,
+                          transaction.source,
+                        ),
+                      ),
+                      if (needsAttention)
+                        _RowChip(
+                          text: context.loc.getPaidTransactionsStateProblem,
+                          accent: context.appColors.error,
+                        ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-            const SizedBox(height: 2),
-            Text(
-              getPaidTransactionDateText(context, transaction.receivedAt),
-              style: context.bullText.bodySmall?.copyWith(
-                color: colors.textMuted,
-              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4.0,
+                    vertical: 2.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: transaction.rail == GetPaidTransactionRail.liquid
+                        ? context.appColors.tertiary
+                        : context.appColors.onTertiary,
+                    borderRadius: BorderRadius.circular(2.0),
+                  ),
+                  child: Text(
+                    getPaidTransactionRailText(context, transaction.rail),
+                    style: context.font.labelSmall?.copyWith(
+                      color: context.appColors.onSurface,
+                    ),
+                  ),
+                ),
+                const Gap(4.0),
+                Text(
+                  timeago.format(transaction.receivedAt.toLocal()),
+                  style: context.font.labelSmall?.copyWith(
+                    color: context.appColors.textMuted,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
-      trailing: const BullIcon(Icons.chevron_right),
+    );
+  }
+}
+
+/// Small pill mirroring the wallet list's label chips. [accent] tints the
+/// border and text for a chip that needs to stand out (needs-attention).
+class _RowChip extends StatelessWidget {
+  final String text;
+  final Color? accent;
+
+  const _RowChip({required this.text, this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = accent ?? context.appColors.secondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+      decoration: BoxDecoration(
+        color: context.appColors.onSecondary,
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(
+          color: accent ?? context.appColors.secondaryFixedDim,
+        ),
+      ),
+      child: Text(
+        text,
+        style: context.font.labelSmall?.copyWith(color: foreground),
+      ),
     );
   }
 }
@@ -376,15 +446,6 @@ class _EmptyHistory extends StatelessWidget {
   }
 }
 
-IconData getPaidTransactionSourceIcon(GetPaidTransactionSource source) {
-  return switch (source) {
-    GetPaidTransactionSource.lightningAddress => Icons.alternate_email,
-    GetPaidTransactionSource.invoice => Icons.receipt_long,
-    GetPaidTransactionSource.paymentPage => Icons.storefront,
-    GetPaidTransactionSource.pointOfSale => Icons.point_of_sale,
-  };
-}
-
 String getPaidTransactionSourceText(
   BuildContext context,
   GetPaidTransactionSource source,
@@ -424,22 +485,6 @@ String getPaidTransactionRailText(
     GetPaidTransactionRail.liquid => context.loc.getPaidTransactionsRailLiquid,
     GetPaidTransactionRail.bitcoin =>
       context.loc.getPaidTransactionsRailBitcoin,
-  };
-}
-
-/// Coarse settlement classification label for the history list. `unavailable`
-/// (uninterpretable) shows the explicit unavailable string — never silently a
-/// Bitcoin label. The no-data case is handled by the caller omitting the label.
-String getPaidSettlementKindLabel(
-  BuildContext context,
-  GetPaidSettlementKind kind,
-) {
-  return switch (kind) {
-    GetPaidSettlementKind.bitcoin => context.loc.getPaidSettlementLabelBitcoin,
-    GetPaidSettlementKind.fiat => context.loc.getPaidSettlementLabelFiat,
-    GetPaidSettlementKind.mixed => context.loc.getPaidSettlementLabelMixed,
-    GetPaidSettlementKind.unavailable =>
-      context.loc.getPaidSettlementDetailsUnavailable,
   };
 }
 
@@ -488,29 +533,3 @@ String getPaidDayGroupLabel(BuildContext context, DateTime day) {
       : DateFormat.yMMMMd(locale).format(day);
 }
 
-/// The settled fiat amount for a fiat/mixed settlement, shown inline on a list
-/// row once a fiat leg has settled (Q24a). Null when there is no settled fiat
-/// leg yet — the row never shows a guessed or pending amount.
-String? getPaidSettledFiatInline(
-  BuildContext context,
-  GetPaidSettlement? settlement,
-) {
-  if (settlement == null) return null;
-  if (settlement.kind != GetPaidSettlementKind.fiat &&
-      settlement.kind != GetPaidSettlementKind.mixed) {
-    return null;
-  }
-  for (final leg in settlement.fiat) {
-    if (leg.status == GetPaidSettlementLegStatus.settled &&
-        leg.amountMinor != null) {
-      final minor = leg.amountMinor!;
-      final major = minor ~/ 100;
-      final cents = (minor % 100).toString().padLeft(2, '0');
-      return context.loc.getPaidSettlementFiatAmount(
-        '$major.$cents',
-        leg.currency,
-      );
-    }
-  }
-  return null;
-}
