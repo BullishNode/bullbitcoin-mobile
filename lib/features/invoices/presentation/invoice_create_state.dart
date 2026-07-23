@@ -1,6 +1,11 @@
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 
-enum InvoiceAmountMode { sats, fiat }
+/// The amount entry denomination, which also fixes the invoice pricing (Q17):
+/// [fiat] creates a fiat-fixed invoice, [bitcoin] a sat-fixed one. The bitcoin
+/// display unit (sats vs BTC) follows the user's setting; the pricing stays
+/// sat-fixed either way.
+enum InvoiceAmountMode { bitcoin, fiat }
 
 enum InvoiceCreateField {
   amount,
@@ -32,6 +37,15 @@ class InvoiceCreateState {
   final InvoiceAmountMode amountMode;
   final String amountInput;
   final String fiatCurrency;
+
+  /// The user's bitcoin display unit (sats or BTC), used only for the bitcoin
+  /// entry denomination and its formatting. Pricing is always sat-fixed.
+  final BitcoinUnit bitcoinUnit;
+
+  /// The live approximate cross-denomination equivalent (e.g. "≈ 12,345 sats"
+  /// when entering fiat, or the fiat value when entering bitcoin). Null when it
+  /// cannot be computed (no rate, empty/invalid amount) — the line is hidden.
+  final String? equivalentLabel;
   final bool acceptBtc;
   final bool acceptLn;
   final bool acceptLiquid;
@@ -61,10 +75,12 @@ class InvoiceCreateState {
     this.pendingRetry = false,
     this.result,
     this.failure,
-    this.amountMode = InvoiceAmountMode.sats,
+    this.amountMode = InvoiceAmountMode.fiat,
     this.amountInput = '',
     this.fiatCurrency = '',
-    this.acceptBtc = false,
+    this.bitcoinUnit = BitcoinUnit.sats,
+    this.equivalentLabel,
+    this.acceptBtc = true,
     this.acceptLn = true,
     this.acceptLiquid = true,
     this.directLiquidAvailable = true,
@@ -90,6 +106,15 @@ class InvoiceCreateState {
 
   bool get isSubmitted => result != null;
   bool get hasAnyRail => acceptBtc || acceptLn || acceptLiquid;
+
+  /// The number of currently-enabled rails. At least one is always required
+  /// (Q19): the last enabled rail's toggle is disabled so the invalid empty
+  /// state is unrepresentable rather than a submit-time error.
+  int get enabledRailCount =>
+      (acceptBtc ? 1 : 0) + (acceptLn ? 1 : 0) + (acceptLiquid ? 1 : 0);
+
+  /// True when [railOn] is the only enabled rail — its toggle must be locked on.
+  bool isLastEnabledRail(bool railOn) => railOn && enabledRailCount == 1;
 
   int get populatedFieldCount => [
     payerName,
@@ -118,6 +143,8 @@ class InvoiceCreateState {
     InvoiceAmountMode? amountMode,
     String? amountInput,
     String? fiatCurrency,
+    BitcoinUnit? bitcoinUnit,
+    String? equivalentLabel,
     bool? acceptBtc,
     bool? acceptLn,
     bool? acceptLiquid,
@@ -142,6 +169,7 @@ class InvoiceCreateState {
     InvoiceCreateField? invalidField,
     bool clearFailure = false,
     bool clearInvalidField = false,
+    bool clearEquivalent = false,
   }) {
     return InvoiceCreateState(
       initializing: initializing ?? this.initializing,
@@ -152,6 +180,10 @@ class InvoiceCreateState {
       amountMode: amountMode ?? this.amountMode,
       amountInput: amountInput ?? this.amountInput,
       fiatCurrency: fiatCurrency ?? this.fiatCurrency,
+      bitcoinUnit: bitcoinUnit ?? this.bitcoinUnit,
+      equivalentLabel: clearEquivalent
+          ? null
+          : equivalentLabel ?? this.equivalentLabel,
       acceptBtc: acceptBtc ?? this.acceptBtc,
       acceptLn: acceptLn ?? this.acceptLn,
       acceptLiquid: acceptLiquid ?? this.acceptLiquid,

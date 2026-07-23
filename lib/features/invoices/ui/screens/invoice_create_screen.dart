@@ -5,6 +5,7 @@ import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_create_state.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_failure_l10n.dart';
+import 'package:bb_mobile/features/invoices/ui/widgets/invoice_amount_card.dart';
 import 'package:bb_mobile/features/invoices/ui/widgets/private_invoice_link_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -133,36 +134,20 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        SegmentedButton<InvoiceAmountMode>(
-          segments: [
-            ButtonSegment(
-              value: InvoiceAmountMode.sats,
-              label: Text(context.loc.invoiceAmountModeSats),
-            ),
-            ButtonSegment(
-              value: InvoiceAmountMode.fiat,
-              label: Text(context.loc.invoiceAmountModeFiat),
-            ),
-          ],
-          selected: {state.amountMode},
-          onSelectionChanged: state.submitting
-              ? null
-              : (selection) => cubit.amountModeChanged(selection.first),
-        ),
-        const Gap(12),
-        TextField(
+        InvoiceAmountCard(
           controller: _amount,
+          mode: state.amountMode,
+          bitcoinUnit: state.bitcoinUnit,
+          fiatCurrency: state.fiatCurrency,
+          decimals: _amountDecimals(state),
+          equivalentLabel: state.equivalentLabel,
           enabled: !state.submitting,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          hasError: state.invalidField == InvoiceCreateField.amount,
           onChanged: cubit.amountChanged,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            labelText: state.amountMode == InvoiceAmountMode.sats
-                ? context.loc.invoiceAmountSatsLabel
-                : context.loc.invoiceAmountFiatLabel,
-            errorText: state.invalidField == InvoiceCreateField.amount
-                ? context.loc.invoiceAmountError
-                : null,
+          onToggleMode: () => cubit.amountModeChanged(
+            state.amountMode == InvoiceAmountMode.fiat
+                ? InvoiceAmountMode.bitcoin
+                : InvoiceAmountMode.fiat,
           ),
         ),
         if (state.amountMode == InvoiceAmountMode.fiat) ...[
@@ -171,25 +156,32 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         ],
         const Gap(20),
         Text(context.loc.invoiceRailsLabel, style: context.font.bodyLarge),
-        SwitchListTile(
+        _railTile(
+          context,
+          title: context.loc.invoiceAcceptLn,
           value: state.acceptLn,
-          onChanged: state.submitting ? null : cubit.acceptLnChanged,
-          title: Text(context.loc.invoiceAcceptLn),
+          isLastEnabled: state.isLastEnabledRail(state.acceptLn),
+          submitting: state.submitting,
+          onChanged: cubit.acceptLnChanged,
         ),
-        SwitchListTile(
+        _railTile(
+          context,
+          title: context.loc.invoiceAcceptLiquid,
           value: state.acceptLiquid,
-          onChanged: state.submitting || !state.directLiquidAvailable
-              ? null
-              : cubit.acceptLiquidChanged,
-          title: Text(context.loc.invoiceAcceptLiquid),
-          subtitle: state.directLiquidAvailable
-              ? null
-              : Text(context.loc.invoiceLiquidUnavailableForMixedSettlement),
+          isLastEnabled: state.isLastEnabledRail(state.acceptLiquid),
+          submitting: state.submitting,
+          unavailable: !state.directLiquidAvailable,
+          unavailableHint:
+              context.loc.invoiceLiquidUnavailableForMixedSettlement,
+          onChanged: cubit.acceptLiquidChanged,
         ),
-        SwitchListTile(
+        _railTile(
+          context,
+          title: context.loc.invoiceAcceptBtc,
           value: state.acceptBtc,
-          onChanged: state.submitting ? null : cubit.acceptBtcChanged,
-          title: Text(context.loc.invoiceAcceptBtc),
+          isLastEnabled: state.isLastEnabledRail(state.acceptBtc),
+          submitting: state.submitting,
+          onChanged: cubit.acceptBtcChanged,
         ),
         const Gap(12),
         ListTile(
@@ -232,6 +224,43 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     );
   }
 
+  int _amountDecimals(InvoiceCreateState state) {
+    if (state.amountMode == InvoiceAmountMode.bitcoin) {
+      return state.bitcoinUnit.decimals;
+    }
+    for (final currency in state.currencies) {
+      if (currency.code == state.fiatCurrency) return currency.precision;
+    }
+    return 2;
+  }
+
+  /// A payment-method rail toggle. The last enabled rail is locked ON (Q19) so
+  /// the empty-rail state is unrepresentable; a mixed-settlement Liquid rail is
+  /// disabled with its own explanation.
+  Widget _railTile(
+    BuildContext context, {
+    required String title,
+    required bool value,
+    required bool isLastEnabled,
+    required bool submitting,
+    required ValueChanged<bool> onChanged,
+    bool unavailable = false,
+    String? unavailableHint,
+  }) {
+    final locked = submitting || unavailable || isLastEnabled;
+    final subtitle = unavailable
+        ? unavailableHint
+        : isLastEnabled
+        ? context.loc.invoiceRailLastEnabledHint
+        : null;
+    return SwitchListTile(
+      value: value,
+      onChanged: locked ? null : onChanged,
+      title: Text(title),
+      subtitle: subtitle == null ? null : Text(subtitle),
+    );
+  }
+
   Widget _detailsForm(
     BuildContext context,
     InvoiceCreateState state,
@@ -240,7 +269,11 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _heading(context, context.loc.invoicePayerSection),
+        _heading(
+          context,
+          context.loc.invoicePayerSection,
+          description: context.loc.invoicePayerDescription,
+        ),
         _field(context, state, cubit, InvoiceCreateField.payerName),
         _field(context, state, cubit, InvoiceCreateField.payerCorporateName),
         _field(
@@ -269,7 +302,11 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
         ),
         _dateField(context, state, cubit, InvoiceCreateField.invoiceDate),
         _dateField(context, state, cubit, InvoiceCreateField.paymentDeadline),
-        _heading(context, context.loc.invoicePayeeSection),
+        _heading(
+          context,
+          context.loc.invoicePayeeSection,
+          description: context.loc.invoicePayeeDescription,
+        ),
         _field(context, state, cubit, InvoiceCreateField.payeeName),
         _field(context, state, cubit, InvoiceCreateField.payeeCorporateName),
         _field(
@@ -285,10 +322,26 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
     );
   }
 
-  Widget _heading(BuildContext context, String value) => Padding(
-    padding: const EdgeInsets.only(top: 16, bottom: 8),
-    child: Text(value, style: context.font.titleMedium),
-  );
+  Widget _heading(BuildContext context, String value, {String? description}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value, style: context.font.titleMedium),
+          if (description != null) ...[
+            const Gap(4),
+            Text(
+              description,
+              style: context.font.bodySmall?.copyWith(
+                color: context.appColors.textMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   Widget _field(
     BuildContext context,
