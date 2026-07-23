@@ -262,4 +262,103 @@ void main() {
     await cubit.load();
     expect(cubit.state.hasBullBitcoinAccount, isFalse);
   });
+
+  test(
+    'an unauthenticated load still exposes the saved split as truth',
+    () async {
+      // The owner's bug: a saved 50/50 must render regardless of local auth. The
+      // state carries the saved split; only the SAVE action is gated (view).
+      when(() => hasAccount.execute()).thenAnswer((_) async => false);
+      when(() => facade.configuration()).thenAnswer(
+        (_) async => Ok(_view(product, 50, currency: FiatCurrency.cad)),
+      );
+      final cubit = build();
+      await cubit.load();
+      expect(cubit.state.status, FiatSettlementEditorStatus.ready);
+      expect(cubit.state.mode, FiatSettlementReceiveMode.mix);
+      expect(cubit.state.mixFiatPercentage, 50);
+      expect(cubit.state.currency, FiatCurrency.cad);
+      expect(cubit.state.saved?.isBitcoinOnly, isFalse);
+      expect(cubit.state.hasBullBitcoinAccount, isFalse);
+    },
+  );
+
+  test('a configuration read failure is a loadError, never a Bitcoin-only '
+      'guess', () async {
+    when(() => facade.configuration()).thenAnswer(
+      (_) async => const Err(FiatSettlementFailure.bullnymUnreachable()),
+    );
+    final cubit = build();
+    await cubit.load();
+    expect(cubit.state.status, FiatSettlementEditorStatus.loadError);
+    // No saved config was fabricated from the failure.
+    expect(cubit.state.saved, isNull);
+  });
+
+  test('refreshConnection updates the connection flag and preserves the '
+      'draft (post-reconnect, no server re-read)', () async {
+    when(() => hasAccount.execute()).thenAnswer((_) async => false);
+    final cubit = build();
+    await cubit.load();
+    cubit.selectMode(FiatSettlementReceiveMode.fiat);
+    cubit.selectCurrency(FiatCurrency.eur);
+    cubit.setUnderstood(true);
+
+    // The user returns from the login WebView, now connected.
+    when(() => hasAccount.execute()).thenAnswer((_) async => true);
+    // A server re-read here would reset the draft — assert it is NOT called.
+    var configReads = 0;
+    when(() => facade.configuration()).thenAnswer((_) async {
+      configReads++;
+      return Ok(_view(product, 0));
+    });
+
+    await cubit.refreshConnection();
+
+    expect(cubit.state.hasBullBitcoinAccount, isTrue);
+    expect(cubit.state.mode, FiatSettlementReceiveMode.fiat);
+    expect(cubit.state.currency, FiatCurrency.eur);
+    expect(cubit.state.understood, isTrue);
+    expect(configReads, 0);
+  });
+
+  test(
+    'refreshConnection clears a prior failure while keeping the draft',
+    () async {
+      final cubit = build();
+      await cubit.load();
+      cubit.selectMode(FiatSettlementReceiveMode.fiat);
+      cubit.selectCurrency(FiatCurrency.cad);
+      cubit.setUnderstood(true);
+      when(
+        () => facade.set(
+          product: any(named: 'product'),
+          fiatPercentage: any(named: 'fiatPercentage'),
+          currency: any(named: 'currency'),
+        ),
+      ).thenAnswer(
+        (_) async => const Err(FiatSettlementFailure.credentialProblem()),
+      );
+      await cubit.save();
+      expect(
+        cubit.state.failure?.kind,
+        FiatSettlementFailureKind.credentialProblem,
+      );
+
+      await cubit.refreshConnection();
+
+      expect(cubit.state.failure, isNull);
+      expect(cubit.state.mode, FiatSettlementReceiveMode.fiat);
+      expect(cubit.state.currency, FiatCurrency.cad);
+    },
+  );
+
+  test('refreshConnection is a no-op off the ready form', () async {
+    when(() => hasAccount.execute()).thenAnswer((_) async => false);
+    final cubit = build();
+    // Still in the initial loading state (never loaded).
+    await cubit.refreshConnection();
+    expect(cubit.state.status, FiatSettlementEditorStatus.loading);
+    expect(cubit.state.hasBullBitcoinAccount, isTrue);
+  });
 }

@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/automatic_fallback/public/automatic_fallback_facade.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
@@ -22,6 +24,29 @@ class _MockWallet extends Mock implements Wallet {}
 
 class _MockFallbackAttention extends Mock
     implements GetPaidFallbackAttentionUsecase {}
+
+class _MockFiatFacade extends Mock implements FiatSettlementFacade {}
+
+class _MockGetSettings extends Mock implements GetSettingsUsecase {}
+
+class _MockSettings extends Mock implements SettingsEntity {}
+
+FiatSettlementConfigurationView _fiatView(
+  FiatSettlementProduct product,
+  int pct, {
+  FiatCurrency? currency,
+}) {
+  return FiatSettlementConfigurationView(
+    products: [
+      FiatSettlementProductConfig(
+        product: product,
+        fiatPercentage: pct,
+        currency: currency,
+      ),
+    ],
+    credentialActive: true,
+  );
+}
 
 // The public facades are callback-injected, so the tests wire real facade
 // instances to plain closures — no mocking framework needed.
@@ -165,11 +190,31 @@ GetPaidDashboardCubit _cubit({
   ensureFallback,
   bool hasDefaultWallet = false,
   int? fallbackAttentionCount = 0,
+  Future<Result<FiatSettlementConfigurationView, FiatSettlementFailure>>
+  Function()?
+  fiatConfiguration,
+  Environment environment = Environment.mainnet,
 }) {
   final fallbackAttention = _MockFallbackAttention();
   when(
     () => fallbackAttention.execute(),
   ).thenAnswer((_) async => fallbackAttentionCount);
+
+  // Only wire the (optional) fiat-settlement facade when a test opts in; the
+  // rest of the suite exercises the null / not-wired path unchanged.
+  FiatSettlementFacade? fiatFacade;
+  GetSettingsUsecase? getSettings;
+  if (fiatConfiguration != null) {
+    final facade = _MockFiatFacade();
+    when(() => facade.configuration()).thenAnswer((_) => fiatConfiguration());
+    fiatFacade = facade;
+    final settings = _MockSettings();
+    when(() => settings.environment).thenReturn(environment);
+    final settingsUsecase = _MockGetSettings();
+    when(() => settingsUsecase.execute()).thenAnswer((_) async => settings);
+    getSettings = settingsUsecase;
+  }
+
   return GetPaidDashboardCubit(
     lightningAddress: _laFacade(lookup ?? () async => _status()),
     paymentPage: _pageFacade(pageFind ?? ({required String nym}) async => null),
@@ -181,6 +226,8 @@ GetPaidDashboardCubit _cubit({
     getWallets: _getWallets(hasDefaultWallet: hasDefaultWallet),
     ensureAutomaticFallback: _fallbackUsecase(ensureFallback ?? _fallbackReady),
     fallbackAttention: fallbackAttention,
+    fiatSettlement: fiatFacade,
+    getSettings: getSettings,
   );
 }
 
@@ -527,4 +574,99 @@ void main() {
     expect(cubit.state.hasLightningAddress, isTrue);
     await cubit.close();
   });
+
+  test(
+    'a confirmed fiat-settlement read populates the per-product config',
+    () async {
+      final cubit = _cubit(
+        fiatConfiguration: () async => Ok(
+          _fiatView(
+            FiatSettlementProduct.paymentPage,
+            50,
+            currency: FiatCurrency.cad,
+          ),
+        ),
+      );
+
+      await cubit.refresh();
+
+      final config =
+          cubit.state.fiatSettlement?[FiatSettlementProduct.paymentPage];
+      expect(config?.fiatPercentage, 50);
+      expect(config?.currency, FiatCurrency.cad);
+      expect(cubit.state.fiatSettlementUnavailable, isFalse);
+      await cubit.close();
+    },
+  );
+
+  test('a fiat-settlement read failure is unavailable, never Bitcoin-only, and '
+      'does not fail the dashboard', () async {
+    final cubit = _cubit(
+      fiatConfiguration: () async =>
+          const Err(FiatSettlementFailure.bullnymUnreachable()),
+    );
+
+    await cubit.refresh();
+
+    // No config map (so no card can render a guessed Bitcoin-only), the
+    // unavailable flag is set, and the rest of the dashboard still succeeds.
+    expect(cubit.state.fiatSettlement, isNull);
+    expect(cubit.state.fiatSettlementUnavailable, isTrue);
+    expect(cubit.state.error, isNull);
+    expect(cubit.state.isLoading, isFalse);
+    await cubit.close();
+  });
+
+  test('a non-mainnet environment shows no settlement state', () async {
+    final cubit = _cubit(
+      environment: Environment.testnet,
+      fiatConfiguration: () async =>
+          Ok(_fiatView(FiatSettlementProduct.paymentPage, 100)),
+    );
+
+    await cubit.refresh();
+
+    expect(cubit.state.fiatSettlement, isNull);
+    expect(cubit.state.fiatSettlementUnavailable, isFalse);
+    await cubit.close();
+  });
+
+  test(
+    'a late fiat-settlement response never overwrites a newer refresh',
+    () async {
+      final gate =
+          Completer<
+            Result<FiatSettlementConfigurationView, FiatSettlementFailure>
+          >();
+      var calls = 0;
+      final cubit = _cubit(
+        fiatConfiguration: () {
+          calls++;
+          // Gen 1 hangs; gen 2 resolves immediately with a different config.
+          return calls == 1
+              ? gate.future
+              : Future.value(
+                  Ok(_fiatView(FiatSettlementProduct.paymentPage, 100)),
+                );
+        },
+      );
+
+      final first = cubit.refresh(); // generation 1 — fiat read pending
+      await cubit.refresh(); // generation 2 — resolves with fiatPercentage 100
+
+      // The stale generation-1 read now resolves with a DIFFERENT value.
+      gate.complete(Ok(_fiatView(FiatSettlementProduct.paymentPage, 25)));
+      await first;
+
+      // The newer refresh wins; the late gen-1 response is dropped by the guard.
+      expect(
+        cubit
+            .state
+            .fiatSettlement?[FiatSettlementProduct.paymentPage]
+            ?.fiatPercentage,
+        100,
+      );
+      await cubit.close();
+    },
+  );
 }

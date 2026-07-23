@@ -6,7 +6,8 @@ import 'package:flutter/material.dart'
         CircularProgressIndicator,
         Container,
         Icons,
-        SizedBox;
+        SizedBox,
+        Wrap;
 
 /// A single Get Paid product row. Domain-agnostic feature composite (the
 /// `UtxoTile` precedent): it lives in the feature but is built entirely out of
@@ -23,6 +24,16 @@ class GetPaidSlotCard extends StatelessWidget {
 
   /// Success tint when true (Active), muted tint otherwise (Not published).
   final bool statusActive;
+
+  /// Dedicated fiat-settlement status chip (e.g. "Bitcoin only",
+  /// "100% fiat · CAD", "50% Bitcoin · 50% fiat · CAD"). Rendered as its own
+  /// badge — never appended to the (truncatable) subtitle URL line. Null hides
+  /// it.
+  final String? settlementLabel;
+
+  /// When true the settlement chip is the muted "unavailable" variant (a read
+  /// failed) rather than a confirmed configuration.
+  final bool settlementUnavailable;
   final bool isLoading;
   final VoidCallback onTap;
 
@@ -33,6 +44,8 @@ class GetPaidSlotCard extends StatelessWidget {
     required this.subtitle,
     this.statusLabel,
     this.statusActive = false,
+    this.settlementLabel,
+    this.settlementUnavailable = false,
     this.isLoading = false,
     required this.onTap,
   });
@@ -87,9 +100,21 @@ class GetPaidSlotCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (statusLabel != null) ...[
+                if (statusLabel != null || settlementLabel != null) ...[
                   const Gap(10),
-                  _StatusBadge(label: statusLabel!, active: statusActive),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (statusLabel != null)
+                        _StatusBadge(label: statusLabel!, active: statusActive),
+                      if (settlementLabel != null)
+                        _SettlementBadge(
+                          label: settlementLabel!,
+                          unavailable: settlementUnavailable,
+                        ),
+                    ],
+                  ),
                 ],
               ],
             ),
@@ -129,6 +154,29 @@ class _StatusBadge extends StatelessWidget {
       uppercase: true,
       radius: BullRadius.xxs,
       background: accent.withValues(alpha: active ? 0.14 : 0.16),
+      foreground: accent,
+    );
+  }
+}
+
+/// The fiat-settlement status chip. Informational (brand accent) for a
+/// confirmed configuration; muted for the "unavailable" read-failure variant.
+/// Not uppercased, to preserve the exact summary formatting
+/// ("50% Bitcoin · 50% fiat · CAD").
+class _SettlementBadge extends StatelessWidget {
+  final String label;
+  final bool unavailable;
+
+  const _SettlementBadge({required this.label, required this.unavailable});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bull;
+    final accent = unavailable ? colors.textMuted : colors.primary;
+    return BullBadge(
+      label: label,
+      radius: BullRadius.xxs,
+      background: accent.withValues(alpha: 0.14),
       foreground: accent,
     );
   }

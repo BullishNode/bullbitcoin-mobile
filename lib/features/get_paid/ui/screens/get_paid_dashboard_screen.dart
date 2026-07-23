@@ -101,6 +101,27 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
     final loc = context.loc;
     final page = state.paymentPage;
     final pos = state.posTerminal;
+    // Q14: a dedicated settlement badge on all three fiat-capable product cards
+    // (Lightning Address, Donation Page, POS), consistently — never appended to
+    // the truncatable URL subtitle.
+    final lightningSettlement = _settlementBadge(
+      context,
+      state,
+      FiatSettlementProduct.lightningAddress,
+      active: state.lightningActive,
+    );
+    final pageSettlement = _settlementBadge(
+      context,
+      state,
+      FiatSettlementProduct.paymentPage,
+      active: state.hasPaymentPage,
+    );
+    final posSettlement = _settlementBadge(
+      context,
+      state,
+      FiatSettlementProduct.pos,
+      active: state.hasPos,
+    );
     return [
       GetPaidSlotCard(
         icon: Icons.payments_outlined,
@@ -114,67 +135,52 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
         title: loc.getPaidDashboardLightningAddressTitle,
         // Show the address as the subtitle whenever one is present, regardless
         // of the active status (the status dot reflects `active` separately).
-        subtitle: _withSettlementSummary(
-          context,
-          state,
-          FiatSettlementProduct.lightningAddress,
-          active: state.lightningActive,
-          base: state.hasLightningAddress
-              ? state.lightningAddress!
-              : loc.getPaidDashboardLightningAddressSubtitle,
-        ),
+        subtitle: state.hasLightningAddress
+            ? state.lightningAddress!
+            : loc.getPaidDashboardLightningAddressSubtitle,
         isLoading: state.lightningStatus == GetPaidDashboardCardStatus.loading,
         // Active green when the registration itself is ACTIVE.
         statusLabel: state.lightningActive ? loc.getPaidDashboardActive : null,
         statusActive: state.lightningActive,
+        settlementLabel: lightningSettlement.label,
+        settlementUnavailable: lightningSettlement.unavailable,
         onTap: () => _open(LightningAddressRoute.lightningAddressSettings.name),
       ),
       const Gap(12),
       GetPaidSlotCard(
         icon: Icons.storefront,
         title: loc.getPaidDashboardDonationPageTitle,
-        subtitle: _withSettlementSummary(
-          context,
-          state,
-          FiatSettlementProduct.paymentPage,
-          active: state.hasPaymentPage,
-          base: page?.publicUrl ?? loc.getPaidDashboardDonationPageSubtitle,
-        ),
+        subtitle: page?.publicUrl ?? loc.getPaidDashboardDonationPageSubtitle,
         isLoading:
             state.paymentPageStatus == GetPaidDashboardCardStatus.loading,
         // Active green when a (non-archived) payment page exists.
         statusLabel: state.hasPaymentPage ? loc.getPaidDashboardActive : null,
         statusActive: state.hasPaymentPage,
+        settlementLabel: pageSettlement.label,
+        settlementUnavailable: pageSettlement.unavailable,
         onTap: () => _open(PaymentPageRoute.paymentPageSettings.name),
       ),
       const Gap(12),
       GetPaidSlotCard(
         icon: Icons.point_of_sale,
         title: loc.getPaidDashboardPosTitle,
-        subtitle: _withSettlementSummary(
-          context,
-          state,
-          FiatSettlementProduct.pos,
-          active: state.hasPos,
-          base: pos?.terminalUrl ?? loc.getPaidDashboardPosSubtitle,
-        ),
+        subtitle: pos?.terminalUrl ?? loc.getPaidDashboardPosSubtitle,
         isLoading: state.posStatus == GetPaidDashboardCardStatus.loading,
         // Active green when a (non-archived) POS terminal exists.
         statusLabel: state.hasPos ? loc.getPaidDashboardActive : null,
         statusActive: state.hasPos,
+        settlementLabel: posSettlement.label,
+        settlementUnavailable: posSettlement.unavailable,
         onTap: () => _open(PosRoute.posSettings.name),
       ),
       const Gap(12),
       GetPaidSlotCard(
         icon: Icons.receipt_long,
         title: loc.getPaidDashboardInvoicesTitle,
-        subtitle: _withSettlementSummary(
-          context,
-          state,
-          FiatSettlementProduct.invoice,
-          active: state.invoicesWalletReady,
-          base: loc.getPaidDashboardInvoicesSubtitle,
-        ),
+        // Per-invoice settlement is chosen at invoice creation (entry tile), so
+        // the hub's Invoices card carries no settlement badge (Q14 scopes the
+        // badge to the three product cards above).
+        subtitle: loc.getPaidDashboardInvoicesSubtitle,
         isLoading: state.invoicesStatus == GetPaidDashboardCardStatus.loading,
         // Active green once the user's default wallet is created (invoices pay
         // out from the default wallet).
@@ -210,20 +216,29 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
     ];
   }
 
-  /// Appends the saved settlement summary to an ACTIVE product slot's subtitle.
-  /// Inactive slots, and any environment where the map is unavailable (testnet
-  /// / tolerant read miss), are left unchanged.
-  String _withSettlementSummary(
+  /// The dedicated settlement badge for an ACTIVE product slot. A confirmed
+  /// config renders the summary ("Bitcoin only" / "100% fiat · CAD" / mixed);
+  /// a failed mainnet read renders the muted "unavailable" variant (never a
+  /// stale or guessed state). Inactive slots and non-mainnet/feature-off
+  /// environments render nothing.
+  ({String? label, bool unavailable}) _settlementBadge(
     BuildContext context,
     GetPaidDashboardState state,
     FiatSettlementProduct product, {
     required bool active,
-    required String base,
   }) {
-    if (!active) return base;
+    if (!active) return (label: null, unavailable: false);
     final config = state.fiatSettlement?[product];
-    if (config == null) return base;
-    return '$base\n${context.fiatSettlementSummary(config)}';
+    if (config != null) {
+      return (label: context.fiatSettlementSummary(config), unavailable: false);
+    }
+    if (state.fiatSettlementUnavailable) {
+      return (
+        label: context.loc.getPaidDashboardSettlementUnavailable,
+        unavailable: true,
+      );
+    }
+    return (label: null, unavailable: false);
   }
 
   Future<void> _open(String routeName) async {

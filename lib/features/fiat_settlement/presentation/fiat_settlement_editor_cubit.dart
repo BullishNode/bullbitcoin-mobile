@@ -56,6 +56,24 @@ class FiatSettlementEditorCubit extends Cubit<FiatSettlementEditorState> {
     }
   }
 
+  /// Re-check ONLY the local Bull Bitcoin connection after a login/reconnect,
+  /// preserving the merchant's draft (mode / currency / percentage) and the
+  /// saved server configuration. It deliberately does NOT re-read the server
+  /// config (that would reset the draft) and does NOT auto-retry the blocked
+  /// save — the merchant re-saves explicitly (owner Q15). Only meaningful while
+  /// the editor is on a ready form.
+  Future<void> refreshConnection() async {
+    if (state.status != FiatSettlementEditorStatus.ready) return;
+    bool hasAccount = true;
+    try {
+      hasAccount = await _hasBullBitcoinAccount.execute();
+    } catch (_) {
+      hasAccount = true;
+    }
+    if (isClosed) return;
+    emit(state.copyWith(hasBullBitcoinAccount: hasAccount, clearFailure: true));
+  }
+
   void selectMode(FiatSettlementReceiveMode mode) {
     emit(state.copyWith(mode: mode, clearFailure: true, understood: false));
   }
