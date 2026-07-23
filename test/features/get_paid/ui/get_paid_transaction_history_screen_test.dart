@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
@@ -8,12 +9,14 @@ import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_detail_screen.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_history_screen.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
+import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:bull_ui/bull_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mocktail/mocktail.dart';
 
 class _StubHistoryCubit extends Cubit<GetPaidTransactionHistoryState>
     implements GetPaidTransactionHistoryCubit {
@@ -31,6 +34,28 @@ class _StubHistoryCubit extends Cubit<GetPaidTransactionHistoryState>
 
   @override
   Future<void> loadMore() async => loadMoreCalls++;
+}
+
+// CurrencyText on the list rows reads the bitcoin unit and hide-amounts flag
+// from a SettingsCubit, so the rows need one in the tree.
+class _MockSettingsCubit extends Mock implements SettingsCubit {}
+
+SettingsCubit _settingsCubit() {
+  final cubit = _MockSettingsCubit();
+  when(() => cubit.state).thenReturn(
+    const SettingsState(
+      storedSettings: SettingsEntity(
+        environment: Environment.mainnet,
+        bitcoinUnit: BitcoinUnit.sats,
+        currencyCode: 'CAD',
+        hideAmounts: false,
+      ),
+    ),
+  );
+  when(
+    () => cubit.stream,
+  ).thenAnswer((_) => const Stream<SettingsState>.empty());
+  return cubit;
 }
 
 GetPaidTransaction _transaction({
@@ -63,7 +88,7 @@ Widget _app(Widget home) => MaterialApp(
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
   locale: const Locale('en'),
-  home: home,
+  home: BlocProvider<SettingsCubit>.value(value: _settingsCubit(), child: home),
 );
 
 Future<_StubHistoryCubit> _pumpHistory(
@@ -128,13 +153,51 @@ void main() {
     );
 
     expect(find.text('2,100 sats'), findsOneWidget);
+    // Source chip + network pill share the wallet-list grammar; the coarse
+    // "Lightning · Settled" status line is gone (settled rows are quiet).
     expect(find.text('Lightning Address'), findsOneWidget);
     expect(find.textContaining('Lightning'), findsWidgets);
-    expect(find.textContaining('Settled'), findsWidgets);
+    expect(find.text('Settled'), findsNothing);
+    expect(find.byIcon(Icons.chevron_right), findsNothing);
     expect(find.text('private payer note'), findsNothing);
     await tester.tap(find.text('Load more'));
     expect(cubit.loadMoreCalls, 1);
   });
+
+  testWidgets(
+    'list row shows amount, source chip, network pill and a needs-attention '
+    'chip only when action is required',
+    (tester) async {
+      await _pumpHistory(
+        tester,
+        GetPaidTransactionHistoryState(
+          status: GetPaidTransactionHistoryStatus.loaded,
+          transactions: [
+            _transaction(
+              transactionId: '10000000-0000-4000-8000-000000000001',
+              settlementState: GetPaidSettlementState.settled,
+            ),
+            _transaction(
+              source: GetPaidTransactionSource.invoice,
+              transactionId: '20000000-0000-4000-8000-000000000002',
+              settlementState: GetPaidSettlementState.problem,
+            ),
+          ],
+        ),
+      );
+
+      // Amount (CurrencyText) + network pill for both rows.
+      expect(find.text('2,100 sats'), findsNWidgets(2));
+      expect(find.text('Lightning'), findsNWidgets(2));
+      // Source chips.
+      expect(find.text('Lightning Address'), findsOneWidget);
+      expect(find.text('Invoice'), findsOneWidget);
+      // Needs-attention chip on the problem row only.
+      expect(find.text('Needs attention'), findsOneWidget);
+      // No chevron, no coarse settlement-kind line.
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+    },
+  );
 
   testWidgets('row opens detail, where comment and invoice link are explicit', (
     tester,
@@ -179,12 +242,15 @@ void main() {
     addTearDown(router.dispose);
     addTearDown(cubit.close);
     await tester.pumpWidget(
-      MaterialApp.router(
-        routerConfig: router,
-        theme: AppTheme.themeData(AppThemeType.light),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        locale: const Locale('en'),
+      BlocProvider<SettingsCubit>.value(
+        value: _settingsCubit(),
+        child: MaterialApp.router(
+          routerConfig: router,
+          theme: AppTheme.themeData(AppThemeType.light),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
       ),
     );
     await tester.pump();
@@ -230,35 +296,6 @@ void main() {
 
     expect(find.text('Today'), findsOneWidget);
     expect(find.text('Yesterday'), findsOneWidget);
-  });
-
-  testWidgets('a settled fiat row shows the inline settled fiat amount', (
-    tester,
-  ) async {
-    await _pumpHistory(
-      tester,
-      GetPaidTransactionHistoryState(
-        status: GetPaidTransactionHistoryStatus.loaded,
-        transactions: [
-          _transaction(
-            source: GetPaidTransactionSource.invoice,
-            settlement: const GetPaidSettlement(
-              kind: GetPaidSettlementKind.fiat,
-              fiat: [
-                GetPaidFiatSettlementLeg(
-                  amountMinor: 1234,
-                  currency: 'CAD',
-                  orderId: 'ord-1',
-                  status: GetPaidSettlementLegStatus.settled,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    expect(find.textContaining('12.34 CAD'), findsOneWidget);
   });
 
   testWidgets(

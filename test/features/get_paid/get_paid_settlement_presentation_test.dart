@@ -1,28 +1,12 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
+import 'package:bb_mobile/core/widgets/tables/details_table.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
-import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
-import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_state.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_detail_screen.dart';
-import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_history_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-class _StubHistoryCubit extends Cubit<GetPaidTransactionHistoryState>
-    implements GetPaidTransactionHistoryCubit {
-  _StubHistoryCubit(super.initialState);
-
-  @override
-  Future<void> load() async {}
-
-  @override
-  Future<void> refresh() async {}
-
-  @override
-  Future<void> loadMore() async {}
-}
 
 GetPaidTransaction _tx({GetPaidSettlement? settlement}) => GetPaidTransaction(
   transactionId: '10000000-0000-4000-8000-000000000001',
@@ -60,28 +44,6 @@ Widget _app(Widget home) => MaterialApp(
   home: home,
 );
 
-Future<void> _pumpHistory(
-  WidgetTester tester,
-  List<GetPaidTransaction> transactions,
-) async {
-  final cubit = _StubHistoryCubit(
-    GetPaidTransactionHistoryState(
-      status: GetPaidTransactionHistoryStatus.loaded,
-      transactions: transactions,
-    ),
-  );
-  addTearDown(cubit.close);
-  await tester.pumpWidget(
-    _app(
-      BlocProvider<GetPaidTransactionHistoryCubit>.value(
-        value: cubit,
-        child: const GetPaidTransactionHistoryScreen(),
-      ),
-    ),
-  );
-  await tester.pump();
-}
-
 Future<void> _pumpDetail(
   WidgetTester tester,
   GetPaidTransaction transaction,
@@ -93,73 +55,21 @@ Future<void> _pumpDetail(
 }
 
 void main() {
-  group('history label', () {
-    testWidgets('renders explicit bitcoin / fiat / mixed labels', (
-      tester,
-    ) async {
-      await _pumpHistory(tester, [
-        _tx(
-          settlement: const GetPaidSettlement(
-            kind: GetPaidSettlementKind.bitcoin,
-          ),
-        ),
-      ]);
-      expect(find.text('Bitcoin'), findsOneWidget);
-
-      // Owner ruling Q24b (UX-6): a SETTLED fiat leg renders its amount inline
-      // on the list row, so the label is composed ("Fiat · <amount>") rather
-      // than bare. A pending leg (no settled amount) stays a bare label.
-      await _pumpHistory(tester, [_tx(settlement: _fiat())]);
-      expect(find.textContaining('Fiat'), findsOneWidget);
-      expect(find.text('Fiat'), findsNothing);
-
-      await _pumpHistory(tester, [
-        _tx(
-          settlement: _fiat(
-            amountMinor: null,
-            status: GetPaidSettlementLegStatus.pending,
-          ),
-        ),
-      ]);
-      expect(find.text('Fiat'), findsOneWidget);
-
-      await _pumpHistory(tester, [
-        _tx(
-          settlement: const GetPaidSettlement(
-            kind: GetPaidSettlementKind.mixed,
-          ),
-        ),
-      ]);
-      expect(find.text('Mixed'), findsOneWidget);
-    });
-
-    testWidgets(
-      'unavailable shows the explicit unavailable label, never Bitcoin',
-      (tester) async {
-        await _pumpHistory(tester, [
-          _tx(
-            settlement: const GetPaidSettlement(
-              kind: GetPaidSettlementKind.unavailable,
-            ),
-          ),
-        ]);
-        expect(find.text('Settlement details unavailable'), findsOneWidget);
-        expect(find.text('Bitcoin'), findsNothing);
-      },
-    );
-
-    testWidgets('a no-data row omits the classification label entirely', (
-      tester,
-    ) async {
-      await _pumpHistory(tester, [_tx(settlement: null)]);
-      expect(find.text('Bitcoin'), findsNothing);
-      expect(find.text('Fiat'), findsNothing);
-      expect(find.text('Mixed'), findsNothing);
-      expect(find.text('Settlement details unavailable'), findsNothing);
-    });
-  });
-
   group('detail settlement section', () {
+    testWidgets('every field renders as a row of the single details table', (
+      tester,
+    ) async {
+      await _pumpDetail(tester, _tx(settlement: _fiat()));
+
+      // One table holds everything — no second card, no loose boxed order-id
+      // field below it.
+      expect(find.byType(DetailsTable), findsOneWidget);
+      expect(find.byType(CopyInput), findsNothing);
+      // Base rows and the fiat leg rows live in the same table.
+      expect(find.text('Bull Bitcoin order ID'), findsOneWidget);
+      expect(find.text('40000000-0000-4000-8000-000000000009'), findsOneWidget);
+    });
+
     testWidgets('renders a settled fiat leg with amount, status and order id', (
       tester,
     ) async {
@@ -234,7 +144,7 @@ void main() {
       expect(find.text('Settlement details unavailable'), findsOneWidget);
     });
 
-    testWidgets('plain bitcoin with no override shows no settlement section', (
+    testWidgets('plain bitcoin with no override shows no settlement rows', (
       tester,
     ) async {
       await _pumpDetail(
@@ -245,7 +155,8 @@ void main() {
           ),
         ),
       );
-      // The section title is only rendered when there is something to explain.
+      // The "Fiat conversion" row is only rendered when there is something to
+      // explain.
       expect(find.text('Fiat conversion'), findsNothing);
     });
   });
