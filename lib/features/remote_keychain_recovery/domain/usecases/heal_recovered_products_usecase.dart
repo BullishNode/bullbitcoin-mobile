@@ -5,7 +5,17 @@ import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 
 enum RecoveredProductsHealStatus { finished, timedOut }
 
-/// Runs post-recovery liveness checks for Bullnym-backed products.
+/// Runs the DG-3 liveness check for the products a restore flagged for
+/// reactivation. It is READ-ONLY: recovery never writes to a Bullnym product
+/// (UX-1 / master-doc contract #4). All three products delegate to their
+/// read-only liveness checks (GET only; live/archived products are silent,
+/// missing/lapsed products surface needsReactivation, and unreachable servers
+/// degrade loudly). In particular Lightning Address is queried with
+/// `allowReregister: false`, so a lapsed-but-known legacy registration is
+/// flagged for user-driven reactivation instead of being silently re-registered
+/// — the dashboard/product screens own reactivation. Each product is healed
+/// independently. Unknown failures never throw; they degrade to the per-product
+/// `unreachable`.
 final class HealRecoveredProductsUsecase {
   static const _lightningAddressReservationId = 'lightning_address_wallet_seed';
   static const _paymentPageReservationId = 'payment_page_wallet_seed';
@@ -45,6 +55,7 @@ final class HealRecoveredProductsUsecase {
     try {
       final outcome = await _lightningAddress.ensureRegistrationLive(
         deadline: deadline,
+        allowReregister: false,
       );
       if (outcome.liveness == LightningAddressRegistrationLiveness.timedOut) {
         log.warning(

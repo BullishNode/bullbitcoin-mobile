@@ -33,7 +33,8 @@ void main() {
         if (lookupError != null) throw lookupError;
         return status!;
       },
-      ensureRegistrationLive: ({deadline}) => throw UnimplementedError(),
+      ensureRegistrationLive: ({deadline, bool allowReregister = true}) =>
+          throw UnimplementedError(),
     );
   }
 

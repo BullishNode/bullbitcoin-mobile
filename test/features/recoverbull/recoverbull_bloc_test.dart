@@ -22,6 +22,7 @@ import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/recoverbull/domain/recoverbull_failure.dart';
 import 'package:bb_mobile/features/recoverbull/presentation/bloc.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/recover_remote_keychain_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -45,6 +46,9 @@ class _MockRestore extends Mock implements RestoreVaultUsecase {}
 
 class _MockRecoverRemoteKeychain extends Mock
     implements RecoverRemoteKeychainUsecase {}
+
+class _MockRecoveryFacade extends Mock
+    implements RemoteKeychainRecoveryFacade {}
 
 class _MockConnectDrive extends Mock implements ConnectToGoogleDriveUsecase {}
 
@@ -89,6 +93,7 @@ void main() {
     registerFallbackValue(_MockEncryptedVault());
     registerFallbackValue(const DecryptedVault());
     registerFallbackValue(const WalletStarted());
+    registerFallbackValue(<String>{});
   });
 
   setUp(() {
@@ -121,6 +126,7 @@ void main() {
   RecoverBullBloc buildBloc({
     required RecoverBullFlow flow,
     EncryptedVault? preSelectedVault,
+    RecoverRemoteKeychainUsecase? recoverOverride,
   }) => RecoverBullBloc(
     flow: flow,
     preSelectedVault: preSelectedVault,
@@ -132,7 +138,7 @@ void main() {
     fetchVaultKeyFromServerUsecase: fetchKey,
     decryptVaultUsecase: decrypt,
     restoreVaultUsecase: restore,
-    recoverRemoteKeychainUsecase: recoverRemoteKeychain,
+    recoverRemoteKeychainUsecase: recoverOverride ?? recoverRemoteKeychain,
     connectToGoogleDriveUsecase: connectDrive,
     saveToGoogleDriveUsecase: saveDrive,
     initializeTorUsecase: initTor,
@@ -285,6 +291,46 @@ void main() {
         ),
         () => walletBloc.add(const WalletStarted()),
       ]);
+      expect(bloc.state.isFlowFinished, isTrue);
+      expect(bloc.state.failure, isNull);
+    });
+
+    test('a throwing recovery graph still reaches WalletStarted (recovery '
+        'never blocks the restore)', () async {
+      final vault = _MockEncryptedVault();
+      // Real wrapper over a facade that throws an Error; the wrapper must
+      // swallow it so the restore still starts the wallet.
+      final facade = _MockRecoveryFacade();
+      when(
+        () => facade.recover(
+          defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
+        ),
+      ).thenThrow(StateError('bug in recovery graph'));
+      final bloc = buildBloc(
+        flow: RecoverBullFlow.recoverVault,
+        preSelectedVault: vault,
+        recoverOverride: RecoverRemoteKeychainUsecase(facade),
+      );
+      addTearDown(bloc.close);
+
+      when(
+        () => decrypt.execute(
+          vault: any(named: 'vault'),
+          vaultKey: any(named: 'vaultKey'),
+        ),
+      ).thenReturn(const Ok(DecryptedVault()));
+      when(
+        () =>
+            updateLatest.execute(decryptedVault: any(named: 'decryptedVault')),
+      ).thenAnswer((_) async => const Ok(null));
+      when(
+        () => restore.execute(decryptedVault: any(named: 'decryptedVault')),
+      ).thenAnswer((_) async => const Ok(['btc-default']));
+
+      bloc.add(const OnVaultDecryption(vaultKey: 'deadbeef'));
+      await pumpEventQueue();
+
+      verify(() => walletBloc.add(const WalletStarted())).called(1);
       expect(bloc.state.isFlowFinished, isTrue);
       expect(bloc.state.failure, isNull);
     });

@@ -30,7 +30,12 @@ class RecoverRemoteKeychainUsecase {
           '${result.status.name}',
         );
       }
-    } on Exception catch (error, stack) {
+    } catch (error, stack) {
+      // Catch-all (not just Exception): optional recovery must NEVER surface an
+      // error to the caller. Onboarding and RecoverBull await this before they
+      // continue, and a bug anywhere in the recovery graph (a TypeError/
+      // StateError, not only an Exception) must not block or fail onboarding /
+      // vault restore. The defaults are already created; we degrade silently.
       log.warning(
         'Optional remote keychain recovery failed',
         error: error.runtimeType,

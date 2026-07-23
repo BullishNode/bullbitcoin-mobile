@@ -36,8 +36,9 @@ LightningAddressFacade _laFacade(
     registerWalletOwned: ({required String nym}) async =>
         throw UnimplementedError(),
     lookupWalletOwnedRegistration: lookup,
-    ensureRegistrationLive: ({DateTime? deadline}) async =>
-        throw UnimplementedError(),
+    ensureRegistrationLive:
+        ({DateTime? deadline, bool allowReregister = true}) async =>
+            throw UnimplementedError(),
   );
 }
 
