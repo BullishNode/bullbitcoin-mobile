@@ -166,8 +166,10 @@ class _EditorForm extends StatelessWidget {
     final colors = context.bull;
     final saving = state.status == FiatSettlementEditorStatus.saving;
     final wantsFiat = state.mode != FiatSettlementReceiveMode.bitcoin;
-    // Fiat/mixed needs a Bull Bitcoin account connected on this device; the
-    // login prompt stands in for the currency + disclosure + save section.
+    // Fiat/mixed SAVES need a Bull Bitcoin account connected on this device.
+    // This gates the save ACTION only (a secondary reconnect stands in for the
+    // Save button) — never what is displayed: the saved configuration always
+    // renders, so an active split is never hidden behind a login panel.
     final needsConnection = wantsFiat && !state.hasBullBitcoinAccount;
     // The product settles fully to Bitcoin right now, so Bitcoin is the choice
     // currently in effect. Labelled in both the activated variant and a normal
@@ -216,27 +218,30 @@ class _EditorForm extends StatelessWidget {
           const Gap(16),
           _MixSlider(percentage: state.mixFiatPercentage, disabled: saving),
         ],
-        if (needsConnection) ...[
+        // The saved configuration ALWAYS renders (currency + disclosure for a
+        // fiat/mixed selection); authentication never hides it.
+        if (wantsFiat) ...[
           const Gap(24),
-          const _ConnectPanel(),
-        ] else ...[
-          if (wantsFiat) ...[
-            const Gap(24),
-            _CurrencyRow(selected: state.currency, disabled: saving),
-            if (state.currency != null) ...[
+          _CurrencyRow(selected: state.currency, disabled: saving),
+          if (state.currency != null) ...[
+            const Gap(16),
+            _DisclosurePanel(currency: state.currency!),
+            if (state.requiresAcceptance) ...[
               const Gap(16),
-              _DisclosurePanel(currency: state.currency!),
-              if (state.requiresAcceptance) ...[
-                const Gap(16),
-                _UnderstandRow(checked: state.understood, disabled: saving),
-              ],
+              _UnderstandRow(checked: state.understood, disabled: saving),
             ],
           ],
-          if (state.failure != null) ...[
-            const Gap(24),
-            _OutcomePanel(state: state),
-          ],
-          const Gap(32),
+        ],
+        if (state.failure != null) ...[
+          const Gap(24),
+          _OutcomePanel(state: state),
+        ],
+        const Gap(32),
+        // Auth gates the CHANGE, not the display: a missing local connection
+        // swaps the Save button for a secondary reconnect (draft preserved).
+        if (needsConnection)
+          const _ReconnectAction()
+        else
           BullButton.big(
             label: saving
                 ? context.loc.getPaidFiatSettlementSaving
@@ -246,7 +251,6 @@ class _EditorForm extends StatelessWidget {
             textColor: colors.onPrimary,
             disabled: !state.canSave,
           ),
-        ],
         if (!(state.saved?.isBitcoinOnly ?? true)) ...[
           const Gap(12),
           BullButton.big(
@@ -325,44 +329,45 @@ class _EditorForm extends StatelessWidget {
   }
 }
 
-/// Shown in place of the currency + disclosure + save section when a fiat or
-/// mixed settlement is chosen but no Bull Bitcoin account is connected on this
-/// device. Prompts login (WebView, returning to the caller) and reloads.
-class _ConnectPanel extends StatelessWidget {
-  const _ConnectPanel();
+/// The secondary action shown in place of the Save button when a fiat/mixed
+/// settlement is selected but no Bull Bitcoin account is connected on this
+/// device. It never replaces the displayed configuration — the chooser,
+/// currency and disclosure stay visible above it. Reconnect opens the login
+/// WebView (returning to the caller) and then re-checks ONLY the local
+/// connection, preserving the merchant's draft; the merchant re-saves
+/// explicitly (owner Q15 — no auto-retry).
+class _ReconnectAction extends StatelessWidget {
+  const _ReconnectAction();
 
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<FiatSettlementEditorCubit>();
     final colors = context.bull;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainer,
-        borderRadius: const BorderRadius.all(Radius.circular(12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            context.loc.getPaidFiatSettlementConnectPrompt,
-            style: context.bullText.bodyMedium,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          context.loc.getPaidFiatSettlementConnectPrompt,
+          style: context.bullText.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
           ),
-          const Gap(16),
-          BullButton.big(
-            label: context.loc.getPaidFiatSettlementLogin,
-            onPressed: () async {
-              await context.pushNamed(
-                ExchangeRoute.exchangeAuth.name,
-                queryParameters: {'returnToCaller': 'true'},
-              );
-              if (context.mounted) await cubit.load();
-            },
-            bgColor: colors.primary,
-            textColor: colors.onPrimary,
-          ),
-        ],
-      ),
+        ),
+        const Gap(12),
+        BullButton.big(
+          label: context.loc.getPaidFiatSettlementReconnect,
+          onPressed: () async {
+            await context.pushNamed(
+              ExchangeRoute.exchangeAuth.name,
+              queryParameters: {'returnToCaller': 'true'},
+            );
+            if (context.mounted) await cubit.refreshConnection();
+          },
+          bgColor: colors.surface,
+          textColor: colors.onSurface,
+          outlined: true,
+          borderColor: colors.onSurfaceVariant,
+        ),
+      ],
     );
   }
 }
@@ -719,6 +724,8 @@ class _OutcomePanel extends StatelessWidget {
       ExchangeRoute.exchangeAuth.name,
       queryParameters: {'returnToCaller': 'true'},
     );
-    if (context.mounted) await cubit.load();
+    // Re-check ONLY the local connection and keep the draft; the merchant
+    // re-saves explicitly (owner Q15 — no auto-retry).
+    if (context.mounted) await cubit.refreshConnection();
   }
 }

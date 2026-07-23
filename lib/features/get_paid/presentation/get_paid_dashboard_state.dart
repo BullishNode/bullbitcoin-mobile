@@ -36,10 +36,16 @@ class GetPaidDashboardState {
   final GetPaidDashboardCardStatus invoicesStatus;
   final GetPaidDashboardCardStatus btcpayStatus;
 
-  /// Saved fiat-settlement configuration per product, for the slot summaries.
-  /// Null when unavailable (testnet, or a tolerant read that did not succeed)
-  /// — in which case no settlement summary is shown.
+  /// Server-confirmed fiat-settlement configuration per product, for the slot
+  /// badges. Null when not applicable (testnet / feature off) — no badge. On a
+  /// mainnet read FAILURE this is cleared and [fiatSettlementUnavailable] is
+  /// set so active slots show an honest "unavailable" badge, never a stale or
+  /// guessed (e.g. Bitcoin-only) state.
   final Map<FiatSettlementProduct, FiatSettlementProductConfig>? fiatSettlement;
+
+  /// True when a mainnet fiat-settlement read was attempted and failed; active
+  /// product slots then render the settlement badge as "unavailable".
+  final bool fiatSettlementUnavailable;
 
   const GetPaidDashboardState({
     this.isLoading = false,
@@ -58,6 +64,7 @@ class GetPaidDashboardState {
     this.invoicesStatus = GetPaidDashboardCardStatus.loading,
     this.btcpayStatus = GetPaidDashboardCardStatus.loading,
     this.fiatSettlement,
+    this.fiatSettlementUnavailable = false,
   });
 
   bool get hasLightningAddress =>
@@ -91,6 +98,8 @@ class GetPaidDashboardState {
     GetPaidDashboardCardStatus? invoicesStatus,
     GetPaidDashboardCardStatus? btcpayStatus,
     Map<FiatSettlementProduct, FiatSettlementProductConfig>? fiatSettlement,
+    bool clearFiatSettlement = false,
+    bool? fiatSettlementUnavailable,
   }) {
     return GetPaidDashboardState(
       isLoading: isLoading ?? this.isLoading,
@@ -114,7 +123,11 @@ class GetPaidDashboardState {
       posStatus: posStatus ?? this.posStatus,
       invoicesStatus: invoicesStatus ?? this.invoicesStatus,
       btcpayStatus: btcpayStatus ?? this.btcpayStatus,
-      fiatSettlement: fiatSettlement ?? this.fiatSettlement,
+      fiatSettlement: clearFiatSettlement
+          ? null
+          : fiatSettlement ?? this.fiatSettlement,
+      fiatSettlementUnavailable:
+          fiatSettlementUnavailable ?? this.fiatSettlementUnavailable,
     );
   }
 }

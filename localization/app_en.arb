@@ -17314,5 +17314,9 @@
   "invoiceLiquidUnavailableForMixedSettlement": "Direct Liquid payments are unavailable when this invoice is split between Bitcoin and fiat.",
   "@invoiceLiquidUnavailableForMixedSettlement": {
     "description": "Explains why the Liquid payment-method switch is disabled for an invoice with mixed Bitcoin and fiat settlement"
+  },
+  "getPaidDashboardSettlementUnavailable": "Settlement unavailable",
+  "@getPaidDashboardSettlementUnavailable": {
+    "description": "Dashboard product-card settlement badge shown when the fiat-settlement configuration read failed."
   }
 }

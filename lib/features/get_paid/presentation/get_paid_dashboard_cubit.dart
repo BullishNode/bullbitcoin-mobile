@@ -64,6 +64,10 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         posStatus: GetPaidDashboardCardStatus.loading,
         invoicesStatus: GetPaidDashboardCardStatus.loading,
         btcpayStatus: GetPaidDashboardCardStatus.loading,
+        // Settlement is server-read-only: drop any prior summary so a stale
+        // badge is never shown while the fresh read is in flight.
+        clearFiatSettlement: true,
+        fiatSettlementUnavailable: false,
       ),
     );
 
@@ -269,9 +273,11 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
       await Future.wait([fallbackFuture, pageFuture, posFuture]);
     }();
 
-    // Fiat-settlement summaries: mainnet-only, tolerant (any failure leaves the
-    // map untouched so slots simply show no summary). Never marks the refresh
-    // as failed.
+    // Fiat-settlement badges: mainnet-only, server-read-only truth. A confirmed
+    // read populates the per-product config; a mainnet read FAILURE clears the
+    // map and flags it unavailable so active slots show an honest "unavailable"
+    // badge (never a stale or guessed Bitcoin-only). Never marks the refresh as
+    // failed (settlement presentation is independent of the rest of the hub).
     final fiatSettlementFuture = () async {
       final facade = _fiatSettlement;
       final getSettings = _getSettings;
@@ -281,21 +287,37 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         if (settings.environment != Environment.mainnet) return;
         final result = await facade.configuration();
         if (_isStale(generation)) return;
-        if (result case Ok(:final value)) {
-          emit(
-            state.copyWith(
-              fiatSettlement: {
-                for (final product in FiatSettlementProduct.values)
-                  product: value.configFor(product),
-              },
-            ),
-          );
+        switch (result) {
+          case Ok(:final value):
+            emit(
+              state.copyWith(
+                fiatSettlement: {
+                  for (final product in FiatSettlementProduct.values)
+                    product: value.configFor(product),
+                },
+                fiatSettlementUnavailable: false,
+              ),
+            );
+          case Err():
+            emit(
+              state.copyWith(
+                clearFiatSettlement: true,
+                fiatSettlementUnavailable: true,
+              ),
+            );
         }
       } on Exception catch (error, trace) {
         log.warning(
           'Get Paid dashboard fiat-settlement summary lookup failed',
           error: error,
           trace: trace,
+        );
+        if (_isStale(generation)) return;
+        emit(
+          state.copyWith(
+            clearFiatSettlement: true,
+            fiatSettlementUnavailable: true,
+          ),
         );
       }
     }();
