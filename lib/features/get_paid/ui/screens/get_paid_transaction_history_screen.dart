@@ -81,26 +81,84 @@ class _HistoryList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<GetPaidTransactionHistoryCubit>();
-    final footerCount = state.hasMore || state.loadMoreFailed ? 1 : 0;
+    // Full wallet-history look: rows grouped under day headers (Today /
+    // Yesterday / date). Get Paid keeps its own entities, pagination and
+    // routing — this is a presentation shell over the Get Paid transactions,
+    // never a conversion into wallet Transaction objects.
+    final groups = _groupByDay(state.transactions);
     return RefreshIndicator(
       onRefresh: cubit.refresh,
-      child: ListView.separated(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: state.transactions.length + footerCount,
-        separatorBuilder: (_, _) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          if (index == state.transactions.length) {
-            return _LoadMoreFooter(state: state, onLoadMore: cubit.loadMore);
-          }
-          final transaction = state.transactions[index];
-          return _TransactionRow(
-            transaction: transaction,
-            onTap: () => context.pushNamed(
-              GetPaidDashboardRoute.getPaidTransactionDetail.name,
-              extra: transaction,
-            ),
-          );
-        },
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          for (final group in groups) ...[
+            _DayHeader(day: group.day),
+            for (final transaction in group.transactions)
+              _TransactionRow(
+                transaction: transaction,
+                onTap: () => context.pushNamed(
+                  GetPaidDashboardRoute.getPaidTransactionDetail.name,
+                  extra: transaction,
+                ),
+              ),
+          ],
+          if (state.hasMore || state.loadMoreFailed)
+            _LoadMoreFooter(state: state, onLoadMore: cubit.loadMore),
+        ],
+      ),
+    );
+  }
+}
+
+/// One day's worth of Get Paid transactions under a shared date header.
+class _TransactionDayGroup {
+  final DateTime day;
+  final List<GetPaidTransaction> transactions;
+
+  const _TransactionDayGroup({required this.day, required this.transactions});
+}
+
+/// Groups the (already newest-first) transactions by local calendar day,
+/// preserving order.
+List<_TransactionDayGroup> _groupByDay(List<GetPaidTransaction> transactions) {
+  final groups = <_TransactionDayGroup>[];
+  DateTime? currentDay;
+  var bucket = <GetPaidTransaction>[];
+  for (final transaction in transactions) {
+    final local = transaction.receivedAt.toLocal();
+    final day = DateTime(local.year, local.month, local.day);
+    if (currentDay == null || !day.isAtSameMomentAs(currentDay)) {
+      if (bucket.isNotEmpty) {
+        groups.add(
+          _TransactionDayGroup(day: currentDay!, transactions: bucket),
+        );
+      }
+      currentDay = day;
+      bucket = <GetPaidTransaction>[];
+    }
+    bucket.add(transaction);
+  }
+  if (bucket.isNotEmpty && currentDay != null) {
+    groups.add(_TransactionDayGroup(day: currentDay, transactions: bucket));
+  }
+  return groups;
+}
+
+class _DayHeader extends StatelessWidget {
+  final DateTime day;
+
+  const _DayHeader({required this.day});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Text(
+        getPaidDayGroupLabel(context, day),
+        style: context.bullText.titleSmall?.copyWith(
+          color: context.bull.textMuted,
+        ),
       ),
     );
   }
@@ -143,7 +201,21 @@ class _TransactionRow extends StatelessWidget {
             // label — it is never printed as Bitcoin without evidence.
             if (transaction.settlement case final settlement?) ...[
               const SizedBox(height: 2),
-              Text(getPaidSettlementKindLabel(context, settlement.kind)),
+              Builder(
+                builder: (context) {
+                  final inlineFiat = getPaidSettledFiatInline(
+                    context,
+                    settlement,
+                  );
+                  final kindLabel = getPaidSettlementKindLabel(
+                    context,
+                    settlement.kind,
+                  );
+                  return Text(
+                    inlineFiat == null ? kindLabel : '$kindLabel · $inlineFiat',
+                  );
+                },
+              ),
             ],
             const SizedBox(height: 2),
             Text(
@@ -329,6 +401,19 @@ String getPaidTransactionSourceText(
   };
 }
 
+/// The asset received, derived faithfully from the authoritative rail: Liquid
+/// settles L-BTC; on-chain and Lightning are BTC. Never a fabricated ticker.
+String getPaidTransactionAssetText(
+  BuildContext context,
+  GetPaidTransactionRail rail,
+) {
+  return switch (rail) {
+    GetPaidTransactionRail.liquid => context.loc.getPaidTransactionsAssetLiquid,
+    GetPaidTransactionRail.lightning || GetPaidTransactionRail.bitcoin =>
+      context.loc.getPaidTransactionsAssetBitcoin,
+  };
+}
+
 String getPaidTransactionRailText(
   BuildContext context,
   GetPaidTransactionRail rail,
@@ -382,4 +467,50 @@ String getPaidTransactionAmountText(BuildContext context, int amountSat) {
 String getPaidTransactionDateText(BuildContext context, DateTime receivedAt) {
   final locale = Localizations.localeOf(context).toLanguageTag();
   return DateFormat.yMMMd(locale).add_jm().format(receivedAt.toLocal());
+}
+
+/// Day-group header label matching the wallet-history vocabulary: Today /
+/// Yesterday for the two most recent local days, otherwise a formatted date
+/// (month + day within this year, month + day + year before that).
+String getPaidDayGroupLabel(BuildContext context, DateTime day) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  if (day.isAtSameMomentAs(today)) {
+    return context.loc.getPaidTransactionsDayToday;
+  }
+  if (day.isAtSameMomentAs(yesterday)) {
+    return context.loc.getPaidTransactionsDayYesterday;
+  }
+  final locale = Localizations.localeOf(context).toLanguageTag();
+  return day.year == now.year
+      ? DateFormat.MMMMd(locale).format(day)
+      : DateFormat.yMMMMd(locale).format(day);
+}
+
+/// The settled fiat amount for a fiat/mixed settlement, shown inline on a list
+/// row once a fiat leg has settled (Q24a). Null when there is no settled fiat
+/// leg yet — the row never shows a guessed or pending amount.
+String? getPaidSettledFiatInline(
+  BuildContext context,
+  GetPaidSettlement? settlement,
+) {
+  if (settlement == null) return null;
+  if (settlement.kind != GetPaidSettlementKind.fiat &&
+      settlement.kind != GetPaidSettlementKind.mixed) {
+    return null;
+  }
+  for (final leg in settlement.fiat) {
+    if (leg.status == GetPaidSettlementLegStatus.settled &&
+        leg.amountMinor != null) {
+      final minor = leg.amountMinor!;
+      final major = minor ~/ 100;
+      final cents = (minor % 100).toString().padLeft(2, '0');
+      return context.loc.getPaidSettlementFiatAmount(
+        '$major.$cents',
+        leg.currency,
+      );
+    }
+  }
+  return null;
 }

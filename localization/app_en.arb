@@ -17149,5 +17149,34 @@
   "invoiceRailLastEnabledHint": "At least one payment method is required.",
   "@invoiceRailLastEnabledHint": {
     "description": "Hint on the last remaining enabled invoice rail, whose toggle is locked on."
+  },
+  "getPaidTransactionsDayToday": "Today",
+  "@getPaidTransactionsDayToday": {
+    "description": "Get Paid history day-group header for today."
+  },
+  "getPaidTransactionsDayYesterday": "Yesterday",
+  "@getPaidTransactionsDayYesterday": {
+    "description": "Get Paid history day-group header for yesterday."
+  },
+  "getPaidTransactionsAssetLabel": "Asset",
+  "@getPaidTransactionsAssetLabel": {
+    "description": "Label for the asset row on a Get Paid transaction detail."
+  },
+  "getPaidTransactionsAssetBitcoin": "BTC",
+  "@getPaidTransactionsAssetBitcoin": {
+    "description": "Asset ticker for a Bitcoin (on-chain or Lightning) Get Paid receipt."
+  },
+  "getPaidTransactionsAssetLiquid": "L-BTC",
+  "@getPaidTransactionsAssetLiquid": {
+    "description": "Asset ticker for a Liquid Get Paid receipt."
+  },
+  "getPaidSettlementAwaitingExplainer": "Awaiting settlement — the final {currency} amount is confirmed once settlement completes.",
+  "@getPaidSettlementAwaitingExplainer": {
+    "description": "Pending fiat settlement explainer on the Get Paid transaction detail.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
   }
 }

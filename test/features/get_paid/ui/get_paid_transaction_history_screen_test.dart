@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_state.dart';
@@ -35,19 +36,25 @@ class _StubHistoryCubit extends Cubit<GetPaidTransactionHistoryState>
 GetPaidTransaction _transaction({
   GetPaidTransactionSource source = GetPaidTransactionSource.lightningAddress,
   String? comment,
+  String transactionId = '10000000-0000-4000-8000-000000000001',
+  DateTime? receivedAt,
+  GetPaidTransactionRail rail = GetPaidTransactionRail.lightning,
+  GetPaidSettlementState settlementState = GetPaidSettlementState.settled,
+  GetPaidSettlement? settlement,
 }) {
   return GetPaidTransaction(
-    transactionId: '10000000-0000-4000-8000-000000000001',
+    transactionId: transactionId,
     source: source,
     invoiceId: source == GetPaidTransactionSource.lightningAddress
         ? null
         : '50000000-0000-4000-8000-000000000005',
     amountSat: 2100,
-    receivedAt: DateTime.utc(2026, 7, 18, 12),
-    rail: GetPaidTransactionRail.lightning,
-    settlementState: GetPaidSettlementState.settled,
+    receivedAt: receivedAt ?? DateTime.utc(2026, 7, 18, 12),
+    rail: rail,
+    settlementState: settlementState,
     late: false,
     comment: comment,
+    settlement: settlement,
   );
 }
 
@@ -193,5 +200,138 @@ void main() {
     await tester.tap(find.text('View invoice'));
     await tester.pumpAndSettle();
     expect(find.text('invoice-${transaction.invoiceId}'), findsOneWidget);
+    // The route carries only the invoice id (a UUID), never the private-link
+    // fragment — nothing resembling a #v1. link string reaches the router.
+    expect(find.textContaining('#v1.'), findsNothing);
+  });
+
+  testWidgets('groups transactions under wallet-history day headers', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day, 9);
+    final yesterday = today.subtract(const Duration(days: 1));
+    await _pumpHistory(
+      tester,
+      GetPaidTransactionHistoryState(
+        status: GetPaidTransactionHistoryStatus.loaded,
+        transactions: [
+          _transaction(
+            transactionId: '10000000-0000-4000-8000-000000000001',
+            receivedAt: today.toUtc(),
+          ),
+          _transaction(
+            transactionId: '20000000-0000-4000-8000-000000000002',
+            receivedAt: yesterday.toUtc(),
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('Yesterday'), findsOneWidget);
+  });
+
+  testWidgets('a settled fiat row shows the inline settled fiat amount', (
+    tester,
+  ) async {
+    await _pumpHistory(
+      tester,
+      GetPaidTransactionHistoryState(
+        status: GetPaidTransactionHistoryStatus.loaded,
+        transactions: [
+          _transaction(
+            source: GetPaidTransactionSource.invoice,
+            settlement: const GetPaidSettlement(
+              kind: GetPaidSettlementKind.fiat,
+              fiat: [
+                GetPaidFiatSettlementLeg(
+                  amountMinor: 1234,
+                  currency: 'CAD',
+                  orderId: 'ord-1',
+                  status: GetPaidSettlementLegStatus.settled,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    expect(find.textContaining('12.34 CAD'), findsOneWidget);
+  });
+
+  testWidgets(
+    'pending fiat detail names the expected currency and explains, with no '
+    'invented amount',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          GetPaidTransactionDetailScreen(
+            transaction: _transaction(
+              source: GetPaidTransactionSource.invoice,
+              settlementState: GetPaidSettlementState.pending,
+              settlement: const GetPaidSettlement(
+                kind: GetPaidSettlementKind.fiat,
+                fiat: [
+                  GetPaidFiatSettlementLeg(
+                    amountMinor: null,
+                    currency: 'USD',
+                    orderId: '',
+                    status: GetPaidSettlementLegStatus.pending,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.textContaining('USD'), findsWidgets);
+      expect(find.textContaining('Awaiting settlement'), findsOneWidget);
+      // No fabricated fiat amount for a pending leg.
+      expect(find.textContaining('0.00'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a Lightning Address detail omits From-wallet and invents no chain fields',
+    (tester) async {
+      final transaction = _transaction(comment: 'note');
+      await tester.pumpWidget(
+        _app(GetPaidTransactionDetailScreen(transaction: transaction)),
+      );
+      await tester.pump();
+
+      // Incoming Lightning Address payments have no funding wallet (report #12).
+      expect(find.textContaining('From wallet'), findsNothing);
+      // Nothing fabricated: no fees, sender, explorer links, txid, hashes, or
+      // confirmations — the entity carries none of these.
+      for (final forbidden in const [
+        'Fee',
+        'Sender',
+        'Explorer',
+        'Transaction ID',
+        'Confirmations',
+        'Payment hash',
+        'Preimage',
+      ]) {
+        expect(find.textContaining(forbidden), findsNothing);
+      }
+      // The receipt UUID is never surfaced as a chain txid.
+      expect(find.textContaining(transaction.transactionId), findsNothing);
+    },
+  );
+
+  testWidgets('a Lightning Address detail offers no View invoice action', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(GetPaidTransactionDetailScreen(transaction: _transaction())),
+    );
+    await tester.pump();
+
+    expect(find.text('View invoice'), findsNothing);
   });
 }

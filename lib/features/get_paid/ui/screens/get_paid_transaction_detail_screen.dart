@@ -1,5 +1,7 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
+import 'package:bb_mobile/core/widgets/tables/details_table.dart';
+import 'package:bb_mobile/core/widgets/tables/details_table_item.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_history_screen.dart';
@@ -38,45 +40,59 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
                     style: context.bullText.headlineLarge,
                   ),
                   const Gap(24),
-                  _DetailRow(
-                    label: context.loc.getPaidTransactionsSourceLabel,
-                    value: getPaidTransactionSourceText(
-                      context,
-                      transaction.source,
-                    ),
+                  DetailsTable(
+                    items: [
+                      // Asset is faithfully derived from the (authoritative)
+                      // rail — Liquid settles L-BTC, on-chain and Lightning are
+                      // BTC. Never a fabricated ticker.
+                      DetailsTableItem(
+                        label: context.loc.getPaidTransactionsAssetLabel,
+                        displayValue: getPaidTransactionAssetText(
+                          context,
+                          transaction.rail,
+                        ),
+                      ),
+                      DetailsTableItem(
+                        label: context.loc.getPaidTransactionsSourceLabel,
+                        displayValue: getPaidTransactionSourceText(
+                          context,
+                          transaction.source,
+                        ),
+                      ),
+                      DetailsTableItem(
+                        label: context.loc.getPaidTransactionsReceivedLabel,
+                        displayValue: getPaidTransactionDateText(
+                          context,
+                          transaction.receivedAt,
+                        ),
+                      ),
+                      DetailsTableItem(
+                        label: context.loc.getPaidTransactionsRailLabel,
+                        displayValue: getPaidTransactionRailText(
+                          context,
+                          transaction.rail,
+                        ),
+                      ),
+                      DetailsTableItem(
+                        label: context.loc.getPaidTransactionsStatusLabel,
+                        displayValue: getPaidSettlementStateText(
+                          context,
+                          transaction.settlementState,
+                        ),
+                      ),
+                      if (transaction.late)
+                        DetailsTableItem(
+                          label: context.loc.getPaidTransactionsTimingLabel,
+                          displayWidget: Text(
+                            context.loc.getPaidTransactionsLate,
+                            textAlign: TextAlign.end,
+                            style: context.bullText.bodyLarge?.copyWith(
+                              color: colors.warning,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  const Divider(),
-                  _DetailRow(
-                    label: context.loc.getPaidTransactionsReceivedLabel,
-                    value: getPaidTransactionDateText(
-                      context,
-                      transaction.receivedAt,
-                    ),
-                  ),
-                  const Divider(),
-                  _DetailRow(
-                    label: context.loc.getPaidTransactionsRailLabel,
-                    value: getPaidTransactionRailText(
-                      context,
-                      transaction.rail,
-                    ),
-                  ),
-                  const Divider(),
-                  _DetailRow(
-                    label: context.loc.getPaidTransactionsStatusLabel,
-                    value: getPaidSettlementStateText(
-                      context,
-                      transaction.settlementState,
-                    ),
-                  ),
-                  if (transaction.late) ...[
-                    const Divider(),
-                    _DetailRow(
-                      label: context.loc.getPaidTransactionsTimingLabel,
-                      value: context.loc.getPaidTransactionsLate,
-                      valueColor: colors.warning,
-                    ),
-                  ],
                   _SettlementSection(settlement: transaction.settlement),
                   if (transaction.comment case final comment?) ...[
                     const Gap(24),
@@ -211,8 +227,8 @@ class _SettlementSection extends StatelessWidget {
       final settled =
           leg.status == GetPaidSettlementLegStatus.settled &&
           leg.amountMinor != null;
-      // Currency is always shown; once settled the value carries the final
-      // fiat amount alongside the currency code.
+      // Currency is always shown (the expected settlement currency); once
+      // settled the value carries the final fiat amount alongside the code.
       rows.add(
         _DetailRow(
           label: context.loc.getPaidSettlementLabelFiat,
@@ -230,6 +246,22 @@ class _SettlementSection extends StatelessWidget {
           value: _legStatusText(context, leg.status),
         ),
       );
+      // Richer pending presentation (Q24b): a still-pending leg names the
+      // expected currency and explains that the fiat amount is not final until
+      // settlement completes — never a guessed amount.
+      if (leg.status == GetPaidSettlementLegStatus.pending) {
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: Text(
+              context.loc.getPaidSettlementAwaitingExplainer(leg.currency),
+              style: context.bullText.bodySmall?.copyWith(
+                color: colors.textMuted,
+              ),
+            ),
+          ),
+        );
+      }
       if (leg.orderId.isNotEmpty) {
         rows.add(
           Padding(
@@ -281,9 +313,8 @@ class _SettlementSection extends StatelessWidget {
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
-  final Color? valueColor;
 
-  const _DetailRow({required this.label, required this.value, this.valueColor});
+  const _DetailRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -306,7 +337,7 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: context.bullText.bodyLarge?.copyWith(color: valueColor),
+              style: context.bullText.bodyLarge,
             ),
           ),
         ],
