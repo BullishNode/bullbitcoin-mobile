@@ -106,7 +106,21 @@ void main() {
       ]);
       expect(find.text('Bitcoin'), findsOneWidget);
 
+      // Owner ruling Q24b (UX-6): a SETTLED fiat leg renders its amount inline
+      // on the list row, so the label is composed ("Fiat · <amount>") rather
+      // than bare. A pending leg (no settled amount) stays a bare label.
       await _pumpHistory(tester, [_tx(settlement: _fiat())]);
+      expect(find.textContaining('Fiat'), findsOneWidget);
+      expect(find.text('Fiat'), findsNothing);
+
+      await _pumpHistory(tester, [
+        _tx(
+          settlement: _fiat(
+            amountMinor: null,
+            status: GetPaidSettlementLegStatus.pending,
+          ),
+        ),
+      ]);
       expect(find.text('Fiat'), findsOneWidget);
 
       await _pumpHistory(tester, [
