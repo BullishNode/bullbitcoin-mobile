@@ -11,6 +11,7 @@ import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_activa
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_tile.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_state.dart';
 import 'package:flutter/material.dart';
@@ -812,6 +813,11 @@ class _AdvancedSettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Read the cubit here (it is in scope) and bind the behavior callbacks, so
+    // the sheet — shown in a modal whose context has no provider — stays
+    // presentational.
+    final cubit = context.read<LightningAddressActivationCubit>();
+    final behavior = walletBehavior;
     return Align(
       alignment: Alignment.center,
       child: TextButton(
@@ -821,8 +827,16 @@ class _AdvancedSettingsButton extends StatelessWidget {
             online: online,
             onlineSaving: onlineSaving,
             onOnlineChanged: onOnlineChanged,
-            walletBehavior: walletBehavior,
+            walletBehavior: behavior,
             walletBehaviorSaving: walletBehaviorSaving,
+            onAutoSweepChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior!.walletId,
+              autoSweepEnabled: value,
+            ),
+            onHideOnHomeChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior!.walletId,
+              hideOnHome: value,
+            ),
           ),
         ),
         child: Text(
@@ -915,56 +929,14 @@ String? _nameClaimFailureMessage(
   };
 }
 
-class _OnlineControl extends StatelessWidget {
-  final bool online;
-  final bool saving;
-  final ValueChanged<bool> onChanged;
-
-  const _OnlineControl({
-    required this.online,
-    required this.saving,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(top: 24),
-      child: Column(
-        children: [
-          SwitchListTile(
-            key: const Key('lightning_address_online_switch'),
-            value: online,
-            onChanged: saving ? null : onChanged,
-            title: Text(
-              online
-                  ? context.loc.lightningAddressOnlineToggleActive
-                  : context.loc.lightningAddressOnlineToggleInactive,
-            ),
-            subtitle: Text(
-              online
-                  ? context.loc.lightningAddressOnlineToggleActiveBody
-                  : context.loc.lightningAddressOnlineToggleInactiveBody,
-            ),
-          ),
-          if (saving)
-            Semantics(
-              liveRegion: true,
-              label: context.loc.lightningAddressOnlineToggleSaving,
-              child: const LinearProgressIndicator(),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 class _LightningAddressAdvancedSettingsSheet extends StatelessWidget {
   final bool online;
   final bool onlineSaving;
   final ValueChanged<bool> onOnlineChanged;
   final GetPaidWalletBehavior? walletBehavior;
   final bool walletBehaviorSaving;
+  final ValueChanged<bool> onAutoSweepChanged;
+  final ValueChanged<bool> onHideOnHomeChanged;
 
   const _LightningAddressAdvancedSettingsSheet({
     required this.online,
@@ -972,78 +944,30 @@ class _LightningAddressAdvancedSettingsSheet extends StatelessWidget {
     required this.onOnlineChanged,
     required this.walletBehavior,
     required this.walletBehaviorSaving,
+    required this.onAutoSweepChanged,
+    required this.onHideOnHomeChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              context.loc.lightningAddressAdvancedSettings,
-              style: context.font.titleLarge,
-            ),
-            _OnlineControl(
-              online: online,
-              saving: onlineSaving,
-              onChanged: onOnlineChanged,
-            ),
-            if (walletBehavior != null)
-              _WalletBehaviorControls(
-                behavior: walletBehavior!,
-                saving: walletBehaviorSaving,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Reserved-wallet behavior controls (auto-sweep + hide-on-home) for wallet 101.
-/// Mirrors BTCPay's `_BtcpayWalletBehaviorTile`; the safe defaults are applied
-/// at wallet creation, these rows only let the user review and change them.
-class _WalletBehaviorControls extends StatelessWidget {
-  final GetPaidWalletBehavior behavior;
-  final bool saving;
-
-  const _WalletBehaviorControls({required this.behavior, required this.saving});
-
-  @override
-  Widget build(BuildContext context) {
-    final cubit = context.read<LightningAddressActivationCubit>();
-    return Card(
-      margin: const EdgeInsets.only(top: 24),
-      child: Column(
-        children: [
-          ListTile(title: Text(context.loc.getPaidWalletSettingsSectionTitle)),
-          SwitchListTile(
-            value: behavior.autoSweepEnabled,
-            onChanged: saving
-                ? null
-                : (value) => cubit.updateWalletBehavior(
-                    walletId: behavior.walletId,
-                    autoSweepEnabled: value,
-                  ),
-            title: Text(context.loc.getPaidWalletAutoSweepLabel),
-            subtitle: Text(context.loc.getPaidWalletAutoSweepInfo),
-          ),
-          SwitchListTile(
-            value: behavior.hideOnHome,
-            onChanged: saving
-                ? null
-                : (value) => cubit.updateWalletBehavior(
-                    walletId: behavior.walletId,
-                    hideOnHome: value,
-                  ),
-            title: Text(context.loc.getPaidWalletHideOnHomeLabel),
-            subtitle: Text(context.loc.getPaidWalletHideOnHomeInfo),
-          ),
-        ],
-      ),
+    // Presentational only: the cubit lives outside this modal's context, so the
+    // behavior callbacks are supplied by the caller (which has the provider).
+    return GetPaidAdvancedSettingsSheet(
+      onlineSwitchKey: const Key('lightning_address_online_switch'),
+      onlineTitle: online
+          ? context.loc.lightningAddressOnlineToggleActive
+          : context.loc.lightningAddressOnlineToggleInactive,
+      onlineSubtitle: online
+          ? context.loc.lightningAddressOnlineToggleActiveBody
+          : context.loc.lightningAddressOnlineToggleInactiveBody,
+      online: online,
+      onlineSaving: onlineSaving,
+      onlineSavingLabel: context.loc.lightningAddressOnlineToggleSaving,
+      onOnlineChanged: onOnlineChanged,
+      walletBehavior: walletBehavior,
+      walletBehaviorSaving: walletBehaviorSaving,
+      onAutoSweepChanged: onAutoSweepChanged,
+      onHideOnHomeChanged: onHideOnHomeChanged,
     );
   }
 }
