@@ -1,5 +1,4 @@
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_error.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_nym_validation.dart';
@@ -16,8 +15,7 @@ class LightningAddressActivationCubit
   final ActivateWalletOwnedLightningAddressUsecase _activate;
   final DeactivateWalletOwnedLightningAddressUsecase _deactivate;
   final LookupLightningAddressReceiveReadinessUsecase _lookupReadiness;
-  final GetGetPaidWalletBehaviorsUsecase _getWalletBehaviors;
-  final UpdateWalletBehaviorUsecase _updateWalletBehavior;
+  final GetPaidSettingsFacade _getPaidSettings;
   int _operationId = 0;
 
   LightningAddressActivationCubit(
@@ -25,8 +23,7 @@ class LightningAddressActivationCubit
     this._activate,
     this._deactivate,
     this._lookupReadiness,
-    this._getWalletBehaviors,
-    this._updateWalletBehavior,
+    this._getPaidSettings,
   ) : super(const LightningAddressActivationState());
 
   Future<void> load() async {
@@ -542,7 +539,7 @@ class LightningAddressActivationCubit
       ),
     );
     try {
-      await _updateWalletBehavior.execute(
+      await _getPaidSettings.updateWalletBehavior(
         walletId: walletId,
         hideOnHome: hideOnHome,
         autoSweepEnabled: autoSweepEnabled,
@@ -572,7 +569,7 @@ class LightningAddressActivationCubit
 
   Future<GetPaidWalletBehavior?> _resolveWalletBehavior() async {
     try {
-      final behaviors = await _getWalletBehaviors.execute(
+      final behaviors = await _getPaidSettings.walletBehaviors(
         only: GetPaidWalletProduct.lightningAddress,
       );
       return behaviors.isEmpty ? null : behaviors.first;

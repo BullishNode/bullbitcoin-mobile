@@ -1,5 +1,4 @@
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_pos_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
@@ -13,15 +12,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class PosCubit extends Cubit<PosState> {
   final PosFacade _facade;
   final GetPosPermanentNameUsecase _getPermanentName;
-  final GetGetPaidWalletBehaviorsUsecase _getWalletBehaviors;
-  final UpdateWalletBehaviorUsecase _updateWalletBehavior;
+  final GetPaidSettingsFacade _getPaidSettings;
   int _operationId = 0;
 
   PosCubit({
     required this._facade,
     required this._getPermanentName,
-    required this._getWalletBehaviors,
-    required this._updateWalletBehavior,
+    required this._getPaidSettings,
   }) : super(const PosState());
 
   Future<void> load() async {
@@ -355,7 +352,7 @@ class PosCubit extends Cubit<PosState> {
       ),
     );
     try {
-      await _updateWalletBehavior.execute(
+      await _getPaidSettings.updateWalletBehavior(
         walletId: walletId,
         hideOnHome: hideOnHome,
         autoSweepEnabled: autoSweepEnabled,
@@ -386,7 +383,7 @@ class PosCubit extends Cubit<PosState> {
   // Read-only resolution of the reserved wallet (103); null until it exists.
   Future<GetPaidWalletBehavior?> _resolveWalletBehavior() async {
     try {
-      final behaviors = await _getWalletBehaviors.execute(
+      final behaviors = await _getPaidSettings.walletBehaviors(
         only: GetPaidWalletProduct.pos,
       );
       return behaviors.isEmpty ? null : behaviors.first;
