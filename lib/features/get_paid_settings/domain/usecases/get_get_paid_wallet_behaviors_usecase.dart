@@ -1,35 +1,39 @@
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 
 /// Reserved Get Paid product wallets (BIP85 wallet-seed indexes 101/102/103).
 ///
-/// Each product materializes a single Liquid wallet with a stable label at
-/// creation time (see the respective `Prepare*WalletUsecase`). The labels below
-/// mirror those creation-time constants and MUST stay in sync with them.
+/// Each product is identified by its STABLE BIP85 reservation id (mirroring the
+/// bip85 registry and the respective `Prepare*WalletUsecase`), never by a
+/// user-mutable wallet label.
 enum GetPaidWalletProduct {
-  lightningAddress('Lightning Address Liquid'),
-  paymentPage('Payment Page Liquid'),
-  pos('POS Liquid');
+  lightningAddress('lightning_address_wallet_seed'),
+  paymentPage('payment_page_wallet_seed'),
+  pos('pos_wallet_seed');
 
-  final String walletLabel;
+  final String reservationId;
 
-  const GetPaidWalletProduct(this.walletLabel);
+  const GetPaidWalletProduct(this.reservationId);
 }
 
 /// Resolves the reserved LA/PP/POS wallets read-only so each product screen can
 /// expose its auto-sweep / hide-on-home controls.
 ///
-/// Resolution matches each product's stable Liquid label against the current
-/// environment's wallet list — the same deterministic label match BTCPay uses
-/// for its reserved wallets (`GetBtcpayWalletBehaviorsUsecase._findLegacyWallet`).
-/// This intentionally never derives or records a wallet: a product simply has no
-/// entry until its reserved wallet already exists. [GetWalletsUsecase] already
-/// scopes results to the active environment, so a plain label + `isLiquid` match
-/// resolves the correct mainnet/testnet wallet.
+/// Resolution goes through the MANIFEST reservation (wallet truth), not a label:
+/// the manifest records which wallet id was materialized for each product's
+/// fixed BIP85 reservation, so a renamed or colliding label can never resolve
+/// the wrong wallet (UX-1 doctrine; the owner-reported wrong-wallet class). It
+/// never derives or records anything — a product with no manifest entry (or
+/// whose wallet is gone) simply has no behavior, and the controls are absent.
 class GetGetPaidWalletBehaviorsUsecase {
   final GetWalletsUsecase _getWallets;
+  final KeychainManifestFacade _manifest;
 
-  const GetGetPaidWalletBehaviorsUsecase({required this._getWallets});
+  const GetGetPaidWalletBehaviorsUsecase({
+    required this._getWallets,
+    required this._manifest,
+  });
 
   /// Resolves every existing reserved product wallet, or - when [only] is set -
   /// just that one product (returning an empty list if its wallet is absent).
@@ -37,11 +41,21 @@ class GetGetPaidWalletBehaviorsUsecase {
     GetPaidWalletProduct? only,
   }) async {
     final wallets = await _getWallets.execute();
+    // The product wallets are BIP85-derived from the default wallet's seed, so
+    // the manifest records them under that wallet's master fingerprint.
+    final parentFingerprint = _parentFingerprint(wallets);
+    if (parentFingerprint == null) return const [];
+
+    final walletsById = {for (final wallet in wallets) wallet.id: wallet};
     final products = only == null ? GetPaidWalletProduct.values : [only];
     final results = <GetPaidWalletBehavior>[];
 
     for (final product in products) {
-      final wallet = _findProductWallet(wallets, product);
+      final wallet = await _resolveProductWallet(
+        parentFingerprint: parentFingerprint,
+        product: product,
+        walletsById: walletsById,
+      );
       if (wallet == null) continue;
       results.add(
         GetPaidWalletBehavior(
@@ -56,16 +70,31 @@ class GetGetPaidWalletBehaviorsUsecase {
     return results;
   }
 
-  Wallet? _findProductWallet(
-    List<Wallet> wallets,
-    GetPaidWalletProduct product,
-  ) {
-    return wallets
-        .where(
-          (wallet) =>
-              wallet.network.isLiquid && wallet.label == product.walletLabel,
-        )
+  Future<Wallet?> _resolveProductWallet({
+    required String parentFingerprint,
+    required GetPaidWalletProduct product,
+    required Map<String, Wallet> walletsById,
+  }) async {
+    final manifestWalletIds = await _manifest.reservationWalletIds(
+      parentFingerprint: parentFingerprint,
+      reservationId: product.reservationId,
+    );
+    // The manifest is the sole source of the wallet id; a label is never
+    // consulted. Only a wallet the manifest actually recorded for this
+    // reservation is eligible.
+    for (final walletId in manifestWalletIds) {
+      final wallet = walletsById[walletId];
+      if (wallet != null && wallet.network.isLiquid) return wallet;
+    }
+    return null;
+  }
+
+  String? _parentFingerprint(List<Wallet> wallets) {
+    final defaultWallet = wallets
+        .where((wallet) => wallet.isDefault)
         .firstOrNull;
+    final fingerprint = defaultWallet?.masterFingerprint ?? '';
+    return fingerprint.isEmpty ? null : fingerprint;
   }
 }
 
