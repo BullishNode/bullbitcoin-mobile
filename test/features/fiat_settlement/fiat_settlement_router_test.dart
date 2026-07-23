@@ -2,7 +2,6 @@ import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/fiat_settlement/domain/usecases/has_bull_bitcoin_account_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/ui/fiat_settlement_router.dart';
 import 'package:bb_mobile/features/fiat_settlement/ui/screens/fiat_settlement_editor_screen.dart';
@@ -14,8 +13,6 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockFacade extends Mock implements FiatSettlementFacade {}
-
-class _MockHasAccount extends Mock implements HasBullBitcoinAccountUsecase {}
 
 class _FakeGetSettings implements GetSettingsUsecase {
   _FakeGetSettings(this.environment);
@@ -66,11 +63,7 @@ void main() {
         FiatSettlementConfigurationView(products: [], credentialActive: false),
       ),
     );
-    final hasAccount = _MockHasAccount();
-    when(() => hasAccount.execute()).thenAnswer((_) async => true);
-    locator
-      ..registerSingleton<FiatSettlementFacade>(facade)
-      ..registerSingleton<HasBullBitcoinAccountUsecase>(hasAccount);
+    locator.registerSingleton<FiatSettlementFacade>(facade);
   }
 
   testWidgets('opens the editor for each valid product on mainnet', (

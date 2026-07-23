@@ -2,7 +2,6 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/features/exchange/ui/exchange_router.dart';
 import 'package:bb_mobile/features/exchange_support_chat/ui/exchange_support_chat_router.dart';
-import 'package:bb_mobile/features/fiat_settlement/domain/usecases/has_bull_bitcoin_account_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/presentation/fiat_settlement_editor_cubit.dart';
 import 'package:bb_mobile/features/fiat_settlement/presentation/fiat_settlement_editor_state.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
@@ -50,7 +49,6 @@ class FiatSettlementEditorScreen extends StatelessWidget {
     return BlocProvider<FiatSettlementEditorCubit>(
       create: (_) => FiatSettlementEditorCubit(
         facade: locator<FiatSettlementFacade>(),
-        hasBullBitcoinAccount: locator<HasBullBitcoinAccountUsecase>(),
         product: product,
       )..load(),
       child: _FiatSettlementEditorView(activated: activated),
@@ -166,11 +164,13 @@ class _EditorForm extends StatelessWidget {
     final colors = context.bull;
     final saving = state.status == FiatSettlementEditorStatus.saving;
     final wantsFiat = state.mode != FiatSettlementReceiveMode.bitcoin;
-    // Fiat/mixed SAVES need a Bull Bitcoin account connected on this device.
-    // This gates the save ACTION only (a secondary reconnect stands in for the
-    // Save button) — never what is displayed: the saved configuration always
-    // renders, so an active split is never hidden behind a login panel.
-    final needsConnection = wantsFiat && !state.hasBullBitcoinAccount;
+    // No local exchange-account precondition: once the owner's npub is
+    // registered and Bullnym holds the sell-only credential, a fiat change is
+    // driven purely by the npub-signed keyless save. The save is always
+    // attemptable; only when the SERVER answers credential-required (the npub
+    // has no key at Bullnym) AND there is no local key does the outcome panel
+    // surface "Reconnect Bull Bitcoin". The exchange login is for that first
+    // key issuance, not for every edit.
     // The product settles fully to Bitcoin right now, so Bitcoin is the choice
     // currently in effect. Labelled in both the activated variant and a normal
     // edit of a Bitcoin-only product.
@@ -237,20 +237,19 @@ class _EditorForm extends StatelessWidget {
           _OutcomePanel(state: state),
         ],
         const Gap(32),
-        // Auth gates the CHANGE, not the display: a missing local connection
-        // swaps the Save button for a secondary reconnect (draft preserved).
-        if (needsConnection)
-          const _ReconnectAction()
-        else
-          BullButton.big(
-            label: saving
-                ? context.loc.getPaidFiatSettlementSaving
-                : context.loc.getPaidFiatSettlementSave,
-            onPressed: state.canSave ? () => _onSave(context, cubit) : () {},
-            bgColor: colors.primary,
-            textColor: colors.onPrimary,
-            disabled: !state.canSave,
-          ),
+        // The save is always attemptable (gated only on form validity). A
+        // missing server-side credential surfaces as a credentialProblem
+        // OUTCOME below, whose Reconnect action is the only path that requires
+        // the exchange login.
+        BullButton.big(
+          label: saving
+              ? context.loc.getPaidFiatSettlementSaving
+              : context.loc.getPaidFiatSettlementSave,
+          onPressed: state.canSave ? () => _onSave(context, cubit) : () {},
+          bgColor: colors.primary,
+          textColor: colors.onPrimary,
+          disabled: !state.canSave,
+        ),
         if (!(state.saved?.isBitcoinOnly ?? true)) ...[
           const Gap(12),
           BullButton.big(
@@ -326,49 +325,6 @@ class _EditorForm extends StatelessWidget {
       ),
     );
     return confirmed == true;
-  }
-}
-
-/// The secondary action shown in place of the Save button when a fiat/mixed
-/// settlement is selected but no Bull Bitcoin account is connected on this
-/// device. It never replaces the displayed configuration — the chooser,
-/// currency and disclosure stay visible above it. Reconnect opens the login
-/// WebView (returning to the caller) and then re-checks ONLY the local
-/// connection, preserving the merchant's draft; the merchant re-saves
-/// explicitly (owner Q15 — no auto-retry).
-class _ReconnectAction extends StatelessWidget {
-  const _ReconnectAction();
-
-  @override
-  Widget build(BuildContext context) {
-    final cubit = context.read<FiatSettlementEditorCubit>();
-    final colors = context.bull;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          context.loc.getPaidFiatSettlementConnectPrompt,
-          style: context.bullText.bodySmall?.copyWith(
-            color: colors.onSurfaceVariant,
-          ),
-        ),
-        const Gap(12),
-        BullButton.big(
-          label: context.loc.getPaidFiatSettlementReconnect,
-          onPressed: () async {
-            await context.pushNamed(
-              ExchangeRoute.exchangeAuth.name,
-              queryParameters: {'returnToCaller': 'true'},
-            );
-            if (context.mounted) await cubit.refreshConnection();
-          },
-          bgColor: colors.surface,
-          textColor: colors.onSurface,
-          outlined: true,
-          borderColor: colors.onSurfaceVariant,
-        ),
-      ],
-    );
   }
 }
 

@@ -1,5 +1,4 @@
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/fiat_settlement/domain/usecases/has_bull_bitcoin_account_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/presentation/fiat_settlement_editor_state.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,15 +6,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// Drives the shared fiat-settlement editor for one product. A draft is never
 /// shown as active until the server confirms a save; a failed save/disable
 /// preserves the previously saved configuration exactly.
+///
+/// There is NO local exchange-account precondition: a fiat change is an
+/// npub-signed keyless save against Bullnym's stored sell-only credential.
+/// A missing credential is discovered from the SERVER (credentialProblem
+/// outcome), never assumed from local state — so a merchant whose npub is
+/// already registered can change settings without any exchange login.
 class FiatSettlementEditorCubit extends Cubit<FiatSettlementEditorState> {
   final FiatSettlementFacade _facade;
-  final HasBullBitcoinAccountUsecase _hasBullBitcoinAccount;
 
   int _operationId = 0;
 
   FiatSettlementEditorCubit({
     required this._facade,
-    required this._hasBullBitcoinAccount,
     required FiatSettlementProduct product,
   }) : super(FiatSettlementEditorState.initial(product));
 
@@ -24,15 +27,6 @@ class FiatSettlementEditorCubit extends Cubit<FiatSettlementEditorState> {
   Future<void> load() async {
     final op = ++_operationId;
     emit(state.copyWith(status: FiatSettlementEditorStatus.loading));
-    // Local-only connection check. Fail open (assume connected) so an
-    // unexpected read error never blocks a genuinely connected merchant; a
-    // truly missing credential still surfaces at Save.
-    bool hasAccount = true;
-    try {
-      hasAccount = await _hasBullBitcoinAccount.execute();
-    } catch (_) {
-      hasAccount = true;
-    }
     final result = await _facade.configuration();
     if (_isStale(op)) return;
     switch (result) {
@@ -47,7 +41,6 @@ class FiatSettlementEditorCubit extends Cubit<FiatSettlementEditorState> {
                 ? config.fiatPercentage
                 : 50,
             currency: config.currency,
-            hasBullBitcoinAccount: hasAccount,
           ),
         );
       case Err():
@@ -56,22 +49,16 @@ class FiatSettlementEditorCubit extends Cubit<FiatSettlementEditorState> {
     }
   }
 
-  /// Re-check ONLY the local Bull Bitcoin connection after a login/reconnect,
-  /// preserving the merchant's draft (mode / currency / percentage) and the
-  /// saved server configuration. It deliberately does NOT re-read the server
-  /// config (that would reset the draft) and does NOT auto-retry the blocked
-  /// save — the merchant re-saves explicitly (owner Q15). Only meaningful while
-  /// the editor is on a ready form.
+  /// After the merchant returns from the exchange login (triggered only by a
+  /// credentialProblem outcome — i.e. the server had no sell-only key for this
+  /// npub), clear the failure so the Save button reappears with the draft
+  /// intact. The merchant re-saves explicitly (owner Q15 — no auto-retry); that
+  /// save now carries the freshly issued key on the server's credential-required
+  /// retry. Does NOT re-read the server config (that would reset the draft).
   Future<void> refreshConnection() async {
     if (state.status != FiatSettlementEditorStatus.ready) return;
-    bool hasAccount = true;
-    try {
-      hasAccount = await _hasBullBitcoinAccount.execute();
-    } catch (_) {
-      hasAccount = true;
-    }
     if (isClosed) return;
-    emit(state.copyWith(hasBullBitcoinAccount: hasAccount, clearFailure: true));
+    emit(state.copyWith(clearFailure: true));
   }
 
   void selectMode(FiatSettlementReceiveMode mode) {
