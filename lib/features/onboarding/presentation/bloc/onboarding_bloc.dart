@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/features/onboarding/complete_physical_backup_verification_usecase.dart';
-import 'package:bb_mobile/features/onboarding/recover_remote_keychain_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/public/recover_remote_keychain_usecase.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -83,7 +83,12 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
         mnemonicWords: event.mnemonic.words,
       );
       await _completePhysicalBackupVerificationUsecase.execute();
-      _recoverRemoteKeychainUsecase.execute(
+      // Await manifest recovery (bounded by its own time budget) BEFORE
+      // signalling success. Success drives WalletStarted, so awaiting here
+      // guarantees restored manifest wallets (e.g. Donation Page 102 and POS
+      // 103) exist before the wallet inventory first loads. The usecase never
+      // throws, so a recovery failure lets onboarding continue silently.
+      await _recoverRemoteKeychainUsecase.execute(
         defaultCreatedWalletIds: defaultWallets
             .map((wallet) => wallet.id)
             .toSet(),

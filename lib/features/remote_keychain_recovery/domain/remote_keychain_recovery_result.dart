@@ -9,6 +9,9 @@ enum RemoteKeychainRecoveryStatus {
   localFailure,
   restored,
   partiallyRestored,
+  // The recovery ran past its total time budget before it could finish. Treated
+  // exactly like `unavailable` by callers: keep the default wallets, log a
+  // sanitized outcome, continue silently.
   timedOut,
 }
 

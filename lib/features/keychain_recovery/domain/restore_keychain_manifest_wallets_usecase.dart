@@ -26,6 +26,11 @@ class RestoreKeychainManifestWalletsUsecase {
     final entryIds = <String>{};
     final walletIds = <String>{};
     for (final entry in importPlan.entries) {
+      // Cooperative time-budget check: once the deadline has passed we stop
+      // BEFORE materializing any further wallet, so a recovery that outlives its
+      // budget can never keep creating wallets in the background. Validation
+      // still runs so already-validated identity constraints are preserved, but
+      // nothing new is derived.
       if (deadline != null && !DateTime.now().isBefore(deadline)) {
         outcomes.addAll(_skippedForTimeBudget(entry.walletMaterializations));
         continue;

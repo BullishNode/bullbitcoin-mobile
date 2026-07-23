@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:bb_mobile/core/recoverbull/domain/entity/decrypted_vault.dart';
 import 'package:bb_mobile/core/recoverbull/domain/entity/encrypted_vault.dart';
 import 'package:bb_mobile/core/recoverbull/domain/entity/vault_provider.dart';
@@ -23,8 +21,7 @@ import 'package:bb_mobile/core/tor/domain/ports/tor_config_port.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/recoverbull/domain/recoverbull_failure.dart';
 import 'package:bb_mobile/features/recoverbull/presentation/bloc.dart';
-import 'package:bb_mobile/features/recoverbull/recover_remote_keychain_usecase.dart';
-import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/public/recover_remote_keychain_usecase.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -45,6 +42,9 @@ class _MockFetchKey extends Mock implements FetchVaultKeyFromServerUsecase {}
 class _MockDecrypt extends Mock implements DecryptVaultUsecase {}
 
 class _MockRestore extends Mock implements RestoreVaultUsecase {}
+
+class _MockRecoverRemoteKeychain extends Mock
+    implements RecoverRemoteKeychainUsecase {}
 
 class _MockConnectDrive extends Mock implements ConnectToGoogleDriveUsecase {}
 
@@ -75,7 +75,7 @@ void main() {
   late _MockFetchKey fetchKey;
   late _MockDecrypt decrypt;
   late _MockRestore restore;
-  late RecoverBullRemoteKeychainUsecase recoverRemoteKeychain;
+  late _MockRecoverRemoteKeychain recoverRemoteKeychain;
   late _MockConnectDrive connectDrive;
   late _MockSaveDrive saveDrive;
   late _MockInitTor initTor;
@@ -100,11 +100,12 @@ void main() {
     fetchKey = _MockFetchKey();
     decrypt = _MockDecrypt();
     restore = _MockRestore();
-    recoverRemoteKeychain = RecoverBullRemoteKeychainUsecase.withRecover(
-      () async => const RemoteKeychainRecoveryResult(
-        status: RemoteKeychainRecoveryStatus.restored,
+    recoverRemoteKeychain = _MockRecoverRemoteKeychain();
+    when(
+      () => recoverRemoteKeychain.execute(
+        defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
       ),
-    );
+    ).thenAnswer((_) async {});
     connectDrive = _MockConnectDrive();
     saveDrive = _MockSaveDrive();
     initTor = _MockInitTor();
@@ -247,17 +248,10 @@ void main() {
     );
   });
 
-  group('recoverVault remote keychain recovery', () {
-    test('awaits remote recovery before starting wallet inventory', () async {
+  group('recoverVault manifest recovery', () {
+    test('recreates manifest wallets with the restored default ids before '
+        'starting the wallet, then finishes', () async {
       final vault = _MockEncryptedVault();
-      final recoveryStarted = Completer<void>();
-      final finishRecovery = Completer<RemoteKeychainRecoveryResult>();
-      final order = <String>[];
-      recoverRemoteKeychain = RecoverBullRemoteKeychainUsecase.withRecover(() {
-        order.add('remote recovery');
-        recoveryStarted.complete();
-        return finishRecovery.future;
-      });
       final bloc = buildBloc(
         flow: RecoverBullFlow.recoverVault,
         preSelectedVault: vault,
@@ -276,63 +270,63 @@ void main() {
       ).thenAnswer((_) async => const Ok(null));
       when(
         () => restore.execute(decryptedVault: any(named: 'decryptedVault')),
-      ).thenAnswer((_) async {
-        order.add('default restore');
-        return const Ok(null);
-      });
-      when(() => walletBloc.add(any())).thenAnswer((_) {
-        order.add('wallet inventory');
-      });
+      ).thenAnswer((_) async => const Ok(['btc-default', 'lbtc-default']));
 
       bloc.add(const OnVaultDecryption(vaultKey: 'deadbeef'));
-      await recoveryStarted.future;
-
-      expect(order, ['default restore', 'remote recovery']);
-      verifyNever(() => walletBloc.add(const WalletStarted()));
-
-      finishRecovery.complete(
-        const RemoteKeychainRecoveryResult(
-          status: RemoteKeychainRecoveryStatus.restored,
-        ),
-      );
       await pumpEventQueue();
 
-      expect(order, ['default restore', 'remote recovery', 'wallet inventory']);
-      expect(bloc.state.isFlowFinished, isTrue);
-      expect(bloc.state.failure, isNull);
-    });
-
-    test('optional remote failure cannot block RecoverBull', () async {
-      final vault = _MockEncryptedVault();
-      recoverRemoteKeychain = RecoverBullRemoteKeychainUsecase.withRecover(
-        () => throw StateError('unavailable'),
-      );
-      final bloc = buildBloc(
-        flow: RecoverBullFlow.recoverVault,
-        preSelectedVault: vault,
-      );
-      addTearDown(bloc.close);
-
-      when(
-        () => decrypt.execute(
-          vault: any(named: 'vault'),
-          vaultKey: any(named: 'vaultKey'),
-        ),
-      ).thenReturn(const Ok(DecryptedVault()));
-      when(
-        () =>
-            updateLatest.execute(decryptedVault: any(named: 'decryptedVault')),
-      ).thenAnswer((_) async => const Ok(null));
-      when(
+      // The vault only restores the defaults; manifest (bip85) wallet recovery
+      // must run with those default ids AND before the wallet is started, so
+      // restored Donation Page / POS wallets are present on the first load.
+      verifyInOrder([
         () => restore.execute(decryptedVault: any(named: 'decryptedVault')),
-      ).thenAnswer((_) async => const Ok(null));
-
-      bloc.add(const OnVaultDecryption(vaultKey: 'deadbeef'));
-      await pumpEventQueue();
-
-      verify(() => walletBloc.add(const WalletStarted())).called(1);
+        () => recoverRemoteKeychain.execute(
+          defaultCreatedWalletIds: {'btc-default', 'lbtc-default'},
+        ),
+        () => walletBloc.add(const WalletStarted()),
+      ]);
       expect(bloc.state.isFlowFinished, isTrue);
       expect(bloc.state.failure, isNull);
     });
+
+    test(
+      'a restore failure never starts the wallet nor runs recovery',
+      () async {
+        final vault = _MockEncryptedVault();
+        final bloc = buildBloc(
+          flow: RecoverBullFlow.recoverVault,
+          preSelectedVault: vault,
+        );
+        addTearDown(bloc.close);
+
+        when(
+          () => decrypt.execute(
+            vault: any(named: 'vault'),
+            vaultKey: any(named: 'vaultKey'),
+          ),
+        ).thenReturn(const Ok(DecryptedVault()));
+        when(
+          () => updateLatest.execute(
+            decryptedVault: any(named: 'decryptedVault'),
+          ),
+        ).thenAnswer((_) async => const Ok(null));
+        when(
+          () => restore.execute(decryptedVault: any(named: 'decryptedVault')),
+        ).thenAnswer(
+          (_) async => Err(const core.RecoverBullUnexpectedCoreFailure('boom')),
+        );
+
+        bloc.add(const OnVaultDecryption(vaultKey: 'deadbeef'));
+        await pumpEventQueue();
+
+        verifyNever(
+          () => recoverRemoteKeychain.execute(
+            defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
+          ),
+        );
+        verifyNever(() => walletBloc.add(const WalletStarted()));
+        expect(bloc.state.failure, isA<VaultRecoveryFailure>());
+      },
+    );
   });
 }
