@@ -355,6 +355,44 @@ void main() {
     },
   );
 
+  test('Page and POS queries run concurrently: both dispatch before either '
+      'resolves, and POS updates while Page is still loading (Q10)', () async {
+    final pageGate = Completer<PaymentPage?>();
+    final posGate = Completer<PosTerminal?>();
+    var pageCalled = false;
+    var posCalled = false;
+    final cubit = _cubit(
+      lookup: () async => _status(active: true, address: 'a@b'),
+      pageFind: ({required String nym}) {
+        pageCalled = true;
+        return pageGate.future;
+      },
+      posFind: ({required String nym}) {
+        posCalled = true;
+        return posGate.future;
+      },
+    );
+
+    final refresh = cubit.refresh();
+    await Future<void>.delayed(Duration.zero);
+
+    // Both queries are in flight together — POS did not wait for Page.
+    expect(pageCalled, isTrue);
+    expect(posCalled, isTrue);
+    expect(cubit.state.paymentPageStatus, GetPaidProductStatus.loading);
+    expect(cubit.state.posStatus, GetPaidProductStatus.loading);
+
+    // Resolve POS FIRST; its card updates while Page is still loading.
+    posGate.complete(_pos());
+    await Future<void>.delayed(Duration.zero);
+    expect(cubit.state.posStatus, GetPaidProductStatus.active);
+    expect(cubit.state.paymentPageStatus, GetPaidProductStatus.loading);
+
+    pageGate.complete(_page());
+    await refresh;
+    await cubit.close();
+  });
+
   test('active Lightning Address populates address + nym', () async {
     final cubit = _cubit(
       lookup: () async => _status(active: true, address: 'satoshi@bull.money'),
