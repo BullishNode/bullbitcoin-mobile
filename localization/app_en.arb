@@ -17382,5 +17382,33 @@
   "getPaidAdvancedSettingsTitle": "Advanced settings",
   "@getPaidAdvancedSettingsTitle": {
     "description": "Shared Get Paid product Advanced Settings section title / button label."
+  },
+  "getPaidEditButton": "Edit details",
+  "@getPaidEditButton": {
+    "description": "Button that reveals the collapsed product edit form on a Get Paid product screen."
+  },
+  "getPaidAdvancedSettingsButton": "Advanced settings",
+  "@getPaidAdvancedSettingsButton": {
+    "description": "Button that opens the shared Get Paid Advanced Settings sheet."
+  },
+  "getPaidDiscardChangesTitle": "Discard changes?",
+  "@getPaidDiscardChangesTitle": {
+    "description": "Title of the confirm dialog shown when cancelling an edit with unsaved changes."
+  },
+  "getPaidDiscardChangesBody": "Your unsaved changes will be lost.",
+  "@getPaidDiscardChangesBody": {
+    "description": "Body of the discard-changes confirm dialog."
+  },
+  "getPaidDiscardChangesKeep": "Keep editing",
+  "@getPaidDiscardChangesKeep": {
+    "description": "Dismissive action on the discard-changes dialog; returns to the editor."
+  },
+  "getPaidDiscardChangesDiscard": "Discard",
+  "@getPaidDiscardChangesDiscard": {
+    "description": "Confirming action on the discard-changes dialog; discards unsaved edits."
+  },
+  "getPaidCancelButton": "Cancel",
+  "@getPaidCancelButton": {
+    "description": "Cancel action that collapses the Get Paid product edit form."
   }
 }

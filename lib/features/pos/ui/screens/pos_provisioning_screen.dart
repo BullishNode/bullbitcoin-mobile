@@ -1,21 +1,23 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
-import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
+import 'package:bb_mobile/core/widgets/bottom_sheet/x.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_activation_offer.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_tile.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
 import 'package:bb_mobile/features/pos/domain/pos_validation.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
+import 'package:bb_mobile/features/pos/ui/widgets/pos_staff_instructions.dart';
+import 'package:bb_mobile/features/pos/ui/widgets/pos_terminal_qr.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// The Point of Sale provisioning screen (ISS-C-05 legacy `core/widgets`). It
 /// collects a label + display currency, states the ROUTE-3W routing notice, and
@@ -31,6 +33,14 @@ class PosProvisioningScreen extends StatefulWidget {
 class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
   final _label = TextEditingController();
   final _alias = TextEditingController();
+
+  /// The edit form is collapsed behind an Edit button on an existing (live or
+  /// archived) POS; creation stays form-first. A failed save keeps it open.
+  bool _editing = false;
+
+  /// Snapshot of the editable fields captured when Edit is opened, so a cancel
+  /// can detect unsaved changes and confirm before discarding them.
+  _EditSnapshot? _snapshot;
 
   @override
   void initState() {
@@ -180,45 +190,42 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
   }
 
   Widget _archivedView(BuildContext context, PosState state, PosCubit cubit) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _StatusNotice(
-          icon: Icons.pause_circle_outline,
-          title: context.loc.posArchivedTitle,
-          body: context.loc.posArchivedBody,
-        ),
-        const Gap(24),
-        _permanentAliasSection(context, state, cubit),
-        const Gap(16),
-        _SurfaceOnlineControl(
-          online: false,
-          saving: state.submitting,
-          onChanged: (online) =>
-              _setOnline(cubit: cubit, state: state, online: online),
-        ),
-        const Gap(24),
-        if (state.terminalUrl != null) _shareRow(context, state.terminalUrl!),
-        if (state.walletBehavior != null)
-          _WalletBehaviorControls(
-            behavior: state.walletBehavior!,
-            saving: state.walletBehaviorSaving,
-          ),
-      ],
-    );
+    return _managedView(context, state, cubit, isArchived: true);
   }
 
   Widget _form(BuildContext context, PosState state, PosCubit cubit) {
+    return _managedView(context, state, cubit);
+  }
+
+  /// The create / edit / archived management surface. Order (ROUTE reorg):
+  /// product section -> status + link (terminal QR) -> Fiat conversion ->
+  /// Instructions for staff -> Edit (collapsed form) -> Advanced Settings.
+  /// Creation stays form-first; an existing POS keeps the form collapsed.
+  Widget _managedView(
+    BuildContext context,
+    PosState state,
+    PosCubit cubit, {
+    bool isArchived = false,
+  }) {
     final isCreate = state.status == PosStatus.create;
+    final showForm = isCreate || _editing;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(
-          context.loc.posRoutingNotice,
-          style: context.font.bodySmall?.copyWith(
-            color: context.appColors.textMuted,
+        // Product section.
+        if (isArchived)
+          _StatusNotice(
+            icon: Icons.pause_circle_outline,
+            title: context.loc.posArchivedTitle,
+            body: context.loc.posArchivedBody,
+          )
+        else
+          Text(
+            context.loc.posRoutingNotice,
+            style: context.font.bodySmall?.copyWith(
+              color: context.appColors.textMuted,
+            ),
           ),
-        ),
         const Gap(20),
         if (state.submissionUncertain) ...[
           _Banner(
@@ -228,61 +235,109 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           const Gap(16),
         ],
         _permanentAliasSection(context, state, cubit),
-        if (!isCreate) ...[
-          const Gap(16),
-          _SurfaceOnlineControl(
-            online: true,
-            saving: state.submitting,
-            onChanged: (online) =>
-                _setOnline(cubit: cubit, state: state, online: online),
-          ),
-        ],
-        const Gap(20),
-        TextField(
-          controller: _label,
-          enabled: !state.submitting,
-          onChanged: cubit.labelChanged,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            labelText: context.loc.posLabelFieldLabel,
-            hintText: context.loc.posLabelFieldHint,
-            errorText: state.invalidField == PosField.label
-                ? context.loc.posLabelError
-                : null,
-            counterText: context.loc.posByteCounter(
-              posByteLength(state.label),
-              posLabelMaxBytes,
-            ),
-          ),
-        ),
-        const Gap(16),
-        _currencyField(context, state, cubit),
+        // Status + link — the shareable terminal, presented as a scannable QR.
         if (!isCreate && state.terminalUrl != null) ...[
           const Gap(24),
-          _shareRow(context, state.terminalUrl!),
-        ],
-        const Gap(24),
-        BBButton.big(
-          label: state.submitting
-              ? context.loc.posSubmitting
-              : isCreate
-              ? context.loc.posCreateButton
-              : context.loc.posSaveButton,
-          onPressed: () => _provision(cubit),
-          // Always tappable: provision() validates on tap and surfaces the
-          // specific invalid field, rather than silently disabling.
-          disabled: state.submitting,
-          bgColor: context.appColors.primary,
-          textColor: context.appColors.onPrimary,
-        ),
-        const FiatSettlementEntryTile(product: FiatSettlementProduct.pos),
-        if (state.walletBehavior != null)
-          _WalletBehaviorControls(
-            behavior: state.walletBehavior!,
-            saving: state.walletBehaviorSaving,
+          Text(
+            context.loc.posShareLabel,
+            style: context.font.bodySmall?.copyWith(
+              color: context.appColors.textMuted,
+            ),
           ),
+          const Gap(8),
+          PosTerminalQr(terminalUrl: state.terminalUrl!),
+        ],
+        // Fiat conversion.
+        if (!isCreate) ...[
+          const Gap(24),
+          const FiatSettlementEntryTile(product: FiatSettlementProduct.pos),
+        ],
+        // Instructions for staff — POS only, between Fiat and Edit.
+        if (!isCreate) ...[const Gap(24), const PosStaffInstructions()],
+        // Edit — the form, collapsed behind a button on an existing POS.
+        const Gap(24),
+        if (showForm)
+          ..._editFields(context, state, cubit, isCreate: isCreate)
+        else
+          BBButton.big(
+            key: const Key('pos_edit_button'),
+            label: context.loc.getPaidEditButton,
+            iconData: Icons.edit_outlined,
+            iconFirst: true,
+            onPressed: () => _beginEdit(state),
+            bgColor: context.appColors.secondary,
+            textColor: context.appColors.onSecondary,
+          ),
+        // Advanced settings — the shared sheet (turn on/off + wallet behavior).
+        if (!isCreate) ...[
+          const Gap(24),
+          _AdvancedSettingsButton(
+            online: !isArchived,
+            onlineSaving: state.submitting,
+            onOnlineChanged: (online) =>
+                _setOnline(cubit: cubit, state: state, online: online),
+            walletBehavior: state.walletBehavior,
+            walletBehaviorSaving: state.walletBehaviorSaving,
+          ),
+        ],
       ],
     );
+  }
+
+  /// The editable POS fields plus the primary provision action. On an existing
+  /// POS this block is revealed by the Edit button and offers a Cancel that
+  /// confirms before discarding unsaved changes; creation stays form-first.
+  List<Widget> _editFields(
+    BuildContext context,
+    PosState state,
+    PosCubit cubit, {
+    required bool isCreate,
+  }) {
+    return [
+      TextField(
+        controller: _label,
+        enabled: !state.submitting,
+        onChanged: cubit.labelChanged,
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          labelText: context.loc.posLabelFieldLabel,
+          hintText: context.loc.posLabelFieldHint,
+          errorText: state.invalidField == PosField.label
+              ? context.loc.posLabelError
+              : null,
+          counterText: context.loc.posByteCounter(
+            posByteLength(state.label),
+            posLabelMaxBytes,
+          ),
+        ),
+      ),
+      const Gap(16),
+      _currencyField(context, state, cubit),
+      const Gap(24),
+      BBButton.big(
+        label: state.submitting
+            ? context.loc.posSubmitting
+            : isCreate
+            ? context.loc.posCreateButton
+            : context.loc.posSaveButton,
+        onPressed: () => _provisionFromEditor(cubit),
+        // Always tappable: provision() validates on tap and surfaces the
+        // specific invalid field, rather than silently disabling.
+        disabled: state.submitting,
+        bgColor: context.appColors.primary,
+        textColor: context.appColors.onPrimary,
+      ),
+      // Creation has nothing to cancel back to; an existing POS can collapse
+      // the editor (confirming first if there are unsaved changes).
+      if (!isCreate) ...[
+        const Gap(8),
+        TextButton(
+          key: const Key('pos_cancel_edit'),
+          onPressed: state.submitting ? null : () => _cancelEdit(cubit, state),
+          child: Text(context.loc.getPaidCancelButton),
+        ),
+      ],
+    ];
   }
 
   Widget _permanentAliasSection(
@@ -361,32 +416,11 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     );
   }
 
-  Widget _shareRow(BuildContext context, String url) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          context.loc.posShareLabel,
-          style: context.font.bodySmall?.copyWith(
-            color: context.appColors.textMuted,
-          ),
-        ),
-        const Gap(8),
-        CopyInput(text: url, maxLines: 1, overflow: TextOverflow.ellipsis),
-        const Gap(8),
-        BBButton.big(
-          label: context.loc.posOpenLink,
-          iconData: Icons.open_in_new,
-          iconFirst: true,
-          onPressed: () => _openLink(url),
-          bgColor: context.appColors.secondary,
-          textColor: context.appColors.onSecondary,
-        ),
-      ],
-    );
-  }
-
-  Future<void> _provision(PosCubit cubit) async {
+  /// Runs the provision (confirming a first alias claim first). Returns true
+  /// when a provision was actually attempted, false when the user backed out of
+  /// the alias confirmation — so the caller can tell a declined confirm from a
+  /// failure.
+  Future<bool> _provision(PosCubit cubit) async {
     final state = cubit.state;
     if (state.permanentAlias == null && state.aliasDraft.isNotEmpty) {
       final confirmed = await showDialog<bool>(
@@ -408,9 +442,62 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           ],
         ),
       );
-      if (!mounted || confirmed != true) return;
+      if (!mounted || confirmed != true) return false;
     }
     await cubit.provision();
+    return true;
+  }
+
+  /// Provision initiated from the revealed editor: on success the form
+  /// collapses back to the summary; a failed provision keeps the editor open so
+  /// the user can correct and retry.
+  Future<void> _provisionFromEditor(PosCubit cubit) async {
+    final attempted = await _provision(cubit);
+    if (!mounted || !attempted) return;
+    final after = cubit.state;
+    if (after.failure == null && !after.submitting) {
+      setState(() {
+        _editing = false;
+        _snapshot = null;
+      });
+    }
+  }
+
+  void _beginEdit(PosState state) {
+    setState(() {
+      _snapshot = _EditSnapshot.of(state);
+      _editing = true;
+    });
+  }
+
+  Future<void> _cancelEdit(PosCubit cubit, PosState state) async {
+    if (_snapshot != null && !_snapshot!.matches(state)) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(dialogContext.loc.getPaidDiscardChangesTitle),
+          content: Text(dialogContext.loc.getPaidDiscardChangesBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(dialogContext.loc.getPaidDiscardChangesKeep),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(dialogContext.loc.getPaidDiscardChangesDiscard),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || discard != true) return;
+      // Reload restores the persisted values, discarding the unsaved edits.
+      await cubit.load();
+      if (!mounted) return;
+    }
+    setState(() {
+      _editing = false;
+      _snapshot = null;
+    });
   }
 
   Future<void> _setOnline({
@@ -443,14 +530,6 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     if (!state.isOnline) return;
     await cubit.setOnline(false);
   }
-
-  Future<void> _openLink(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    // Guarded external launch only - the terminal URL is never webviewed
-    // (DELTA 2 / §8.9).
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
 }
 
 class _PermanentAliasSummary extends StatelessWidget {
@@ -479,71 +558,84 @@ class _PermanentAliasSummary extends StatelessWidget {
   }
 }
 
-class _SurfaceOnlineControl extends StatelessWidget {
-  final bool online;
-  final bool saving;
-  final ValueChanged<bool> onChanged;
+/// Snapshot of the editable POS fields, used to detect unsaved changes when the
+/// user cancels out of the revealed editor.
+class _EditSnapshot {
+  final String label;
+  final String displayCurrency;
+  final String aliasDraft;
 
-  const _SurfaceOnlineControl({
+  const _EditSnapshot({
+    required this.label,
+    required this.displayCurrency,
+    required this.aliasDraft,
+  });
+
+  factory _EditSnapshot.of(PosState state) => _EditSnapshot(
+    label: state.label,
+    displayCurrency: state.displayCurrency,
+    aliasDraft: state.aliasDraft,
+  );
+
+  bool matches(PosState state) =>
+      label == state.label &&
+      displayCurrency == state.displayCurrency &&
+      aliasDraft == state.aliasDraft;
+}
+
+/// Opens the shared Advanced Settings sheet for the Point of Sale. The cubit is
+/// read here (in the screen's context) and the wallet-behavior writes are bound
+/// as callbacks, so the sheet — shown in a modal whose context has no provider
+/// — stays presentational.
+class _AdvancedSettingsButton extends StatelessWidget {
+  final bool online;
+  final bool onlineSaving;
+  final ValueChanged<bool> onOnlineChanged;
+  final GetPaidWalletBehavior? walletBehavior;
+  final bool walletBehaviorSaving;
+
+  const _AdvancedSettingsButton({
     required this.online,
-    required this.saving,
-    required this.onChanged,
+    required this.onlineSaving,
+    required this.onOnlineChanged,
+    required this.walletBehavior,
+    required this.walletBehaviorSaving,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: SwitchListTile(
-        key: const Key('pos_online_switch'),
-        value: online,
-        onChanged: saving ? null : onChanged,
-        title: Text(context.loc.posOnlineToggleLabel),
-        subtitle: Text(context.loc.posOnlineToggleBody),
-      ),
-    );
-  }
-}
-
-/// Reserved-wallet behavior controls (auto-sweep + hide-on-home) for wallet 103.
-/// Mirrors BTCPay's `_BtcpayWalletBehaviorTile`; the safe defaults are applied
-/// at wallet creation, these rows only let the user review and change them.
-class _WalletBehaviorControls extends StatelessWidget {
-  final GetPaidWalletBehavior behavior;
-  final bool saving;
-
-  const _WalletBehaviorControls({required this.behavior, required this.saving});
-
-  @override
-  Widget build(BuildContext context) {
     final cubit = context.read<PosCubit>();
-    return Card(
-      margin: const EdgeInsets.only(top: 24),
-      child: Column(
-        children: [
-          ListTile(title: Text(context.loc.getPaidWalletSettingsSectionTitle)),
-          SwitchListTile(
-            value: behavior.autoSweepEnabled,
-            onChanged: saving
-                ? null
-                : (value) => cubit.updateWalletBehavior(
-                    walletId: behavior.walletId,
-                    autoSweepEnabled: value,
-                  ),
-            title: Text(context.loc.getPaidWalletAutoSweepLabel),
-            subtitle: Text(context.loc.getPaidWalletAutoSweepInfo),
+    final behavior = walletBehavior;
+    return Align(
+      alignment: Alignment.center,
+      child: TextButton(
+        key: const Key('pos_advanced_settings_button'),
+        onPressed: () => BlurredBottomSheet.show(
+          context: context,
+          child: GetPaidAdvancedSettingsSheet(
+            onlineSwitchKey: const Key('pos_online_switch'),
+            onlineTitle: context.loc.posOnlineToggleLabel,
+            onlineSubtitle: context.loc.posOnlineToggleBody,
+            online: online,
+            onlineSaving: onlineSaving,
+            onlineSavingLabel: context.loc.posSubmitting,
+            onOnlineChanged: onOnlineChanged,
+            walletBehavior: behavior,
+            walletBehaviorSaving: walletBehaviorSaving,
+            onAutoSweepChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior!.walletId,
+              autoSweepEnabled: value,
+            ),
+            onHideOnHomeChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior!.walletId,
+              hideOnHome: value,
+            ),
           ),
-          SwitchListTile(
-            value: behavior.hideOnHome,
-            onChanged: saving
-                ? null
-                : (value) => cubit.updateWalletBehavior(
-                    walletId: behavior.walletId,
-                    hideOnHome: value,
-                  ),
-            title: Text(context.loc.getPaidWalletHideOnHomeLabel),
-            subtitle: Text(context.loc.getPaidWalletHideOnHomeInfo),
-          ),
-        ],
+        ),
+        child: Text(
+          context.loc.getPaidAdvancedSettingsButton,
+          style: TextStyle(color: context.appColors.error),
+        ),
       ),
     );
   }
