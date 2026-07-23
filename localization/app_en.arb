@@ -17378,5 +17378,9 @@
   "posStaffInstructionsOwnerCloser": "You, the business owner that set up the point of sale, will receive the funds. Your staff will never have access to the funds if you follow these instructions.",
   "@posStaffInstructionsOwnerCloser": {
     "description": "POS staff instructions: owner-receives-funds closer (owner verbatim)."
+  },
+  "getPaidAdvancedSettingsTitle": "Advanced settings",
+  "@getPaidAdvancedSettingsTitle": {
+    "description": "Shared Get Paid product Advanced Settings section title / button label."
   }
 }
