@@ -4,12 +4,13 @@ import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_stat
 import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
 import 'package:bb_mobile/features/get_paid/ui/widgets/get_paid_slot_card.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_routes.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
-import 'package:bull_ui/bull_ui.dart' show BullTopBar;
+import 'package:bull_ui/bull_ui.dart' show BullButton, BullTopBar;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,7 +70,7 @@ void main() {
     await _pump(
       tester,
       const GetPaidDashboardState(
-        lightningStatus: GetPaidDashboardCardStatus.loaded,
+        lightningStatus: GetPaidProductStatus.absent,
         invoicesStatus: GetPaidDashboardCardStatus.loaded,
         btcpayStatus: GetPaidDashboardCardStatus.loaded,
       ),
@@ -316,6 +317,97 @@ void main() {
 
       expect(find.text('Settlement unavailable'), findsNothing);
       expect(find.text('Bitcoin only'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('UX-2 product states', () {
+    testWidgets('the Get Paid settings gear is removed from the top bar', (
+      tester,
+    ) async {
+      await _pump(tester, const GetPaidDashboardState());
+
+      expect(find.byIcon(Icons.settings), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    test('the Get Paid settings route stays constructible after gear '
+        'removal (still reachable from app Settings)', () {
+      expect(GetPaidSettingsRoute.getPaidSettings.name, isNotEmpty);
+    });
+
+    testWidgets('an archived product shows an Archived status chip', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        GetPaidDashboardState(
+          paymentPage: PaymentPage(
+            nym: 'satoshi',
+            header: 'Donate',
+            description: 'desc',
+            displayCurrency: 'CAD',
+            enabled: false,
+            isArchived: true,
+            publicUrl: 'https://pay.example/satoshi',
+          ),
+          paymentPageStatus: GetPaidProductStatus.archived,
+        ),
+      );
+
+      expect(find.text('ARCHIVED'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an unavailable product shows Unavailable and a Retry action', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const GetPaidDashboardState(
+          posStatus: GetPaidProductStatus.unavailable,
+        ),
+      );
+
+      expect(find.text('UNAVAILABLE'), findsOneWidget);
+      // Retry is a BullButton (RichText label) inside the still-tappable card.
+      expect(
+        find.byWidgetPredicate((w) => w is BullButton && w.label == 'Retry'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an absent product shows a Not set up chip', (tester) async {
+      await _pump(
+        tester,
+        const GetPaidDashboardState(posStatus: GetPaidProductStatus.absent),
+      );
+
+      expect(find.text('NOT SET UP'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a self-heal failure shows the missing-wallet warning', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        GetPaidDashboardState(
+          posTerminal: PosTerminal(
+            nym: 'satoshi',
+            label: 'Till',
+            displayCurrency: 'CAD',
+            enabled: true,
+            isArchived: false,
+            terminalUrl: 'https://pos.example/satoshi/pos',
+          ),
+          posStatus: GetPaidProductStatus.active,
+          posWalletWarning: true,
+        ),
+      );
+
+      expect(find.text('Wallet needs attention'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

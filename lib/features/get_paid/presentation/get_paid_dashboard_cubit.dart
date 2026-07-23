@@ -6,6 +6,7 @@ import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
@@ -32,6 +33,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
   final BtcpayFacade _btcpay;
   final GetWalletsUsecase _getWallets;
   final EnsureGetPaidAutomaticFallbackUsecase _ensureAutomaticFallback;
+  final EnsureGetPaidProductWalletUsecase _ensureProductWallet;
   final GetPaidFallbackAttentionUsecase _fallbackAttention;
 
   /// Optional, mainnet-only fiat-settlement summaries for the slots. Both are
@@ -48,6 +50,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
     required this._btcpay,
     required this._getWallets,
     required this._ensureAutomaticFallback,
+    required this._ensureProductWallet,
     required this._fallbackAttention,
     this._fiatSettlement,
     this._getSettings,
@@ -59,15 +62,19 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
       state.copyWith(
         isLoading: true,
         clearError: true,
-        lightningStatus: GetPaidDashboardCardStatus.loading,
-        paymentPageStatus: GetPaidDashboardCardStatus.loading,
-        posStatus: GetPaidDashboardCardStatus.loading,
+        lightningStatus: GetPaidProductStatus.loading,
+        paymentPageStatus: GetPaidProductStatus.loading,
+        posStatus: GetPaidProductStatus.loading,
         invoicesStatus: GetPaidDashboardCardStatus.loading,
         btcpayStatus: GetPaidDashboardCardStatus.loading,
         // Settlement is server-read-only: drop any prior summary so a stale
         // badge is never shown while the fresh read is in flight.
         clearFiatSettlement: true,
         fiatSettlementUnavailable: false,
+        // Wallet self-heal warnings are recomputed each refresh.
+        lightningWalletWarning: false,
+        paymentPageWalletWarning: false,
+        posWalletWarning: false,
       ),
     );
 
@@ -149,11 +156,13 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
             error: error,
             trace: trace,
           );
+          // The nym drives the Page/POS queries, so a failed lookup leaves ALL
+          // three products UNAVAILABLE (truth unknown) — never absent.
           emit(
             state.copyWith(
-              lightningStatus: GetPaidDashboardCardStatus.loaded,
-              paymentPageStatus: GetPaidDashboardCardStatus.loaded,
-              posStatus: GetPaidDashboardCardStatus.loaded,
+              lightningStatus: GetPaidProductStatus.unavailable,
+              paymentPageStatus: GetPaidProductStatus.unavailable,
+              posStatus: GetPaidProductStatus.unavailable,
             ),
           );
           return;
@@ -167,9 +176,9 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         );
         emit(
           state.copyWith(
-            lightningStatus: GetPaidDashboardCardStatus.loaded,
-            paymentPageStatus: GetPaidDashboardCardStatus.loaded,
-            posStatus: GetPaidDashboardCardStatus.loaded,
+            lightningStatus: GetPaidProductStatus.unavailable,
+            paymentPageStatus: GetPaidProductStatus.unavailable,
+            posStatus: GetPaidProductStatus.unavailable,
           ),
         );
         return;
@@ -187,21 +196,35 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
           lightningActive: registration.active,
           nym: nym,
           clearNym: nym == null,
-          lightningStatus: GetPaidDashboardCardStatus.loaded,
+          // A resolved registration (active or inactive) is a present card;
+          // no nym is a CONFIRMED empty account (absent).
+          lightningStatus: nym == null
+              ? GetPaidProductStatus.absent
+              : GetPaidProductStatus.active,
         ),
       );
 
       if (nym == null) {
+        // Confirmed empty account: no Page/POS products yet (absent, not
+        // unavailable). The manifest never creates a product card.
         emit(
           state.copyWith(
             clearPaymentPage: true,
             clearPos: true,
-            paymentPageStatus: GetPaidDashboardCardStatus.loaded,
-            posStatus: GetPaidDashboardCardStatus.loaded,
+            paymentPageStatus: GetPaidProductStatus.absent,
+            posStatus: GetPaidProductStatus.absent,
           ),
         );
         return;
       }
+
+      // Self-heal the Lightning Address wallet (101) only while it is active.
+      final lightningHealFuture = registration.active
+          ? _healProductWallet(
+              generation,
+              GetPaidWalletBackedProduct.lightningAddress,
+            )
+          : Future<void>.value();
 
       final fallbackFuture = () async {
         try {
@@ -224,13 +247,34 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         try {
           final page = await _paymentPage.find(nym: nym);
           if (_isStale(generation)) return;
-          final visiblePage = page?.isArchived == true ? null : page;
+          if (page == null) {
+            emit(
+              state.copyWith(
+                clearPaymentPage: true,
+                paymentPageStatus: GetPaidProductStatus.absent,
+              ),
+            );
+            return;
+          }
+          if (page.isArchived) {
+            // Archived => keep the object for a status-only card; not active.
+            emit(
+              state.copyWith(
+                paymentPage: page,
+                paymentPageStatus: GetPaidProductStatus.archived,
+              ),
+            );
+            return;
+          }
           emit(
             state.copyWith(
-              paymentPage: visiblePage,
-              clearPaymentPage: visiblePage == null,
-              paymentPageStatus: GetPaidDashboardCardStatus.loaded,
+              paymentPage: page,
+              paymentPageStatus: GetPaidProductStatus.active,
             ),
+          );
+          await _healProductWallet(
+            generation,
+            GetPaidWalletBackedProduct.paymentPage,
           );
         } on Exception catch (error, trace) {
           if (_isStale(generation)) return;
@@ -240,9 +284,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
             trace: trace,
           );
           emit(
-            state.copyWith(
-              paymentPageStatus: GetPaidDashboardCardStatus.loaded,
-            ),
+            state.copyWith(paymentPageStatus: GetPaidProductStatus.unavailable),
           );
         }
       }();
@@ -250,16 +292,31 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         try {
           final terminal = await _pos.find(nym: nym);
           if (_isStale(generation)) return;
-          final visibleTerminal = terminal?.isArchived == true
-              ? null
-              : terminal;
+          if (terminal == null) {
+            emit(
+              state.copyWith(
+                clearPos: true,
+                posStatus: GetPaidProductStatus.absent,
+              ),
+            );
+            return;
+          }
+          if (terminal.isArchived) {
+            emit(
+              state.copyWith(
+                posTerminal: terminal,
+                posStatus: GetPaidProductStatus.archived,
+              ),
+            );
+            return;
+          }
           emit(
             state.copyWith(
-              posTerminal: visibleTerminal,
-              clearPos: visibleTerminal == null,
-              posStatus: GetPaidDashboardCardStatus.loaded,
+              posTerminal: terminal,
+              posStatus: GetPaidProductStatus.active,
             ),
           );
+          await _healProductWallet(generation, GetPaidWalletBackedProduct.pos);
         } on Exception catch (error, trace) {
           if (_isStale(generation)) return;
           recordFailure(
@@ -267,10 +324,15 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
             error: error,
             trace: trace,
           );
-          emit(state.copyWith(posStatus: GetPaidDashboardCardStatus.loaded));
+          emit(state.copyWith(posStatus: GetPaidProductStatus.unavailable));
         }
       }();
-      await Future.wait([fallbackFuture, pageFuture, posFuture]);
+      await Future.wait([
+        lightningHealFuture,
+        fallbackFuture,
+        pageFuture,
+        posFuture,
+      ]);
     }();
 
     // Fiat-settlement badges: mainnet-only, server-read-only truth. A confirmed
@@ -336,6 +398,31 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         clearError: !failed,
       ),
     );
+  }
+
+  /// Contract #4 Q9/Q9b self-heal for an ACTIVE product: re-derive its
+  /// fixed-path wallet if missing, recording it in the manifest. Idempotent (a
+  /// present wallet is a no-op). Only a re-derivation FAILURE raises the
+  /// product's missing-wallet warning; success clears it. The usecase never
+  /// throws, and every emit is generation-guarded.
+  Future<void> _healProductWallet(
+    int generation,
+    GetPaidWalletBackedProduct product,
+  ) async {
+    final outcome = await _ensureProductWallet.execute(product);
+    if (_isStale(generation)) return;
+    final warning = outcome == GetPaidProductWalletOutcome.failed;
+    emit(switch (product) {
+      GetPaidWalletBackedProduct.lightningAddress => state.copyWith(
+        lightningWalletWarning: warning,
+      ),
+      GetPaidWalletBackedProduct.paymentPage => state.copyWith(
+        paymentPageWalletWarning: warning,
+      ),
+      GetPaidWalletBackedProduct.pos => state.copyWith(
+        posWalletWarning: warning,
+      ),
+    });
   }
 
   /// Whether the user has at least one default wallet — the Invoices product

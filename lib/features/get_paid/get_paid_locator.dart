@@ -68,6 +68,7 @@ class GetPaidLocator {
         getWallets: locator<GetWalletsUsecase>(),
         ensureAutomaticFallback:
             locator<EnsureGetPaidAutomaticFallbackUsecase>(),
+        ensureProductWallet: locator<EnsureGetPaidProductWalletUsecase>(),
         fallbackAttention: locator<GetPaidFallbackAttentionUsecase>(),
         fiatSettlement: locator<FiatSettlementFacade>(),
         getSettings: locator<GetSettingsUsecase>(),

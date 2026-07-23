@@ -7,7 +7,8 @@ import 'package:flutter/material.dart'
         Container,
         Icons,
         SizedBox,
-        Wrap;
+        Wrap,
+        WrapCrossAlignment;
 
 /// A single Get Paid product row. Domain-agnostic feature composite (the
 /// `UtxoTile` precedent): it lives in the feature but is built entirely out of
@@ -34,6 +35,14 @@ class GetPaidSlotCard extends StatelessWidget {
   /// When true the settlement chip is the muted "unavailable" variant (a read
   /// failed) rather than a confirmed configuration.
   final bool settlementUnavailable;
+
+  /// A Retry affordance for the "unavailable" (failed/timed-out) product state.
+  /// Null hides it. The card body still navigates on tap; Retry re-queries.
+  final ({String label, VoidCallback onTap})? retry;
+
+  /// A missing-wallet warning notice (contract #4 self-heal failed). Null hides
+  /// it.
+  final String? warningLabel;
   final bool isLoading;
   final VoidCallback onTap;
 
@@ -46,6 +55,8 @@ class GetPaidSlotCard extends StatelessWidget {
     this.statusActive = false,
     this.settlementLabel,
     this.settlementUnavailable = false,
+    this.retry,
+    this.warningLabel,
     this.isLoading = false,
     required this.onTap,
   });
@@ -100,11 +111,14 @@ class GetPaidSlotCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (statusLabel != null || settlementLabel != null) ...[
+                if (statusLabel != null ||
+                    settlementLabel != null ||
+                    retry != null) ...[
                   const Gap(10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       if (statusLabel != null)
                         _StatusBadge(label: statusLabel!, active: statusActive),
@@ -113,6 +127,37 @@ class GetPaidSlotCard extends StatelessWidget {
                           label: settlementLabel!,
                           unavailable: settlementUnavailable,
                         ),
+                      if (retry != null)
+                        BullButton.small(
+                          label: retry!.label,
+                          onPressed: retry!.onTap,
+                          bgColor: colors.surface,
+                          textColor: colors.onSurface,
+                          outlined: true,
+                          borderColor: colors.onSurfaceVariant,
+                        ),
+                    ],
+                  ),
+                ],
+                if (warningLabel != null) ...[
+                  const Gap(8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BullIcon(
+                        Icons.warning_amber_rounded,
+                        size: 16,
+                        color: colors.warning,
+                      ),
+                      const Gap(6),
+                      Expanded(
+                        child: Text(
+                          warningLabel!,
+                          style: context.bullText.bodySmall?.copyWith(
+                            color: colors.warning,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],

@@ -17045,5 +17045,25 @@
   "getPaidDashboardSettlementUnavailable": "Settlement unavailable",
   "@getPaidDashboardSettlementUnavailable": {
     "description": "Dashboard product-card settlement badge shown when the fiat-settlement configuration read failed."
+  },
+  "getPaidDashboardArchived": "Archived",
+  "@getPaidDashboardArchived": {
+    "description": "Get Paid dashboard product card status chip: the product exists but is archived."
+  },
+  "getPaidDashboardNotSetUp": "Not set up",
+  "@getPaidDashboardNotSetUp": {
+    "description": "Get Paid dashboard product card status chip: no product configured yet."
+  },
+  "getPaidDashboardUnavailable": "Unavailable",
+  "@getPaidDashboardUnavailable": {
+    "description": "Get Paid dashboard product card status chip: the product query failed or timed out."
+  },
+  "getPaidDashboardRetry": "Retry",
+  "@getPaidDashboardRetry": {
+    "description": "Get Paid dashboard product card action to re-query an unavailable product."
+  },
+  "getPaidDashboardWalletWarning": "Wallet needs attention",
+  "@getPaidDashboardWalletWarning": {
+    "description": "Get Paid dashboard product card notice: the product wallet could not be re-derived."
   }
 }
