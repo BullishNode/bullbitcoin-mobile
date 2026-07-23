@@ -17137,5 +17137,17 @@
   "getPaidCancelButton": "Cancel",
   "@getPaidCancelButton": {
     "description": "Cancel action that collapses the Get Paid product edit form."
+  },
+  "invoicePayerDescription": "Information about who is paying you.",
+  "@invoicePayerDescription": {
+    "description": "Owner-verbatim description under the New Invoice Payer section header."
+  },
+  "invoicePayeeDescription": "Information about you.",
+  "@invoicePayeeDescription": {
+    "description": "Owner-verbatim description under the New Invoice Payee section header."
+  },
+  "invoiceRailLastEnabledHint": "At least one payment method is required.",
+  "@invoiceRailLastEnabledHint": {
+    "description": "Hint on the last remaining enabled invoice rail, whose toggle is locked on."
   }
 }

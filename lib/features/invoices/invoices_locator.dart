@@ -1,4 +1,6 @@
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
+import 'package:bb_mobile/core/exchange/domain/usecases/convert_currency_to_sats_amount_usecase.dart';
+import 'package:bb_mobile/core/exchange/domain/usecases/convert_sats_to_currency_amount_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/storage/data/datasources/key_value_storage/key_value_storage_datasource.dart';
 import 'package:bb_mobile/core/utils/constants.dart';
@@ -120,6 +122,9 @@ class InvoicesLocator {
         facade: locator<InvoicesFacade>(),
         settlementConstraints:
             locator<GetInvoiceSettlementConstraintsUsecase>(),
+        getSettings: locator<GetSettingsUsecase>(),
+        convertToSats: locator<ConvertCurrencyToSatsAmountUsecase>(),
+        convertToFiat: locator<ConvertSatsToCurrencyAmountUsecase>(),
       ),
     );
   }
