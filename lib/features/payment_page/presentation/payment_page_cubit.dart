@@ -1,5 +1,4 @@
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
@@ -12,15 +11,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class PaymentPageCubit extends Cubit<PaymentPageState> {
   final PaymentPageFacade _facade;
   final GetPaymentPagePermanentNameUsecase _getPermanentName;
-  final GetGetPaidWalletBehaviorsUsecase _getWalletBehaviors;
-  final UpdateWalletBehaviorUsecase _updateWalletBehavior;
+  final GetPaidSettingsFacade _getPaidSettings;
   int _operationId = 0;
 
   PaymentPageCubit({
     required this._facade,
     required this._getPermanentName,
-    required this._getWalletBehaviors,
-    required this._updateWalletBehavior,
+    required this._getPaidSettings,
   }) : super(const PaymentPageState());
 
   Future<void> load() async {
@@ -424,7 +421,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       ),
     );
     try {
-      await _updateWalletBehavior.execute(
+      await _getPaidSettings.updateWalletBehavior(
         walletId: walletId,
         hideOnHome: hideOnHome,
         autoSweepEnabled: autoSweepEnabled,
@@ -455,7 +452,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
   // Read-only resolution of the reserved wallet (102); null until it exists.
   Future<GetPaidWalletBehavior?> _resolveWalletBehavior() async {
     try {
-      final behaviors = await _getWalletBehaviors.execute(
+      final behaviors = await _getPaidSettings.walletBehaviors(
         only: GetPaidWalletProduct.paymentPage,
       );
       return behaviors.isEmpty ? null : behaviors.first;

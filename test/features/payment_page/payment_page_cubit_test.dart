@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
+import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
@@ -17,8 +18,10 @@ void main() {
   PaymentPageCubit build() => PaymentPageCubit(
     facade: facade,
     getPermanentName: permanentName,
-    getWalletBehaviors: walletBehaviors,
-    updateWalletBehavior: updateWalletBehavior,
+    getPaidSettings: _FakeGetPaidSettings(
+      walletBehaviors,
+      updateWalletBehavior,
+    ),
   );
 
   PaymentPage buildPage({
@@ -391,6 +394,33 @@ class _FakeUpdateWalletBehaviorUsecase implements UpdateWalletBehaviorUsecase {
     bool? hideOnHome,
     bool? autoSweepEnabled,
   }) async {}
+}
+
+/// Thin fake of the public facade the cubit now depends on, delegating the two
+/// wallet-behavior methods to the existing fakes.
+class _FakeGetPaidSettings implements GetPaidSettingsFacade {
+  _FakeGetPaidSettings(this._behaviors, this._update);
+  final _FakeGetGetPaidWalletBehaviorsUsecase _behaviors;
+  final _FakeUpdateWalletBehaviorUsecase _update;
+
+  @override
+  Future<List<GetPaidWalletBehavior>> walletBehaviors({
+    GetPaidWalletProduct? only,
+  }) => _behaviors.execute(only: only);
+
+  @override
+  Future<void> updateWalletBehavior({
+    required String walletId,
+    bool? hideOnHome,
+    bool? autoSweepEnabled,
+  }) => _update.execute(
+    walletId: walletId,
+    hideOnHome: hideOnHome,
+    autoSweepEnabled: autoSweepEnabled,
+  );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeGetPaymentPagePermanentNameUsecase
