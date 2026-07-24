@@ -8,9 +8,7 @@ const _masterXprv =
     'xprv9s21ZrQH143K2LBWUUQRFXhucrQqBpKdRRxNVq2zBqsx8HVqFk2uYo8kmbaLLHRdqtQpUm98uKfu3vca1LqdGhUtyoFnCNkfmXRyPXLjbKb';
 
 void main() {
-  const usecase = DeriveNostrIdentityHandleUsecase(
-    registry: Bip85RegistryFacade(),
-  );
+  const usecase = DeriveNostrIdentityHandleUsecase(Bip85RegistryFacade());
 
   test('derives role keys from the registry key reservations', () {
     final walletBackupHandle = usecase.execute(

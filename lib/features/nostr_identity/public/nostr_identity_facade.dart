@@ -3,9 +3,7 @@ import 'package:bb_mobile/features/nostr_identity/domain/derive_nostr_identity_h
 class NostrIdentityFacade {
   final DeriveNostrIdentityHandleUsecase _deriveHandle;
 
-  const NostrIdentityFacade({
-    required DeriveNostrIdentityHandleUsecase deriveHandle,
-  }) : _deriveHandle = deriveHandle;
+  const NostrIdentityFacade(this._deriveHandle);
 
   String deriveWalletBackupPublicKeyFromXprv(String xprvBase58) {
     final handle = _deriveHandle.execute(

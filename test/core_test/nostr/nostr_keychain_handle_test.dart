@@ -15,9 +15,7 @@ import 'package:crypto/crypto.dart';
 import 'package:test/test.dart';
 
 const _facade = NostrIdentityFacade(
-  deriveHandle: DeriveNostrIdentityHandleUsecase(
-    registry: Bip85RegistryFacade(),
-  ),
+  DeriveNostrIdentityHandleUsecase(Bip85RegistryFacade()),
 );
 
 const _zeroMnemonic =

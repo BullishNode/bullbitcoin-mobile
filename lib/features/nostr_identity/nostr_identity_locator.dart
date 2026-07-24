@@ -6,14 +6,10 @@ import 'package:get_it/get_it.dart';
 class NostrIdentityLocator {
   static void setup(GetIt locator) {
     locator.registerFactory<DeriveNostrIdentityHandleUsecase>(
-      () => DeriveNostrIdentityHandleUsecase(
-        registry: locator<Bip85RegistryFacade>(),
-      ),
+      () => DeriveNostrIdentityHandleUsecase(locator<Bip85RegistryFacade>()),
     );
     locator.registerFactory<NostrIdentityFacade>(
-      () => NostrIdentityFacade(
-        deriveHandle: locator<DeriveNostrIdentityHandleUsecase>(),
-      ),
+      () => NostrIdentityFacade(locator<DeriveNostrIdentityHandleUsecase>()),
     );
   }
 }
