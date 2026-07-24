@@ -3,6 +3,15 @@ import 'package:bb_mobile/features/bip85_registry/domain/bip85_reservation.dart'
 class Bip85Reservations {
   const Bip85Reservations._();
 
+  /// BIP85 Nostr application number currently proposed by bitcoin/bips#2126.
+  static const nostrApplicationNumber = 128002;
+
+  /// Identity range owned by Bull Bitcoin application roles. User-created
+  /// identities must never allocate from this range, including identities that
+  /// do not yet have a materialized reservation.
+  static const nostrAppReservedIdentityStart = 100;
+  static const nostrAppReservedIdentityEnd = 199;
+
   static final btcpayWalletSeed = Bip85WalletSeedReservation(
     id: 'btcpay_wallet_seed',
     deterministicAlias: 'BTCPay',
@@ -44,9 +53,9 @@ class Bip85Reservations {
     deterministicAlias: 'Nostr Wallet Manifest',
     owner: Bip85ReservationOwner.nostr,
     purpose: Bip85ReservationPurpose.nonWalletNostrKey,
-    application: const Bip85ApplicationSpec(number: 9000),
+    application: const Bip85ApplicationSpec(number: nostrApplicationNumber),
     segments: const [
-      Bip85PathSegment(name: 'identity', value: 1),
+      Bip85PathSegment(name: 'identity', value: 100),
       Bip85PathSegment(name: 'account', value: 1),
     ],
   );
@@ -56,9 +65,9 @@ class Bip85Reservations {
     deterministicAlias: 'Nostr Bullnym Auth',
     owner: Bip85ReservationOwner.nostr,
     purpose: Bip85ReservationPurpose.nonWalletNostrKey,
-    application: const Bip85ApplicationSpec(number: 9000),
+    application: const Bip85ApplicationSpec(number: nostrApplicationNumber),
     segments: const [
-      Bip85PathSegment(name: 'identity', value: 2),
+      Bip85PathSegment(name: 'identity', value: 101),
       Bip85PathSegment(name: 'account', value: 1),
     ],
   );
@@ -68,9 +77,9 @@ class Bip85Reservations {
     deterministicAlias: 'Nostr NIP-05 Public Nym Verification',
     owner: Bip85ReservationOwner.nostr,
     purpose: Bip85ReservationPurpose.nonWalletNostrKey,
-    application: const Bip85ApplicationSpec(number: 9000),
+    application: const Bip85ApplicationSpec(number: nostrApplicationNumber),
     segments: const [
-      Bip85PathSegment(name: 'identity', value: 3),
+      Bip85PathSegment(name: 'identity', value: 102),
       Bip85PathSegment(name: 'account', value: 1),
     ],
   );
