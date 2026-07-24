@@ -263,7 +263,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('private payer note'), findsOneWidget);
     expect(find.text(transaction.transactionId), findsNothing);
-    expect(find.text(transaction.invoiceId!), findsNothing);
+    // Batch 2: an invoice-sourced payment now surfaces its invoice id as a
+    // copyable detail row (the internal transaction id remains hidden above).
+    expect(find.text(transaction.invoiceId!), findsOneWidget);
     await tester.tap(find.text('View invoice'));
     await tester.pumpAndSettle();
     expect(find.text('invoice-${transaction.invoiceId}'), findsOneWidget);

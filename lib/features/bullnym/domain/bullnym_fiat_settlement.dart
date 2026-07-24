@@ -46,10 +46,14 @@ enum BullnymFiatConversionOverrideReason {
   unknown,
 }
 
-/// One fiat settlement order (private, merchant-only). `amountMinor` is present
-/// only once settled.
+/// One fiat settlement order (private, merchant-only). `amountMinor` is the
+/// credited amount, present only once settled. `quotedAmountMinor` is the fiat
+/// amount locked at order creation; it is present (strictly positive) whenever
+/// a quote is known — for pending legs as well as settled ones — and null for a
+/// legacy row predating the quote column or an unavailable leg.
 class BullnymFiatSettlementLeg {
   final int? amountMinor;
+  final int? quotedAmountMinor;
   final String currency;
   final String orderId;
   final BullnymSettlementLegStatus status;
@@ -59,6 +63,7 @@ class BullnymFiatSettlementLeg {
     required this.currency,
     required this.orderId,
     required this.status,
+    this.quotedAmountMinor,
   });
 }
 
@@ -89,11 +94,17 @@ class BullnymGetPaidSettlement {
   final List<BullnymBitcoinSettlementLeg> bitcoin;
   final BullnymFiatConversionOverrideReason? overrideReason;
 
+  /// The captured split percentage that applied at payment time (`100` for a
+  /// `fiat` kind, `1..=99` for `mixed`). Null for a legacy row predating the
+  /// captured column. Never re-read from current product config.
+  final int? fiatPercentage;
+
   const BullnymGetPaidSettlement({
     required this.kind,
     this.fiat = const [],
     this.bitcoin = const [],
     this.overrideReason,
+    this.fiatPercentage,
   });
 
   static const unavailable = BullnymGetPaidSettlement(
@@ -193,9 +204,13 @@ class BullnymGetPaidSettlement {
     if (details.containsKey('bitcoin')) return unavailable;
     final fiat = _fiatLegs(details['fiat']);
     if (fiat == null || fiat.isEmpty) return unavailable;
+    // A fiat kind is 100% fiat: a present split must be exactly 100.
+    final percentage = _fiatPercentage(details['fiat_percentage'], min: 100);
+    if (percentage == _invalidPercentage) return unavailable;
     return BullnymGetPaidSettlement(
       kind: BullnymSettlementKind.fiat,
       fiat: fiat,
+      fiatPercentage: percentage,
     );
   }
 
@@ -211,10 +226,18 @@ class BullnymGetPaidSettlement {
     // A mixed projection requires non-empty valid legs on BOTH sides.
     if (fiat == null || fiat.isEmpty) return unavailable;
     if (bitcoin == null || bitcoin.isEmpty) return unavailable;
+    // A mixed kind splits both ways: a present split must be 1..=99.
+    final percentage = _fiatPercentage(
+      details['fiat_percentage'],
+      min: 1,
+      max: 99,
+    );
+    if (percentage == _invalidPercentage) return unavailable;
     return BullnymGetPaidSettlement(
       kind: BullnymSettlementKind.mixed,
       fiat: fiat,
       bitcoin: bitcoin,
+      fiatPercentage: percentage,
     );
   }
 
@@ -253,9 +276,25 @@ class BullnymGetPaidSettlement {
         if (amountMinor != null) return null;
         amount = null;
       }
+      final quotedRaw = e['quoted_amount_minor'];
+      final int? quotedAmountMinor;
+      if (quotedRaw == null) {
+        // Absent or JSON null: a legacy row predating the quote column, or an
+        // unavailable leg — no quote to show.
+        quotedAmountMinor = null;
+      } else if (quotedRaw is int && quotedRaw > 0) {
+        // A known quote is a strictly positive int, for pending as well as
+        // settled legs.
+        quotedAmountMinor = quotedRaw;
+      } else {
+        // Present but not a strictly positive int → the whole projection fails
+        // closed (never a fabricated quote).
+        return null;
+      }
       legs.add(
         BullnymFiatSettlementLeg(
           amountMinor: amount,
+          quotedAmountMinor: quotedAmountMinor,
           currency: currency,
           orderId: orderId,
           status: status,
@@ -286,6 +325,20 @@ class BullnymGetPaidSettlement {
       );
     }
     return legs;
+  }
+
+  /// Sentinel meaning `fiat_percentage` was PRESENT but invalid (non-int or out
+  /// of the kind's allowed range) — the caller fails the projection closed.
+  static const int _invalidPercentage = -1;
+
+  /// Reads the captured split percentage. Returns null when the field is absent
+  /// or JSON null (a legacy row — no split shown), the value when it is an int
+  /// in `[min, max]`, or [_invalidPercentage] when it is present but not a valid
+  /// int in range.
+  static int? _fiatPercentage(Object? raw, {required int min, int max = 100}) {
+    if (raw == null) return null;
+    if (raw is int && raw >= min && raw <= max) return raw;
+    return _invalidPercentage;
   }
 
   static BullnymSettlementLegStatus? _fiatLegStatus(Object? v) => switch (v) {

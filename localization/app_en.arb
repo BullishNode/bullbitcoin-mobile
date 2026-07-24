@@ -17295,6 +17295,34 @@
   "@getPaidSettlementFiatStatusLabel": {
     "description": "Detail screen: label for the per-leg status of the fiat settlement leg."
   },
+  "getPaidSettlementFiatAmountQuotedLabel": "Fiat amount (quoted)",
+  "@getPaidSettlementFiatAmountQuotedLabel": {
+    "description": "Detail screen: label for a pending fiat leg's amount, marking it as the locked quote that can reprice for a late payment (not final)."
+  },
+  "getPaidSettlementSplitLabel": "Split",
+  "@getPaidSettlementSplitLabel": {
+    "description": "Detail screen: label for the captured fiat/Bitcoin split of a fiat or mixed settlement."
+  },
+  "getPaidSettlementSplitFiatOnly": "100% fiat",
+  "@getPaidSettlementSplitFiatOnly": {
+    "description": "Detail screen: split value for a 100% fiat settlement."
+  },
+  "getPaidSettlementSplitMixed": "{bitcoinPercent}% Bitcoin · {fiatPercent}% fiat",
+  "@getPaidSettlementSplitMixed": {
+    "description": "Detail screen: split value for a mixed settlement (Bitcoin and fiat portions).",
+    "placeholders": {
+      "bitcoinPercent": {
+        "type": "int"
+      },
+      "fiatPercent": {
+        "type": "int"
+      }
+    }
+  },
+  "getPaidTransactionsInvoiceIdLabel": "Invoice ID",
+  "@getPaidTransactionsInvoiceIdLabel": {
+    "description": "Detail screen: label for the copyable invoice id of an invoice-sourced Get Paid payment."
+  },
   "getPaidSettlementKindMixed": "Mixed Fiat-BTC",
   "@getPaidSettlementKindMixed": {
     "description": "History list: settlement-kind pill for a mixed fiat-and-Bitcoin settlement."

@@ -8,14 +8,19 @@ import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-GetPaidTransaction _tx({GetPaidSettlement? settlement}) => GetPaidTransaction(
+GetPaidTransaction _tx({
+  GetPaidSettlement? settlement,
+  GetPaidTransactionSource source = GetPaidTransactionSource.lightningAddress,
+  String? invoiceId,
+  GetPaidSettlementState settlementState = GetPaidSettlementState.settled,
+}) => GetPaidTransaction(
   transactionId: '10000000-0000-4000-8000-000000000001',
-  source: GetPaidTransactionSource.lightningAddress,
-  invoiceId: null,
+  source: source,
+  invoiceId: invoiceId,
   amountSat: 2100,
   receivedAt: DateTime.utc(2026, 7, 18, 12),
   rail: GetPaidTransactionRail.lightning,
-  settlementState: GetPaidSettlementState.settled,
+  settlementState: settlementState,
   late: false,
   comment: null,
   settlement: settlement,
@@ -23,12 +28,16 @@ GetPaidTransaction _tx({GetPaidSettlement? settlement}) => GetPaidTransaction(
 
 GetPaidSettlement _fiat({
   int? amountMinor = 12345,
+  int? quotedAmountMinor,
+  int? fiatPercentage,
   GetPaidSettlementLegStatus status = GetPaidSettlementLegStatus.settled,
 }) => GetPaidSettlement(
   kind: GetPaidSettlementKind.fiat,
+  fiatPercentage: fiatPercentage,
   fiat: [
     GetPaidFiatSettlementLeg(
       amountMinor: amountMinor,
+      quotedAmountMinor: quotedAmountMinor,
       currency: 'CAD',
       orderId: '40000000-0000-4000-8000-000000000009',
       status: status,
@@ -199,6 +208,110 @@ void main() {
       // The "Fiat conversion" row is only rendered when there is something to
       // explain.
       expect(find.text('Fiat conversion'), findsNothing);
+    });
+  });
+
+  group('batch 2 — quote, split, invoice id', () {
+    testWidgets('a pending leg with a quote shows the quoted amount + label', (
+      tester,
+    ) async {
+      await _pumpDetail(
+        tester,
+        _tx(
+          settlementState: GetPaidSettlementState.pending,
+          settlement: _fiat(
+            amountMinor: null,
+            quotedAmountMinor: 5000,
+            status: GetPaidSettlementLegStatus.pending,
+          ),
+        ),
+      );
+      // The label marks it as a (repriceable) quote, not the plain amount.
+      expect(find.text('Fiat amount (quoted)'), findsOneWidget);
+      expect(find.text('Fiat amount'), findsNothing);
+      expect(find.text('50.00 CAD'), findsOneWidget);
+      // The awaiting-settlement explainer still fires for the pending leg.
+      expect(find.textContaining('Awaiting settlement'), findsOneWidget);
+    });
+
+    testWidgets('a settled leg shows the credited amount, never the quote', (
+      tester,
+    ) async {
+      await _pumpDetail(
+        tester,
+        _tx(
+          settlement: _fiat(amountMinor: 12345, quotedAmountMinor: 12000),
+        ),
+      );
+      // Credited amount under the plain label; the (differing) quote is gone.
+      expect(find.text('Fiat amount'), findsOneWidget);
+      expect(find.text('Fiat amount (quoted)'), findsNothing);
+      expect(find.text('123.45 CAD'), findsOneWidget);
+      expect(find.textContaining('120.00'), findsNothing);
+    });
+
+    testWidgets('a mixed settlement shows the captured split row', (
+      tester,
+    ) async {
+      await _pumpDetail(
+        tester,
+        _tx(
+          settlement: GetPaidSettlement(
+            kind: GetPaidSettlementKind.mixed,
+            fiatPercentage: 40,
+            bitcoin: const [
+              GetPaidBitcoinSettlementLeg(
+                amountSat: 60000,
+                status: GetPaidSettlementLegStatus.settled,
+              ),
+            ],
+            fiat: _fiat().fiat,
+          ),
+        ),
+      );
+      expect(find.text('Split'), findsOneWidget);
+      expect(find.text('60% Bitcoin · 40% fiat'), findsOneWidget);
+    });
+
+    testWidgets('a 100% fiat settlement shows the fiat-only split row', (
+      tester,
+    ) async {
+      await _pumpDetail(tester, _tx(settlement: _fiat(fiatPercentage: 100)));
+      expect(find.text('Split'), findsOneWidget);
+      expect(find.text('100% fiat'), findsOneWidget);
+    });
+
+    testWidgets('a legacy row (null percentage) shows no split row', (
+      tester,
+    ) async {
+      await _pumpDetail(tester, _tx(settlement: _fiat()));
+      expect(find.text('Split'), findsNothing);
+    });
+
+    testWidgets('an invoice-sourced payment shows a copyable Invoice ID row', (
+      tester,
+    ) async {
+      await _pumpDetail(
+        tester,
+        _tx(
+          source: GetPaidTransactionSource.invoice,
+          invoiceId: '50000000-0000-4000-8000-000000000005',
+        ),
+      );
+      expect(find.text('Invoice ID'), findsOneWidget);
+      expect(
+        find.text('50000000-0000-4000-8000-000000000005'),
+        findsOneWidget,
+      );
+      // The row carries the copy affordance (same idiom as the order-id row).
+      expect(find.byIcon(Icons.copy_outlined), findsWidgets);
+    });
+
+    testWidgets('a Lightning Address payment shows no Invoice ID row', (
+      tester,
+    ) async {
+      await _pumpDetail(tester, _tx());
+      expect(find.text('Invoice ID'), findsNothing);
     });
   });
 }

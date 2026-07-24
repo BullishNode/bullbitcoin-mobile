@@ -16,6 +16,7 @@ GetPaidSettlement? mapBullnymSettlementToGetPaid(
     overrideReason: settlement.overrideReason == null
         ? null
         : _overrideReason(settlement.overrideReason!),
+    fiatPercentage: settlement.fiatPercentage,
   );
 }
 
@@ -29,6 +30,7 @@ GetPaidSettlementKind _kind(BullnymSettlementKind kind) => switch (kind) {
 GetPaidFiatSettlementLeg _fiatLeg(BullnymFiatSettlementLeg leg) =>
     GetPaidFiatSettlementLeg(
       amountMinor: leg.amountMinor,
+      quotedAmountMinor: leg.quotedAmountMinor,
       currency: leg.currency,
       orderId: leg.orderId,
       status: _legStatus(leg.status),
