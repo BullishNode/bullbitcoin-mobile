@@ -4,7 +4,8 @@
 
 `wallet_backup` owns the seed-bound encrypted Bull backup container and its single opaque Bullnym remote object.
 This slice includes the outer envelope, the manifest section adapter, authenticated encryption, BIP85 encryption-key derivation, unified Nostr request signer, remote repository, and conditional manifest publication.
-Durable state, lifecycle controls, scheduling, and recovery orchestration are added by their later owning PRs.
+This slice also owns one durable `WalletBackupState` row for the unified lifecycle.
+Lifecycle controls, scheduling, and recovery orchestration are added by their later owning PRs.
 
 This is one backup lifecycle, not a wrapper around separate manifest and
 metadata backup systems. `keychain_manifest` remains the source of truth for
@@ -97,9 +98,16 @@ A head conflict causes exactly one refetch, re-merge, re-encrypt, and retry.
 A second conflict returns a typed failure.
 If the merged manifest already equals the authenticated remote manifest, no write occurs and the existing canonical content hash and checkpoint are returned.
 
+## Durable State
+
+Schema 16 introduces exactly one singleton `wallet_backup_states` table.
+It records enablement, dirty state and its monotonic revision, attempt and success timestamps, the last verified remote generation/ETag/content hash, and a newer unsupported outer-envelope version that blocks publication.
+The state repository preserves dirty work when a store that captured an older revision succeeds.
+Disabling does not clear dirty work or delete the remote object, and clearing a confirmed remote checkpoint does not change enablement.
+Section owners do not write this table directly; later lifecycle and coordinator PRs connect their committed public change signals to `wallet_backup`.
+
 ## Non-goals in This Slice
 
-- durable backup state
 - automated publication coordination
 - settings or onboarding UI
 - metadata payload semantics
