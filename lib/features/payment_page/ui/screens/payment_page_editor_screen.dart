@@ -329,8 +329,10 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
             : null,
       ),
       const Gap(16),
-      _currencyField(context, state, cubit),
-      const Gap(16),
+      // Display currency is intentionally not collected here: the payer chooses
+      // their currency on the hosted page, so the merchant never picks one. The
+      // server still requires a `display_currency`, so a sensible default is
+      // sent silently in the payload (see PaymentPageCubit / state defaults).
       TextField(
         controller: _website,
         enabled: !state.submitting,
@@ -426,63 +428,12 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
         labelText: context.loc.paymentPageAliasLabel,
         helperText: context.loc.paymentPageAliasHelper,
         errorText: state.invalidField == PaymentPageField.alias
-            ? context.loc.paymentPageAliasInvalid
+            ? (state.aliasTakenFailure
+                  ? context.loc.paymentPageAliasTaken
+                  : context.loc.paymentPageAliasInvalid)
             : null,
         errorMaxLines: 2,
       ),
-    );
-  }
-
-  Widget _currencyField(
-    BuildContext context,
-    PaymentPageState state,
-    PaymentPageCubit cubit,
-  ) {
-    if (state.currenciesUnavailable) {
-      return Row(
-        children: [
-          Expanded(
-            child: _InfoRow(
-              label: context.loc.paymentPageCurrencyLabel,
-              value: context.loc.paymentPageCurrenciesUnavailable(
-                state.displayCurrency.isEmpty
-                    ? paymentPageFallbackCurrency
-                    : state.displayCurrency,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: cubit.retryCurrencies,
-            child: Text(context.loc.paymentPageRetryCurrencies),
-          ),
-        ],
-      );
-    }
-
-    final codes = <String>{
-      ...state.currencies.map((c) => c.code),
-      if (state.displayCurrency.isNotEmpty) state.displayCurrency,
-    }.toList();
-    return DropdownButtonFormField<String>(
-      initialValue: state.displayCurrency.isEmpty
-          ? null
-          : state.displayCurrency,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        labelText: context.loc.paymentPageCurrencyLabel,
-        errorText: state.invalidField == PaymentPageField.displayCurrency
-            ? context.loc.paymentPageCurrencyError
-            : null,
-      ),
-      items: [
-        for (final code in codes)
-          DropdownMenuItem(value: code, child: Text(code)),
-      ],
-      onChanged: state.submitting
-          ? null
-          : (value) {
-              if (value != null) cubit.displayCurrencyChanged(value);
-            },
     );
   }
 

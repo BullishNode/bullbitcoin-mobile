@@ -1057,6 +1057,10 @@
   "@invoiceRailsLabel": {
     "description": "Section header for the invoice payment-rail toggles"
   },
+  "invoiceEditRailsButton": "Edit accepted payment methods",
+  "@invoiceEditRailsButton": {
+    "description": "Button that reveals the collapsed invoice payment-rail toggles on the create page"
+  },
   "invoiceAcceptLn": "Lightning",
   "@invoiceAcceptLn": {
     "description": "Toggle to accept Lightning payment"

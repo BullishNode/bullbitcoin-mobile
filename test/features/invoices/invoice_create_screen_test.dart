@@ -125,6 +125,10 @@ void main() {
       ),
     );
 
+    // The rails are collapsed by default; reveal them before inspecting.
+    await tester.tap(find.byKey(const Key('invoice_edit_rails_button')));
+    await tester.pump();
+
     final liquid = tester.widget<SwitchListTile>(
       find.widgetWithText(SwitchListTile, 'Liquid'),
     );
@@ -181,6 +185,10 @@ void main() {
 
     await _pumpScreen(tester, cubit);
 
+    // The rails are collapsed by default; reveal them first.
+    await tester.tap(find.byKey(const Key('invoice_edit_rails_button')));
+    await tester.pump();
+
     // Turn off two of the three rails; the third must stay locked on.
     await tester.tap(find.widgetWithText(SwitchListTile, 'On-chain Bitcoin'));
     await tester.pump();
@@ -196,6 +204,37 @@ void main() {
       find.text('At least one payment method is required.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('accepted payment methods are collapsed behind an Edit button '
+      'and stay respected on submit', (tester) async {
+    await cubit.close();
+    cubit = await _fiatSeededCubit(facade);
+
+    await _pumpScreen(tester, cubit);
+
+    // Collapsed by default: the Edit button shows; no toggles, no section label.
+    expect(find.byKey(const Key('invoice_edit_rails_button')), findsOneWidget);
+    expect(find.text('Accepted payment methods'), findsNothing);
+    expect(find.widgetWithText(SwitchListTile, 'Lightning'), findsNothing);
+    expect(find.widgetWithText(SwitchListTile, 'On-chain Bitcoin'), findsNothing);
+
+    // Tapping reveals the toggles and the section label.
+    await tester.tap(find.byKey(const Key('invoice_edit_rails_button')));
+    await tester.pump();
+    expect(find.text('Accepted payment methods'), findsOneWidget);
+    expect(find.widgetWithText(SwitchListTile, 'Lightning'), findsOneWidget);
+    expect(find.widgetWithText(SwitchListTile, 'Liquid'), findsOneWidget);
+    expect(
+      find.widgetWithText(SwitchListTile, 'On-chain Bitcoin'),
+      findsOneWidget,
+    );
+
+    // A toggle change is still carried in state (what submit uses).
+    expect(cubit.state.acceptBtc, isTrue);
+    await tester.tap(find.widgetWithText(SwitchListTile, 'On-chain Bitcoin'));
+    await tester.pump();
+    expect(cubit.state.acceptBtc, isFalse);
   });
 }
 
