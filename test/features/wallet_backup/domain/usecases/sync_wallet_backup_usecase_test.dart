@@ -25,6 +25,7 @@ import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_r
 import 'package:bb_mobile/features/wallet_backup/domain/repositories/wallet_backup_remote_repository.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/build_wallet_backup_envelope_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_encryption_key_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_signer_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/sync_wallet_backup_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_failure.dart';
 import 'package:bip32_keys/bip32_keys.dart' as bip32;
@@ -60,6 +61,31 @@ void main() {
       1,
     );
   });
+
+  test(
+    'stores a canonical empty manifest for a newly enabled wallet',
+    () async {
+      final remote = _FakeRemoteRepository(
+        heads: [WalletBackupRemoteHead.absent(generation: 0, etag: null)],
+      );
+      final fixture = _Fixture(remote, emptyManifest: true);
+
+      final result = await fixture.sync.execute(
+        parentFingerprint: fixture.parentFingerprint,
+        xprvBase58: fixture.xprv,
+      );
+
+      expect(result, isA<Ok<WalletBackupSyncResult, WalletBackupFailure>>());
+      expect(remote.storeCalls, 1);
+      final stored = fixture.decrypt(remote.storedCiphertexts.single);
+      expect(
+        const KeychainManifestFileCodec()
+            .decode(stored.manifest.payload)
+            .entries,
+        isEmpty,
+      );
+    },
+  );
 
   test(
     'returns the existing checkpoint when merged content is unchanged',
@@ -319,6 +345,7 @@ final class _Fixture {
   );
 
   final _FakeRemoteRepository remote;
+  final bool emptyManifest;
   final String xprv = _xprv();
   final RecoverBullWalletBackupEncryptionRepository encryption =
       const RecoverBullWalletBackupEncryptionRepository();
@@ -340,10 +367,10 @@ final class _Fixture {
     encryption: encryption,
     remote: remote,
     keychainManifest: keychainManifest,
-    identity: identity,
+    deriveSigner: DeriveWalletBackupSignerUsecase(identity),
   );
 
-  _Fixture(this.remote);
+  _Fixture(this.remote, {this.emptyManifest = false});
 
   WalletBackupCiphertext encrypt(WalletBackupEnvelope envelope) {
     final result = encryption.encrypt(
@@ -403,30 +430,34 @@ final class _Fixture {
   }
 
   KeychainManifestFacade _keychainManifest() {
-    final store = _StaticManifestStore([
-      KeychainManifestWalletMaterializationRecord(
-        entry: KeychainManifestEntry(
-          parentFingerprint: parentFingerprint,
-          bip85DerivationPath: "39'/0'/12'/100'",
-          reservationId: 'btcpay_wallet_seed',
-          entryType: 'walletSeed',
-          ownerFeature: 'btcpay',
-          bip85Application: 39,
-          bip85Index: 100,
-          createdAt: 10,
-          updatedAt: 10,
-        ),
-        walletMaterialization: KeychainManifestWalletMaterialization(
-          walletId: 'btcpay-wallet',
-          entryId: "$parentFingerprint:39'/0'/12'/100'",
-          childSeedFingerprint: '0123abcd',
-          network: 'bitcoinMainnet',
-          scriptType: 'bip84',
-          createdAt: 10,
-          updatedAt: 10,
-        ),
-      ),
-    ]);
+    final store = _StaticManifestStore(
+      emptyManifest
+          ? const []
+          : [
+              KeychainManifestWalletMaterializationRecord(
+                entry: KeychainManifestEntry(
+                  parentFingerprint: parentFingerprint,
+                  bip85DerivationPath: "39'/0'/12'/100'",
+                  reservationId: 'btcpay_wallet_seed',
+                  entryType: 'walletSeed',
+                  ownerFeature: 'btcpay',
+                  bip85Application: 39,
+                  bip85Index: 100,
+                  createdAt: 10,
+                  updatedAt: 10,
+                ),
+                walletMaterialization: KeychainManifestWalletMaterialization(
+                  walletId: 'btcpay-wallet',
+                  entryId: "$parentFingerprint:39'/0'/12'/100'",
+                  childSeedFingerprint: '0123abcd',
+                  network: 'bitcoinMainnet',
+                  scriptType: 'bip84',
+                  createdAt: 10,
+                  updatedAt: 10,
+                ),
+              ),
+            ],
+    );
     return KeychainManifestFacade(
       recordEntry: RecordKeychainManifestEntryUsecase(
         repository: store,
