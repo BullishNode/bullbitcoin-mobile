@@ -41,16 +41,6 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
                   const Gap(24),
                   DetailsTable(
                     items: [
-                      // Asset is faithfully derived from the (authoritative)
-                      // rail — Liquid settles L-BTC, on-chain and Lightning are
-                      // BTC. Never a fabricated ticker.
-                      DetailsTableItem(
-                        label: context.loc.getPaidTransactionsAssetLabel,
-                        displayValue: getPaidTransactionAssetText(
-                          context,
-                          transaction.rail,
-                        ),
-                      ),
                       DetailsTableItem(
                         label: context.loc.getPaidTransactionsSourceLabel,
                         displayValue: getPaidTransactionSourceText(
@@ -161,17 +151,39 @@ List<DetailsTableItem> _settlementRows(
         ),
       );
     case GetPaidSettlementKind.mixed:
-      for (final btc in s.bitcoin) {
-        rows.add(
-          DetailsTableItem(
-            label: context.loc.getPaidSettlementBitcoinPortion,
-            displayValue: getPaidTransactionAmountText(context, btc.amountSat),
-          ),
-        );
-      }
+      // A mixed settlement is shown per-leg in the one table: the bitcoin
+      // (L-BTC) leg's amount and its own status, then the fiat leg's amount and
+      // status. (The split percentage row is server work in a later batch.)
+      rows.addAll(_bitcoinLegRows(context, s.bitcoin));
       rows.addAll(_fiatLegRows(context, s.fiat));
     case GetPaidSettlementKind.fiat:
       rows.addAll(_fiatLegRows(context, s.fiat));
+  }
+  return rows;
+}
+
+/// The bitcoin (L-BTC) leg rows of a mixed settlement: the on-Liquid amount and
+/// the leg's own lifecycle. The bitcoin leg uses pending/settled/problem, and a
+/// `problem` reuses the history list's needs-attention wording — this per-leg
+/// status is distinct from the top payment-lifecycle Status row.
+List<DetailsTableItem> _bitcoinLegRows(
+  BuildContext context,
+  List<GetPaidBitcoinSettlementLeg> legs,
+) {
+  final rows = <DetailsTableItem>[];
+  for (final leg in legs) {
+    rows.add(
+      DetailsTableItem(
+        label: context.loc.getPaidSettlementLbtcAmountLabel,
+        displayValue: getPaidTransactionAmountText(context, leg.amountSat),
+      ),
+    );
+    rows.add(
+      DetailsTableItem(
+        label: context.loc.getPaidSettlementLbtcStatusLabel,
+        displayValue: _legStatusText(context, leg.status),
+      ),
+    );
   }
   return rows;
 }
@@ -190,7 +202,7 @@ List<DetailsTableItem> _fiatLegRows(
     // the value carries the final fiat amount alongside the code.
     rows.add(
       DetailsTableItem(
-        label: context.loc.getPaidSettlementLabelFiat,
+        label: context.loc.getPaidSettlementFiatAmountLabel,
         displayValue: settled
             ? context.loc.getPaidSettlementFiatAmount(
                 _formatMinor(leg.amountMinor!),
@@ -205,7 +217,7 @@ List<DetailsTableItem> _fiatLegRows(
       // amount.
       rows.add(
         DetailsTableItem(
-          label: context.loc.getPaidSettlementStatus,
+          label: context.loc.getPaidSettlementFiatStatusLabel,
           displayWidget: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -229,7 +241,7 @@ List<DetailsTableItem> _fiatLegRows(
     } else {
       rows.add(
         DetailsTableItem(
-          label: context.loc.getPaidSettlementStatus,
+          label: context.loc.getPaidSettlementFiatStatusLabel,
           displayValue: _legStatusText(context, leg.status),
         ),
       );
@@ -270,6 +282,9 @@ String _legStatusText(BuildContext context, GetPaidSettlementLegStatus status) {
     case GetPaidSettlementLegStatus.settled:
       return context.loc.getPaidSettlementStatusSettled;
     case GetPaidSettlementLegStatus.problem:
+      // The bitcoin (L-BTC) leg's `problem` reuses the history list's
+      // needs-attention wording.
+      return context.loc.getPaidTransactionsStateProblem;
     case GetPaidSettlementLegStatus.unavailable:
       return context.loc.getPaidSettlementDetailsUnavailable;
   }

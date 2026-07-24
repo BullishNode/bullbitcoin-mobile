@@ -79,26 +79,67 @@ void main() {
       expect(find.text('40000000-0000-4000-8000-000000000009'), findsOneWidget);
     });
 
-    testWidgets('renders a mixed settlement with a bitcoin portion', (
+    testWidgets(
+      'renders a mixed settlement per-leg with L-BTC and Fiat amount + status '
+      'rows, and keeps the payment-lifecycle Status row',
+      (tester) async {
+        await _pumpDetail(
+          tester,
+          _tx(
+            settlement: GetPaidSettlement(
+              kind: GetPaidSettlementKind.mixed,
+              bitcoin: const [
+                GetPaidBitcoinSettlementLeg(
+                  amountSat: 60000,
+                  status: GetPaidSettlementLegStatus.problem,
+                ),
+              ],
+              fiat: _fiat().fiat,
+            ),
+          ),
+        );
+        // Per-leg labels of the one details table, in order.
+        expect(find.text('L-BTC amount'), findsOneWidget);
+        expect(find.text('L-BTC settlement status'), findsOneWidget);
+        expect(find.text('Fiat amount'), findsOneWidget);
+        expect(find.text('Fiat settlement status'), findsOneWidget);
+        // Leg amounts.
+        expect(find.text('60,000 sats'), findsOneWidget);
+        expect(find.text('123.45 CAD'), findsOneWidget);
+        // The bitcoin (L-BTC) leg's `problem` reuses the needs-attention
+        // wording; the fiat leg is settled.
+        expect(find.text('Needs attention'), findsOneWidget);
+        expect(find.text('Settled'), findsWidgets);
+        // The top payment-lifecycle Status row stays (distinct semantic from
+        // the per-leg statuses).
+        expect(find.text('Status'), findsOneWidget);
+        // The Asset row is dropped entirely.
+        expect(find.text('Asset'), findsNothing);
+        expect(find.text('L-BTC'), findsNothing);
+        expect(find.text('BTC'), findsNothing);
+      },
+    );
+
+    testWidgets('a pending fiat leg shows the currency only, no amount', (
       tester,
     ) async {
       await _pumpDetail(
         tester,
         _tx(
-          settlement: GetPaidSettlement(
-            kind: GetPaidSettlementKind.mixed,
-            bitcoin: const [
-              GetPaidBitcoinSettlementLeg(
-                amountSat: 60000,
-                status: GetPaidSettlementLegStatus.settled,
-              ),
-            ],
-            fiat: _fiat().fiat,
+          settlement: _fiat(
+            amountMinor: null,
+            status: GetPaidSettlementLegStatus.pending,
           ),
         ),
       );
-      expect(find.text('60,000 sats'), findsOneWidget);
-      expect(find.text('123.45 CAD'), findsOneWidget);
+      // The amount row names the expected currency only (v1 has no fiat amount
+      // before settlement).
+      expect(find.text('Fiat amount'), findsOneWidget);
+      expect(find.text('CAD'), findsOneWidget);
+      expect(find.textContaining('123.45'), findsNothing);
+      // Pending status under the relabelled fiat status row.
+      expect(find.text('Fiat settlement status'), findsOneWidget);
+      expect(find.text('Pending'), findsOneWidget);
     });
 
     testWidgets('renders distinct copy per override reason', (tester) async {

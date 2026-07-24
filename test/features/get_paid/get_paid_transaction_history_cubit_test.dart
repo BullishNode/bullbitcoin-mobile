@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/domain/list_get_paid_transactions_usecase.dart';
@@ -11,6 +14,12 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockListTransactions extends Mock
     implements ListGetPaidTransactionsUsecase {}
+
+class _MockFiatFacade extends Mock implements FiatSettlementFacade {}
+
+class _MockGetSettings extends Mock implements GetSettingsUsecase {}
+
+class _MockSettings extends Mock implements SettingsEntity {}
 
 GetPaidTransaction _transaction(
   String id, {
@@ -197,6 +206,102 @@ void main() {
       expect(cubit.state.loadMoreFailed, isTrue);
     },
   );
+
+  group('expected settlement-kind seam', () {
+    FiatSettlementConfigurationView view(int fiatPercentage) {
+      return FiatSettlementConfigurationView(
+        products: [
+          FiatSettlementProductConfig(
+            product: FiatSettlementProduct.lightningAddress,
+            fiatPercentage: fiatPercentage,
+            currency: FiatCurrency.cad,
+          ),
+        ],
+        credentialActive: true,
+      );
+    }
+
+    GetPaidTransactionHistoryCubit seamCubit({
+      required Future<
+        Result<FiatSettlementConfigurationView, FiatSettlementFailure>
+      >
+      Function()
+      configuration,
+      Environment environment = Environment.mainnet,
+    }) {
+      when(() => list.execute(cursor: '', limit: 20)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(transactions: const [], nextCursor: null),
+        ),
+      );
+      final facade = _MockFiatFacade();
+      when(() => facade.configuration()).thenAnswer((_) => configuration());
+      final settings = _MockSettings();
+      when(() => settings.environment).thenReturn(environment);
+      final getSettings = _MockGetSettings();
+      when(() => getSettings.execute()).thenAnswer((_) async => settings);
+      return GetPaidTransactionHistoryCubit(
+        listTransactions: list,
+        fiatSettlement: facade,
+        getSettings: getSettings,
+      );
+    }
+
+    test('a confirmed mainnet config maps each product to its expected '
+        'kind', () async {
+      final cubit = seamCubit(configuration: () async => Ok(view(50)));
+      await cubit.load();
+
+      final kinds = cubit.state.expectedSettlementKinds;
+      expect(
+        kinds?[FiatSettlementProduct.lightningAddress],
+        FiatSettlementMode.mixed,
+      );
+      // configFor defaults an absent product to Bitcoin-only.
+      expect(
+        kinds?[FiatSettlementProduct.invoice],
+        FiatSettlementMode.bitcoinOnly,
+      );
+      await cubit.close();
+    });
+
+    test('an unavailable config yields a null expected-kind map and still '
+        'loads the list', () async {
+      final cubit = seamCubit(
+        configuration: () async =>
+            const Err(FiatSettlementFailure.bullnymUnreachable()),
+      );
+      await cubit.load();
+
+      expect(cubit.state.expectedSettlementKinds, isNull);
+      expect(cubit.state.status, GetPaidTransactionHistoryStatus.loaded);
+      await cubit.close();
+    });
+
+    test('a non-mainnet environment yields a null expected-kind map', () async {
+      final cubit = seamCubit(
+        configuration: () async => Ok(view(100)),
+        environment: Environment.testnet,
+      );
+      await cubit.load();
+
+      expect(cubit.state.expectedSettlementKinds, isNull);
+      await cubit.close();
+    });
+
+    test('an unwired facade leaves the expected-kind map null', () async {
+      when(() => list.execute(cursor: '', limit: 20)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(transactions: const [], nextCursor: null),
+        ),
+      );
+
+      // The shared cubit is built without the fiat seam.
+      await cubit.load();
+
+      expect(cubit.state.expectedSettlementKinds, isNull);
+    });
+  });
 
   test('a stale refresh cannot overwrite a newer refresh', () async {
     final first = Completer<Result<GetPaidTransactionPage, GetPaidFailure>>();
