@@ -42,6 +42,10 @@ final class WalletBackupKeyDerivationFailure extends WalletBackupFailure {
   const WalletBackupKeyDerivationFailure([super.logMessage]);
 }
 
+final class WalletBackupStorageFailure extends WalletBackupFailure {
+  const WalletBackupStorageFailure([super.logMessage]);
+}
+
 final class WalletBackupSigningFailure extends WalletBackupFailure {
   const WalletBackupSigningFailure([super.logMessage]);
 }
