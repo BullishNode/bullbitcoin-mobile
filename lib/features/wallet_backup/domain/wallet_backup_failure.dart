@@ -70,6 +70,19 @@ final class WalletBackupManifestFailure extends WalletBackupFailure {
   const WalletBackupManifestFailure([super.logMessage]);
 }
 
+final class WalletBackupWalletUnavailableFailure extends WalletBackupFailure {
+  const WalletBackupWalletUnavailableFailure([super.logMessage]);
+}
+
+final class WalletBackupDisabledFailure extends WalletBackupFailure {
+  const WalletBackupDisabledFailure();
+}
+
+final class WalletBackupConfirmationRequiredFailure
+    extends WalletBackupFailure {
+  const WalletBackupConfirmationRequiredFailure();
+}
+
 final class WalletBackupUnexpectedFailure extends WalletBackupFailure {
   const WalletBackupUnexpectedFailure([super.logMessage]);
 }
