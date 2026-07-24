@@ -29,6 +29,18 @@ class Bip85RegistryFacade {
     ),
   );
 
+  int get nostrApplicationNumber => Bip85Reservations.nostrApplicationNumber;
+
+  int get nostrAppReservedIdentityStart =>
+      Bip85Reservations.nostrAppReservedIdentityStart;
+
+  int get nostrAppReservedIdentityEnd =>
+      Bip85Reservations.nostrAppReservedIdentityEnd;
+
+  bool isNostrAppReservedIdentity(int identity) =>
+      identity >= nostrAppReservedIdentityStart &&
+      identity <= nostrAppReservedIdentityEnd;
+
   Bip85Reservation? reservationById(String id) {
     for (final reservation in reservations) {
       if (reservation.id == id) return reservation;
