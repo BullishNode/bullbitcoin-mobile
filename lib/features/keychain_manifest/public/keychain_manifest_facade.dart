@@ -24,10 +24,12 @@ export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_re
 
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/merge_keychain_manifest_file_payloads_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 
@@ -36,11 +38,13 @@ class KeychainManifestFacade {
 
   final RecordKeychainManifestEntryUsecase _recordEntry;
   final BuildKeychainManifestFileUsecase _buildManifestFile;
+  final MergeKeychainManifestFilePayloadsUsecase _mergeManifestFiles;
   final ParseKeychainManifestFileUsecase _parseManifestFile;
 
   KeychainManifestFacade({
     required this._recordEntry,
     required this._buildManifestFile,
+    required this._mergeManifestFiles,
     required this._parseManifestFile,
   });
 
@@ -68,14 +72,7 @@ class KeychainManifestFacade {
       if (manifestFile.entries.isEmpty && !allowEmpty) {
         throw KeychainManifestEmptyInventoryException();
       }
-      return KeychainManifestFilePayload._(
-        payload: _manifestFileCodec.encode(manifestFile),
-        parentFingerprint: manifestFile.parentFingerprint,
-        entryCount: manifestFile.entryCount,
-        materializationCount: manifestFile.materializationCount,
-        generatedAt: manifestFile.generatedAt,
-        inventoryUpdatedAt: manifestFile.inventoryUpdatedAt,
-      );
+      return _toPayload(manifestFile);
     } catch (e, stack) {
       if (e is! KeychainManifestException) {
         log.warning(
@@ -83,6 +80,29 @@ class KeychainManifestFacade {
           error: e,
           trace: stack,
         );
+      }
+      throw KeychainManifestException.fromInternal(e);
+    }
+  }
+
+  KeychainManifestFilePayload mergeManifestFilePayloads({
+    required String localPayload,
+    required String remotePayload,
+    required String expectedParentFingerprint,
+    required int generatedAt,
+  }) {
+    try {
+      return _toPayload(
+        _mergeManifestFiles.execute(
+          localPayload: localPayload,
+          remotePayload: remotePayload,
+          expectedParentFingerprint: expectedParentFingerprint,
+          generatedAt: generatedAt,
+        ),
+      );
+    } on Exception catch (e, stack) {
+      if (e is! KeychainManifestException) {
+        log.warning('Keychain manifest merge failed', error: e, trace: stack);
       }
       throw KeychainManifestException.fromInternal(e);
     }
@@ -135,6 +155,17 @@ class KeychainManifestFacade {
       }
       throw KeychainManifestException.fromInternal(e);
     }
+  }
+
+  KeychainManifestFilePayload _toPayload(KeychainManifestFile manifestFile) {
+    return KeychainManifestFilePayload._(
+      payload: _manifestFileCodec.encode(manifestFile),
+      parentFingerprint: manifestFile.parentFingerprint,
+      entryCount: manifestFile.entryCount,
+      materializationCount: manifestFile.materializationCount,
+      generatedAt: manifestFile.generatedAt,
+      inventoryUpdatedAt: manifestFile.inventoryUpdatedAt,
+    );
   }
 }
 

@@ -4,8 +4,11 @@ import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_file_decoder.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/merge_keychain_manifest_file_payloads_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
@@ -17,6 +20,10 @@ void main() {
 
   setUp(() {
     store = _InMemoryKeychainManifestStore();
+    const parser = ParseKeychainManifestFileUsecase(
+      codec: KeychainManifestFileCodec(),
+      bip85Registry: Bip85RegistryFacade(),
+    );
     facade = KeychainManifestFacade(
       recordEntry: RecordKeychainManifestEntryUsecase(
         repository: store,
@@ -26,10 +33,11 @@ void main() {
         repository: store,
         registry: const Bip85RegistryFacade(),
       ),
-      parseManifestFile: const ParseKeychainManifestFileUsecase(
+      mergeManifestFiles: const MergeKeychainManifestFilePayloadsUsecase(
         codec: KeychainManifestFileCodec(),
-        bip85Registry: Bip85RegistryFacade(),
+        parseManifest: parser,
       ),
+      parseManifestFile: parser,
     );
   });
 
@@ -319,6 +327,40 @@ void main() {
     );
   });
 
+  test('does not convert programmer errors during merge into exceptions', () {
+    final crashingFacade = KeychainManifestFacade(
+      recordEntry: RecordKeychainManifestEntryUsecase(
+        repository: store,
+        bip85Registry: const Bip85RegistryFacade(),
+      ),
+      buildManifestFile: BuildKeychainManifestFileUsecase(
+        repository: store,
+        registry: const Bip85RegistryFacade(),
+      ),
+      mergeManifestFiles: MergeKeychainManifestFilePayloadsUsecase(
+        codec: const _StateErrorManifestDecoder(),
+        parseManifest: const ParseKeychainManifestFileUsecase(
+          codec: KeychainManifestFileCodec(),
+          bip85Registry: Bip85RegistryFacade(),
+        ),
+      ),
+      parseManifestFile: const ParseKeychainManifestFileUsecase(
+        codec: KeychainManifestFileCodec(),
+        bip85Registry: Bip85RegistryFacade(),
+      ),
+    );
+
+    expect(
+      () => crashingFacade.mergeManifestFilePayloads(
+        localPayload: '{}',
+        remotePayload: '{}',
+        expectedParentFingerprint: 'fedcba98',
+        generatedAt: 1,
+      ),
+      throwsA(isA<StateError>()),
+    );
+  });
+
   test(
     'the frozen v1 format round-trips every exportable Get Paid seed',
     () async {
@@ -411,6 +453,15 @@ KeychainManifestWalletMaterializationRequest _walletMaterialization({
     network: network,
     scriptType: scriptType,
   );
+}
+
+final class _StateErrorManifestDecoder implements KeychainManifestFileDecoder {
+  const _StateErrorManifestDecoder();
+
+  @override
+  KeychainManifestFile decode(String payload) {
+    throw StateError('simulated programmer error');
+  }
 }
 
 class _InMemoryKeychainManifestStore

@@ -39,6 +39,16 @@ void main() {
     );
   });
 
+  test('hashes the canonical plaintext envelope deterministically', () {
+    final first = repository.contentHash(_envelope());
+    final second = repository.contentHash(_envelope());
+    final firstHash = (first as Ok<String, WalletBackupFailure>).value;
+    final secondHash = (second as Ok<String, WalletBackupFailure>).value;
+
+    expect(firstHash, secondHash);
+    expect(firstHash, matches(RegExp(r'^[0-9a-f]{64}$')));
+  });
+
   test('rejects wrong keys and authenticated-ciphertext tampering', () {
     final encrypted = repository.encrypt(envelope: _envelope(), key: key);
     final ciphertext =

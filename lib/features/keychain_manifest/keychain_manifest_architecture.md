@@ -56,6 +56,7 @@ must not be presented as importable or recoverable.
 - `keychain_manifest` owns the canonical manifest payload used by
   `wallet_backup` as its `keychain_manifest` section. It does not own the
   outer envelope, encryption key, ciphertext, or remote lifecycle.
+- `keychain_manifest` validates and merges local and authenticated remote manifest payloads through its public boundary. Remote transport and publication retry policy remain owned by `wallet_backup`.
 - `keychain_manifest` must not import BTCPay, Get Paid, external receive
   wallets, keychain recovery, remote storage infrastructure, or UI
   features.
