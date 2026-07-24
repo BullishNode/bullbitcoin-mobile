@@ -1,15 +1,17 @@
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 
-const _walletManifestReservationId = 'nostr_wallet_manifest_key';
+const _walletBackupReservationId = 'nostr_wallet_backup_key';
 const _bullnymServerAuthReservationId = 'nostr_bullnym_server_auth_key';
 
-enum NostrIdentityRole { walletManifest, bullnymServerAuth }
+enum NostrIdentityRole { walletBackup, bullnymServerAuth }
 
 class DeriveNostrIdentityHandleUsecase {
   final Bip85RegistryFacade _registry;
 
-  const DeriveNostrIdentityHandleUsecase({required this._registry});
+  const DeriveNostrIdentityHandleUsecase({
+    required Bip85RegistryFacade registry,
+  }) : _registry = registry;
 
   NostrKeychainHandle execute({
     required String xprvBase58,
@@ -23,7 +25,7 @@ class DeriveNostrIdentityHandleUsecase {
 
   String _reservationIdForRole(NostrIdentityRole role) {
     return switch (role) {
-      NostrIdentityRole.walletManifest => _walletManifestReservationId,
+      NostrIdentityRole.walletBackup => _walletBackupReservationId,
       NostrIdentityRole.bullnymServerAuth => _bullnymServerAuthReservationId,
     };
   }

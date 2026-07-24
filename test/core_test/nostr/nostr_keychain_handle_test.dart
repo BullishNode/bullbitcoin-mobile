@@ -21,19 +21,19 @@ const _facade = NostrIdentityFacade(
 
 const _zeroMnemonic =
     'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-const _identity = 1;
+const _identity = 100;
 const _account = 1;
-const _expectedWalletManifestPublicKeyHex =
-    'feae6420b59badf72d7e85436ced2b0c3b9bcf4e46f05d901bf448f698f0ab52';
+const _expectedWalletBackupPublicKeyHex =
+    '4fb85384f3a52baadbadc3f9bcb7fd59691e323293160b58959dadd6195c7981';
 const _expectedBullnymAuthPublicKeyHex =
-    '23a772c17ca7b9eba8c9442c4378c063d791967e35fbaed98a51d65243c03cd4';
+    '1d11451fdea6a9e291265e6ebf0eba04145f4bd2a15e7cea11978430f1011cf3';
 
 void main() {
   test('BIP85 path derivation matches the bitcoin_base public key', () {
     final xprv = _zeroMnemonicXprv();
     final handle = NostrKeychainHandle.deriveFromBip85Path(
       xprvBase58: xprv,
-      hardenedPath: _walletManifestPath,
+      hardenedPath: _walletBackupPath,
     );
 
     expect(handle.publicKeyHex, _legacyPublicKeyHex(xprv));
@@ -44,8 +44,8 @@ void main() {
     const facade = _facade;
 
     expect(
-      facade.deriveWalletManifestPublicKeyFromXprv(xprv),
-      _expectedWalletManifestPublicKeyHex,
+      facade.deriveWalletBackupPublicKeyFromXprv(xprv),
+      _expectedWalletBackupPublicKeyHex,
     );
     expect(
       facade.deriveBullnymServerAuthPublicKeyFromXprv(xprv),
@@ -53,11 +53,11 @@ void main() {
     );
   });
 
-  test('wallet manifest facade uses the registry exact path', () {
+  test('wallet backup facade uses the registry exact path', () {
     final xprv = _zeroMnemonicXprv();
     const registry = Bip85RegistryFacade();
     const facade = _facade;
-    final reservation = registry.reservationById('nostr_wallet_manifest_key');
+    final reservation = registry.reservationById('nostr_wallet_backup_key');
     expect(reservation, isNotNull);
     final expected = NostrKeychainHandle.deriveFromBip85Path(
       xprvBase58: xprv,
@@ -65,7 +65,7 @@ void main() {
     );
 
     expect(
-      facade.deriveWalletManifestPublicKeyFromXprv(xprv),
+      facade.deriveWalletBackupPublicKeyFromXprv(xprv),
       expected.publicKeyHex,
     );
   });
@@ -74,7 +74,7 @@ void main() {
     final xprv = _zeroMnemonicXprv();
     const facade = _facade;
     final publicKeys = {
-      facade.deriveWalletManifestPublicKeyFromXprv(xprv),
+      facade.deriveWalletBackupPublicKeyFromXprv(xprv),
       facade.deriveBullnymServerAuthPublicKeyFromXprv(xprv),
     };
 
@@ -85,7 +85,7 @@ void main() {
     final xprv = _zeroMnemonicXprv();
     final handle = NostrKeychainHandle.deriveFromBip85Path(
       xprvBase58: xprv,
-      hardenedPath: _walletManifestPath,
+      hardenedPath: _walletBackupPath,
     );
 
     expect(handle.toString(), isNot(contains(_secretKeyHex(xprv))));
@@ -95,12 +95,12 @@ void main() {
     final xprv = _zeroMnemonicXprv();
     const facade = _facade;
     final digest = sha256.convert([1, 2, 3, 4]).bytes;
-    final signatureHex = facade.signWalletManifestHashFromXprv(
+    final signatureHex = facade.signWalletBackupHashFromXprv(
       xprvBase58: xprv,
       messageHashHex: hex.encode(digest),
     );
     final pub = ECPublic.fromHex(
-      '02${facade.deriveWalletManifestPublicKeyFromXprv(xprv)}',
+      '02${facade.deriveWalletBackupPublicKeyFromXprv(xprv)}',
     );
 
     expect(
@@ -119,7 +119,7 @@ void main() {
     // covered across the stack.
     expect(
       bip340.verify(
-        facade.deriveWalletManifestPublicKeyFromXprv(xprv),
+        facade.deriveWalletBackupPublicKeyFromXprv(xprv),
         hex.encode(digest),
         signatureHex,
       ),
@@ -132,7 +132,7 @@ void main() {
     const facade = _facade;
 
     expect(
-      () => facade.signWalletManifestHashFromXprv(
+      () => facade.signWalletBackupHashFromXprv(
         xprvBase58: xprv,
         messageHashHex: 'abcd',
       ),
@@ -155,7 +155,7 @@ String _legacyPublicKeyHex(String xprvBase58) {
 }
 
 String _secretKeyHex(String xprvBase58) {
-  final path = bip85.Bip85HardenedPath(_walletManifestPath);
+  final path = bip85.Bip85HardenedPath(_walletBackupPath);
   final entropyHex = bip85.Bip85Entropy.deriveFromHardenedPath(
     xprvBase58: xprvBase58,
     path: path,
@@ -163,5 +163,5 @@ String _secretKeyHex(String xprvBase58) {
   return entropyHex.substring(0, 64);
 }
 
-String get _walletManifestPath =>
+String get _walletBackupPath =>
     "$nostrBip85Application'/$_identity'/$_account'";

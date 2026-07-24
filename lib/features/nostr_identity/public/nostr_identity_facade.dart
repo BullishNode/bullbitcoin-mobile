@@ -3,12 +3,14 @@ import 'package:bb_mobile/features/nostr_identity/domain/derive_nostr_identity_h
 class NostrIdentityFacade {
   final DeriveNostrIdentityHandleUsecase _deriveHandle;
 
-  const NostrIdentityFacade({required this._deriveHandle});
+  const NostrIdentityFacade({
+    required DeriveNostrIdentityHandleUsecase deriveHandle,
+  }) : _deriveHandle = deriveHandle;
 
-  String deriveWalletManifestPublicKeyFromXprv(String xprvBase58) {
+  String deriveWalletBackupPublicKeyFromXprv(String xprvBase58) {
     final handle = _deriveHandle.execute(
       xprvBase58: xprvBase58,
-      role: NostrIdentityRole.walletManifest,
+      role: NostrIdentityRole.walletBackup,
     );
     return handle.publicKeyHex;
   }
@@ -21,13 +23,13 @@ class NostrIdentityFacade {
     return handle.publicKeyHex;
   }
 
-  String signWalletManifestHashFromXprv({
+  String signWalletBackupHashFromXprv({
     required String xprvBase58,
     required String messageHashHex,
   }) {
     final handle = _deriveHandle.execute(
       xprvBase58: xprvBase58,
-      role: NostrIdentityRole.walletManifest,
+      role: NostrIdentityRole.walletBackup,
     );
     return handle.signHashHex(messageHashHex);
   }

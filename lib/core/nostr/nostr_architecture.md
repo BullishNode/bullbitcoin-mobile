@@ -10,16 +10,16 @@ NIP-05 registration, DMs, and UI policy belong to feature layers.
 
 ## BIP85 Derivation
 
-Nostr keys are derived with BIP85 application `9000`:
+Nostr keys are derived with BIP85 application `128002`:
 
 ```text
-m/83696968'/9000'/{identity}'/{account_index}'
+m/83696968'/128002'/{identity}'/{account_index}'
 ```
 
 Generic callers pass a BIP85 hardened path accepted by `Bip85HardenedPath`.
 Bull product features should use the role-named helpers exposed by
 `features/nostr_identity/public/nostr_identity_facade.dart`, which consumes the
-canonical registry suffix paths, such as `9000'/1'/1'`, from
+canonical registry suffix paths, such as `128002'/100'/1'`, from
 `features/bip85_registry`.
 
 ## Public Surface

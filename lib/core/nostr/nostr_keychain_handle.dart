@@ -4,8 +4,8 @@ import 'package:convert/convert.dart';
 
 /// BIP85 application number for direct Nostr key derivation.
 ///
-/// Path suffix: `9000'/{identity}'/{account_index}'`.
-const int nostrBip85Application = 9000;
+/// Path suffix: `128002'/{identity}'/{account_index}'`.
+const int nostrBip85Application = 128002;
 
 /// In-memory handle for a Nostr signing key.
 ///
