@@ -45,17 +45,18 @@ Payment Page reserves BIP85 path `39'/0'/12'/102'`, which is a BIP39 English
 12-word child mnemonic at child index `102`.
 
 Nostr role keys reserve the app-owned Nostr namespace paths under the current
-bitcoin/bips#2126 proposal:
+bitcoin/bips#2126 proposal. This rewrite reviewed PR #2126 at commit
+`e6df9dbf1093444302331565a1a8f58144175a21`; re-check that pin immediately
+before publishing the rewritten stack.
 
 - `128002'/100'/1'` for unified Bull backup signing.
 - `128002'/101'/1'` for Bullnym server authentication.
 - `128002'/102'/1'` for NIP-05 public nym verification.
 
-The application-owned identity range is `100'` through `199'`. The first
-three assigned roles are `100'` unified Bull backup signing, `101'` Bullnym
-authentication, and `102'` NIP-05 public verification; the final assignment
-is completed by the owning Nostr PR. User-created identities must not use the
-reserved range.
+The application-owned identity range is `100'` through `199'`. The three
+assigned roles are `100'` unified Bull backup signing, `101'` Bullnym
+authentication, and `102'` NIP-05 public verification. User-created identities
+must not use the reserved range.
 
 These Nostr reservations are static namespace policy only. They do not implement
 Nostr signing, relay publish/fetch, wallet manifest transport, DMs, NIP-05

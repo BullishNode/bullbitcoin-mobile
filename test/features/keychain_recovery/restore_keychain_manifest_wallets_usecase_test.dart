@@ -282,9 +282,9 @@ void main() {
     'rejects non-wallet reservations before wallet materialization',
     () async {
       final intent = KeychainManifestWalletMaterializationIntent(
-        entryId: "fedcba98:9000'/1'/1'",
-        reservationId: 'nostr_wallet_manifest_key',
-        bip85DerivationPath: "9000'/1'/1'",
+        entryId: "fedcba98:128002'/100'/1'",
+        reservationId: 'nostr_wallet_backup_key',
+        bip85DerivationPath: "128002'/100'/1'",
         walletId: 'nostr-wallet',
         childSeedFingerprint: '0123abcd',
         network: Network.liquidMainnet,
@@ -294,13 +294,13 @@ void main() {
         parentFingerprint: 'fedcba98',
         entries: [
           KeychainManifestImportEntryIntent(
-            entryId: "fedcba98:9000'/1'/1'",
+            entryId: "fedcba98:128002'/100'/1'",
             parentFingerprint: 'fedcba98',
-            bip85DerivationPath: "9000'/1'/1'",
-            reservationId: 'nostr_wallet_manifest_key',
+            bip85DerivationPath: "128002'/100'/1'",
+            reservationId: 'nostr_wallet_backup_key',
             entryType: 'nonWalletNostrKey',
             ownerFeature: 'nostr',
-            bip85Application: 9000,
+            bip85Application: 128002,
             bip85Index: 1,
             walletMaterializations: [intent],
           ),
