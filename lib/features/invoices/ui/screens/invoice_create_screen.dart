@@ -32,6 +32,11 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
   };
   bool _detailsExpanded = false;
 
+  /// The accepted-payment-methods toggles stay collapsed behind an Edit button
+  /// until the merchant chooses to change them; the default rails still apply on
+  /// submit whether or not they were revealed.
+  bool _railsExpanded = false;
+
   @override
   void dispose() {
     _amount.dispose();
@@ -155,34 +160,47 @@ class _InvoiceCreateScreenState extends State<InvoiceCreateScreen> {
           _currencyField(context, state, cubit),
         ],
         const Gap(20),
-        Text(context.loc.invoiceRailsLabel, style: context.font.bodyLarge),
-        _railTile(
-          context,
-          title: context.loc.invoiceAcceptLn,
-          value: state.acceptLn,
-          isLastEnabled: state.isLastEnabledRail(state.acceptLn),
-          submitting: state.submitting,
-          onChanged: cubit.acceptLnChanged,
-        ),
-        _railTile(
-          context,
-          title: context.loc.invoiceAcceptLiquid,
-          value: state.acceptLiquid,
-          isLastEnabled: state.isLastEnabledRail(state.acceptLiquid),
-          submitting: state.submitting,
-          unavailable: !state.directLiquidAvailable,
-          unavailableHint:
-              context.loc.invoiceLiquidUnavailableForMixedSettlement,
-          onChanged: cubit.acceptLiquidChanged,
-        ),
-        _railTile(
-          context,
-          title: context.loc.invoiceAcceptBtc,
-          value: state.acceptBtc,
-          isLastEnabled: state.isLastEnabledRail(state.acceptBtc),
-          submitting: state.submitting,
-          onChanged: cubit.acceptBtcChanged,
-        ),
+        // Accepted payment methods stay collapsed behind an Edit button; the
+        // default rails still apply on submit if the merchant never opens them.
+        if (_railsExpanded) ...[
+          Text(context.loc.invoiceRailsLabel, style: context.font.bodyLarge),
+          _railTile(
+            context,
+            title: context.loc.invoiceAcceptLn,
+            value: state.acceptLn,
+            isLastEnabled: state.isLastEnabledRail(state.acceptLn),
+            submitting: state.submitting,
+            onChanged: cubit.acceptLnChanged,
+          ),
+          _railTile(
+            context,
+            title: context.loc.invoiceAcceptLiquid,
+            value: state.acceptLiquid,
+            isLastEnabled: state.isLastEnabledRail(state.acceptLiquid),
+            submitting: state.submitting,
+            unavailable: !state.directLiquidAvailable,
+            unavailableHint:
+                context.loc.invoiceLiquidUnavailableForMixedSettlement,
+            onChanged: cubit.acceptLiquidChanged,
+          ),
+          _railTile(
+            context,
+            title: context.loc.invoiceAcceptBtc,
+            value: state.acceptBtc,
+            isLastEnabled: state.isLastEnabledRail(state.acceptBtc),
+            submitting: state.submitting,
+            onChanged: cubit.acceptBtcChanged,
+          ),
+        ] else
+          BBButton.big(
+            key: const Key('invoice_edit_rails_button'),
+            label: context.loc.invoiceEditRailsButton,
+            iconData: Icons.edit_outlined,
+            iconFirst: true,
+            onPressed: () => setState(() => _railsExpanded = true),
+            bgColor: context.appColors.secondary,
+            textColor: context.appColors.onSecondary,
+          ),
         const Gap(12),
         ListTile(
           contentPadding: EdgeInsets.zero,

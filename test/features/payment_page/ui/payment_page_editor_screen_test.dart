@@ -40,7 +40,72 @@ PaymentPageState _editState({
   );
 }
 
+PaymentPageState _createState({
+  PaymentPageField? invalidField,
+  PaymentPageException? failure,
+}) {
+  return PaymentPageState(
+    status: PaymentPageStatus.create,
+    nym: 'alice',
+    aliasDraft: 'taken-alias',
+    displayCurrency: 'CAD',
+    invalidField: invalidField,
+    failure: failure,
+  );
+}
+
 void main() {
+  testWidgets('creation collects no display currency (payer picks on the '
+      'hosted page)', (tester) async {
+    await _pump(tester, _createState());
+
+    // The alias claim and page fields are present, but no currency selector.
+    expect(find.byKey(const Key('payment_page_alias_field')), findsOneWidget);
+    expect(find.text('Display currency'), findsNothing);
+    expect(find.text('Choose a currency'), findsNothing);
+  });
+
+  testWidgets('an alias-taken rejection shows the taken copy on the field, not '
+      'the format rule', (tester) async {
+    await _pump(
+      tester,
+      _createState(
+        invalidField: PaymentPageField.alias,
+        failure: const PaymentPageException.aliasTaken(),
+      ),
+    );
+
+    expect(
+      find.text('That alias is already claimed. Choose another.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Use 1–32 lowercase letters, numbers, or internal hyphens'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('a format failure still shows the format rule on the field', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _createState(
+        invalidField: PaymentPageField.alias,
+        failure: const PaymentPageException.invalidInput(code: 'alias'),
+      ),
+    );
+
+    expect(
+      find.text('Use 1–32 lowercase letters, numbers, or internal hyphens'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('That alias is already claimed. Choose another.'),
+      findsNothing,
+    );
+  });
+
   testWidgets('an existing page keeps the edit form collapsed behind Edit', (
     tester,
   ) async {

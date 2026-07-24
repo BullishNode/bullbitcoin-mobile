@@ -101,6 +101,13 @@ class PaymentPageState {
   bool get isArchived => status == PaymentPageStatus.archived;
   bool get isOnline => status == PaymentPageStatus.edit;
 
+  /// True when the active failure is the server's alias-taken rejection. The
+  /// alias field is flagged (`invalidField == alias`) for both this and a
+  /// format failure, so the errorText uses this to pick the "already claimed"
+  /// copy over the format rule.
+  bool get aliasTakenFailure =>
+      failure?.kind == PaymentPageErrorKind.aliasTaken;
+
   SavePaymentPageCommand get command => SavePaymentPageCommand(
     header: header,
     description: description,
