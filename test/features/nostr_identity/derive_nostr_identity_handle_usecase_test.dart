@@ -13,9 +13,9 @@ void main() {
   );
 
   test('derives role keys from the registry key reservations', () {
-    final walletManifestHandle = usecase.execute(
+    final walletBackupHandle = usecase.execute(
       xprvBase58: _masterXprv,
-      role: NostrIdentityRole.walletManifest,
+      role: NostrIdentityRole.walletBackup,
     );
     final bullnymAuthHandle = usecase.execute(
       xprvBase58: _masterXprv,
@@ -23,21 +23,21 @@ void main() {
     );
 
     expect(
-      walletManifestHandle.publicKeyHex,
+      walletBackupHandle.publicKeyHex,
       NostrKeychainHandle.deriveFromBip85Path(
         xprvBase58: _masterXprv,
-        hardenedPath: "9000'/1'/1'",
+        hardenedPath: "128002'/100'/1'",
       ).publicKeyHex,
     );
     expect(
       bullnymAuthHandle.publicKeyHex,
       NostrKeychainHandle.deriveFromBip85Path(
         xprvBase58: _masterXprv,
-        hardenedPath: "9000'/2'/1'",
+        hardenedPath: "128002'/101'/1'",
       ).publicKeyHex,
     );
     expect(
-      walletManifestHandle.publicKeyHex,
+      walletBackupHandle.publicKeyHex,
       isNot(bullnymAuthHandle.publicKeyHex),
     );
   });
