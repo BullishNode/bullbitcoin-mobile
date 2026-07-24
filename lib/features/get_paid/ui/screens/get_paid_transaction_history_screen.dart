@@ -1,6 +1,8 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/bitcoin_price/ui/currency_text.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_state.dart';
@@ -98,6 +100,7 @@ class _HistoryList extends StatelessWidget {
             for (final transaction in group.transactions)
               _TransactionRow(
                 transaction: transaction,
+                expectedKinds: state.expectedSettlementKinds,
                 onTap: () => context.pushNamed(
                   GetPaidDashboardRoute.getPaidTransactionDetail.name,
                   extra: transaction,
@@ -172,14 +175,20 @@ class _DayHeader extends StatelessWidget {
 /// confirmed wallet row; only a payment that needs action carries a chip.
 class _TransactionRow extends StatelessWidget {
   final GetPaidTransaction transaction;
+  final Map<FiatSettlementProduct, FiatSettlementMode>? expectedKinds;
   final VoidCallback onTap;
 
-  const _TransactionRow({required this.transaction, required this.onTap});
+  const _TransactionRow({
+    required this.transaction,
+    required this.expectedKinds,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final needsAttention =
         transaction.settlementState == GetPaidSettlementState.problem;
+    final pill = getPaidSettlementPill(context, transaction, expectedKinds);
     return InkWell(
       key: ValueKey('get-paid-transaction-${transaction.stableKey}'),
       onTap: onTap,
@@ -245,13 +254,11 @@ class _TransactionRow extends StatelessWidget {
                     vertical: 2.0,
                   ),
                   decoration: BoxDecoration(
-                    color: transaction.rail == GetPaidTransactionRail.liquid
-                        ? context.appColors.tertiary
-                        : context.appColors.onTertiary,
+                    color: pill.color,
                     borderRadius: BorderRadius.circular(2.0),
                   ),
                   child: Text(
-                    getPaidTransactionRailText(context, transaction.rail),
+                    pill.text,
                     style: context.font.labelSmall?.copyWith(
                       color: context.appColors.onSurface,
                     ),
@@ -486,6 +493,78 @@ String getPaidTransactionRailText(
       context.loc.getPaidTransactionsRailBitcoin,
   };
 }
+
+/// The settlement-kind pill for a history row. Precedence:
+/// 1. a trustworthy server-provided settlement kind (bitcoin/mixed/fiat);
+/// 2. otherwise the kind EXPECTED from the row's product fiat-settlement
+///    configuration ([expectedKinds], fetched once per screen load) — what is
+///    supposed to happen for that product;
+/// 3. otherwise (no expected-kind map available: feature off / non-mainnet /
+///    config read failed) the original rail label — never an invented kind.
+({String text, Color color}) getPaidSettlementPill(
+  BuildContext context,
+  GetPaidTransaction transaction,
+  Map<FiatSettlementProduct, FiatSettlementMode>? expectedKinds,
+) {
+  final kind = transaction.settlement?.kind;
+  if (kind != null && kind != GetPaidSettlementKind.unavailable) {
+    return _settlementKindPill(context, kind);
+  }
+  final expected =
+      expectedKinds?[_fiatSettlementProductForSource(transaction.source)];
+  if (expected != null) {
+    return _settlementKindPill(context, _kindForMode(expected));
+  }
+  return (
+    text: getPaidTransactionRailText(context, transaction.rail),
+    color: transaction.rail == GetPaidTransactionRail.liquid
+        ? context.appColors.tertiary
+        : context.appColors.onTertiary,
+  );
+}
+
+/// Kind pills reuse the rail pill's two container colors — the accent fill for a
+/// fiat-touching settlement (fiat / mixed), the plain fill for Bitcoin — so no
+/// new color system is introduced. `unavailable` never reaches here (the caller
+/// resolves it via the expected-kind map or the rail fallback first); it is
+/// grouped with Bitcoin only to keep the switch exhaustive.
+({String text, Color color}) _settlementKindPill(
+  BuildContext context,
+  GetPaidSettlementKind kind,
+) {
+  final fiatTouching =
+      kind == GetPaidSettlementKind.fiat ||
+      kind == GetPaidSettlementKind.mixed;
+  final text = switch (kind) {
+    GetPaidSettlementKind.mixed => context.loc.getPaidSettlementKindMixed,
+    GetPaidSettlementKind.fiat => context.loc.getPaidSettlementLabelFiat,
+    GetPaidSettlementKind.bitcoin ||
+    GetPaidSettlementKind.unavailable =>
+      context.loc.getPaidSettlementLabelBitcoin,
+  };
+  return (
+    text: text,
+    color: fiatTouching
+        ? context.appColors.tertiary
+        : context.appColors.onTertiary,
+  );
+}
+
+GetPaidSettlementKind _kindForMode(FiatSettlementMode mode) => switch (mode) {
+  FiatSettlementMode.bitcoinOnly => GetPaidSettlementKind.bitcoin,
+  FiatSettlementMode.mixed => GetPaidSettlementKind.mixed,
+  FiatSettlementMode.fiatOnly => GetPaidSettlementKind.fiat,
+};
+
+FiatSettlementProduct _fiatSettlementProductForSource(
+  GetPaidTransactionSource source,
+) => switch (source) {
+  GetPaidTransactionSource.lightningAddress =>
+    FiatSettlementProduct.lightningAddress,
+  GetPaidTransactionSource.invoice => FiatSettlementProduct.invoice,
+  GetPaidTransactionSource.paymentPage => FiatSettlementProduct.paymentPage,
+  GetPaidTransactionSource.pointOfSale => FiatSettlementProduct.pos,
+};
 
 String getPaidSettlementStateText(
   BuildContext context,

@@ -17279,6 +17279,26 @@
   "@getPaidSettlementStatusSettled": {
     "description": "Fiat settlement UI"
   },
+  "getPaidSettlementLbtcAmountLabel": "L-BTC amount",
+  "@getPaidSettlementLbtcAmountLabel": {
+    "description": "Detail screen: label for the bitcoin (L-BTC) leg amount of a mixed settlement."
+  },
+  "getPaidSettlementLbtcStatusLabel": "L-BTC settlement status",
+  "@getPaidSettlementLbtcStatusLabel": {
+    "description": "Detail screen: label for the per-leg status of the bitcoin (L-BTC) leg of a mixed settlement."
+  },
+  "getPaidSettlementFiatAmountLabel": "Fiat amount",
+  "@getPaidSettlementFiatAmountLabel": {
+    "description": "Detail screen: label for the fiat leg amount (or expected currency before settlement)."
+  },
+  "getPaidSettlementFiatStatusLabel": "Fiat settlement status",
+  "@getPaidSettlementFiatStatusLabel": {
+    "description": "Detail screen: label for the per-leg status of the fiat settlement leg."
+  },
+  "getPaidSettlementKindMixed": "Mixed Fiat-BTC",
+  "@getPaidSettlementKindMixed": {
+    "description": "History list: settlement-kind pill for a mixed fiat-and-Bitcoin settlement."
+  },
   "getPaidFiatSettlementActivatedTitleLightningAddress": "Your Lightning Address has been activated",
   "@getPaidFiatSettlementActivatedTitleLightningAddress": {
     "description": "Fiat settlement activation success header (Lightning Address)"
