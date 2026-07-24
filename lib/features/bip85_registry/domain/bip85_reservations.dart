@@ -48,9 +48,9 @@ class Bip85Reservations {
     ],
   );
 
-  static final nostrWalletManifestKey = Bip85KeyReservation(
-    id: 'nostr_wallet_manifest_key',
-    deterministicAlias: 'Nostr Wallet Manifest',
+  static final nostrWalletBackupKey = Bip85KeyReservation(
+    id: 'nostr_wallet_backup_key',
+    deterministicAlias: 'Nostr Wallet Backup',
     owner: Bip85ReservationOwner.nostr,
     purpose: Bip85ReservationPurpose.nonWalletNostrKey,
     application: const Bip85ApplicationSpec(number: nostrApplicationNumber),
@@ -88,7 +88,7 @@ class Bip85Reservations {
     btcpayWalletSeed,
     lightningAddressWalletSeed,
     paymentPageWalletSeed,
-    nostrWalletManifestKey,
+    nostrWalletBackupKey,
     nostrBullnymServerAuthKey,
     nostrNip05PublicNymVerificationKey,
   ]);

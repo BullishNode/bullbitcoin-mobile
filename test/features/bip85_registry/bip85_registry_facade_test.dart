@@ -18,7 +18,7 @@ void main() {
       'btcpay_wallet_seed',
       'lightning_address_wallet_seed',
       'payment_page_wallet_seed',
-      'nostr_wallet_manifest_key',
+      'nostr_wallet_backup_key',
       'nostr_bullnym_server_auth_key',
       'nostr_nip05_public_nym_verification_key',
     ]);
@@ -71,7 +71,7 @@ void main() {
 
   test('models Nostr role keys as index-free reserved policy only', () {
     final reservations = [
-      _keyReservation('nostr_wallet_manifest_key'),
+      _keyReservation('nostr_wallet_backup_key'),
       _keyReservation('nostr_bullnym_server_auth_key'),
       _keyReservation('nostr_nip05_public_nym_verification_key'),
     ];
@@ -155,6 +155,33 @@ void main() {
     expect(registry.isNostrAppReservedIdentity(100), isTrue);
     expect(registry.isNostrAppReservedIdentity(199), isTrue);
     expect(registry.isNostrAppReservedIdentity(200), isFalse);
+  });
+
+  test('keeps every Nostr reservation inside the app-owned namespace', () {
+    final nostrReservations = registry.reservations
+        .where(
+          (reservation) => reservation.owner == Bip85ReservationOwner.nostr,
+        )
+        .toList();
+    final identities = nostrReservations
+        .map((reservation) => reservation.scope.segmentValue('identity'))
+        .toList();
+
+    expect(nostrReservations, isNotEmpty);
+    expect(
+      nostrReservations.every(
+        (reservation) => reservation.application.number == 128002,
+      ),
+      isTrue,
+    );
+    expect(
+      nostrReservations.every(
+        (reservation) => reservation.scope.segmentValue('account') == 1,
+      ),
+      isTrue,
+    );
+    expect(identities.every(registry.isNostrAppReservedIdentity), isTrue);
+    expect(identities.toSet(), hasLength(identities.length));
   });
 
   test('exposes the reserved wallet-seed exclusion sets for the allocator', () {
