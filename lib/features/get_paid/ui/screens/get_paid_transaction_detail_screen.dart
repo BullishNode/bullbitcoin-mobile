@@ -80,6 +80,18 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
                             ),
                           ),
                         ),
+                      // Invoice-sourced payments expose a copyable invoice id
+                      // (same copy idiom as the order-id row); Lightning Address
+                      // payments have none and show no row.
+                      if (transaction.invoiceId case final invoiceId?)
+                        DetailsTableItem(
+                          key: const ValueKey(
+                            'get-paid-transaction-invoice-id',
+                          ),
+                          label: context.loc.getPaidTransactionsInvoiceIdLabel,
+                          displayValue: invoiceId,
+                          copyValue: invoiceId,
+                        ),
                       // The private, merchant-only fiat settlement breakdown
                       // shares the same table: no rows for a plain Bitcoin
                       // payment, the override explanation when kept in Bitcoin,
@@ -151,15 +163,41 @@ List<DetailsTableItem> _settlementRows(
         ),
       );
     case GetPaidSettlementKind.mixed:
-      // A mixed settlement is shown per-leg in the one table: the bitcoin
-      // (L-BTC) leg's amount and its own status, then the fiat leg's amount and
-      // status. (The split percentage row is server work in a later batch.)
+      // A mixed settlement is shown per-leg in the one table: the captured
+      // split (when present), then the bitcoin (L-BTC) leg's amount and its own
+      // status, then the fiat leg's amount and status.
+      _addSplitRow(context, rows, s.fiatPercentage);
       rows.addAll(_bitcoinLegRows(context, s.bitcoin));
       rows.addAll(_fiatLegRows(context, s.fiat));
     case GetPaidSettlementKind.fiat:
+      _addSplitRow(context, rows, s.fiatPercentage);
       rows.addAll(_fiatLegRows(context, s.fiat));
   }
   return rows;
+}
+
+/// The captured fiat/Bitcoin split row, rendered directly above the leg rows.
+/// Absent for a legacy row (null percentage). Worded like the dashboard badge:
+/// `100` → "100% fiat"; `40` → "60% Bitcoin · 40% fiat".
+void _addSplitRow(
+  BuildContext context,
+  List<DetailsTableItem> rows,
+  int? fiatPercentage,
+) {
+  if (fiatPercentage == null) return;
+  final value = fiatPercentage >= 100
+      ? context.loc.getPaidSettlementSplitFiatOnly
+      : context.loc.getPaidSettlementSplitMixed(
+          100 - fiatPercentage,
+          fiatPercentage,
+        );
+  rows.add(
+    DetailsTableItem(
+      key: const ValueKey('get-paid-settlement-split'),
+      label: context.loc.getPaidSettlementSplitLabel,
+      displayValue: value,
+    ),
+  );
 }
 
 /// The bitcoin (L-BTC) leg rows of a mixed settlement: the on-Liquid amount and
@@ -198,14 +236,27 @@ List<DetailsTableItem> _fiatLegRows(
     final settled =
         leg.status == GetPaidSettlementLegStatus.settled &&
         leg.amountMinor != null;
-    // Currency is always shown (the expected settlement currency); once settled
-    // the value carries the final fiat amount alongside the code.
+    // A still-pending leg that carries a locked quote shows it, labelled as a
+    // quote — it can reprice for a late payment, so it must not read as final.
+    final quotedPending =
+        leg.status == GetPaidSettlementLegStatus.pending &&
+        leg.quotedAmountMinor != null;
+    // Once settled the value carries the final credited fiat amount; a pending
+    // leg with a quote shows the quoted amount; otherwise the expected
+    // settlement currency only (v1 server / legacy row).
     rows.add(
       DetailsTableItem(
-        label: context.loc.getPaidSettlementFiatAmountLabel,
+        label: quotedPending
+            ? context.loc.getPaidSettlementFiatAmountQuotedLabel
+            : context.loc.getPaidSettlementFiatAmountLabel,
         displayValue: settled
             ? context.loc.getPaidSettlementFiatAmount(
                 _formatMinor(leg.amountMinor!),
+                leg.currency,
+              )
+            : quotedPending
+            ? context.loc.getPaidSettlementFiatAmount(
+                _formatMinor(leg.quotedAmountMinor!),
                 leg.currency,
               )
             : leg.currency,

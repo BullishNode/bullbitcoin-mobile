@@ -24,9 +24,13 @@ enum GetPaidFiatOverrideReason {
   unknown,
 }
 
-/// One private fiat settlement leg. [amountMinor] is present only once settled.
+/// One private fiat settlement leg. [amountMinor] is the credited amount,
+/// present only once settled. [quotedAmountMinor] is the fiat amount locked at
+/// order creation, present (positive) whenever a quote is known — for pending
+/// legs too — and null for a legacy row or an unavailable leg.
 class GetPaidFiatSettlementLeg {
   final int? amountMinor;
+  final int? quotedAmountMinor;
   final String currency;
   final String orderId;
   final GetPaidSettlementLegStatus status;
@@ -36,6 +40,7 @@ class GetPaidFiatSettlementLeg {
     required this.currency,
     required this.orderId,
     required this.status,
+    this.quotedAmountMinor,
   });
 }
 
@@ -57,10 +62,16 @@ class GetPaidSettlement {
   final List<GetPaidBitcoinSettlementLeg> bitcoin;
   final GetPaidFiatOverrideReason? overrideReason;
 
+  /// The captured split percentage that applied at payment time (`100` for a
+  /// fiat kind, `1..=99` for mixed). Null for a legacy row predating the
+  /// captured column, in which case no Split row is shown.
+  final int? fiatPercentage;
+
   const GetPaidSettlement({
     required this.kind,
     this.fiat = const [],
     this.bitcoin = const [],
     this.overrideReason,
+    this.fiatPercentage,
   });
 }
