@@ -5,6 +5,7 @@ import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manife
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/merge_keychain_manifest_file_payloads_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
@@ -18,6 +19,10 @@ void main() {
     'adapts the canonical manifest payload into the unified envelope',
     () async {
       final store = _EmptyManifestStore();
+      const parser = ParseKeychainManifestFileUsecase(
+        codec: KeychainManifestFileCodec(),
+        bip85Registry: Bip85RegistryFacade(),
+      );
       final keychainManifest = KeychainManifestFacade(
         recordEntry: RecordKeychainManifestEntryUsecase(
           repository: store,
@@ -27,10 +32,11 @@ void main() {
           repository: store,
           registry: const Bip85RegistryFacade(),
         ),
-        parseManifestFile: const ParseKeychainManifestFileUsecase(
+        mergeManifestFiles: const MergeKeychainManifestFilePayloadsUsecase(
           codec: KeychainManifestFileCodec(),
-          bip85Registry: Bip85RegistryFacade(),
+          parseManifest: parser,
         ),
+        parseManifestFile: parser,
       );
       final usecase = BuildWalletBackupEnvelopeUsecase(
         keychainManifest,
