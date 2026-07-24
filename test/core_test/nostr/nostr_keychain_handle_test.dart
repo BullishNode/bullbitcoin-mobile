@@ -167,6 +167,27 @@ void main() {
       ),
       throwsArgumentError,
     );
+    expect(
+      () => NostrKeychainHandle.deriveFromBip85Path(
+        xprvBase58: xprv,
+        hardenedPath: "2147483648'/100'/1'",
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => NostrKeychainHandle.deriveFromBip85Path(
+        xprvBase58: xprv,
+        hardenedPath: "128002'/2147483648'/1'",
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => NostrKeychainHandle.deriveFromBip85Path(
+        xprvBase58: xprv,
+        hardenedPath: "128002'/100'/2147483648'",
+      ),
+      throwsArgumentError,
+    );
   });
 
   test('matches independent pinned BIP85 Nostr vectors', () {
