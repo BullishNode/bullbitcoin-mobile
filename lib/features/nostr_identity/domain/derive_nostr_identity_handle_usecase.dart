@@ -9,9 +9,7 @@ enum NostrIdentityRole { walletBackup, bullnymServerAuth }
 class DeriveNostrIdentityHandleUsecase {
   final Bip85RegistryFacade _registry;
 
-  const DeriveNostrIdentityHandleUsecase({
-    required Bip85RegistryFacade registry,
-  }) : _registry = registry;
+  const DeriveNostrIdentityHandleUsecase(this._registry);
 
   NostrKeychainHandle execute({
     required String xprvBase58,
