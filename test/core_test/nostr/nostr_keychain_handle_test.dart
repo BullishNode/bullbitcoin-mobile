@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:bech32/bech32.dart';
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/nostr_identity/domain/derive_nostr_identity_handle_usecase.dart';
@@ -27,6 +28,8 @@ const _expectedWalletBackupPublicKeyHex =
     '4fb85384f3a52baadbadc3f9bcb7fd59691e323293160b58959dadd6195c7981';
 const _expectedBullnymAuthPublicKeyHex =
     '1d11451fdea6a9e291265e6ebf0eba04145f4bd2a15e7cea11978430f1011cf3';
+const _pinnedMasterXprv =
+    'xprv9s21ZrQH143K2LBWUUQRFXhucrQqBpKdRRxNVq2zBqsx8HVqFk2uYo8kmbaLLHRdqtQpUm98uKfu3vca1LqdGhUtyoFnCNkfmXRyPXLjbKb';
 
 void main() {
   test('BIP85 path derivation matches the bitcoin_base public key', () {
@@ -139,6 +142,90 @@ void main() {
       throwsA(isA<ArgumentError>()),
     );
   });
+
+  test('rejects Nostr paths outside the final BIP85 namespace', () {
+    final xprv = _zeroMnemonicXprv();
+
+    expect(
+      () => NostrKeychainHandle.deriveFromBip85Path(
+        xprvBase58: xprv,
+        hardenedPath: "9000'/100'/1'",
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => NostrKeychainHandle.deriveFromBip85Path(
+        xprvBase58: xprv,
+        hardenedPath: "128002'/0'/1'",
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => NostrKeychainHandle.deriveFromBip85Path(
+        xprvBase58: xprv,
+        hardenedPath: "128002'/100'/0'",
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('matches independent pinned BIP85 Nostr vectors', () {
+    const vectors = [
+      (
+        100,
+        'd3f7cbe5245ef79b9105b12b3492a03bc7709c82bb732e8daf912829c4cdc77a',
+        '2dd5669c9e9dff487b377a12e2e9dda0a18861dcd85cd100c27aae5cd6a6b304',
+        'nsec160muhefytmmehyg9ky4nfy4q80rhp8yzhdejard0jy5zn3xdcaaq9w56w8',
+      ),
+      (
+        101,
+        '9054c9cf5aef651b8a0334f385191cc64ad646468f050a670295183a0e1c78cf',
+        '8e97ed35934195d54d86d3756c2a5e1fcd28a08a13e90313df4e2734f648470e',
+        'nsec1jp2vnn66aaj3hzsrxnec2xguce9dv3jx3uzs5eczj5vr5rsu0r8swaa3mp',
+      ),
+    ];
+
+    for (final vector in vectors) {
+      final path = "128002'/${vector.$1}'/1'";
+      final entropyHex = bip85.Bip85Entropy.deriveFromHardenedPath(
+        xprvBase58: _pinnedMasterXprv,
+        path: bip85.Bip85HardenedPath(path),
+      );
+      expect(entropyHex.substring(0, 64), vector.$2);
+      expect(
+        NostrKeychainHandle.deriveFromBip85Path(
+          xprvBase58: _pinnedMasterXprv,
+          hardenedPath: path,
+        ).publicKeyHex,
+        vector.$3,
+      );
+      expect(_encodeNsec(vector.$2), vector.$4);
+    }
+  });
+}
+
+String _encodeNsec(String secretHex) {
+  return bech32.encode(
+    Bech32('nsec', _convertBits(hex.decode(secretHex), 8, 5, true)),
+  );
+}
+
+List<int> _convertBits(List<int> data, int from, int to, bool pad) {
+  var accumulator = 0;
+  var bits = 0;
+  final result = <int>[];
+  final maxValue = (1 << to) - 1;
+  final maxAccumulator = (1 << (from + to - 1)) - 1;
+  for (final value in data) {
+    accumulator = ((accumulator << from) | value) & maxAccumulator;
+    bits += from;
+    while (bits >= to) {
+      bits -= to;
+      result.add((accumulator >> bits) & maxValue);
+    }
+  }
+  if (pad && bits > 0) result.add((accumulator << (to - bits)) & maxValue);
+  return result;
 }
 
 String _zeroMnemonicXprv() {
