@@ -16948,11 +16948,11 @@
   "@walletMetadataBackupStatusCurrent": {
     "description": "Status when local wallet metadata matches the last verified backup."
   },
-  "walletMetadataBackupConsentTitle": "Back up private wallet metadata?",
+  "walletMetadataBackupConsentTitle": "Enable Bull backup?",
   "@walletMetadataBackupConsentTitle": {
     "description": "Title for the Bullnym metadata storage disclosure dialog."
   },
-  "walletMetadataBackupConsentBody": "Bull Bitcoin will store one encrypted copy of your labels, frozen-coin state, and wallet preferences on Bullnym. Bull Bitcoin can observe backup timing and size but cannot read the encrypted metadata. This uses a separate identity and encryption key from your wallet-discovery backup. Turning this off stops future updates; you can delete the remote copy separately.",
+  "walletMetadataBackupConsentBody": "Bull Bitcoin will store one encrypted copy of your wallet recovery data and metadata on Bullnym. Bull Bitcoin can observe backup timing and size but cannot read the encrypted backup. This uses one shared Bull backup identity and encryption key. Turning this off stops future updates; you can delete the remote copy separately.",
   "@walletMetadataBackupConsentBody": {
     "description": "Privacy and retention disclosure shown before wallet metadata backup is enabled."
   },
@@ -17000,11 +17000,11 @@
   "@wizardMetadataBackupTitle": {
     "description": "Title of the onboarding wallet metadata backup choice."
   },
-  "wizardMetadataBackupBody": "Automatically store one encrypted copy of wallet labels, frozen-coin state, and wallet preferences on Bullnym. Bull Bitcoin can observe backup timing and size but cannot read the metadata. This uses a separate identity and encryption key from your wallet-discovery backup. Turning it off later stops new updates, and the remote copy can be deleted separately.",
+  "wizardMetadataBackupBody": "Automatically store one encrypted Bull backup containing wallet recovery data, labels, frozen-coin state, and wallet preferences on Bullnym. Bull Bitcoin can observe backup timing and size but cannot read the backup. This uses one shared Bull backup identity and encryption key. Turning it off later stops new updates, and the remote copy can be deleted separately.",
   "@wizardMetadataBackupBody": {
     "description": "Privacy disclosure for the onboarding wallet metadata backup choice."
   },
-  "wizardMetadataBackupQuestion": "Back up wallet metadata automatically?",
+  "wizardMetadataBackupQuestion": "Back up this wallet automatically?",
   "@wizardMetadataBackupQuestion": {
     "description": "Question shown on the onboarding wallet metadata backup choice."
   },
@@ -17016,7 +17016,7 @@
   "@wizardMetadataBackupNotNow": {
     "description": "Negative onboarding wallet metadata backup action."
   },
-  "wizardMetadataBackupRequired": "Choose whether to enable wallet metadata backup before continuing.",
+  "wizardMetadataBackupRequired": "Choose whether to enable Bull backup before continuing.",
   "@wizardMetadataBackupRequired": {
     "description": "Shown when onboarding is completed without a metadata backup preference."
   },

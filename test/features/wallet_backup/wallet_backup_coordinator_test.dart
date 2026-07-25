@@ -79,6 +79,32 @@ void main() {
     expect(publishCalls, 2);
   });
 
+  test(
+    'defers publication requests until recovery releases its lease',
+    () async {
+      var publishCalls = 0;
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () async {
+          publishCalls++;
+          return const Ok(null);
+        },
+        markDirty: () async => const Ok(null),
+      );
+
+      final lease = await coordinator.beginRecoveryLease();
+      final publication = coordinator.publish();
+      await pumpEventQueue();
+      expect(publishCalls, 0);
+
+      lease.close();
+      await publication;
+      expect(publishCalls, 1);
+      await coordinator.dispose();
+    },
+  );
+
   testWidgets(
     'a manifest change during publication dirties and queues a second pass',
     (tester) async {
