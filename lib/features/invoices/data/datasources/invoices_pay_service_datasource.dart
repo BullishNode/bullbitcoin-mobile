@@ -249,6 +249,7 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
           remainingAmountSat: status.remainingAmountSat,
           paymentToleranceSat: status.paymentToleranceSat,
           rateMinorPerBtc: status.rateMinorPerBtc,
+          creationRateMinorPerBtc: status.creationRateMinorPerBtc,
           rateLocksUntil: _fromUnix(status.rateLocksUntilUnix),
           expiresAt: expiresAt,
           paidVia: PaymentMethod.fromWire(status.paidVia),

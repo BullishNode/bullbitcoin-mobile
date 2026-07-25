@@ -17335,6 +17335,57 @@
   "@getPaidTransactionsInvoiceIdLabel": {
     "description": "Detail screen: label for the copyable invoice id of an invoice-sourced Get Paid payment."
   },
+  "getPaidTransactionsExportAction": "Export accounting CSV",
+  "@getPaidTransactionsExportAction": {
+    "description": "Transactions screen: tooltip/label for the action that exports the full Get Paid history as an accounting CSV."
+  },
+  "getPaidTransactionsExportStarted": "Preparing your accounting CSV…",
+  "@getPaidTransactionsExportStarted": {
+    "description": "Transactions screen: snackbar shown while the Get Paid history is being paged and rendered to CSV."
+  },
+  "getPaidTransactionsExportSuccess": "Accounting CSV exported",
+  "@getPaidTransactionsExportSuccess": {
+    "description": "Transactions screen: snackbar shown after the Get Paid accounting CSV was saved/shared."
+  },
+  "getPaidTransactionsExportEmpty": "No Get Paid payments to export",
+  "@getPaidTransactionsExportEmpty": {
+    "description": "Transactions screen: snackbar shown when there are no Get Paid receipts to export."
+  },
+  "getPaidTransactionsExportError": "Could not export the accounting CSV",
+  "@getPaidTransactionsExportError": {
+    "description": "Transactions screen: snackbar shown when the Get Paid accounting CSV export failed."
+  },
+  "getPaidSettlementRateAtCreationLabel": "Rate at creation",
+  "@getPaidSettlementRateAtCreationLabel": {
+    "description": "Detail / invoice screen: label for the R1 invoice-creation reference exchange rate row (fiat-priced invoices only)."
+  },
+  "getPaidSettlementRateAtCreationValue": "≈ {rate} / BTC",
+  "@getPaidSettlementRateAtCreationValue": {
+    "description": "Detail / invoice screen: value of the Rate at creation row — an approximate reference rate (R1) in the invoice face currency. The leading ≈ marks it as an estimate.",
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "getPaidSettlementCreationValueSubline": "≈ {value} at creation rate",
+  "@getPaidSettlementCreationValueSubline": {
+    "description": "Detail screen: muted sub-line under the L-BTC amount row estimating the bitcoin leg's fiat worth at the invoice-creation rate (sats × R1). Approximate — always marked with ≈.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "getPaidSettlementExecutionRateValue": "executed at {rate} / BTC",
+  "@getPaidSettlementExecutionRateValue": {
+    "description": "Detail screen: muted sub-line under a settled fiat amount showing Bull Bitcoin's real execution rate (R2) in the leg currency. This is an exact executed rate, so no ≈.",
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
   "getPaidSettlementKindMixed": "Mixed Fiat-BTC",
   "@getPaidSettlementKindMixed": {
     "description": "History list: settlement-kind pill for a mixed fiat-and-Bitcoin settlement."

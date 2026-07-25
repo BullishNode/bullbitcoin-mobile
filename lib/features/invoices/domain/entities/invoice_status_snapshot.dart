@@ -18,6 +18,13 @@ class InvoiceStatusSnapshot {
   final int remainingAmountSat;
   final int paymentToleranceSat;
   final int? rateMinorPerBtc;
+
+  /// R1 — the invoice-creation reference rate (minor units per BTC), in the
+  /// invoice's fiat currency ([fiatCurrency]). Distinct from [rateMinorPerBtc],
+  /// which is the live payer quote rate. Present only for a fiat-priced invoice
+  /// on a server that sends it; null otherwise. Drives the "Rate at creation"
+  /// merchant row.
+  final int? creationRateMinorPerBtc;
   final DateTime rateLocksUntil;
   final DateTime expiresAt;
   final PaymentMethod? paidVia;
@@ -49,6 +56,7 @@ class InvoiceStatusSnapshot {
     required this.remainingAmountSat,
     required this.paymentToleranceSat,
     this.rateMinorPerBtc,
+    this.creationRateMinorPerBtc,
     required this.rateLocksUntil,
     required this.expiresAt,
     this.paidVia,

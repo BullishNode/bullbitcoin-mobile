@@ -309,4 +309,130 @@ void main() {
       expect(find.text('Invoice ID'), findsNothing);
     });
   });
+
+  group('batch 5 — accounting rate row + sub-lines (R1 / R2)', () {
+    // The real face≠leg case: invoice face USD, fiat leg CAD.
+    GetPaidTransaction mixedFaceUsdLegCad({
+      int? creationRateMinorPerBtc = 6416000,
+      String? creationRateCurrency = 'USD',
+      int? executionRateMinorPerBtc = 6390000,
+    }) => _tx(
+      settlementState: GetPaidSettlementState.settled,
+      settlement: GetPaidSettlement(
+        kind: GetPaidSettlementKind.mixed,
+        fiatPercentage: 40,
+        creationRateMinorPerBtc: creationRateMinorPerBtc,
+        creationRateCurrency: creationRateCurrency,
+        bitcoin: const [
+          GetPaidBitcoinSettlementLeg(
+            amountSat: 60000,
+            status: GetPaidSettlementLegStatus.settled,
+          ),
+        ],
+        fiat: [
+          GetPaidFiatSettlementLeg(
+            amountMinor: 12345,
+            quotedAmountMinor: 12345,
+            executionRateMinorPerBtc: executionRateMinorPerBtc,
+            currency: 'CAD',
+            orderId: '40000000-0000-4000-8000-000000000009',
+            status: GetPaidSettlementLegStatus.settled,
+          ),
+        ],
+      ),
+    );
+
+    testWidgets(
+      'mixed settled shows the rate row and both sub-lines with the right '
+      'currencies (face USD, leg CAD, never mixed)',
+      (tester) async {
+        await _pumpDetail(tester, mixedFaceUsdLegCad());
+        // R1 rate-at-creation row, in the FACE currency (USD), marked ≈.
+        expect(find.text('Rate at creation'), findsOneWidget);
+        expect(find.text('≈ 64160.00 USD / BTC'), findsOneWidget);
+        // The L-BTC ≈ sub-line: 60000 sats × 6416000 / 1e8 = 3850 minor → 38.50,
+        // in the FACE currency (USD), marked ≈.
+        expect(
+          find.text('≈ 38.50 USD at creation rate'),
+          findsOneWidget,
+        );
+        // The R2 execution sub-line under the settled fiat amount, in the LEG
+        // currency (CAD), exact (no ≈).
+        expect(find.text('executed at 63900.00 CAD / BTC'), findsOneWidget);
+        // The exact credited fiat amount stays in its own leg currency.
+        expect(find.text('123.45 CAD'), findsOneWidget);
+      },
+    );
+
+    testWidgets('sat-priced (no R1) shows NO rate-at-creation row', (
+      tester,
+    ) async {
+      // A sat-priced invoice carries no creation rate; the row must never show.
+      await _pumpDetail(
+        tester,
+        mixedFaceUsdLegCad(
+          creationRateMinorPerBtc: null,
+          creationRateCurrency: null,
+        ),
+      );
+      expect(find.text('Rate at creation'), findsNothing);
+      expect(find.textContaining('at creation rate'), findsNothing);
+      // The R2 execution sub-line still shows (it is independent of R1).
+      expect(find.text('executed at 63900.00 CAD / BTC'), findsOneWidget);
+    });
+
+    testWidgets('R1 rate without a face currency omits the row (no guess)', (
+      tester,
+    ) async {
+      await _pumpDetail(
+        tester,
+        mixedFaceUsdLegCad(creationRateCurrency: null),
+      );
+      // No currency context ⇒ neither the rate row nor the ≈ value sub-line.
+      expect(find.text('Rate at creation'), findsNothing);
+      expect(find.textContaining('at creation rate'), findsNothing);
+    });
+
+    testWidgets(
+      'a pending leg shows the awaiting sub-line, never an execution rate',
+      (tester) async {
+        await _pumpDetail(
+          tester,
+          _tx(
+            settlementState: GetPaidSettlementState.pending,
+            settlement: GetPaidSettlement(
+              kind: GetPaidSettlementKind.fiat,
+              fiatPercentage: 100,
+              creationRateMinorPerBtc: 6400000,
+              creationRateCurrency: 'CAD',
+              fiat: const [
+                GetPaidFiatSettlementLeg(
+                  amountMinor: null,
+                  quotedAmountMinor: 5000,
+                  // A pending leg never carries R2, even if the payload had one.
+                  executionRateMinorPerBtc: null,
+                  currency: 'CAD',
+                  orderId: '40000000-0000-4000-8000-000000000009',
+                  status: GetPaidSettlementLegStatus.pending,
+                ),
+              ],
+            ),
+          ),
+        );
+        expect(find.text('Rate at creation'), findsOneWidget);
+        expect(find.textContaining('Awaiting settlement'), findsOneWidget);
+        expect(find.textContaining('executed at'), findsNothing);
+      },
+    );
+
+    testWidgets('an old-server settlement renders zero new accounting elements', (
+      tester,
+    ) async {
+      // Legacy fiat row: no R1, no R2 — batch-4 behaviour, bit-for-bit.
+      await _pumpDetail(tester, _tx(settlement: _fiat(fiatPercentage: 100)));
+      expect(find.text('Rate at creation'), findsNothing);
+      expect(find.textContaining('at creation rate'), findsNothing);
+      expect(find.textContaining('executed at'), findsNothing);
+    });
+  });
 }

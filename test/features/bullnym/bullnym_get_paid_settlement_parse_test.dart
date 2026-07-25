@@ -684,4 +684,160 @@ void main() {
       );
     });
   });
+
+  // Merchant accounting fields (batch 5): R1 (creation_rate_minor_per_btc +
+  // creation_rate_currency on settlement_details) and R2
+  // (execution_rate_minor_per_btc on a fiat leg). Absent ⇒ null; present but
+  // malformed ⇒ the whole projection fails closed to unavailable.
+  group('accounting rates — R1 / R2', () {
+    test('absent creation rate + execution rate parse as null (tolerant)', () {
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      )!;
+      expect(s.kind, BullnymSettlementKind.fiat);
+      expect(s.creationRateMinorPerBtc, isNull);
+      expect(s.creationRateCurrency, isNull);
+      expect(s.fiat.single.executionRateMinorPerBtc, isNull);
+    });
+
+    test('valid R1 + R2 on a fiat leg are read through', () {
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'creation_rate_minor_per_btc': 6400000,
+            'creation_rate_currency': 'CAD',
+            'fiat': [
+              {
+                ..._fiatLeg(amountMinor: 12345),
+                'execution_rate_minor_per_btc': 6390000,
+              },
+            ],
+          },
+        ),
+      )!;
+      expect(s.creationRateMinorPerBtc, 6400000);
+      expect(s.creationRateCurrency, 'CAD');
+      expect(s.fiat.single.executionRateMinorPerBtc, 6390000);
+    });
+
+    test('face currency (R1) may differ from the leg currency (R2)', () {
+      // Real case: face USD, leg CAD. The two are never conflated.
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(
+          settlementKind: 'mixed',
+          details: {
+            'kind': 'mixed',
+            'creation_rate_minor_per_btc': 6416000,
+            'creation_rate_currency': 'USD',
+            'bitcoin': [_btcLeg()],
+            'fiat': [
+              {
+                ..._fiatLeg(amountMinor: 12345, currency: 'CAD'),
+                'execution_rate_minor_per_btc': 6390000,
+              },
+            ],
+          },
+        ),
+      )!;
+      expect(s.creationRateCurrency, 'USD');
+      expect(s.fiat.single.currency, 'CAD');
+    });
+
+    test('R1 rate present without a currency keeps the rate, currency null', () {
+      // A rate with no face currency is retained (the UI omits the row rather
+      // than guess a denomination) — this is NOT a fail-closed case.
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'creation_rate_minor_per_btc': 6400000,
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      )!;
+      expect(s.kind, BullnymSettlementKind.fiat);
+      expect(s.creationRateMinorPerBtc, 6400000);
+      expect(s.creationRateCurrency, isNull);
+    });
+
+    void expectUnavailable(String reason, Map<String, dynamic> json) {
+      expect(
+        BullnymGetPaidSettlement.tryParse(json)?.kind,
+        BullnymSettlementKind.unavailable,
+        reason: reason,
+      );
+    }
+
+    test('non-positive creation rate fails closed', () {
+      expectUnavailable(
+        'zero R1',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'creation_rate_minor_per_btc': 0,
+            'creation_rate_currency': 'CAD',
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      );
+    });
+
+    test('non-int creation rate fails closed', () {
+      expectUnavailable(
+        'string R1',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'creation_rate_minor_per_btc': '6400000',
+            'creation_rate_currency': 'CAD',
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      );
+    });
+
+    test('unsupported creation-rate currency fails closed', () {
+      expectUnavailable(
+        'bad R1 currency',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'creation_rate_minor_per_btc': 6400000,
+            'creation_rate_currency': 'GBP',
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      );
+    });
+
+    test('non-positive execution rate on a leg fails closed', () {
+      expectUnavailable(
+        'zero R2',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat': [
+              {
+                ..._fiatLeg(amountMinor: 12345),
+                'execution_rate_minor_per_btc': -1,
+              },
+            ],
+          },
+        ),
+      );
+    });
+  });
 }
