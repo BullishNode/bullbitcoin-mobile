@@ -57,6 +57,7 @@ import 'package:bb_mobile/features/tor_settings/tor_settings_locator.dart';
 import 'package:bb_mobile/features/transactions/transactions_locator.dart';
 import 'package:bb_mobile/features/wallet/wallet_locator.dart';
 import 'package:bb_mobile/features/wallet_backup/wallet_backup_locator.dart';
+import 'package:bb_mobile/features/wallet_metadata_backup/wallet_metadata_backup_locator.dart';
 import 'package:bb_mobile/features/withdraw/withdraw_locator.dart';
 import 'package:bb_mobile/features/wizard/wizard_locator.dart';
 import 'package:get_it/get_it.dart';
@@ -104,6 +105,7 @@ class AppLocator {
     DeterministicWalletsLocator.setup(locator);
     KeychainManifestLocator.setup(locator);
     WalletBackupLocator.setup(locator);
+    WalletMetadataBackupLocator.setup(locator);
     KeychainRecoveryLocator.setup(locator);
     BullnymLocator.setup(locator);
     GetPaidSettingsLocator.setup(locator);
@@ -146,6 +148,8 @@ class AppLocator {
     RecipientsLocator.setup(locator);
     BitBoxLocator.setup(locator);
     ArkCoreLocator.setup(locator);
+
+    await WalletMetadataBackupLocator.start(locator);
   }
 
   static void startForeground(GetIt locator) {
