@@ -51,9 +51,13 @@ enum BullnymFiatConversionOverrideReason {
 /// amount locked at order creation; it is present (strictly positive) whenever
 /// a quote is known — for pending legs as well as settled ones — and null for a
 /// legacy row predating the quote column or an unavailable leg.
+/// `executionRateMinorPerBtc` is R2 — Bull Bitcoin's real execution rate for
+/// this leg, denominated in the LEG's own [currency]; it is present (strictly
+/// positive) only once the leg has settled and null for a legacy/pending leg.
 class BullnymFiatSettlementLeg {
   final int? amountMinor;
   final int? quotedAmountMinor;
+  final int? executionRateMinorPerBtc;
   final String currency;
   final String orderId;
   final BullnymSettlementLegStatus status;
@@ -64,6 +68,7 @@ class BullnymFiatSettlementLeg {
     required this.orderId,
     required this.status,
     this.quotedAmountMinor,
+    this.executionRateMinorPerBtc,
   });
 }
 
@@ -99,12 +104,28 @@ class BullnymGetPaidSettlement {
   /// captured column. Never re-read from current product config.
   final int? fiatPercentage;
 
+  /// R1 — the invoice-creation reference rate (minor units per BTC), from the
+  /// quote captured when the invoice was created. Denominated in the invoice
+  /// FACE currency ([creationRateCurrency]), NOT the leg currency. Present
+  /// (strictly positive) only for a fiat-priced invoice on a server that sends
+  /// it; null for a sat-priced invoice or a legacy/old-server row.
+  final int? creationRateMinorPerBtc;
+
+  /// The FACE currency that [creationRateMinorPerBtc] is denominated in. Travels
+  /// with the rate on `settlement_details` because the invoice face currency can
+  /// differ from a fiat leg's currency (e.g. face USD, leg CAD) and is not
+  /// otherwise carried on a history row. Null when the rate is absent or the
+  /// server names no currency for it (the rate then cannot be rendered).
+  final String? creationRateCurrency;
+
   const BullnymGetPaidSettlement({
     required this.kind,
     this.fiat = const [],
     this.bitcoin = const [],
     this.overrideReason,
     this.fiatPercentage,
+    this.creationRateMinorPerBtc,
+    this.creationRateCurrency,
   });
 
   static const unavailable = BullnymGetPaidSettlement(
@@ -207,10 +228,14 @@ class BullnymGetPaidSettlement {
     // A fiat kind is 100% fiat: a present split must be exactly 100.
     final percentage = _fiatPercentage(details['fiat_percentage'], min: 100);
     if (percentage == _invalidPercentage) return unavailable;
+    final creation = _creationRate(details);
+    if (creation == null) return unavailable;
     return BullnymGetPaidSettlement(
       kind: BullnymSettlementKind.fiat,
       fiat: fiat,
       fiatPercentage: percentage,
+      creationRateMinorPerBtc: creation.rate,
+      creationRateCurrency: creation.currency,
     );
   }
 
@@ -233,12 +258,51 @@ class BullnymGetPaidSettlement {
       max: 99,
     );
     if (percentage == _invalidPercentage) return unavailable;
+    final creation = _creationRate(details);
+    if (creation == null) return unavailable;
     return BullnymGetPaidSettlement(
       kind: BullnymSettlementKind.mixed,
       fiat: fiat,
       bitcoin: bitcoin,
       fiatPercentage: percentage,
+      creationRateMinorPerBtc: creation.rate,
+      creationRateCurrency: creation.currency,
     );
+  }
+
+  /// Reads R1 (the invoice-creation reference rate) and its FACE currency off
+  /// `settlement_details`. Returns:
+  /// - `(rate: null, currency: null)` when both are absent/JSON-null — a legacy
+  ///   or sat-priced row that carries no creation rate.
+  /// - `(rate, currency)` when each present value is well-formed (rate a
+  ///   strictly positive int; currency a supported code). Either may still be
+  ///   null independently — a rate with no currency is retained but cannot be
+  ///   rendered (the UI omits the row rather than guess a denomination).
+  /// - `null` when either field is PRESENT but invalid, signalling the caller to
+  ///   fail the whole projection closed to [unavailable] (the established rule).
+  static ({int? rate, String? currency})? _creationRate(
+    Map<String, dynamic> details,
+  ) {
+    final rawRate = details['creation_rate_minor_per_btc'];
+    final int? rate;
+    if (rawRate == null) {
+      rate = null;
+    } else if (rawRate is int && rawRate > 0) {
+      rate = rawRate;
+    } else {
+      return null;
+    }
+    final rawCurrency = details['creation_rate_currency'];
+    final String? currency;
+    if (rawCurrency == null) {
+      currency = null;
+    } else if (rawCurrency is String &&
+        _supportedCurrencies.contains(rawCurrency)) {
+      currency = rawCurrency;
+    } else {
+      return null;
+    }
+    return (rate: rate, currency: currency);
   }
 
   static BullnymFiatConversionOverrideReason _reason(Object? v) => switch (v) {
@@ -291,10 +355,24 @@ class BullnymGetPaidSettlement {
         // closed (never a fabricated quote).
         return null;
       }
+      final executionRaw = e['execution_rate_minor_per_btc'];
+      final int? executionRateMinorPerBtc;
+      if (executionRaw == null) {
+        // Absent or JSON null: a legacy row, or a leg not yet settled — R2 is
+        // only known once the order has executed.
+        executionRateMinorPerBtc = null;
+      } else if (executionRaw is int && executionRaw > 0) {
+        executionRateMinorPerBtc = executionRaw;
+      } else {
+        // Present but not a strictly positive int → the whole projection fails
+        // closed (never a fabricated execution rate).
+        return null;
+      }
       legs.add(
         BullnymFiatSettlementLeg(
           amountMinor: amount,
           quotedAmountMinor: quotedAmountMinor,
+          executionRateMinorPerBtc: executionRateMinorPerBtc,
           currency: currency,
           orderId: orderId,
           status: status,

@@ -28,9 +28,13 @@ enum GetPaidFiatOverrideReason {
 /// present only once settled. [quotedAmountMinor] is the fiat amount locked at
 /// order creation, present (positive) whenever a quote is known — for pending
 /// legs too — and null for a legacy row or an unavailable leg.
+/// [executionRateMinorPerBtc] is R2 — Bull Bitcoin's real execution rate for
+/// this leg, denominated in the leg's own [currency]; present (positive) once
+/// the leg has settled, null otherwise.
 class GetPaidFiatSettlementLeg {
   final int? amountMinor;
   final int? quotedAmountMinor;
+  final int? executionRateMinorPerBtc;
   final String currency;
   final String orderId;
   final GetPaidSettlementLegStatus status;
@@ -41,6 +45,7 @@ class GetPaidFiatSettlementLeg {
     required this.orderId,
     required this.status,
     this.quotedAmountMinor,
+    this.executionRateMinorPerBtc,
   });
 }
 
@@ -67,11 +72,24 @@ class GetPaidSettlement {
   /// captured column, in which case no Split row is shown.
   final int? fiatPercentage;
 
+  /// R1 — the invoice-creation reference rate (minor units per BTC), in the
+  /// invoice FACE currency ([creationRateCurrency]). Present only for a
+  /// fiat-priced invoice on a server that sends it; null otherwise. The
+  /// "Rate at creation" row and the derived ≈ value both read from this.
+  final int? creationRateMinorPerBtc;
+
+  /// The FACE currency of [creationRateMinorPerBtc] (which may differ from any
+  /// fiat leg's currency). Null when the rate is absent or the server names no
+  /// currency for it — the rate is then not rendered.
+  final String? creationRateCurrency;
+
   const GetPaidSettlement({
     required this.kind,
     this.fiat = const [],
     this.bitcoin = const [],
     this.overrideReason,
     this.fiatPercentage,
+    this.creationRateMinorPerBtc,
+    this.creationRateCurrency,
   });
 }
