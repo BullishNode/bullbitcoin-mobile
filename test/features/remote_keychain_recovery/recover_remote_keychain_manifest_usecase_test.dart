@@ -59,12 +59,15 @@ void main() {
   );
 
   test('distinguishes a present empty manifest from no backup', () async {
-    walletBackup.fetchResult = Ok(_manifestImport());
+    walletBackup.fetchResult = Ok(
+      _manifestImport(metadataPayload: '{"sections":[],"records":[]}'),
+    );
     manifest.plan = _plan(entries: const []);
 
     final result = await buildUsecase().execute();
 
     expect(result.status, RemoteKeychainRecoveryStatus.nothingToRestore);
+    expect(result.metadataPayload, '{"sections":[],"records":[]}');
     expect(recovery.restoreCalls, 0);
   });
 
@@ -401,10 +404,11 @@ void main() {
   });
 }
 
-WalletBackupManifestImport _manifestImport() {
+WalletBackupManifestImport _manifestImport({String? metadataPayload}) {
   return WalletBackupManifestImport(
     payload: '{"manifest":"payload"}',
     parentFingerprint: 'fedcba98',
+    metadataPayload: metadataPayload,
   );
 }
 

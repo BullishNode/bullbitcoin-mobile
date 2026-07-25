@@ -71,7 +71,6 @@ final class WalletMetadataBackupSectionProviderImpl
     required String parentFingerprint,
     required String? remotePayload,
   }) async {
-    _suppressChanges = true;
     try {
       final remoteSnapshot = remotePayload == null
           ? null
@@ -154,6 +153,7 @@ final class WalletMetadataBackupSectionProviderImpl
     required String payload,
     required Set<String> createdWalletRefs,
   }) async {
+    _suppressChanges = true;
     try {
       final snapshot = _codec.decodeSnapshot(payload);
       final planResult = _buildPlan(snapshot);

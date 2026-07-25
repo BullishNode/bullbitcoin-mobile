@@ -33,7 +33,7 @@ final class RecoverRemoteKeychainManifestUsecase {
     try {
       return await _executeWithin(deadline).timeout(budget);
     } on TimeoutException {
-      return const RemoteKeychainRecoveryResult(
+      return RemoteKeychainRecoveryResult(
         status: RemoteKeychainRecoveryStatus.timedOut,
       );
     } catch (error, stack) {
@@ -80,8 +80,9 @@ final class RecoverRemoteKeychainManifestUsecase {
       );
     }
     if (importPlan.entries.isEmpty) {
-      return const RemoteKeychainRecoveryResult(
+      return RemoteKeychainRecoveryResult(
         status: RemoteKeychainRecoveryStatus.nothingToRestore,
+        metadataPayload: manifestImport.metadataPayload,
       );
     }
     if (_deadlineReached(deadline)) return _timedOut;

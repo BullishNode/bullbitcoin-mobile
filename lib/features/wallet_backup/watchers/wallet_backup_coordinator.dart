@@ -4,12 +4,31 @@ import 'package:bb_mobile/core/electrum/domain/value_objects/electrum_sync_resul
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_failure.dart';
+import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_section_provider.dart';
 import 'package:flutter/widgets.dart';
 
 typedef PublishWalletBackup =
     Future<Result<void, WalletBackupFailure>> Function();
 typedef MarkWalletBackupDirty =
     Future<Result<void, WalletBackupFailure>> Function();
+
+/// Holds automatic publication while remote recovery restores local state.
+///
+/// A lease is intentionally owned by the coordinator so recovery cannot race
+/// with a queued or in-flight publication of the same unified object.
+final class WalletBackupRecoveryLease implements WalletMetadataRecoveryFence {
+  final void Function() _release;
+  bool _closed = false;
+
+  WalletBackupRecoveryLease(this._release);
+
+  @override
+  void close() {
+    if (_closed) return;
+    _closed = true;
+    _release();
+  }
+}
 
 /// Owns every automatic publication trigger for the single Bull backup.
 ///
@@ -32,6 +51,9 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
   bool _dirtyPending = false;
   bool _started = false;
   bool _disposed = false;
+  int _recoveryLeases = 0;
+  final List<Completer<Result<void, WalletBackupFailure>>>
+  _deferredPublications = [];
 
   WalletBackupCoordinator({
     required this.manifestChanges,
@@ -91,6 +113,11 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
         ),
       );
     }
+    if (_recoveryLeases > 0) {
+      final deferred = Completer<Result<void, WalletBackupFailure>>();
+      _deferredPublications.add(deferred);
+      return deferred.future;
+    }
     _publishRequested = true;
     final running = _inFlight;
     if (running != null) return running;
@@ -106,14 +133,33 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
   /// recreating the remote object.
   Future<void> waitForIdle() async {
     while (true) {
+      final dirtying = _dirtying;
+      if (dirtying != null) await dirtying;
       final running = _inFlight;
-      if (running == null) return;
-      await running;
+      if (running != null) {
+        await running;
+        continue;
+      }
+      if (_dirtying == null) return;
     }
   }
 
+  /// Prevents publication until the returned lease is closed.
+  ///
+  /// Existing publication and dirty-state work are drained first. Changes
+  /// observed while the lease is held remain durable and are retried when the
+  /// lease is released.
+  Future<WalletBackupRecoveryLease> beginRecoveryLease() async {
+    if (_disposed) {
+      throw StateError('wallet backup coordinator disposed');
+    }
+    _recoveryLeases++;
+    await waitForIdle();
+    return WalletBackupRecoveryLease(_releaseRecoveryLease);
+  }
+
   void retry() {
-    if (_disposed) return;
+    if (_disposed || _recoveryLeases > 0) return;
     if (_dirtying != null) return;
     if (_dirtyPending) {
       _scheduleDirtying();
@@ -237,5 +283,45 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
     }
     await _inFlight;
     _publishRequested = false;
+    for (final deferred in _deferredPublications) {
+      if (!deferred.isCompleted) {
+        deferred.complete(
+          const Err(
+            WalletBackupUnexpectedFailure('wallet backup coordinator disposed'),
+          ),
+        );
+      }
+    }
+    _deferredPublications.clear();
+  }
+
+  void _releaseRecoveryLease() {
+    if (_recoveryLeases == 0) return;
+    _recoveryLeases--;
+    if (_recoveryLeases != 0 || _disposed) return;
+    final deferred = List<Completer<Result<void, WalletBackupFailure>>>.from(
+      _deferredPublications,
+    );
+    _deferredPublications.clear();
+    if (deferred.isEmpty) {
+      retry();
+      return;
+    }
+    unawaited(_publishDeferred(deferred));
+  }
+
+  Future<void> _publishDeferred(
+    List<Completer<Result<void, WalletBackupFailure>>> deferred,
+  ) async {
+    try {
+      final result = await publish();
+      for (final completer in deferred) {
+        if (!completer.isCompleted) completer.complete(result);
+      }
+    } catch (error, stack) {
+      for (final completer in deferred) {
+        if (!completer.isCompleted) completer.completeError(error, stack);
+      }
+    }
   }
 }
