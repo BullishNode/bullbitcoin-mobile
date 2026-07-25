@@ -19,6 +19,7 @@ import 'package:bb_mobile/features/wallet_backup/domain/usecases/build_wallet_ba
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/delete_wallet_backup_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_encryption_key_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_signer_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/usecases/fetch_wallet_backup_manifest_import_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/get_wallet_backup_state_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_backup_enabled_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/sync_wallet_backup_usecase.dart';
@@ -96,6 +97,17 @@ class WalletBackupLocator {
         deriveSigner: locator<DeriveWalletBackupSignerUsecase>(),
       ),
     );
+    locator.registerFactory<FetchWalletBackupManifestImportUsecase>(
+      () => FetchWalletBackupManifestImportUsecase(
+        wallet: locator<WalletBackupWalletPort>(),
+        deriveSigner: locator<DeriveWalletBackupSignerUsecase>(),
+        remote: locator<WalletBackupRemoteRepository>(),
+        deriveEncryptionKey: locator<DeriveWalletBackupEncryptionKeyUsecase>(),
+        encryption: locator<WalletBackupEncryptionRepository>(),
+        keychainManifest: locator<KeychainManifestFacade>(),
+        state: locator<WalletBackupStateRepository>(),
+      ),
+    );
     locator.registerFactory<WalletBackupFacade>(
       () => WalletBackupFacade(
         getState: locator<GetWalletBackupStateUsecase>(),
@@ -103,6 +115,7 @@ class WalletBackupLocator {
         setEnabled: locator<SetWalletBackupEnabledUsecase>(),
         backupNow: locator<BackupWalletNowUsecase>(),
         delete: locator<DeleteWalletBackupUsecase>(),
+        fetchManifestImport: locator<FetchWalletBackupManifestImportUsecase>(),
       ),
     );
   }

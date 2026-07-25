@@ -12,9 +12,11 @@ import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/nostr_identity/domain/derive_nostr_identity_handle_usecase.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:bb_mobile/features/wallet_backup/data/default_wallet_backup_wallet_adapter.dart';
+import 'package:bb_mobile/features/wallet_backup/data/recoverbull_wallet_backup_encryption_repository.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_encryption.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_remote.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_wallet.dart';
@@ -24,6 +26,7 @@ import 'package:bb_mobile/features/wallet_backup/domain/usecases/backup_wallet_n
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/delete_wallet_backup_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_encryption_key_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_signer_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/usecases/fetch_wallet_backup_manifest_import_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/get_wallet_backup_state_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_backup_enabled_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/watch_wallet_backup_state_usecase.dart';
@@ -335,6 +338,11 @@ void main() {
         state: state,
         remote: _FakeRemoteRepository(),
       ),
+      fetchManifestImport: _fetchManifestImportUsecase(
+        wallet: wallet,
+        state: state,
+        remote: _FakeRemoteRepository(),
+      ),
     );
 
     expect(_value(await facade.getState()).enabled, isFalse);
@@ -344,6 +352,7 @@ void main() {
       await facade.watchState().first,
       isA<Ok<WalletBackupState, WalletBackupFailure>>(),
     );
+    expect(_value(await facade.fetchManifestImport()), isNull);
   });
 }
 
@@ -357,6 +366,24 @@ DeleteWalletBackupUsecase _deleteUsecase({
     state: state,
     wallet: wallet,
     deriveSigner: DeriveWalletBackupSignerUsecase(_FakeNostrIdentityFacade()),
+  );
+}
+
+FetchWalletBackupManifestImportUsecase _fetchManifestImportUsecase({
+  required WalletBackupWalletPort wallet,
+  required WalletBackupStateRepository state,
+  required WalletBackupRemoteRepository remote,
+}) {
+  return FetchWalletBackupManifestImportUsecase(
+    wallet: wallet,
+    deriveSigner: DeriveWalletBackupSignerUsecase(_FakeNostrIdentityFacade()),
+    remote: remote,
+    deriveEncryptionKey: const DeriveWalletBackupEncryptionKeyUsecase(
+      registry: Bip85RegistryFacade(),
+    ),
+    encryption: const RecoverBullWalletBackupEncryptionRepository(),
+    keychainManifest: _FakeKeychainManifestFacade(),
+    state: state,
   );
 }
 
@@ -497,6 +524,11 @@ final class _FakeNostrIdentityFacade implements NostrIdentityFacade {
     required String messageHashHex,
   }) => '22' * 32;
 
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+final class _FakeKeychainManifestFacade implements KeychainManifestFacade {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
