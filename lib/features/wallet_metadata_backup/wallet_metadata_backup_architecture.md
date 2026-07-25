@@ -7,9 +7,10 @@ its contributor registry, durable local control state, publication scheduling,
 and recovery planning/apply. Bullnym is the only remote store. The wallet does
 not open relay WebSockets, construct Nostr events, or expose relay policy here.
 
-The keychain manifest remains a separate backup stream with a separate
-activation, signing identity, encryption key, payload, and remote object.
-Metadata recovery never enables future metadata uploads.
+The keychain manifest and metadata remain separate owned sections inside the
+single `wallet_backup` stream. They share one activation, signing identity,
+encryption key, payload, and remote object. Metadata recovery never enables
+future metadata uploads.
 
 ## Snapshot
 
@@ -36,9 +37,9 @@ unknown remote records and section declarations.
 
 ## Cryptography
 
-The metadata signing identity remains frozen at BIP85 path `9000'/4'/1'`. The
-encryption key remains frozen at `1642'/0'/2'`. Neither is shared with the
-keychain-manifest stream or generic Bullnym authentication.
+The unified backup signing identity remains frozen at BIP85 path
+`128002'/100'/1'`. The encryption key remains frozen at `1642'/0'/1'`. The
+Bullnym auth and NIP-05 identities remain separate app-reserved roles.
 
 Plaintext is encrypted using the RecoverBull-compatible authenticated format:
 
@@ -53,7 +54,7 @@ ciphertext, never the xprv, encryption key, fingerprint, records, or labels.
 `BullnymWalletMetadataRemoteRepository` maps the shared Bullnym facade's typed
 fetch/store/delete results into metadata domain results. HTTP, JSON, base64
 request mapping, signed request layout, and status-code mapping stay in
-`features/bullnym`. The adapter uses only stream `wallet_metadata` and a
+`features/bullnym`. The adapter uses only stream `wallet_backup` and a
 short-lived signer capability; no metadata-owned wire client exists.
 
 ## Local State
