@@ -39,6 +39,68 @@ void main() {
       ),
       parseManifestFile: parser,
     );
+    addTearDown(facade.close);
+  });
+
+  test(
+    'emits only normal committed inventory changes, never recovery writes',
+    () async {
+      var changeCount = 0;
+      final subscription = facade.watchCommittedChanges().listen(
+        (_) => changeCount++,
+      );
+      addTearDown(subscription.cancel);
+
+      await facade.recordReservedDerivation(
+        KeychainManifestReservedDerivationRequest(
+          reservationId: 'btcpay_wallet_seed',
+          derivationPath: "39'/0'/12'/100'",
+          parentFingerprint: 'fedcba98',
+          materializations: [_walletMaterialization()],
+        ),
+      );
+      await pumpEventQueue();
+      expect(changeCount, 1);
+
+      await facade.recordRecoveredDerivation(
+        KeychainManifestReservedDerivationRequest(
+          reservationId: 'btcpay_wallet_seed',
+          derivationPath: "39'/0'/12'/100'",
+          parentFingerprint: 'fedcba98',
+          materializations: [
+            _walletMaterialization(
+              walletId: 'lbtc-wallet',
+              network: Network.liquidMainnet,
+            ),
+          ],
+        ),
+      );
+      await pumpEventQueue();
+      expect(changeCount, 1);
+    },
+  );
+
+  test('does not emit when a normal record fails', () async {
+    var changeCount = 0;
+    final subscription = facade.watchCommittedChanges().listen(
+      (_) => changeCount++,
+    );
+    addTearDown(subscription.cancel);
+
+    await expectLater(
+      facade.recordReservedDerivation(
+        KeychainManifestReservedDerivationRequest(
+          reservationId: 'unknown_feature',
+          derivationPath: "39'/0'/12'/100'",
+          parentFingerprint: 'fedcba98',
+          materializations: [_walletMaterialization()],
+        ),
+      ),
+      throwsA(isA<KeychainManifestException>()),
+    );
+    await pumpEventQueue();
+
+    expect(changeCount, 0);
   });
 
   test('rejects unknown reservation ids at the public boundary', () async {

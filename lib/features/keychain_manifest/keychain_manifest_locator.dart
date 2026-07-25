@@ -44,13 +44,14 @@ class KeychainManifestLocator {
         parseManifest: locator<ParseKeychainManifestFileUsecase>(),
       ),
     );
-    locator.registerFactory<KeychainManifestFacade>(
+    locator.registerLazySingleton<KeychainManifestFacade>(
       () => KeychainManifestFacade(
         recordEntry: locator<RecordKeychainManifestEntryUsecase>(),
         buildManifestFile: locator<BuildKeychainManifestFileUsecase>(),
         mergeManifestFiles: locator<MergeKeychainManifestFilePayloadsUsecase>(),
         parseManifestFile: locator<ParseKeychainManifestFileUsecase>(),
       ),
+      dispose: (facade) => facade.close(),
     );
   }
 }

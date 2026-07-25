@@ -1,3 +1,5 @@
+import 'dart:async';
+
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart'
     show
         KeychainManifestDuplicateException,
@@ -40,6 +42,8 @@ class KeychainManifestFacade {
   final BuildKeychainManifestFileUsecase _buildManifestFile;
   final MergeKeychainManifestFilePayloadsUsecase _mergeManifestFiles;
   final ParseKeychainManifestFileUsecase _parseManifestFile;
+  final StreamController<void> _committedChanges =
+      StreamController<void>.broadcast();
 
   KeychainManifestFacade({
     required this._recordEntry,
@@ -51,7 +55,10 @@ class KeychainManifestFacade {
   Future<void> recordReservedDerivation(
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
-  }) => _recordDerivation(request, now: now);
+  }) async {
+    await _recordDerivation(request, now: now);
+    _committedChanges.add(null);
+  }
 
   /// Records inventory reconstructed from an authenticated remote backup.
   ///
@@ -62,6 +69,14 @@ class KeychainManifestFacade {
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
   }) => _recordDerivation(request, now: now);
+
+  /// Emits after a normal local inventory transaction commits.
+  ///
+  /// Recovery-originated records are deliberately excluded so restoring a
+  /// remote backup can never schedule a publication as a side effect.
+  Stream<void> watchCommittedChanges() => _committedChanges.stream;
+
+  Future<void> close() => _committedChanges.close();
 
   Future<void> _recordDerivation(
     KeychainManifestReservedDerivationRequest request, {

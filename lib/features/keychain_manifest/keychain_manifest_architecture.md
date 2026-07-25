@@ -55,6 +55,10 @@ must not be presented as importable or recoverable.
   recovery uses `recordRecoveredDerivation`. Both enforce the same registry and
   persistence invariants, while the semantic distinction prevents automatic
   backup coordination from turning a remote read into a remote write.
+- After a normal local record transaction commits, the public facade emits a
+  section-owned change signal. It emits nothing for failed writes or
+  `recordRecoveredDerivation`. `wallet_backup` consumes that signal and owns
+  dirty state and publication; `keychain_manifest` never imports it.
 - The public boundary may build a manifest file payload, but file operations
   must not mutate local manifest inventory.
 - `keychain_manifest` owns the canonical manifest payload used by
