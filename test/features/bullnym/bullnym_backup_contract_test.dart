@@ -243,6 +243,10 @@ final class _RecordingClient implements BullnymClientPort {
   BullnymBackupDeleteRequest? deleteRequest;
 
   @override
+  Future<Result<BullnymVersionInfo, BullnymFailure>> getVersion() =>
+      throw UnimplementedError();
+
+  @override
   Future<BullnymBackupHead> fetchBackup(
     BullnymBackupFetchRequest request,
   ) async {
