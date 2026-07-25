@@ -37,9 +37,9 @@ class KeychainManifestReservationClassification {
 /// recovery decision on any newly reserved product seed rather than silently
 /// dropping it from backups (KC-3) or from recovery.
 ///
-/// BTCPay, Lightning Address, and Payment Page are recoverable in v1. POS (103)
-/// is a future reservation. Bullnym-backed products expose an automatic heal
-/// signal after their deterministic wallet is restored.
+/// BTCPay, Lightning Address, Payment Page, and POS are recoverable in v1.
+/// Bullnym-backed products expose an automatic heal signal after their
+/// deterministic wallet is restored.
 class KeychainManifestReservationSupport {
   const KeychainManifestReservationSupport._();
 
@@ -50,9 +50,6 @@ class KeychainManifestReservationSupport {
           recoverableV1: true,
           reactivationOnRecovery: KeychainManifestReactivationOnRecovery.none,
         ),
-        // LN recovery is added by this PR (pr11): recoverableV1 flips to true
-        // here. Its registration cannot be proven live from local state, so
-        // remote recovery checks and heals it after materialization.
         'lightning_address_wallet_seed':
             KeychainManifestReservationClassification(
               exportableV1: true,
@@ -61,6 +58,12 @@ class KeychainManifestReservationSupport {
                   KeychainManifestReactivationOnRecovery.autoHealOnRecovery,
             ),
         'payment_page_wallet_seed': KeychainManifestReservationClassification(
+          exportableV1: true,
+          recoverableV1: true,
+          reactivationOnRecovery:
+              KeychainManifestReactivationOnRecovery.autoHealOnRecovery,
+        ),
+        'pos_wallet_seed': KeychainManifestReservationClassification(
           exportableV1: true,
           recoverableV1: true,
           reactivationOnRecovery:
@@ -91,12 +94,13 @@ class KeychainManifestReservationSupport {
   }
 
   /// Whether the reserved seed is written into the v1 manifest backup
-  /// (btcpay + lightning_address + payment_page - R2-KC3, decision [B]).
+  /// (btcpay + lightning_address + payment_page + pos - R2-KC3, decision [B]).
   static bool supportsV1Export(Bip85Reservation reservation) =>
       classificationFor(reservation)?.exportableV1 ?? false;
 
   /// Whether the reserved seed is materialized when restoring from a v1
-  /// manifest at this stack level (BTCPay, Lightning Address, Payment Page).
+  /// manifest at this stack level (btcpay + lightning_address + payment_page +
+  /// pos).
   static bool supportsV1Recovery(Bip85Reservation reservation) =>
       classificationFor(reservation)?.recoverableV1 ?? false;
 
