@@ -484,8 +484,7 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
     required DateTime invoiceExpiresAt,
     required bool presentationMarksLate,
   }) {
-    final rail = PaymentMethod.fromWire(observation.rail);
-    if (rail == null) {
+    if (observation.rail != 'bitcoin') {
       throw ArgumentError.value(
         observation.rail,
         'rail',
@@ -499,7 +498,7 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       invoiceSettlement: invoiceSettlement,
     );
     return InvoicePaymentEvent(
-      rail: rail,
+      rail: PaymentMethod.btc,
       amountSat: observation.amountSat,
       firstSeenAt: firstSeenAt,
       lastSeenAt: _fromUnix(observation.lastSeenAtUnix),

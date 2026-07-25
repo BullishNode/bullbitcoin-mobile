@@ -643,6 +643,19 @@ void main() {
       expect(failure.kind, InvoicesFailureKind.invalidServerResponse);
     });
 
+    test('rejects a known but wrong bitcoin observation rail', () async {
+      when(
+        () => bullnym.getInvoiceStatus(invoiceId: any(named: 'invoiceId')),
+      ).thenAnswer(
+        (_) async => Ok(observedStatus(observationRail: 'lightning')),
+      );
+
+      final failure = _unwrapFailure(
+        await datasource.getInvoiceStatus(InvoiceId('inv-1')),
+      );
+      expect(failure.kind, InvoicesFailureKind.invalidServerResponse);
+    });
+
     test(
       'maps an unknown wire status to unsupported fail-closed state',
       () async {

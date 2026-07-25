@@ -65,7 +65,6 @@ class GetPaidTransactionHistoryCubit
       );
       return;
     }
-    _seenCursors = {..._seenCursors, cursor};
     emit(state.copyWith(isLoadingMore: true, loadMoreFailed: false));
     final result = await _listTransactions.execute(
       cursor: cursor,
@@ -74,8 +73,9 @@ class GetPaidTransactionHistoryCubit
     if (_isStale(generation)) return;
     switch (result) {
       case Ok(:final value):
+        final pageCursors = {..._seenCursors, cursor};
         if (value.nextCursor != null &&
-            _seenCursors.contains(value.nextCursor)) {
+            pageCursors.contains(value.nextCursor)) {
           emit(
             state.copyWith(
               clearNextCursor: true,
@@ -85,6 +85,7 @@ class GetPaidTransactionHistoryCubit
           );
           return;
         }
+        _seenCursors = pageCursors;
         emit(
           state.copyWith(
             transactions: _mergeByStableKey(
