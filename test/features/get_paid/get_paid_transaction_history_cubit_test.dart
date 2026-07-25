@@ -135,6 +135,47 @@ void main() {
     },
   );
 
+  test(
+    'rejects a non-adjacent cursor cycle without losing loaded rows',
+    () async {
+      when(() => list.execute(cursor: '', limit: 20)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(
+            transactions: [_transaction(firstId)],
+            nextCursor: 'page-2',
+          ),
+        ),
+      );
+      when(() => list.execute(cursor: 'page-2', limit: 20)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(
+            transactions: [_transaction(secondId)],
+            nextCursor: 'page-3',
+          ),
+        ),
+      );
+      when(() => list.execute(cursor: 'page-3', limit: 20)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(
+            transactions: [_transaction(thirdId)],
+            nextCursor: 'page-2',
+          ),
+        ),
+      );
+
+      await cubit.load();
+      await cubit.loadMore();
+      await cubit.loadMore();
+
+      expect(cubit.state.transactions.map((item) => item.transactionId), [
+        firstId,
+        secondId,
+      ]);
+      expect(cubit.state.nextCursor, isNull);
+      expect(cubit.state.loadMoreFailed, isTrue);
+    },
+  );
+
   test('a stale refresh cannot overwrite a newer refresh', () async {
     final first = Completer<Result<GetPaidTransactionPage, GetPaidFailure>>();
     final second = Completer<Result<GetPaidTransactionPage, GetPaidFailure>>();

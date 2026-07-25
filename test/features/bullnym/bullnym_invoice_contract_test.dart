@@ -534,6 +534,21 @@ void main() {
       expect(failure.kind, BullnymFailureKind.invalidServerResponse);
     });
 
+    test(
+      'status fails closed when a bitcoin observation has an unknown rail',
+      () async {
+        final response = _statusView()
+          ..['bitcoin_direct_observations'][0]['rail'] = 'future';
+        final failure = _unwrapFailure(
+          await BullnymHttpClient.withDio(
+            _stubDio([response]).dio,
+          ).getInvoiceStatus(invoiceId: 'inv-1'),
+        );
+
+        expect(failure.kind, BullnymFailureKind.invalidServerResponse);
+      },
+    );
+
     test('status keeps an exact Bitcoin amount when BIP21 is absent', () async {
       final response = _statusView()..['bitcoin_chain_bip21'] = null;
       final client = BullnymHttpClient.withDio(_stubDio([response]).dio);
