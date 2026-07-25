@@ -19,6 +19,10 @@ void main() {
       xprvBase58: _masterXprv,
       role: NostrIdentityRole.bullnymServerAuth,
     );
+    final bullnymVerificationHandle = usecase.execute(
+      xprvBase58: _masterXprv,
+      role: NostrIdentityRole.bullnymNip05Verification,
+    );
 
     expect(
       walletBackupHandle.publicKeyHex,
@@ -35,12 +39,23 @@ void main() {
       ).publicKeyHex,
     );
     expect(
+      bullnymVerificationHandle.publicKeyHex,
+      NostrKeychainHandle.deriveFromBip85Path(
+        xprvBase58: _masterXprv,
+        hardenedPath: "128002'/102'/1'",
+      ).publicKeyHex,
+    );
+    expect(
       walletBackupHandle.publicKeyHex,
       isNot(bullnymAuthHandle.publicKeyHex),
     );
+    expect(
+      bullnymAuthHandle.publicKeyHex,
+      isNot(bullnymVerificationHandle.publicKeyHex),
+    );
   });
 
-  test('derives distinct role keys per role', () {
+  test('derives valid distinct role keys', () {
     final roleKeys = NostrIdentityRole.values
         .map(
           (role) =>
@@ -49,5 +64,8 @@ void main() {
         .toSet();
 
     expect(roleKeys, hasLength(NostrIdentityRole.values.length));
+    for (final key in roleKeys) {
+      expect(key, matches(RegExp(r'^[0-9a-f]{64}$')));
+    }
   });
 }
