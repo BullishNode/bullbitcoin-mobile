@@ -37,13 +37,9 @@ class KeychainManifestReservationClassification {
 /// recovery decision on any newly reserved product seed rather than silently
 /// dropping it from backups (KC-3) or from recovery.
 ///
-/// Recoverability lands per owning PR: BTCPay at pr06, Lightning Address at
-/// pr11 (recoverableV1 flips true here, with the requiresProductReactivation
-/// flow + KC-6 posture re-applied). Payment Page (102) stays exportable but NOT
-/// recoverable through this cascade; POS (103) is a future reservation.
-///
-/// Later product-owning PRs extend the classification when Payment Page and
-/// POS recovery become available.
+/// BTCPay, Lightning Address, and Payment Page are recoverable in v1. POS (103)
+/// is a future reservation. Bullnym-backed products expose an automatic heal
+/// signal after their deterministic wallet is restored.
 class KeychainManifestReservationSupport {
   const KeychainManifestReservationSupport._();
 
@@ -66,7 +62,7 @@ class KeychainManifestReservationSupport {
             ),
         'payment_page_wallet_seed': KeychainManifestReservationClassification(
           exportableV1: true,
-          recoverableV1: false,
+          recoverableV1: true,
           reactivationOnRecovery:
               KeychainManifestReactivationOnRecovery.autoHealOnRecovery,
         ),
@@ -100,7 +96,7 @@ class KeychainManifestReservationSupport {
       classificationFor(reservation)?.exportableV1 ?? false;
 
   /// Whether the reserved seed is materialized when restoring from a v1
-  /// manifest at this stack level.
+  /// manifest at this stack level (BTCPay, Lightning Address, Payment Page).
   static bool supportsV1Recovery(Bip85Reservation reservation) =>
       classificationFor(reservation)?.recoverableV1 ?? false;
 

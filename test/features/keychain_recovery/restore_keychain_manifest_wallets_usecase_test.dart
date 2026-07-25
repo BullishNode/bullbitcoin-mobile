@@ -488,21 +488,45 @@ void main() {
     },
   );
 
-  test('rejects Payment Page plans before wallet materialization', () async {
-    final result = await usecase.execute(
-      _unsupportedPlan(
-        reservationId: 'payment_page_wallet_seed',
-        path: "39'/0'/12'/102'",
-        ownerFeature: 'paymentPage',
-        bip85Index: 102,
-        walletId: 'payment-page-wallet',
-      ),
+  test('restores Payment Page plans for post-recovery healing', () async {
+    final plan = _unsupportedPlan(
+      reservationId: 'payment_page_wallet_seed',
+      path: "39'/0'/12'/102'",
+      ownerFeature: 'paymentPage',
+      bip85Index: 102,
+      walletId: 'payment-page-wallet',
+    );
+    final intent = plan.walletMaterializations.single;
+    materializer.result = KeychainRecoveryWalletMaterializationResult(
+      materializedWallets: [
+        KeychainRecoveryMaterializedWallet(
+          intent: _recoveryIntent(intent),
+          walletId: intent.walletId,
+          network: Network.liquidMainnet,
+          scriptType: intent.scriptType,
+          childSeedFingerprint: intent.childSeedFingerprint,
+          created: true,
+        ),
+      ],
+      failedOutcomes: const [],
+      derivationPath: "39'/0'/12'/102'",
     );
 
-    expect(result.hasFailures, true);
-    expect(result.walletOutcomes.single.status, _invalidImportPlan);
-    expect(materializer.batches, isEmpty);
-    expect(keychainManifest.recordRequests, isEmpty);
+    final result = await usecase.execute(plan);
+
+    expect(result.hasFailures, false);
+    expect(result.walletOutcomes.single.status, _requiresReactivation);
+    expect(result.walletOutcomes.single.created, true);
+    expect(
+      materializer.batches.single.reservationId,
+      'payment_page_wallet_seed',
+    );
+    expect(materializer.batches.single.bip85Index, 102);
+    expect(materializer.batches.single.deterministicAlias, 'Payment Page');
+    expect(
+      keychainManifest.recordRequests.single.reservationId,
+      'payment_page_wallet_seed',
+    );
   });
 }
 

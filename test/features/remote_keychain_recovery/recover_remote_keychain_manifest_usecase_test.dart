@@ -6,6 +6,7 @@ import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/keychain_recovery/public/keychain_recovery_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
+import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/recover_remote_keychain_manifest_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/heal_recovered_products_usecase.dart';
@@ -17,6 +18,7 @@ void main() {
   late _FakeKeychainManifestFacade manifest;
   late _FakeKeychainRecoveryFacade recovery;
   late _FakeLightningAddressFacade lightningAddress;
+  late _FakePaymentPageFacade paymentPage;
 
   RecoverRemoteKeychainManifestUsecase buildUsecase({
     Clock clock = const SystemClock(),
@@ -27,7 +29,7 @@ void main() {
       walletBackup,
       manifest,
       recovery,
-      HealRecoveredProductsUsecase(lightningAddress),
+      HealRecoveredProductsUsecase(lightningAddress, paymentPage),
       clock: clock,
       budget: budget,
     );
@@ -38,6 +40,7 @@ void main() {
     manifest = _FakeKeychainManifestFacade();
     recovery = _FakeKeychainRecoveryFacade();
     lightningAddress = _FakeLightningAddressFacade();
+    paymentPage = _FakePaymentPageFacade();
   });
 
   test(
@@ -174,6 +177,29 @@ void main() {
     expect(result.status, RemoteKeychainRecoveryStatus.restored);
     expect(result.createdWalletIds, ['lightning-wallet']);
     expect(lightningAddress.ensureCalls, 1);
+  });
+
+  test('heals a restored payment page that requests reactivation', () async {
+    final plan = _plan(entries: [_paymentPageEntry()]);
+    walletBackup.fetchResult = Ok(_manifestImport());
+    manifest.plan = plan;
+    recovery.result = const KeychainRecoveryResult(
+      walletOutcomes: [
+        KeychainRecoveryWalletRestoreOutcome(
+          intent: _paymentPageIntent,
+          status:
+              KeychainRecoveryWalletRestoreStatus.requiresProductReactivation,
+          materializedWalletId: 'payment-page-wallet',
+          created: true,
+        ),
+      ],
+    );
+
+    final result = await buildUsecase().execute();
+
+    expect(result.status, RemoteKeychainRecoveryStatus.restored);
+    expect(result.createdWalletIds, ['payment-page-wallet']);
+    expect(paymentPage.ensureCalls, 1);
   });
 
   test('reports partial restoration without discarding successes', () async {
@@ -397,6 +423,31 @@ KeychainManifestImportEntryIntent _entry({bool lightningAddress = false}) {
   );
 }
 
+KeychainManifestImportEntryIntent _paymentPageEntry() {
+  const path = "39'/0'/12'/102'";
+  return KeychainManifestImportEntryIntent(
+    entryId: 'fedcba98:$path',
+    parentFingerprint: 'fedcba98',
+    bip85DerivationPath: path,
+    reservationId: 'payment_page_wallet_seed',
+    entryType: 'walletSeed',
+    ownerFeature: 'paymentPage',
+    bip85Application: 39,
+    bip85Index: 102,
+    walletMaterializations: [
+      KeychainManifestWalletMaterializationIntent(
+        entryId: 'fedcba98:$path',
+        reservationId: 'payment_page_wallet_seed',
+        bip85DerivationPath: path,
+        walletId: 'payment-page-wallet',
+        childSeedFingerprint: 'cdef0123',
+        network: Network.liquidMainnet,
+        scriptType: ScriptType.bip84,
+      ),
+    ],
+  );
+}
+
 const _btcpayIntent = KeychainRecoveryWalletIntent(
   entryId: "fedcba98:39'/0'/12'/100'",
   reservationId: 'btcpay_wallet_seed',
@@ -423,6 +474,16 @@ const _lightningAddressIntent = KeychainRecoveryWalletIntent(
   bip85DerivationPath: "39'/0'/12'/101'",
   walletId: 'lightning-wallet',
   childSeedFingerprint: '89abcdef',
+  network: Network.liquidMainnet,
+  scriptType: ScriptType.bip84,
+);
+
+const _paymentPageIntent = KeychainRecoveryWalletIntent(
+  entryId: "fedcba98:39'/0'/12'/102'",
+  reservationId: 'payment_page_wallet_seed',
+  bip85DerivationPath: "39'/0'/12'/102'",
+  walletId: 'payment-page-wallet',
+  childSeedFingerprint: 'cdef0123',
   network: Network.liquidMainnet,
   scriptType: ScriptType.bip84,
 );
@@ -500,6 +561,22 @@ final class _FakeLightningAddressFacade implements LightningAddressFacade {
   Future<LightningAddressHealOutcome> ensureRegistrationLive({
     DateTime? deadline,
   }) async {
+    ensureCalls++;
+    return outcome;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+final class _FakePaymentPageFacade implements PaymentPageFacade {
+  int ensureCalls = 0;
+  PaymentPageHealOutcome outcome = const PaymentPageHealOutcome(
+    liveness: PaymentPageLiveness.live,
+  );
+
+  @override
+  Future<PaymentPageHealOutcome> ensurePageLive() async {
     ensureCalls++;
     return outcome;
   }
