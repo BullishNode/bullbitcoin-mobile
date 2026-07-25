@@ -39,12 +39,14 @@ void main() {
         stream: BullnymBackupStream.walletBackup,
       ),
     ).thenAnswer(
-      (_) async => BullnymBackupHead.present(
-        generation: 3,
-        etag: '33' * 32,
-        ciphertext: ciphertext,
-        ciphertextSha256: '44' * 32,
-        updatedAtSecs: 20,
+      (_) async => Ok(
+        BullnymBackupHead.present(
+          generation: 3,
+          etag: '33' * 32,
+          ciphertext: ciphertext,
+          ciphertextSha256: '44' * 32,
+          updatedAtSecs: 20,
+        ),
       ),
     );
 
@@ -76,7 +78,8 @@ void main() {
         ciphertext: any(named: 'ciphertext'),
       ),
     ).thenAnswer(
-      (_) async => BullnymBackupStoreReceipt(generation: 1, etag: '11' * 32),
+      (_) async =>
+          Ok(BullnymBackupStoreReceipt(generation: 1, etag: '11' * 32)),
     );
 
     for (var attempt = 0; attempt < 2; attempt++) {
@@ -108,12 +111,14 @@ void main() {
         currentHead: any(named: 'currentHead'),
         ciphertext: any(named: 'ciphertext'),
       ),
-    ).thenThrow(
-      const BullnymException.serverRejectedRequest(
-        code: 'BackupHeadConflict',
-        diagnosticReason: 'conflict',
-        statusCode: 409,
-        retryable: true,
+    ).thenAnswer(
+      (_) async => const Err(
+        BullnymFailure.serverRejectedRequest(
+          code: 'BackupHeadConflict',
+          logMessage: 'conflict',
+          statusCode: 409,
+          retryable: true,
+        ),
       ),
     );
 
@@ -148,8 +153,8 @@ void main() {
     ).thenAnswer((invocation) async {
       final head = invocation.namedArguments[#currentHead] as BullnymBackupHead;
       return head.found
-          ? BullnymBackupDeleteReceipt(generation: 2, etag: '33' * 32)
-          : null;
+          ? Ok(BullnymBackupDeleteReceipt(generation: 2, etag: '33' * 32))
+          : const Ok(null);
     });
 
     final absentResult = await repository.delete(
