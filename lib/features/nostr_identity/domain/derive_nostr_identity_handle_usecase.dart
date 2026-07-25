@@ -3,8 +3,14 @@ import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.d
 
 const _walletBackupReservationId = 'nostr_wallet_backup_key';
 const _bullnymServerAuthReservationId = 'nostr_bullnym_server_auth_key';
+const _bullnymNip05VerificationReservationId =
+    'nostr_nip05_public_nym_verification_key';
 
-enum NostrIdentityRole { walletBackup, bullnymServerAuth }
+enum NostrIdentityRole {
+  walletBackup,
+  bullnymServerAuth,
+  bullnymNip05Verification,
+}
 
 class DeriveNostrIdentityHandleUsecase {
   final Bip85RegistryFacade _registry;
@@ -25,6 +31,8 @@ class DeriveNostrIdentityHandleUsecase {
     return switch (role) {
       NostrIdentityRole.walletBackup => _walletBackupReservationId,
       NostrIdentityRole.bullnymServerAuth => _bullnymServerAuthReservationId,
+      NostrIdentityRole.bullnymNip05Verification =>
+        _bullnymNip05VerificationReservationId,
     };
   }
 
