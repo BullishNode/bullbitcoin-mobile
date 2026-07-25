@@ -8,6 +8,8 @@ BackupSettingsFailure mapWalletBackupSettingsFailure(
     WalletBackupRemoteUnavailableFailure() =>
       const BackupSettingsUnavailableFailure(),
     WalletBackupDisabledFailure() => const BackupSettingsDisabledFailure(),
+    WalletBackupRecoveryBlockedFailure() =>
+      const BackupSettingsUnexpectedFailure('Backup recovery is incomplete'),
     WalletBackupUnsupportedEnvelopeVersionFailure() ||
     WalletBackupUnsupportedSectionFailure() =>
       const BackupSettingsUpdateRequiredFailure(),

@@ -459,6 +459,14 @@ final class _FakeStateRepository implements WalletBackupStateRepository {
   }
 
   @override
+  Future<Result<void, WalletBackupFailure>> setRecoveryBlocked(
+    bool blocked,
+  ) async {
+    current = _state(recoveryBlocked: blocked);
+    return const Ok(null);
+  }
+
+  @override
   Future<Result<void, WalletBackupFailure>> clearRemoteCheckpoint() async {
     clearCalls++;
     return const Ok(null);
@@ -624,6 +632,7 @@ WalletBackupState _state({
   bool dirty = false,
   int dirtyRevision = 0,
   int? unsupportedVersion,
+  bool recoveryBlocked = false,
 }) {
   return WalletBackupState(
     enabled: enabled,
@@ -635,6 +644,7 @@ WalletBackupState _state({
     remoteEtag: null,
     contentHash: null,
     unsupportedVersion: unsupportedVersion,
+    recoveryBlocked: recoveryBlocked,
   );
 }
 

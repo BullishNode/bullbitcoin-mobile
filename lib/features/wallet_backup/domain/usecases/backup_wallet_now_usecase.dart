@@ -40,6 +40,9 @@ final class BackupWalletNowUsecase {
     if (!state.enabled) {
       return const Err(WalletBackupDisabledFailure());
     }
+    if (state.recoveryBlocked) {
+      return const Err(WalletBackupRecoveryBlockedFailure());
+    }
     if (state.unsupportedVersion case final version?) {
       return Err(WalletBackupUnsupportedEnvelopeVersionFailure(version));
     }

@@ -192,6 +192,17 @@ final class DriftWalletBackupStateRepository
 
   @override
   @useResult
+  Future<Result<void, WalletBackupFailure>> setRecoveryBlocked(bool blocked) {
+    return _write('set recovery block', () async {
+      await _ensureRow();
+      await (_database.update(_database.walletBackupStates)
+            ..where((table) => table.id.equals(_id)))
+          .write(WalletBackupStatesCompanion(recoveryBlocked: Value(blocked)));
+    });
+  }
+
+  @override
+  @useResult
   Future<Result<void, WalletBackupFailure>> clearRemoteCheckpoint() {
     return _write('clear remote checkpoint', () async {
       await _ensureRow();
@@ -229,6 +240,7 @@ final class DriftWalletBackupStateRepository
       remoteEtag: row.remoteEtag,
       contentHash: row.contentHash,
       unsupportedVersion: row.unsupportedVersion,
+      recoveryBlocked: row.recoveryBlocked,
     );
   }
 

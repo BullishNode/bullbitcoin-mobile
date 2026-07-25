@@ -45,7 +45,7 @@ void main() {
     ).thenAnswer((_) async {});
     when(
       () => metadataBackup.setEnabled(any()),
-    ).thenAnswer((_) async => const Ok(WalletMetadataBackupState.initial));
+    ).thenAnswer((_) async => const Ok(null));
   });
 
   test('short-circuits when nothing is staged', () async {

@@ -33,5 +33,8 @@ abstract interface class WalletBackupStateRepository {
   );
 
   @useResult
+  Future<Result<void, WalletBackupFailure>> setRecoveryBlocked(bool blocked);
+
+  @useResult
   Future<Result<void, WalletBackupFailure>> clearRemoteCheckpoint();
 }

@@ -10,6 +10,7 @@ final class WalletBackupState {
   final String? remoteEtag;
   final String? contentHash;
   final int? unsupportedVersion;
+  final bool recoveryBlocked;
 
   WalletBackupState({
     required this.enabled,
@@ -21,6 +22,7 @@ final class WalletBackupState {
     required String? remoteEtag,
     required String? contentHash,
     required this.unsupportedVersion,
+    this.recoveryBlocked = false,
   }) : remoteEtag = _normalizeHash(remoteEtag),
        contentHash = _normalizeHash(contentHash) {
     if (dirtyRevision < 0) {
