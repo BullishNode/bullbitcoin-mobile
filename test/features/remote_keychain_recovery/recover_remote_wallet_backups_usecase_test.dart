@@ -31,6 +31,15 @@ void main() {
     'recovers metadata after keychain absence using default wallet ids',
     () async {
       final calls = <String>[];
+      when(metadataSession.close).thenAnswer((_) {
+        calls.add('close');
+      });
+      when(() => metadataBackup.setRecoveryBlocked(any())).thenAnswer((
+        _,
+      ) async {
+        calls.add('block');
+        return const Ok(null);
+      });
       when(metadataBackup.beginRecoverySession).thenAnswer((_) async {
         calls.add('begin');
         return metadataSession;
@@ -59,7 +68,7 @@ void main() {
       );
 
       expect(result.status, RemoteKeychainRecoveryStatus.noBackup);
-      expect(calls, ['begin', 'keychain', 'metadata']);
+      expect(calls, ['begin', 'keychain', 'metadata', 'block', 'close']);
       verify(metadataSession.close).called(1);
       verify(() => metadataBackup.setRecoveryBlocked(false)).called(1);
     },

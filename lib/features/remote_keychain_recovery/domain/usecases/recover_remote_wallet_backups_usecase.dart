@@ -59,27 +59,27 @@ final class RecoverRemoteWalletBackupsUsecase {
           },
         );
       }
+
+      final keychainComplete =
+          keychainError == null &&
+          keychainResult != null &&
+          switch (keychainResult.status) {
+            RemoteKeychainRecoveryStatus.noBackup ||
+            RemoteKeychainRecoveryStatus.nothingToRestore ||
+            RemoteKeychainRecoveryStatus.restored => true,
+            _ => false,
+          };
+      final blockResult = await _metadataBackup.setRecoveryBlocked(
+        !keychainComplete || !metadataComplete,
+      );
+      if (blockResult case Err(:final failure)) {
+        log.warning(
+          'Could not persist unified backup recovery state',
+          error: failure.runtimeType,
+        );
+      }
     } finally {
       session?.close();
-    }
-
-    final keychainComplete =
-        keychainError == null &&
-        keychainResult != null &&
-        switch (keychainResult.status) {
-          RemoteKeychainRecoveryStatus.noBackup ||
-          RemoteKeychainRecoveryStatus.nothingToRestore ||
-          RemoteKeychainRecoveryStatus.restored => true,
-          _ => false,
-        };
-    final blockResult = await _metadataBackup.setRecoveryBlocked(
-      !keychainComplete || !metadataComplete,
-    );
-    if (blockResult case Err(:final failure)) {
-      log.warning(
-        'Could not persist unified backup recovery state',
-        error: failure.runtimeType,
-      );
     }
 
     if (keychainError != null) {
