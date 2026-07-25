@@ -10,6 +10,7 @@ This feature owns:
 
 - Bullnym registration, delete, and lookup protocol calls;
 - opaque `wallet_backup` fetch, conditional store, and conditional delete;
+- the private merchant-wide automatic-fallback recovery-address contract;
 - Bullnym registration, delete, donation-page, and invoice signing payload
   construction;
 - wallet-backup signing-message and deterministic ETag construction;
@@ -47,6 +48,16 @@ The foundation contract implements these registration and capability fields:
   present-but-nullable `alias`, and internally consistent `quota`;
 - Bullpay LA v2 signing layout:
   `bullpay-la-v2\0action\0npub_hex\0nym\0(payload\0)*timestamp`.
+
+The automatic-fallback contract uses authenticated `GET` and `PUT`
+`/api/v1/recovery-address` calls. Both use an empty nym slot. Lookup signs no
+payload fields and returns either an all-null unregistered value or the exact
+address, positive commitment version, and original signed timestamp. Register
+signs `["1", btc_address]` and accepts only a matching privacy-safe
+acknowledgement. The write body contains only `version`, `npub`, `btc_address`,
+`timestamp`, and `signature`; descriptors and key material are outside this
+contract. Wallet selection, network/ownership proof, labeling, and restore
+orchestration belong to the later automatic-fallback feature.
 
 The opaque backup subset uses:
 
