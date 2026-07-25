@@ -22,6 +22,9 @@ class _StubListCubit extends Cubit<InvoicesListState>
   Future<void> refresh() async {}
 
   @override
+  Future<void> loadMore() async {}
+
+  @override
   void setFilter(InvoiceStatus? filter) {}
 }
 
@@ -29,16 +32,21 @@ Invoice _invoice(
   String id,
   InvoiceStatus status, {
   InvoiceFallbackState? fallbackState,
+  InvoiceSettlementState settlementState = InvoiceSettlementState.none,
+  DateTime? paidAt,
+  DateTime? expiresAt,
 }) => Invoice(
   id: InvoiceId(id),
   status: status,
+  settlementState: settlementState,
   amountSat: 1000,
   remainingAmountSat: 1000,
   acceptBtc: false,
   acceptLn: false,
   acceptLiquid: true,
   createdAt: DateTime.utc(2026),
-  expiresAt: DateTime.utc(2030),
+  expiresAt: expiresAt ?? DateTime.utc(2030),
+  paidAt: paidAt,
   fallbackSupervisions: fallbackState == null
       ? const []
       : [
@@ -104,6 +112,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a filter with no matches does not claim there are no invoices', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      InvoicesListState(
+        status: InvoicesListStatus.loaded,
+        invoices: [_invoice('a', InvoiceStatus.unpaid)],
+        filter: InvoiceStatus.paid,
+      ),
+    );
+
+    expect(find.text('No matching invoices'), findsOneWidget);
+    expect(find.text('No invoices yet'), findsNothing);
+    expect(find.text('Show all invoices'), findsOneWidget);
+  });
+
+  testWidgets('a paged list offers to load the next page', (tester) async {
+    await _pump(
+      tester,
+      InvoicesListState(
+        status: InvoicesListStatus.loaded,
+        invoices: [_invoice('a', InvoiceStatus.unpaid)],
+        page: 1,
+        hasMore: true,
+      ),
+    );
+
+    expect(find.text('Load more invoices'), findsOneWidget);
+  });
+
   testWidgets('renders invoice-linked fallback state without an action', (
     tester,
   ) async {
@@ -123,6 +162,51 @@ void main() {
 
     expect(find.text('Settlement pending — Bitcoin fallback'), findsOneWidget);
     expect(find.textContaining('Recover'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shows paid as provisional until settlement is final', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      InvoicesListState(
+        status: InvoicesListStatus.loaded,
+        invoices: [
+          _invoice(
+            'a',
+            InvoiceStatus.paid,
+            settlementState: InvoiceSettlementState.pending,
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('Paid'), findsWidgets);
+    expect(find.text('Settlement pending'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keeps a late payment on its original invoice row', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      InvoicesListState(
+        status: InvoicesListStatus.loaded,
+        invoices: [
+          _invoice(
+            'original-invoice',
+            InvoiceStatus.paid,
+            paidAt: DateTime.utc(2030, 1, 2),
+            expiresAt: DateTime.utc(2030, 1, 1),
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('original-invoice'), findsOneWidget);
+    expect(find.text('Late payment'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -49,7 +49,9 @@ class InvoiceDetailState {
     // must continue polling. Treating an empty projection as complete after a
     // transient failure would permanently stop supervision updates.
     if (fallbackSupervisionFailure != null) return false;
-    final invoiceTerminal = effectiveStatus?.isTerminal ?? false;
+    final invoiceTerminal = cancelFinalStatus != null
+        ? cancelFinalStatus!.isTerminal
+        : snapshot?.isMonitoringComplete ?? false;
     if (!invoiceTerminal) return false;
     if (fallbackSupervisions.isEmpty) return true;
     return fallbackSupervisions.every(
