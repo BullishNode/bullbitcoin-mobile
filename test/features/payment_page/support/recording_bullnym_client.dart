@@ -1,8 +1,10 @@
 import 'package:bb_mobile/features/bullnym/domain/bullnym_backup_actions.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_backup_blob.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_auth_signer.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_client_port.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_donation_page.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_error.dart';
+import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_registration.dart';
 
 /// A hand fake [BullnymClientPort] for payment_page unit tests: it records the
@@ -14,8 +16,40 @@ class RecordingBullnymClient implements BullnymClientPort {
   final Map<String, BullnymBackupHead> _backups = {};
   int getDonationPageCalls = 0;
 
+  BullnymDonationPage? storedPage;
+  BullnymException? getError;
+  BullnymException? saveError;
+  BullnymException? archiveError;
+  BullnymException? currenciesError;
+
+  List<BullnymSupportedCurrency> currencies = const [
+    BullnymSupportedCurrency(code: 'CAD', precision: 2),
+    BullnymSupportedCurrency(code: 'USD', precision: 2),
+  ];
+
+  int get totalWriteCalls => saveCalls.length + archiveCalls.length;
+
   String _backupKey(BullnymBackupStream stream, String npubHex) =>
       '${stream.wireName}|$npubHex';
+
+  @override
+  Future<BullnymRegisterResult> register(BullnymRegisterRequest request) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteRegistration(
+    BullnymDeleteRegistrationRequest request,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BullnymLookupResult> lookupRegistration({
+    required String npubHex,
+  }) async {
+    throw UnimplementedError();
+  }
 
   @override
   Future<BullnymBackupHead> fetchBackup(
@@ -72,46 +106,6 @@ class RecordingBullnymClient implements BullnymClientPort {
       generation: request.generation,
       etag: etag,
     );
-  }
-
-  BullnymException _backupConflict() =>
-      const BullnymException.serverRejectedRequest(
-        code: 'BackupConflict',
-        diagnosticReason: 'backup etag mismatch',
-        statusCode: 409,
-        retryable: false,
-      );
-
-  BullnymDonationPage? storedPage;
-  BullnymException? getError;
-  BullnymException? saveError;
-  BullnymException? archiveError;
-  BullnymException? currenciesError;
-
-  List<BullnymSupportedCurrency> currencies = const [
-    BullnymSupportedCurrency(code: 'CAD', precision: 2),
-    BullnymSupportedCurrency(code: 'USD', precision: 2),
-  ];
-
-  int get totalWriteCalls => saveCalls.length + archiveCalls.length;
-
-  @override
-  Future<BullnymRegisterResult> register(BullnymRegisterRequest request) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> deleteRegistration(
-    BullnymDeleteRegistrationRequest request,
-  ) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<BullnymLookupResult> lookupRegistration({
-    required String npubHex,
-  }) async {
-    throw UnimplementedError();
   }
 
   @override
@@ -171,6 +165,41 @@ class RecordingBullnymClient implements BullnymClientPort {
     if (error != null) throw error;
     return BullnymSupportedCurrencies(currencies: currencies);
   }
+
+  // Invoice surface — not exercised by the payment_page donation-page tests.
+  @override
+  Future<BullnymCreateInvoiceResponse> createInvoice({
+    required BullnymAuthSigner signer,
+    String? nym,
+    required BullnymCreateInvoiceFields fields,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymCancelInvoiceResponse> cancelInvoice({
+    required BullnymAuthSigner signer,
+    String? nym,
+    required String invoiceId,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymListInvoicesResponse> listInvoices({
+    required BullnymAuthSigner signer,
+    required int page,
+    required int pageSize,
+    String? status,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BullnymInvoiceStatus> getInvoiceStatus({required String invoiceId}) =>
+      throw UnimplementedError();
+
+  BullnymException _backupConflict() =>
+      const BullnymException.serverRejectedRequest(
+        code: 'BackupConflict',
+        diagnosticReason: 'backup etag mismatch',
+        statusCode: 409,
+        retryable: false,
+      );
 
   BullnymDonationPage _viewFromSave(BullnymSaveDonationPageRequest request) {
     return BullnymDonationPage(
