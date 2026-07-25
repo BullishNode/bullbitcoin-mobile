@@ -1,16 +1,18 @@
-import 'package:bb_mobile/features/remote_keychain_recovery/domain/recover_remote_keychain_manifest_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/recover_remote_wallet_backups_usecase.dart';
 
 export 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 
 final class RemoteKeychainRecoveryFacade {
-  final RecoverRemoteKeychainManifestUsecase _recoverManifest;
+  final RecoverRemoteWalletBackupsUsecase recoverWalletBackups;
 
-  const RemoteKeychainRecoveryFacade(
-    RecoverRemoteKeychainManifestUsecase recoverManifest,
-  ) : _recoverManifest = recoverManifest;
+  const RemoteKeychainRecoveryFacade(this.recoverWalletBackups);
 
-  Future<RemoteKeychainRecoveryResult> recover() {
-    return _recoverManifest.execute();
+  Future<RemoteKeychainRecoveryResult> recover({
+    Set<String> defaultCreatedWalletIds = const {},
+  }) {
+    return recoverWalletBackups.execute(
+      defaultCreatedWalletIds: Set.unmodifiable(defaultCreatedWalletIds),
+    );
   }
 }

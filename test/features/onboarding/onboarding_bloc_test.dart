@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/features/onboarding/complete_physical_backup_verification_usecase.dart';
@@ -46,27 +44,28 @@ void main() {
       ),
     ).thenAnswer((_) async => <Wallet>[]);
     when(completePhysicalBackup.execute).thenAnswer((_) async {});
-    when(recoverRemoteKeychain.execute).thenAnswer((_) async {});
+    when(
+      () => recoverRemoteKeychain.execute(
+        defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
+      ),
+    ).thenReturn(null);
   });
 
-  test('does not signal success until manifest recovery completes', () async {
-    final recoveryGate = Completer<void>();
-    when(recoverRemoteKeychain.execute).thenAnswer((_) => recoveryGate.future);
+  test(
+    'signals success without waiting for optional remote recovery',
+    () async {
+      final bloc = buildBloc();
+      addTearDown(bloc.close);
 
-    final bloc = buildBloc();
-    addTearDown(bloc.close);
+      bloc.add(OnboardingRecoverWalletClicked(mnemonic: mnemonic()));
+      await pumpEventQueue();
 
-    bloc.add(OnboardingRecoverWalletClicked(mnemonic: mnemonic()));
-    await pumpEventQueue();
-
-    verify(recoverRemoteKeychain.execute).called(1);
-    expect(bloc.state.onboardingStepStatus, OnboardingStepStatus.loading);
-
-    recoveryGate.complete();
-    await pumpEventQueue();
-
-    expect(bloc.state.onboardingStepStatus, OnboardingStepStatus.success);
-  });
+      verify(
+        () => recoverRemoteKeychain.execute(defaultCreatedWalletIds: {}),
+      ).called(1);
+      expect(bloc.state.onboardingStepStatus, OnboardingStepStatus.success);
+    },
+  );
 
   test('orders seed restore, verification, and remote recovery', () async {
     final order = <String>[];
@@ -81,7 +80,16 @@ void main() {
     when(completePhysicalBackup.execute).thenAnswer((_) async {
       order.add('verify');
     });
-    when(recoverRemoteKeychain.execute).thenAnswer((_) async {
+    when(
+      () => recoverRemoteKeychain.execute(
+        defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
+      ),
+    ).thenReturn(null);
+    when(
+      () => recoverRemoteKeychain.execute(
+        defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
+      ),
+    ).thenAnswer((_) {
       order.add('recover');
     });
 
