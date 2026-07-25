@@ -17,6 +17,7 @@ import 'package:bb_mobile/features/legacy_seed_view/presentation/legacy_seed_vie
 import 'package:bb_mobile/features/legacy_seed_view/ui/legacy_seed_view_screen.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_routes.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_routes.dart';
+import 'package:bb_mobile/features/pos/public/pos_routes.dart';
 import 'package:bb_mobile/features/pin_code/ui/pin_code_setting_flow.dart';
 import 'package:bb_mobile/features/settings/ui/screens/all_settings_screen.dart';
 import 'package:bb_mobile/features/settings/ui/screens/app_settings/app_settings_screen.dart';
@@ -191,6 +192,7 @@ class SettingsRouter {
           BtcpayRoutes.route,
           LightningAddressRoutes.route,
           PaymentPageRoutes.route,
+          PosRoutes.route,
         ],
       ),
       GoRoute(

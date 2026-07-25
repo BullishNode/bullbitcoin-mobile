@@ -528,6 +528,44 @@ void main() {
       'payment_page_wallet_seed',
     );
   });
+
+  test('restores Point of Sale plans for post-recovery healing', () async {
+    final plan = _unsupportedPlan(
+      reservationId: 'pos_wallet_seed',
+      path: "39'/0'/12'/103'",
+      ownerFeature: 'pos',
+      bip85Index: 103,
+      walletId: 'pos-wallet',
+    );
+    final intent = plan.walletMaterializations.single;
+    materializer.result = KeychainRecoveryWalletMaterializationResult(
+      materializedWallets: [
+        KeychainRecoveryMaterializedWallet(
+          intent: _recoveryIntent(intent),
+          walletId: intent.walletId,
+          network: Network.liquidMainnet,
+          scriptType: intent.scriptType,
+          childSeedFingerprint: intent.childSeedFingerprint,
+          created: true,
+        ),
+      ],
+      failedOutcomes: const [],
+      derivationPath: "39'/0'/12'/103'",
+    );
+
+    final result = await usecase.execute(plan);
+
+    expect(result.hasFailures, false);
+    expect(result.walletOutcomes.single.status, _requiresReactivation);
+    expect(result.walletOutcomes.single.created, true);
+    expect(materializer.batches.single.reservationId, 'pos_wallet_seed');
+    expect(materializer.batches.single.bip85Index, 103);
+    expect(materializer.batches.single.deterministicAlias, 'Point of Sale');
+    expect(
+      keychainManifest.recordRequests.single.reservationId,
+      'pos_wallet_seed',
+    );
+  });
 }
 
 KeychainManifestImportPlan _plan(
