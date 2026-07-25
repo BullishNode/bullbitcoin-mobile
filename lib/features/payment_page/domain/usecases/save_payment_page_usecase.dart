@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/payment_page/domain/payment_page.dart';
 import 'package:bb_mobile/features/payment_page/domain/payment_page_error.dart';
@@ -66,7 +67,7 @@ class SavePaymentPageUsecase {
     }
 
     try {
-      final view = await _bullnym.saveDonationPage(
+      final result = await _bullnym.saveDonationPage(
         signer: identity.signer,
         nym: identity.nym,
         ctDescriptor: ctDescriptor,
@@ -79,11 +80,12 @@ class SavePaymentPageUsecase {
         enabled: true,
         kind: bullnymDonationPageKindPaymentPage,
       );
-      return PaymentPage.fromBullnym(view);
-    } on BullnymException catch (e) {
-      throw PaymentPageSaveException.submission(
-        cause: PaymentPageException.fromBullnym(e),
-      );
+      switch (result) {
+        case Ok(:final value):
+          return PaymentPage.fromBullnym(value);
+        case Err(:final failure):
+          throw PaymentPageException.fromBullnym(failure);
+      }
     } on PaymentPageException catch (e) {
       throw PaymentPageSaveException.submission(cause: e);
     }
