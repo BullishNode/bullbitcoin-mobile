@@ -20,11 +20,26 @@ class RegisterWalletOwnedLightningAddressUsecase {
 
   Future<WalletOwnedLightningAddressRegistration> execute({
     required String nym,
+  }) {
+    return _execute(nym: nym, recordAsRecovery: false);
+  }
+
+  Future<WalletOwnedLightningAddressRegistration> executeFromRecovery({
+    required String nym,
+  }) {
+    return _execute(nym: nym, recordAsRecovery: true);
+  }
+
+  Future<WalletOwnedLightningAddressRegistration> _execute({
+    required String nym,
+    required bool recordAsRecovery,
   }) async {
     validateLightningAddressNym(nym);
 
     final xprvBase58 = await _deriveDefaultWalletXprv();
-    final preparedWallet = await _prepareLightningAddressWallet();
+    final preparedWallet = await _prepareLightningAddressWallet(
+      recordAsRecovery: recordAsRecovery,
+    );
     late final LightningAddressRegistration registration;
     try {
       registration = await _register.execute(
@@ -64,10 +79,11 @@ class RegisterWalletOwnedLightningAddressUsecase {
     }
   }
 
-  Future<PreparedLightningAddressWallet>
-  _prepareLightningAddressWallet() async {
+  Future<PreparedLightningAddressWallet> _prepareLightningAddressWallet({
+    required bool recordAsRecovery,
+  }) async {
     try {
-      return await _prepareWallet.execute();
+      return await _prepareWallet.execute(recordAsRecovery: recordAsRecovery);
     } on LightningAddressException catch (e) {
       throw WalletOwnedLightningAddressRegistrationException.localPreparation(
         cause: e,

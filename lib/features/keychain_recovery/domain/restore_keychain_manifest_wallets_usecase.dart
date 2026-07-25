@@ -19,12 +19,17 @@ class RestoreKeychainManifestWalletsUsecase {
   }) : _registry = bip85Registry;
 
   Future<KeychainRecoveryResult> execute(
-    KeychainManifestImportPlan importPlan,
-  ) async {
+    KeychainManifestImportPlan importPlan, {
+    DateTime? deadline,
+  }) async {
     final outcomes = <KeychainRecoveryWalletRestoreOutcome>[];
     final entryIds = <String>{};
     final walletIds = <String>{};
     for (final entry in importPlan.entries) {
+      if (deadline != null && !DateTime.now().isBefore(deadline)) {
+        outcomes.addAll(_skippedForTimeBudget(entry.walletMaterializations));
+        continue;
+      }
       final validationFailure = _validateEntry(
         importPlan: importPlan,
         entry: entry,
@@ -96,9 +101,9 @@ class RestoreKeychainManifestWalletsUsecase {
   }
 
   bool _supportsWalletManifestRecovery(Bip85Reservation reservation) {
-    // Only locally-materializable products recover at this stack level; the
-    // bullnym-backed products (LN/page) are exportable but their recovery +
-    // DG-3 auto-heal are wired in PR23 (ruling A/C).
+    // Recovery remains limited to reservations explicitly classified as
+    // locally materializable. Product/server healing is owned by the remote
+    // recovery orchestrator after this local operation succeeds.
     return KeychainManifestReservationSupport.supportsV1Recovery(reservation);
   }
 
@@ -150,6 +155,21 @@ class RestoreKeychainManifestWalletsUsecase {
         .toList(growable: false);
   }
 
+  List<KeychainRecoveryWalletRestoreOutcome> _skippedForTimeBudget(
+    List<KeychainManifestWalletMaterializationIntent> intents,
+  ) {
+    return intents
+        .map(
+          (intent) => KeychainRecoveryWalletRestoreOutcome(
+            intent: _walletIntent(intent),
+            status:
+                KeychainRecoveryWalletRestoreStatus.skippedTimeBudgetExpired,
+            materializedWalletId: intent.walletId,
+          ),
+        )
+        .toList(growable: false);
+  }
+
   String _entryId(String parentFingerprint, String bip85DerivationPath) {
     return '$parentFingerprint:$bip85DerivationPath';
   }
@@ -193,7 +213,7 @@ class RestoreKeychainManifestWalletsUsecase {
     final derivationPath = materializationResult.derivationPath;
     if (wallets.isEmpty || derivationPath == null) return [];
     try {
-      await _keychainManifest.recordReservedDerivation(
+      await _keychainManifest.recordRecoveredDerivation(
         KeychainManifestReservedDerivationRequest(
           reservationId: reservationId,
           parentFingerprint: parentFingerprint,
@@ -221,6 +241,7 @@ class RestoreKeychainManifestWalletsUsecase {
               intent: wallet.intent,
               status: _successStatus(wallet),
               materializedWalletId: wallet.walletId,
+              created: wallet.created,
             );
           })
           .toList(growable: false);

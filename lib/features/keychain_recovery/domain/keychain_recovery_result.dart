@@ -11,6 +11,7 @@ enum KeychainRecoveryWalletRestoreStatus {
   failedWalletCreation,
   failedManifestRecord,
   failedConflict,
+  skippedTimeBudgetExpired,
 }
 
 class KeychainRecoveryWalletIntent {
@@ -39,11 +40,13 @@ class KeychainRecoveryWalletRestoreOutcome {
   final KeychainRecoveryWalletIntent intent;
   final KeychainRecoveryWalletRestoreStatus status;
   final String? materializedWalletId;
+  final bool created;
 
   const KeychainRecoveryWalletRestoreOutcome({
     required this.intent,
     required this.status,
     this.materializedWalletId,
+    this.created = false,
   });
 
   String get walletId => materializedWalletId ?? intent.walletId;

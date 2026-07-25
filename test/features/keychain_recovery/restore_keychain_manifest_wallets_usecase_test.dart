@@ -46,11 +46,14 @@ void main() {
 
     expect(result.hasFailures, false);
     expect(result.walletOutcomes.single.status, _created);
+    expect(result.walletOutcomes.single.created, true);
     expect(materializer.batches.single.deterministicAlias, 'BTCPay');
     expect(
       keychainManifest.recordRequests.single.reservationId,
       intent.reservationId,
     );
+    expect(keychainManifest.recoveredRecordCalls, 1);
+    expect(keychainManifest.reservedRecordCalls, 0);
     final requestMaterialization =
         keychainManifest.recordRequests.single.materializations.single;
     expect(requestMaterialization.walletId, intent.walletId);
@@ -144,6 +147,7 @@ void main() {
 
       expect(result.hasFailures, false);
       expect(result.walletOutcomes.single.status, _alreadyPresent);
+      expect(result.walletOutcomes.single.created, false);
     },
   );
 
@@ -180,6 +184,7 @@ void main() {
       expect(result.hasProductReactivationRequired, true);
       expect(result.productReactivationRequiredOutcomes, hasLength(1));
       expect(result.walletOutcomes.single.status, _requiresReactivation);
+      expect(result.walletOutcomes.single.created, false);
 
       // KC-6/R2-KC6b: a recovered Lightning Address wallet also comes back
       // hidden + autosweep-enabled (the same posture pr06 applies to BTCPay),
@@ -307,6 +312,63 @@ void main() {
     expect(result.restoredNothing, true);
   });
 
+  test('does not start wallet materialization after its deadline', () async {
+    final intent = _intent();
+
+    final result = await usecase.execute(
+      _plan(intent),
+      deadline: DateTime.now().subtract(const Duration(milliseconds: 1)),
+    );
+
+    expect(materializer.batches, isEmpty);
+    expect(keychainManifest.recordRequests, isEmpty);
+    expect(result.restoredCount, 0);
+    expect(result.walletOutcomes.single.status, _timeBudgetExpired);
+  });
+
+  test('stops before the next entry when the deadline expires', () async {
+    final btcpayIntent = _intent();
+    final lightningPlan = _unsupportedPlan(
+      reservationId: 'lightning_address_wallet_seed',
+      path: "39'/0'/12'/101'",
+      ownerFeature: 'lightningAddress',
+      bip85Application: 39,
+      bip85Index: 101,
+      walletId: 'lightning-address-wallet',
+    );
+    final plan = KeychainManifestImportPlan(
+      parentFingerprint: 'fedcba98',
+      entries: [..._plan(btcpayIntent).entries, ...lightningPlan.entries],
+    );
+    materializer.onMaterialize = (batch) async {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      return KeychainRecoveryWalletMaterializationResult(
+        materializedWallets: [
+          KeychainRecoveryMaterializedWallet(
+            intent: _recoveryIntent(btcpayIntent),
+            walletId: btcpayIntent.walletId,
+            network: btcpayIntent.network,
+            scriptType: btcpayIntent.scriptType,
+            childSeedFingerprint: btcpayIntent.childSeedFingerprint,
+            created: true,
+          ),
+        ],
+        failedOutcomes: const [],
+        derivationPath: "39'/0'/12'/100'",
+      );
+    };
+
+    final result = await usecase.execute(
+      plan,
+      deadline: DateTime.now().add(const Duration(milliseconds: 5)),
+    );
+
+    expect(materializer.batches, hasLength(1));
+    expect(result.walletOutcomes, hasLength(2));
+    expect(result.walletOutcomes.first.status, _created);
+    expect(result.walletOutcomes.last.status, _timeBudgetExpired);
+  });
+
   test('refuses an entry whose reservation id is unknown', () async {
     final result = await usecase.execute(
       _unsupportedPlan(
@@ -409,6 +471,7 @@ void main() {
 
       expect(result.hasFailures, false);
       expect(result.walletOutcomes.single.status, _requiresReactivation);
+      expect(result.walletOutcomes.single.created, true);
       expect(
         materializer.batches.single.reservationId,
         'lightning_address_wallet_seed',
@@ -550,12 +613,18 @@ class _FakeWalletMaterializer
     implements KeychainRecoveryWalletMaterializerPort {
   final batches = <KeychainRecoveryWalletMaterializationBatch>[];
   late KeychainRecoveryWalletMaterializationResult result;
+  Future<KeychainRecoveryWalletMaterializationResult> Function(
+    KeychainRecoveryWalletMaterializationBatch batch,
+  )?
+  onMaterialize;
 
   @override
   Future<KeychainRecoveryWalletMaterializationResult> materialize(
     KeychainRecoveryWalletMaterializationBatch batch,
   ) async {
     batches.add(batch);
+    final callback = onMaterialize;
+    if (callback != null) return callback(batch);
     return result;
   }
 }
@@ -563,12 +632,26 @@ class _FakeWalletMaterializer
 class _FakeKeychainManifestFacade implements KeychainManifestFacade {
   final recordRequests = <KeychainManifestReservedDerivationRequest>[];
   KeychainManifestException? recordError;
+  int recoveredRecordCalls = 0;
+  int reservedRecordCalls = 0;
 
   @override
   Future<void> recordReservedDerivation(
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
   }) async {
+    reservedRecordCalls++;
+    final error = recordError;
+    if (error != null) throw error;
+    recordRequests.add(request);
+  }
+
+  @override
+  Future<void> recordRecoveredDerivation(
+    KeychainManifestReservedDerivationRequest request, {
+    DateTime? now,
+  }) async {
+    recoveredRecordCalls++;
     final error = recordError;
     if (error != null) throw error;
     recordRequests.add(request);
@@ -607,3 +690,5 @@ const _skipped = KeychainRecoveryWalletRestoreStatus.skippedUnsupported;
 const _invalidImportPlan =
     KeychainRecoveryWalletRestoreStatus.failedInvalidImportPlan;
 const _recordFailed = KeychainRecoveryWalletRestoreStatus.failedManifestRecord;
+const _timeBudgetExpired =
+    KeychainRecoveryWalletRestoreStatus.skippedTimeBudgetExpired;

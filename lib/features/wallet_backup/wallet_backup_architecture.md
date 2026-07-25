@@ -6,8 +6,8 @@
 This slice includes the outer envelope, the manifest section adapter, authenticated encryption, BIP85 encryption-key derivation, unified Nostr request signer, remote repository, and conditional manifest publication.
 This slice also owns one durable `WalletBackupState` row, the public lifecycle
 controls for that unified backup, and the read-only remote manifest import-plan
-boundary. Scheduling and recovery application are added by their later owning
-PRs.
+boundary. `remote_keychain_recovery` owns application of that validated
+boundary; scheduling remains owned by its later PR.
 
 This is one backup lifecycle, not a wrapper around separate manifest and
 metadata backup systems. `keychain_manifest` remains the source of truth for
@@ -128,6 +128,11 @@ as an absent backup. The wrapper version is the sole section-version
 discriminator; an incompatible payload that does not bump it is invalid.
 Fetching an import does not enable backup, publish, delete, clear dirty state,
 or apply any recovery intent.
+
+`remote_keychain_recovery` consumes the feature-owned import DTO, reparses it
+through `keychain_manifest/public`, and then delegates local materialization to
+`keychain_recovery/public`. `wallet_backup` does not import either recovery
+feature and never applies the plan itself.
 
 ## Lifecycle Controls
 

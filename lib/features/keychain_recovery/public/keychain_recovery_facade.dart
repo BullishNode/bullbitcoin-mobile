@@ -10,8 +10,9 @@ class KeychainRecoveryFacade {
   const KeychainRecoveryFacade({required this._restoreWallets});
 
   Future<KeychainRecoveryResult> restoreWallets(
-    KeychainManifestImportPlan importPlan,
-  ) async {
-    return _restoreWallets.execute(importPlan);
+    KeychainManifestImportPlan importPlan, {
+    DateTime? deadline,
+  }) async {
+    return _restoreWallets.execute(importPlan, deadline: deadline);
   }
 }

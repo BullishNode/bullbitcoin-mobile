@@ -63,6 +63,12 @@ void main() {
       },
     );
 
+    test('marks wallet preparation as recovery during healing', () async {
+      await usecase.executeFromRecovery(nym: 'alice');
+
+      expect(prepareWallet.recordAsRecoveryValues, [true]);
+    });
+
     test(
       'rejects blank nym before secret, wallet, or network side effects',
       () {
@@ -315,6 +321,10 @@ void main() {
           ),
       registerWalletOwned: ({required nym}) => walletOwned.execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
+      ensureRegistrationLive: ({DateTime? deadline}) async =>
+          const LightningAddressHealOutcome(
+            liveness: LightningAddressRegistrationLiveness.live,
+          ),
     );
 
     final result = await facade.registerWalletOwned(nym: 'alice');
@@ -335,6 +345,10 @@ void main() {
       registerWalletOwned: ({required nym}) =>
           _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
+      ensureRegistrationLive: ({DateTime? deadline}) async =>
+          const LightningAddressHealOutcome(
+            liveness: LightningAddressRegistrationLiveness.live,
+          ),
     );
 
     final result = await facade.lookupWalletOwnedRegistration();
@@ -454,12 +468,16 @@ class _FakeDefaultWalletXprvPort
 class _FakePrepareLightningAddressWalletUsecase
     implements PrepareLightningAddressWalletUsecase {
   int executeCalls = 0;
+  final recordAsRecoveryValues = <bool>[];
   PreparedLightningAddressWallet prepared = _prepared();
   LightningAddressException? error;
 
   @override
-  Future<PreparedLightningAddressWallet> execute() async {
+  Future<PreparedLightningAddressWallet> execute({
+    bool recordAsRecovery = false,
+  }) async {
     executeCalls += 1;
+    recordAsRecoveryValues.add(recordAsRecovery);
     final error = this.error;
     if (error != null) throw error;
     return prepared;
@@ -508,6 +526,13 @@ class _FakeRegisterWalletOwnedLightningAddressUsecase
       walletId: 'la-wallet',
       walletCreated: true,
     );
+  }
+
+  @override
+  Future<WalletOwnedLightningAddressRegistration> executeFromRecovery({
+    required String nym,
+  }) {
+    return execute(nym: nym);
   }
 }
 

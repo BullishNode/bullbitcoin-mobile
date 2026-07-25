@@ -76,6 +76,15 @@ void main() {
     expect(materialization.childSeedFingerprint, 'child-fp');
     expect(materialization.network, Network.liquidMainnet);
     expect(materialization.scriptType, ScriptType.bip84);
+    expect(keychainManifest.reservedRecordCalls, 1);
+    expect(keychainManifest.recoveredRecordCalls, 0);
+  });
+
+  test('records a healed wallet without publishing recovery writes', () async {
+    await usecase.execute(recordAsRecovery: true);
+
+    expect(keychainManifest.recoveredRecordCalls, 1);
+    expect(keychainManifest.reservedRecordCalls, 0);
   });
 
   test('applies Lightning Address wallet behavior defaults', () async {
@@ -240,12 +249,26 @@ class _FakeDeterministicWalletsFacade implements DeterministicWalletsFacade {
 class _FakeKeychainManifestFacade implements KeychainManifestFacade {
   final recordRequests = <KeychainManifestReservedDerivationRequest>[];
   KeychainManifestException? recordError;
+  int reservedRecordCalls = 0;
+  int recoveredRecordCalls = 0;
 
   @override
   Future<void> recordReservedDerivation(
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
   }) async {
+    reservedRecordCalls++;
+    final error = recordError;
+    if (error != null) throw error;
+    recordRequests.add(request);
+  }
+
+  @override
+  Future<void> recordRecoveredDerivation(
+    KeychainManifestReservedDerivationRequest request, {
+    DateTime? now,
+  }) async {
+    recoveredRecordCalls++;
     final error = recordError;
     if (error != null) throw error;
     recordRequests.add(request);
