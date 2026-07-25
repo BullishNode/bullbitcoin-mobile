@@ -1126,6 +1126,10 @@
   "@invoiceAmountLabel": {
     "description": "Label for the invoice amount row on the detail screen"
   },
+  "invoiceAmountUnavailable": "Amount unavailable",
+  "@invoiceAmountUnavailable": {
+    "description": "Fallback shown when an invoice carries no fiat face value and no positive satoshi target to headline."
+  },
   "invoiceExpiresLabel": "Expires in",
   "@invoiceExpiresLabel": {
     "description": "Label for the invoice expiry countdown row"
@@ -16814,6 +16818,10 @@
         "type": "int"
       }
     }
+  },
+  "invoiceAwaitingConfirmation": "Payment detected — waiting for confirmation",
+  "@invoiceAwaitingConfirmation": {
+    "description": "Supporting text shown while on-chain payment evidence exists but the invoice has not yet reached its first confirmation."
   },
   "invoiceSettlementPending": "Settlement pending",
   "@invoiceSettlementPending": {
