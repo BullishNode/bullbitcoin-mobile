@@ -1,6 +1,8 @@
 import 'package:bb_mobile/features/invoices/domain/entities/invoice.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_payment_event.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_status_snapshot.dart';
 import 'package:bb_mobile/features/invoices/domain/primitives/invoice_status.dart';
+import 'package:bb_mobile/features/invoices/domain/primitives/payment_method.dart';
 import 'package:bb_mobile/features/invoices/domain/value_objects/invoice_id.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -150,6 +152,166 @@ void main() {
       expect(InvoiceStatus.cancelled.isTerminal, isTrue);
       expect(InvoiceStatus.unpaid.isTerminal, isFalse);
       expect(InvoiceStatus.partiallyPaid.isTerminal, isFalse);
+    });
+  });
+
+  group('InvoiceStatusSnapshot fiat-priced derivations', () {
+    InvoicePaymentEvent payment({
+      required InvoicePaymentEventState state,
+      int confirmations = 0,
+      int amountSat = 7794,
+    }) {
+      return InvoicePaymentEvent(
+        rail: PaymentMethod.btc,
+        amountSat: amountSat,
+        firstSeenAt: now,
+        lastSeenAt: now,
+        state: state,
+        confirmations: confirmations,
+        isLate: false,
+      );
+    }
+
+    InvoiceStatusSnapshot snapshot({
+      required InvoiceStatus status,
+      required String pricingMode,
+      required int amountSat,
+      int? fiatAmountMinor,
+      String? fiatCurrency,
+      int? paidAmountSat,
+      List<InvoicePaymentEvent> paymentEvents = const [],
+    }) {
+      return InvoiceStatusSnapshot(
+        status: status,
+        pricingMode: pricingMode,
+        settlementStatus: 'pending',
+        amountSat: amountSat,
+        fiatAmountMinor: fiatAmountMinor,
+        fiatCurrency: fiatCurrency,
+        remainingAmountSat: 0,
+        paymentToleranceSat: 0,
+        rateLocksUntil: now.add(const Duration(hours: 1)),
+        expiresAt: now.add(const Duration(hours: 1)),
+        paidAmountSat: paidAmountSat,
+        acceptBtc: true,
+        acceptLn: true,
+        acceptLiquid: true,
+        paymentEvents: paymentEvents,
+      );
+    }
+
+    test('fiat-priced paid invoice never derives overpaid from a zero '
+        'sat target', () {
+      final fiatPaid = snapshot(
+        status: InvoiceStatus.paid,
+        pricingMode: 'fiat_fixed',
+        amountSat: 0,
+        fiatAmountMinor: 500,
+        fiatCurrency: 'USD',
+        paidAmountSat: 7794,
+      );
+
+      expect(fiatPaid.hasSatTarget, isFalse);
+      expect(fiatPaid.overpaidAmountSat, isNull);
+      expect(fiatPaid.hasFiatFace, isTrue);
+    });
+
+    test('sat-priced genuine overpayment is still derived', () {
+      final satOverpaid = snapshot(
+        status: InvoiceStatus.overpaid,
+        pricingMode: 'sat_fixed',
+        amountSat: 1000,
+        paidAmountSat: 1200,
+      );
+
+      expect(satOverpaid.hasSatTarget, isTrue);
+      expect(satOverpaid.overpaidAmountSat, 200);
+    });
+
+    test('sat-priced exact payment is not overpaid', () {
+      final satExact = snapshot(
+        status: InvoiceStatus.paid,
+        pricingMode: 'sat_fixed',
+        amountSat: 1000,
+        paidAmountSat: 1000,
+      );
+
+      expect(satExact.overpaidAmountSat, isNull);
+    });
+
+    test('hasFiatFace requires a non-empty currency', () {
+      expect(
+        snapshot(
+          status: InvoiceStatus.unpaid,
+          pricingMode: 'fiat_fixed',
+          amountSat: 0,
+          fiatAmountMinor: 500,
+          fiatCurrency: '  ',
+        ).hasFiatFace,
+        isFalse,
+      );
+    });
+
+    test('isAwaitingPayer is true only before any payment evidence', () {
+      final awaiting = snapshot(
+        status: InvoiceStatus.unpaid,
+        pricingMode: 'fiat_fixed',
+        amountSat: 0,
+        fiatAmountMinor: 500,
+        fiatCurrency: 'USD',
+      );
+      final withEvidence = snapshot(
+        status: InvoiceStatus.inProgress,
+        pricingMode: 'fiat_fixed',
+        amountSat: 0,
+        fiatAmountMinor: 500,
+        fiatCurrency: 'USD',
+        paymentEvents: [payment(state: InvoicePaymentEventState.pending)],
+      );
+      final terminal = snapshot(
+        status: InvoiceStatus.paid,
+        pricingMode: 'fiat_fixed',
+        amountSat: 0,
+        fiatAmountMinor: 500,
+        fiatCurrency: 'USD',
+        paidAmountSat: 7794,
+      );
+
+      expect(awaiting.isAwaitingPayer, isTrue);
+      expect(withEvidence.isAwaitingPayer, isFalse);
+      expect(terminal.isAwaitingPayer, isFalse);
+    });
+
+    test('isAwaitingConfirmation surfaces provisional 0-conf evidence', () {
+      final zeroConf = snapshot(
+        status: InvoiceStatus.inProgress,
+        pricingMode: 'fiat_fixed',
+        amountSat: 0,
+        fiatAmountMinor: 500,
+        fiatCurrency: 'USD',
+        paymentEvents: [payment(state: InvoicePaymentEventState.pending)],
+      );
+      final paid = snapshot(
+        status: InvoiceStatus.paid,
+        pricingMode: 'fiat_fixed',
+        amountSat: 0,
+        fiatAmountMinor: 500,
+        fiatCurrency: 'USD',
+        paidAmountSat: 7794,
+      );
+      final unpaid = snapshot(
+        status: InvoiceStatus.unpaid,
+        pricingMode: 'fiat_fixed',
+        amountSat: 0,
+        fiatAmountMinor: 500,
+        fiatCurrency: 'USD',
+      );
+
+      expect(zeroConf.isAwaitingConfirmation, isTrue);
+      // Terminal paid invoices are confirmed, not awaiting confirmation.
+      expect(paid.isAwaitingConfirmation, isFalse);
+      // No payment evidence yet.
+      expect(unpaid.isAwaitingConfirmation, isFalse);
     });
   });
 }
