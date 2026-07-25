@@ -36,6 +36,7 @@ import 'package:bb_mobile/features/lightning_address/lightning_address_locator.d
 import 'package:bb_mobile/features/nostr_identity/nostr_identity_locator.dart';
 import 'package:bb_mobile/features/onboarding/onboarding_locator.dart';
 import 'package:bb_mobile/features/pay/pay_locator.dart';
+import 'package:bb_mobile/features/payment_page/payment_page_locator.dart';
 import 'package:bb_mobile/features/pin_code/pin_code_locator.dart';
 import 'package:bb_mobile/features/receive/receive_locator.dart';
 import 'package:bb_mobile/features/recipients/recipients_locator.dart';
@@ -101,6 +102,7 @@ class AppLocator {
     KeychainRecoveryLocator.setup(locator);
     BullnymLocator.setup(locator);
     LightningAddressLocator.setup(locator);
+    PaymentPageLocator.setup(locator);
     RemoteKeychainRecoveryLocator.setup(locator);
     BtcpayLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);
