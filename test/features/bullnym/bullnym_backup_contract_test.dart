@@ -364,4 +364,11 @@ final class _RecordingClient implements BullnymClientPort {
   Future<Result<BullnymInvoiceStatus, BullnymFailure>> getInvoiceStatus({
     required String invoiceId,
   }) => throw UnimplementedError();
+
+  @override
+  Future<Result<BullnymPayerDemandQuoteResponse, BullnymFailure>>
+  getInvoiceQuote({
+    required String invoiceId,
+    required BullnymPayerQuoteRail rail,
+  }) => throw UnimplementedError();
 }

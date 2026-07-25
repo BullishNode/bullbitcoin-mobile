@@ -1,10 +1,12 @@
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart'
     show BullnymAuthSigner;
-import 'package:bb_mobile/features/invoices/application/commands/invoice_commands.dart';
-import 'package:bb_mobile/features/invoices/application/results/invoice_results.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_commands.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_results.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/prepared_private_invoice_create.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_status_snapshot.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_quote.dart';
+import 'package:bb_mobile/features/invoices/domain/primitives/payment_method.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';
 import 'package:bb_mobile/features/invoices/domain/invoices_failure.dart';
 import 'package:bb_mobile/features/invoices/domain/value_objects/invoice_id.dart';
@@ -45,4 +47,11 @@ abstract interface class InvoicesPayServicePort {
   Future<Result<InvoiceStatusSnapshot, InvoicesFailure>> getInvoiceStatus(
     InvoiceId invoiceId,
   );
+
+  /// Explicit public payer demand for one selected fiat quote rail.
+  @useResult
+  Future<Result<InvoiceQuote, InvoicesFailure>> getInvoiceQuote({
+    required InvoiceId invoiceId,
+    required PaymentMethod rail,
+  });
 }
