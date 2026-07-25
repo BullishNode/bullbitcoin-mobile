@@ -18,21 +18,24 @@ typedef MarkWalletBackupDirty =
 /// queue.
 final class WalletBackupCoordinator with WidgetsBindingObserver {
   final Stream<void> manifestChanges;
+  final Stream<void> metadataChanges;
   final Stream<ElectrumSyncResult> syncResults;
   final PublishWalletBackup publishBackup;
   final MarkWalletBackupDirty markDirty;
 
   StreamSubscription<void>? _manifestSubscription;
+  StreamSubscription<void>? _metadataSubscription;
   StreamSubscription<ElectrumSyncResult>? _syncSubscription;
   Future<Result<void, WalletBackupFailure>>? _inFlight;
   Future<bool>? _dirtying;
   bool _publishRequested = false;
-  bool _manifestDirtyPending = false;
+  bool _dirtyPending = false;
   bool _started = false;
   bool _disposed = false;
 
   WalletBackupCoordinator({
     required this.manifestChanges,
+    this.metadataChanges = const Stream<void>.empty(),
     required this.syncResults,
     required this.publishBackup,
     required this.markDirty,
@@ -43,10 +46,20 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
     _started = true;
     WidgetsBinding.instance.addObserver(this);
     _manifestSubscription = manifestChanges.listen(
-      (_) => _scheduleManifestChange(),
+      (_) => _scheduleDirtyChange(),
       onError: (Object error, StackTrace stack) {
         log.warning(
           'Wallet backup manifest change stream failed',
+          error: error.runtimeType,
+          trace: stack,
+        );
+      },
+    );
+    _metadataSubscription = metadataChanges.listen(
+      (_) => _scheduleDirtyChange(),
+      onError: (Object error, StackTrace stack) {
+        log.warning(
+          'Wallet backup metadata change stream failed',
           error: error.runtimeType,
           trace: stack,
         );
@@ -102,7 +115,7 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
   void retry() {
     if (_disposed) return;
     if (_dirtying != null) return;
-    if (_manifestDirtyPending) {
+    if (_dirtyPending) {
       _scheduleDirtying();
       return;
     }
@@ -150,14 +163,14 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
     }
   }
 
-  void _scheduleManifestChange() {
+  void _scheduleDirtyChange() {
     if (_disposed) return;
-    _manifestDirtyPending = true;
+    _dirtyPending = true;
     _scheduleDirtying();
   }
 
   void _scheduleDirtying() {
-    if (_disposed || _dirtying != null || !_manifestDirtyPending) return;
+    if (_disposed || _dirtying != null || !_dirtyPending) return;
     final operation = _drainDirtyChanges();
     _dirtying = operation;
     unawaited(
@@ -165,7 +178,7 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
           .then<void>((succeeded) {
             if (identical(_dirtying, operation)) _dirtying = null;
             if (_disposed || !succeeded) return;
-            if (_manifestDirtyPending) {
+            if (_dirtyPending) {
               _scheduleDirtying();
             } else {
               retry();
@@ -183,17 +196,17 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
   }
 
   Future<bool> _drainDirtyChanges() async {
-    while (_manifestDirtyPending && !_disposed) {
-      _manifestDirtyPending = false;
+    while (_dirtyPending && !_disposed) {
+      _dirtyPending = false;
       final Result<void, WalletBackupFailure> dirtyResult;
       try {
         dirtyResult = await markDirty();
       } catch (_) {
-        _manifestDirtyPending = true;
+        _dirtyPending = true;
         rethrow;
       }
       if (dirtyResult case Err(:final failure)) {
-        _manifestDirtyPending = true;
+        _dirtyPending = true;
         log.warning(
           'Wallet backup could not record a manifest change',
           error: failure.runtimeType,
@@ -212,8 +225,10 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
       _started = false;
     }
     await _manifestSubscription?.cancel();
+    await _metadataSubscription?.cancel();
     await _syncSubscription?.cancel();
     _manifestSubscription = null;
+    _metadataSubscription = null;
     _syncSubscription = null;
     try {
       await _dirtying;

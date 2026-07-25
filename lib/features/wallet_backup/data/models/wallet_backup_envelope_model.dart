@@ -30,6 +30,7 @@ final class WalletBackupEnvelopeCodecException implements Exception {
 
 final class WalletBackupEnvelopeCodec {
   static const manifestSectionId = 'keychain_manifest';
+  static const metadataSectionId = 'wallet_metadata';
 
   /// RecoverBull adds a 16-byte nonce, up to 16 bytes of AES-CBC padding, and
   /// a 32-byte HMAC. Leaving 64 bytes ensures the decoded ciphertext remains
@@ -111,6 +112,7 @@ final class WalletBackupEnvelopeModel {
     'sections',
   };
   static const _manifestSectionKeys = {'version', 'payload'};
+  static const _metadataSectionKeys = {'version', 'payload'};
 
   final int version;
   final String contentType;
@@ -118,6 +120,8 @@ final class WalletBackupEnvelopeModel {
   final int createdAt;
   final int manifestVersion;
   final Map<String, Object?> manifestPayload;
+  final int? metadataVersion;
+  final String? metadataPayload;
 
   const WalletBackupEnvelopeModel({
     required this.version,
@@ -126,6 +130,8 @@ final class WalletBackupEnvelopeModel {
     required this.createdAt,
     required this.manifestVersion,
     required this.manifestPayload,
+    required this.metadataVersion,
+    required this.metadataPayload,
   });
 
   factory WalletBackupEnvelopeModel.fromEntity(WalletBackupEnvelope envelope) {
@@ -169,6 +175,15 @@ final class WalletBackupEnvelopeModel {
             'keychain manifest section does not match the envelope fingerprint',
       );
     }
+    final metadata = envelope.metadata;
+    final metadataPayload = metadata?.payload;
+    if (metadata != null &&
+        (!_isCanonicalJsonObject(metadataPayload!) || !metadata.isCanonical)) {
+      throw const WalletBackupEnvelopeCodecException(
+        reason: WalletBackupEnvelopeCodecFailureReason.nonCanonical,
+        message: 'wallet metadata section payload must use canonical JSON',
+      );
+    }
     return WalletBackupEnvelopeModel(
       version: envelope.version,
       contentType: envelope.contentType,
@@ -176,6 +191,8 @@ final class WalletBackupEnvelopeModel {
       createdAt: envelope.createdAt,
       manifestVersion: envelope.manifest.version,
       manifestPayload: manifestPayload,
+      metadataVersion: metadata?.version,
+      metadataPayload: metadataPayload,
     );
   }
 
@@ -206,7 +223,8 @@ final class WalletBackupEnvelopeModel {
 
     final sections = _objectMap(json['sections'], 'sections');
     for (final sectionId in sections.keys) {
-      if (sectionId != WalletBackupEnvelopeCodec.manifestSectionId) {
+      if (sectionId != WalletBackupEnvelopeCodec.manifestSectionId &&
+          sectionId != WalletBackupEnvelopeCodec.metadataSectionId) {
         throw WalletBackupEnvelopeCodecException(
           reason: WalletBackupEnvelopeCodecFailureReason.unsupportedSection,
           message: 'wallet backup contains an unsupported section',
@@ -233,6 +251,50 @@ final class WalletBackupEnvelopeModel {
       WalletBackupEnvelopeCodec.manifestSectionId,
     );
 
+    final metadata = sections[WalletBackupEnvelopeCodec.metadataSectionId];
+    final metadataVersion = metadata == null
+        ? null
+        : _int(
+            _objectMap(metadata, WalletBackupEnvelopeCodec.metadataSectionId),
+            'version',
+          );
+    final metadataPayload = metadata == null
+        ? null
+        : jsonEncode(
+            _objectMap(
+              _objectMap(
+                metadata,
+                WalletBackupEnvelopeCodec.metadataSectionId,
+              )['payload'],
+              'wallet metadata section payload',
+            ),
+          );
+    if (metadata != null) {
+      final metadataMap = _objectMap(
+        metadata,
+        WalletBackupEnvelopeCodec.metadataSectionId,
+      );
+      _requireExactKeys(
+        metadataMap,
+        _metadataSectionKeys,
+        WalletBackupEnvelopeCodec.metadataSectionId,
+      );
+      if (metadataVersion != WalletBackupMetadataSection.currentVersion) {
+        throw WalletBackupEnvelopeCodecException(
+          reason: WalletBackupEnvelopeCodecFailureReason.unsupportedSection,
+          message: 'unsupported wallet metadata section version',
+          sectionId: WalletBackupEnvelopeCodec.metadataSectionId,
+          version: metadataVersion,
+        );
+      }
+      if (!_isCanonicalJsonObject(metadataPayload!)) {
+        throw const WalletBackupEnvelopeCodecException(
+          reason: WalletBackupEnvelopeCodecFailureReason.nonCanonical,
+          message: 'wallet metadata section payload must use canonical JSON',
+        );
+      }
+    }
+
     return WalletBackupEnvelopeModel(
       version: version,
       contentType: contentType,
@@ -243,6 +305,8 @@ final class WalletBackupEnvelopeModel {
         manifest['payload'],
         'keychain manifest section payload',
       ),
+      metadataVersion: metadataVersion,
+      metadataPayload: metadataPayload,
     );
   }
 
@@ -277,6 +341,14 @@ final class WalletBackupEnvelopeModel {
           parentFingerprint: manifestFingerprint,
           isCanonical: canonicalManifestPayload == manifestPayload,
         ),
+        metadata: metadataPayload == null
+            ? null
+            : WalletBackupMetadataSection(
+                version: metadataVersion!,
+                payload: metadataPayload!,
+                parentFingerprint: normalizedEnvelopeFingerprint,
+                isCanonical: _isCanonicalJsonObject(metadataPayload!),
+              ),
       );
     } on ArgumentError catch (error) {
       throw WalletBackupEnvelopeCodecException(
@@ -297,8 +369,22 @@ final class WalletBackupEnvelopeModel {
         'version': manifestVersion,
         'payload': manifestPayload,
       },
+      if (metadataPayload != null)
+        WalletBackupEnvelopeCodec.metadataSectionId: {
+          'version': metadataVersion,
+          'payload': jsonDecode(metadataPayload!),
+        },
     },
   };
+}
+
+bool _isCanonicalJsonObject(String payload) {
+  try {
+    final value = jsonDecode(payload);
+    return value is Map && jsonEncode(value) == payload;
+  } on FormatException {
+    return false;
+  }
 }
 
 Map<String, Object?> _objectMap(Object? value, String description) {

@@ -16,6 +16,10 @@ import 'package:bb_mobile/features/wallet_metadata_backup/domain/usecases/set_wa
 import 'package:bb_mobile/features/wallet_metadata_backup/domain/wallet_metadata_backup_failure.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/domain/wallet_metadata_publication_guard.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/watchers/wallet_metadata_backup_coordinator.dart';
+import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
+// ignore_for_file: prefer_initializing_formals
+
+import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_section_provider.dart';
 import 'package:meta/meta.dart';
 
 typedef _FetchRecoveryPlan =
@@ -134,14 +138,50 @@ final class _WalletMetadataRecoverySession
   }
 }
 
+WalletMetadataBackupState _metadataStateFromEnabled(bool enabled) =>
+    WalletMetadataBackupState.initial.withEnabled(enabled);
+
+WalletMetadataBackupState _metadataStateFromWalletState(
+  WalletBackupState state,
+) => WalletMetadataBackupState(
+  enabled: state.enabled,
+  dirty: state.dirty,
+  dirtyRevision: state.dirtyRevision,
+  lastAttemptedAt: state.lastAttemptedAt,
+  lastSucceededAt: state.lastSucceededAt,
+  verifiedHead: state.remoteGeneration == 0
+      ? null
+      : WalletMetadataBackupVerifiedHead(
+          remoteGeneration: state.remoteGeneration,
+          remoteEtag: state.remoteEtag!,
+          snapshotRevision: 0,
+          canonicalContentHash: state.contentHash!,
+          verifiedAt: state.lastSucceededAt!,
+        ),
+  unsupportedNewerEnvelope: state.unsupportedVersion == null
+      ? null
+      : WalletMetadataBackupUnsupportedEnvelope(
+          remoteGeneration: 1,
+          remoteEtag: state.remoteEtag ?? _zeroHash,
+          envelopeVersion: state.unsupportedVersion!,
+          observedAt: state.lastAttemptedAt ?? 0,
+        ),
+  recoveryBlock: null,
+);
+
+const _zeroHash =
+    '0000000000000000000000000000000000000000000000000000000000000000';
+
 class WalletMetadataBackupFacade {
-  final GetWalletMetadataBackupStateUsecase _getState;
-  final SetWalletMetadataBackupEnabledUsecase _setEnabled;
-  final MarkWalletMetadataBackupDirtyUsecase _markDirty;
-  final DeleteWalletMetadataBackupUsecase _deleteRemote;
-  final WalletMetadataBackupCoordinator _coordinator;
-  final _FetchRecoveryPlan _fetchRecoveryPlan;
-  final _ApplyRecoveryPlan _applyRecoveryPlan;
+  final GetWalletMetadataBackupStateUsecase? _getState;
+  final SetWalletMetadataBackupEnabledUsecase? _setEnabled;
+  final MarkWalletMetadataBackupDirtyUsecase? _markDirty;
+  final DeleteWalletMetadataBackupUsecase? _deleteRemote;
+  final WalletMetadataBackupCoordinator? _coordinator;
+  final _FetchRecoveryPlan? _fetchRecoveryPlan;
+  final _ApplyRecoveryPlan? _applyRecoveryPlan;
+  final WalletBackupFacade? _walletBackup;
+  final WalletMetadataBackupSectionProvider? _sectionProvider;
 
   const WalletMetadataBackupFacade(
     this._getState,
@@ -150,44 +190,130 @@ class WalletMetadataBackupFacade {
     this._deleteRemote,
     this._coordinator,
     this._fetchRecoveryPlan,
-    this._applyRecoveryPlan,
-  );
+    this._applyRecoveryPlan, {
+    WalletBackupFacade? walletBackup,
+    WalletMetadataBackupSectionProvider? sectionProvider,
+  }) : _walletBackup = walletBackup,
+       _sectionProvider = sectionProvider;
+
+  const WalletMetadataBackupFacade.unified({
+    required WalletBackupFacade walletBackup,
+    required WalletMetadataBackupSectionProvider sectionProvider,
+  }) : _getState = null,
+       _setEnabled = null,
+       _markDirty = null,
+       _deleteRemote = null,
+       _coordinator = null,
+       _fetchRecoveryPlan = null,
+       _applyRecoveryPlan = null,
+       _walletBackup = walletBackup,
+       _sectionProvider = sectionProvider;
 
   @useResult
   Future<Result<WalletMetadataBackupState, WalletMetadataBackupFailure>>
-  getState() => _getState.execute();
+  getState() async {
+    final walletBackup = _walletBackup;
+    if (walletBackup == null) return _getState!.execute();
+    final result = await walletBackup.getState();
+    return result
+        .map(_metadataStateFromWalletState)
+        .mapErr(
+          (failure) =>
+              WalletMetadataBackupRemoteFailure(failure.runtimeType.toString()),
+        );
+  }
 
   @useResult
   Future<Result<WalletMetadataBackupState, WalletMetadataBackupFailure>>
   setEnabled(bool enabled) async {
+    final walletBackup = _walletBackup;
+    if (walletBackup != null) {
+      final result = await walletBackup.setEnabled(enabled);
+      return result
+          .map((_) => _metadataStateFromEnabled(enabled))
+          .mapErr(
+            (failure) => WalletMetadataBackupRemoteFailure(
+              failure.runtimeType.toString(),
+            ),
+          );
+    }
+    final setEnabled = _setEnabled!;
+    final coordinator = _coordinator!;
     final result = enabled
-        ? await _setEnabled.execute(true)
-        : await _coordinator.suppressPublicationWhile(
-            () => _setEnabled.execute(false),
+        ? await setEnabled.execute(true)
+        : await coordinator.suppressPublicationWhile(
+            () => setEnabled.execute(false),
           );
     if (result case Ok(value: WalletMetadataBackupState(enabled: true))) {
-      _coordinator.scheduleFallbackRetry();
+      coordinator.scheduleFallbackRetry();
     }
     return result;
   }
 
   @useResult
   Future<Result<WalletMetadataBackupState, WalletMetadataBackupFailure>>
-  markDirty() => _markDirty.execute();
+  markDirty() async {
+    final walletBackup = _walletBackup;
+    if (walletBackup != null) {
+      return const Ok(WalletMetadataBackupState.initial);
+    }
+    return _markDirty!.execute();
+  }
 
   @useResult
   Future<Result<WalletMetadataPublishOutcome, WalletMetadataBackupFailure>>
-  backupNow() => _coordinator.publishNow();
-
-  @useResult
-  Future<Result<void, WalletMetadataBackupFailure>> deleteRemoteBackup() {
-    return _coordinator.suppressPublicationWhile(_deleteRemote.execute);
+  backupNow() async {
+    final walletBackup = _walletBackup;
+    if (walletBackup == null) return _coordinator!.publishNow();
+    final result = await walletBackup.backupNow();
+    return result
+        .map(
+          (_) => const WalletMetadataPublishOutcome(
+            status: WalletMetadataPublishStatus.stored,
+          ),
+        )
+        .mapErr(
+          (failure) =>
+              WalletMetadataBackupRemoteFailure(failure.runtimeType.toString()),
+        );
   }
 
-  Future<void> retryPendingBackup() => _coordinator.retryBestEffort();
+  @useResult
+  Future<Result<void, WalletMetadataBackupFailure>> deleteRemoteBackup() async {
+    final walletBackup = _walletBackup;
+    if (walletBackup != null) {
+      final result = await walletBackup.deleteRemoteBackup(confirmed: true);
+      return result.mapErr(
+        (failure) =>
+            WalletMetadataBackupRemoteFailure(failure.runtimeType.toString()),
+      );
+    }
+    return _coordinator!.suppressPublicationWhile(_deleteRemote!.execute);
+  }
+
+  Future<void> retryPendingBackup() async {
+    if (_walletBackup != null) return;
+    await _coordinator!.retryBestEffort();
+  }
+
+  @useResult
+  Future<Result<WalletMetadataRecoveryResult, WalletMetadataBackupFailure>>
+  recoverSection({
+    required String payload,
+    required Set<String> createdWalletRefs,
+  }) async {
+    final provider = _sectionProvider;
+    if (provider == null) return _recoverMetadata(createdWalletRefs);
+    final result = await provider.recoverSection(
+      payload: payload,
+      createdWalletRefs: createdWalletRefs,
+    );
+    return result.map(WalletMetadataRecoveryResult.applied);
+  }
 
   Future<WalletMetadataRecoverySession> beginRecoverySession() async {
-    final acquisition = await _coordinator.beginRecoverySession();
+    if (_walletBackup != null) return const _UnifiedRecoverySession();
+    final acquisition = await _coordinator!.beginRecoverySession();
     return _WalletMetadataRecoverySession(
       acquisition.suppression,
       _recoverMetadata,
@@ -197,7 +323,7 @@ class WalletMetadataBackupFacade {
 
   Future<Result<WalletMetadataRecoveryResult, WalletMetadataBackupFailure>>
   _recoverMetadata(Set<String> createdWalletRefs) async {
-    final fetched = await _fetchRecoveryPlan();
+    final fetched = await _fetchRecoveryPlan!();
     final internal.WalletMetadataRecoveryResult recovery;
     switch (fetched) {
       case Err(:final failure):
@@ -212,7 +338,7 @@ class WalletMetadataBackupFacade {
         if (plan == null) {
           return const Err(WalletMetadataBackupEncodingFailure());
         }
-        final applied = await _applyRecoveryPlan(
+        final applied = await _applyRecoveryPlan!(
           plan: plan,
           createdWalletRefs: createdWalletRefs,
         );
@@ -227,4 +353,19 @@ class WalletMetadataBackupFacade {
         );
     }
   }
+}
+
+final class _UnifiedRecoverySession implements WalletMetadataRecoverySession {
+  const _UnifiedRecoverySession();
+
+  @override
+  bool get isClosed => false;
+
+  @override
+  Future<Result<WalletMetadataRecoveryResult, WalletMetadataBackupFailure>>
+  recover({required Set<String> createdWalletRefs}) async =>
+      const Ok(WalletMetadataRecoveryResult.noSnapshotFound());
+
+  @override
+  void close() {}
 }

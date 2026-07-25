@@ -29,6 +29,7 @@ import 'package:bb_mobile/features/wallet_backup/domain/usecases/watch_wallet_ba
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_wallet_port.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:bb_mobile/features/wallet_backup/watchers/wallet_backup_coordinator.dart';
+import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_section_provider.dart';
 import 'package:get_it/get_it.dart';
 
 class WalletBackupLocator {
@@ -61,6 +62,7 @@ class WalletBackupLocator {
       () => BuildWalletBackupEnvelopeUsecase(
         locator<KeychainManifestFacade>(),
         locator<Clock>(),
+        metadata: locator<WalletMetadataBackupSectionProvider>(),
       ),
     );
     locator.registerFactory<SyncWalletBackupUsecase>(
@@ -71,6 +73,7 @@ class WalletBackupLocator {
         remote: locator<WalletBackupRemoteRepository>(),
         keychainManifest: locator<KeychainManifestFacade>(),
         deriveSigner: locator<DeriveWalletBackupSignerUsecase>(),
+        metadata: locator<WalletMetadataBackupSectionProvider>(),
       ),
     );
     locator.registerFactory<GetWalletBackupStateUsecase>(
@@ -100,6 +103,7 @@ class WalletBackupLocator {
       () => WalletBackupCoordinator(
         manifestChanges: locator<KeychainManifestFacade>()
             .watchCommittedChanges(),
+        metadataChanges: locator<WalletMetadataBackupSectionProvider>().changes,
         syncResults: locator<WatchElectrumSyncResultsUsecase>().execute(),
         publishBackup: locator<BackupWalletNowUsecase>().execute,
         markDirty: locator<MarkWalletBackupDirtyUsecase>().execute,
