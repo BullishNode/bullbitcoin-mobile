@@ -484,6 +484,14 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
     required DateTime invoiceExpiresAt,
     required bool presentationMarksLate,
   }) {
+    final rail = PaymentMethod.fromWire(observation.rail);
+    if (rail == null) {
+      throw ArgumentError.value(
+        observation.rail,
+        'rail',
+        'Unsupported bitcoin observation rail',
+      );
+    }
     final firstSeenAt = _fromUnix(observation.firstSeenAtUnix);
     final eventState = invoicePaymentEventStateFromWire(
       state: observation.state,
@@ -491,7 +499,7 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       invoiceSettlement: invoiceSettlement,
     );
     return InvoicePaymentEvent(
-      rail: PaymentMethod.fromWire(observation.rail) ?? PaymentMethod.btc,
+      rail: rail,
       amountSat: observation.amountSat,
       firstSeenAt: firstSeenAt,
       lastSeenAt: _fromUnix(observation.lastSeenAtUnix),
