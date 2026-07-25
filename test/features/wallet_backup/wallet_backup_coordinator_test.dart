@@ -105,6 +105,35 @@ void main() {
     },
   );
 
+  test(
+    'rolls back a recovery lease when the active publication fails',
+    () async {
+      var publishCalls = 0;
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () async {
+          publishCalls++;
+          if (publishCalls == 1) {
+            throw StateError('publication failed');
+          }
+          return const Ok(null);
+        },
+        markDirty: () async => const Ok(null),
+      );
+
+      await expectLater(coordinator.publish(), throwsA(isA<StateError>()));
+      final lease = await coordinator.beginRecoveryLease();
+      lease.close();
+      await pumpEventQueue();
+      expect(publishCalls, 2);
+
+      await coordinator.publish();
+      expect(publishCalls, 3);
+      await coordinator.dispose();
+    },
+  );
+
   testWidgets(
     'a manifest change during publication dirties and queues a second pass',
     (tester) async {

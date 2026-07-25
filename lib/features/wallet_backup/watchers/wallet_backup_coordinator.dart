@@ -154,8 +154,14 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
       throw StateError('wallet backup coordinator disposed');
     }
     _recoveryLeases++;
-    await waitForIdle();
-    return WalletBackupRecoveryLease(_releaseRecoveryLease);
+    try {
+      await waitForIdle();
+      return WalletBackupRecoveryLease(_releaseRecoveryLease);
+    } catch (_) {
+      // A failed drain must not strand the coordinator in recovery mode.
+      _recoveryLeases--;
+      rethrow;
+    }
   }
 
   void retry() {

@@ -142,15 +142,11 @@ class WalletBackupLocator {
     );
     locator.registerLazySingleton<WalletMetadataBackupFacade>(
       () => WalletMetadataBackupFacade.unified(
-        getWalletState: () => locator<WalletBackupFacade>().getState().then(
-          (result) => result.map(_metadataStateFromWalletState),
-        ),
         setWalletEnabled: (enabled) =>
             locator<WalletBackupFacade>().setEnabled(enabled),
-        backupNow: () => locator<WalletBackupFacade>().backupNow(),
-        deleteRemote: () =>
-            locator<WalletBackupFacade>().deleteRemoteBackup(confirmed: true),
         beginRecovery: () => locator<WalletBackupFacade>().beginRecoveryLease(),
+        setRecoveryBlocked: (blocked) =>
+            locator<WalletBackupStateRepository>().setRecoveryBlocked(blocked),
         sectionProvider: locator<WalletMetadataBackupSectionProvider>(),
       ),
     );
@@ -160,34 +156,3 @@ class WalletBackupLocator {
     locator<WalletBackupCoordinator>().start();
   }
 }
-
-WalletMetadataBackupState _metadataStateFromWalletState(
-  WalletBackupState state,
-) => WalletMetadataBackupState(
-  enabled: state.enabled,
-  dirty: state.dirty,
-  dirtyRevision: state.dirtyRevision,
-  lastAttemptedAt: state.lastAttemptedAt,
-  lastSucceededAt: state.lastSucceededAt,
-  verifiedHead: state.remoteGeneration == 0
-      ? null
-      : WalletMetadataBackupVerifiedHead(
-          remoteGeneration: state.remoteGeneration,
-          remoteEtag: state.remoteEtag!,
-          snapshotRevision: 0,
-          canonicalContentHash: state.contentHash!,
-          verifiedAt: state.lastSucceededAt!,
-        ),
-  unsupportedNewerEnvelope: state.unsupportedVersion == null
-      ? null
-      : WalletMetadataBackupUnsupportedEnvelope(
-          remoteGeneration: 1,
-          remoteEtag: state.remoteEtag ?? _zeroHash,
-          envelopeVersion: state.unsupportedVersion!,
-          observedAt: state.lastAttemptedAt ?? 0,
-        ),
-  recoveryBlock: null,
-);
-
-const _zeroHash =
-    '0000000000000000000000000000000000000000000000000000000000000000';

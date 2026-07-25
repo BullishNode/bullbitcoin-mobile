@@ -64,6 +64,7 @@ class WalletBackupControls extends StatelessWidget {
                           onPressed:
                               backup?.enabled == true &&
                                   !busy &&
+                                  backup?.recoveryBlocked != true &&
                                   backup?.unsupportedVersion == null
                               ? context
                                     .read<WalletBackupSettingsCubit>()
@@ -99,6 +100,9 @@ class WalletBackupControls extends StatelessWidget {
     if (backup == null) return context.loc.walletBackupSettingsFailed;
     if (backup.unsupportedVersion != null) {
       return context.loc.walletBackupSettingsUpdateRequired;
+    }
+    if (backup.recoveryBlocked) {
+      return context.loc.walletBackupSettingsRecoveryBlocked;
     }
     if (!backup.enabled) return context.loc.walletBackupSettingsOff;
     if (backup.dirty) return context.loc.walletBackupSettingsPending;

@@ -27,6 +27,7 @@ final class WalletMetadataBackupSectionProviderImpl
   final List<StreamSubscription<void>> _subscriptions = [];
   final Clock _clock;
   bool _suppressChanges = false;
+  bool _changesDuringSuppression = false;
 
   WalletMetadataBackupSectionProviderImpl({
     required List<WalletMetadataContributor> contributors,
@@ -56,7 +57,11 @@ final class WalletMetadataBackupSectionProviderImpl
       if (contributor case final WalletMetadataChangeSource source) {
         _subscriptions.add(
           source.changes.listen((_) {
-            if (!_suppressChanges && !_changes.isClosed) _changes.add(null);
+            if (_suppressChanges) {
+              _changesDuringSuppression = true;
+            } else if (!_changes.isClosed) {
+              _changes.add(null);
+            }
           }),
         );
       }
@@ -231,6 +236,10 @@ final class WalletMetadataBackupSectionProviderImpl
       return const Err(WalletMetadataBackupEncodingFailure());
     } finally {
       _suppressChanges = false;
+      if (_changesDuringSuppression) {
+        _changesDuringSuppression = false;
+        if (!_changes.isClosed) _changes.add(null);
+      }
     }
   }
 

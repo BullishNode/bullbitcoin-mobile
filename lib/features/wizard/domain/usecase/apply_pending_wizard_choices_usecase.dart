@@ -49,7 +49,7 @@ class ApplyPendingWizardChoicesUsecase {
   }
 
   void _requireMetadataUpdate(
-    Result<WalletMetadataBackupState, WalletMetadataBackupFailure> result,
+    Result<void, WalletMetadataBackupFailure> result,
   ) {
     if (result case Err(:final failure)) {
       throw _ApplyPendingWizardChoicesException(

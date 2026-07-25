@@ -22,6 +22,9 @@ void main() {
     ).thenAnswer(
       (_) async => const Ok(WalletMetadataRecoveryResult.noSnapshotFound()),
     );
+    when(
+      () => metadataBackup.setRecoveryBlocked(any()),
+    ).thenAnswer((_) async => const Ok(null));
   });
 
   test(
@@ -58,6 +61,7 @@ void main() {
       expect(result.status, RemoteKeychainRecoveryStatus.noBackup);
       expect(calls, ['begin', 'keychain', 'metadata']);
       verify(metadataSession.close).called(1);
+      verify(() => metadataBackup.setRecoveryBlocked(false)).called(1);
     },
   );
 
@@ -82,6 +86,7 @@ void main() {
               ).captured.single
               as Set<String>;
       expect(captured, {'bitcoin-default', 'get-paid-wallet'});
+      verify(() => metadataBackup.setRecoveryBlocked(false)).called(1);
     },
   );
 
@@ -102,6 +107,7 @@ void main() {
         () => metadataSession.recover(createdWalletRefs: {'bitcoin-default'}),
       ).called(1);
       verify(metadataSession.close).called(1);
+      verify(() => metadataBackup.setRecoveryBlocked(true)).called(1);
     },
   );
 

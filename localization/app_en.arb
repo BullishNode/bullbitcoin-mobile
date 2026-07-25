@@ -407,6 +407,10 @@
   "@walletBackupSettingsFailed": {
     "description": "Generic sanitized Bull backup error"
   },
+  "walletBackupSettingsRecoveryBlocked": "Backup recovery needs attention.",
+  "@walletBackupSettingsRecoveryBlocked": {
+    "description": "Shown when remote wallet backup recovery was incomplete"
+  },
   "settingsExchangeSettingsTitle": "Exchange Settings",
   "@settingsExchangeSettingsTitle": {
     "description": "Title for the exchange settings section in the settings menu"

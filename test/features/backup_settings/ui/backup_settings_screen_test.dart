@@ -20,18 +20,6 @@ class _StubBackupSettingsCubit extends Cubit<BackupSettingsState>
 
   @override
   Future<void> checkBackupStatus() async {}
-
-  @override
-  Future<void> setMetadataBackupEnabled({
-    required bool enabled,
-    required bool disclosureAccepted,
-  }) async {}
-
-  @override
-  Future<void> backupMetadataNow() async {}
-
-  @override
-  Future<void> deleteRemoteMetadata() async {}
 }
 
 void main() {

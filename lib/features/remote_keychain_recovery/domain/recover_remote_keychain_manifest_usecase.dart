@@ -149,6 +149,7 @@ final class RecoverRemoteKeychainManifestUsecase {
       WalletBackupWalletUnavailableFailure() ||
       WalletBackupDisabledFailure() ||
       WalletBackupConfirmationRequiredFailure() ||
+      WalletBackupRecoveryBlockedFailure() ||
       WalletBackupUnexpectedFailure() =>
         RemoteKeychainRecoveryStatus.localFailure,
     };
