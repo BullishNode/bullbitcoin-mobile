@@ -654,7 +654,7 @@ class BullnymHttpClient implements BullnymClientPort {
 
   int _requiredInt(Map<String, dynamic> json, String key) {
     final value = json[key];
-    if (value is int) return value;
+    if (value is int && value >= 0) return value;
     throw _BullnymClientException(
       BullnymFailure.invalidServerResponse(
         logMessage: 'Server response is missing int field $key',

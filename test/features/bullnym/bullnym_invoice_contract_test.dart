@@ -378,6 +378,36 @@ void main() {
       expect(result.invoices.last.status, 'paid');
       expect(result.invoices.last.paidVia, 'liquid');
     });
+
+    test('rejects a negative status amount', () async {
+      final response = _statusView();
+      response['amount_sat'] = -1;
+      final client = BullnymHttpClient.withDio(_stubDio([response]).dio);
+
+      final failure = _unwrapFailure(
+        await client.getInvoiceStatus(invoiceId: 'inv-1'),
+      );
+      expect(failure.kind, BullnymFailureKind.invalidServerResponse);
+    });
+
+    test('rejects a negative list amount', () async {
+      final item = _listItemView();
+      item['amount_sat'] = -1;
+      final stub = _stubDio([
+        {
+          'invoices': [item],
+          'page': 1,
+          'pageSize': 100,
+          'has_more': false,
+        },
+      ]);
+      final client = BullnymHttpClient.withDio(stub.dio);
+
+      final failure = _unwrapFailure(
+        await client.listInvoices(signer: signer, page: 1, pageSize: 100),
+      );
+      expect(failure.kind, BullnymFailureKind.invalidServerResponse);
+    });
   });
 
   group('T-INV-CLIENT create', () {

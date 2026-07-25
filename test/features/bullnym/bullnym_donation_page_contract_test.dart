@@ -473,6 +473,20 @@ void main() {
       final failure = _unwrapFailure(await facade.getSupportedCurrencies());
       expect(failure.kind, BullnymFailureKind.invalidServerResponse);
     });
+
+    test('rejects a negative currency precision', () async {
+      final stub = _stubDio([
+        {
+          'currencies': [
+            {'code': 'CAD', 'precision': -1},
+          ],
+        },
+      ]);
+      final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
+
+      final failure = _unwrapFailure(await facade.getSupportedCurrencies());
+      expect(failure.kind, BullnymFailureKind.invalidServerResponse);
+    });
   });
 
   // The POS surface uses the same donation-page save/archive wire actions as
