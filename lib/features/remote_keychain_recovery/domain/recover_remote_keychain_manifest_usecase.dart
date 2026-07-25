@@ -122,6 +122,7 @@ final class RecoverRemoteKeychainManifestUsecase {
       restoredCount: restored.restoredCount,
       failedCount: failedOutcomes.length,
       createdWalletIds: createdWalletIds,
+      metadataPayload: manifestImport.metadataPayload,
     );
   }
 

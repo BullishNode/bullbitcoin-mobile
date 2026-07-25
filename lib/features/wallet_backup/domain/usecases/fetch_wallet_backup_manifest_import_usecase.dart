@@ -106,6 +106,7 @@ final class FetchWalletBackupManifestImportUsecase {
             WalletBackupManifestImport(
               payload: value.manifest.payload,
               parentFingerprint: plan.parentFingerprint,
+              metadataPayload: value.metadata?.payload,
             ),
           );
         } on KeychainManifestException catch (error) {

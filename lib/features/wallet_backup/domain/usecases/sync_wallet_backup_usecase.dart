@@ -1,4 +1,6 @@
 import 'package:bb_mobile/core/utils/result.dart';
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_encryption.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_envelope.dart';
@@ -9,6 +11,7 @@ import 'package:bb_mobile/features/wallet_backup/domain/usecases/build_wallet_ba
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_encryption_key_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_signer_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_failure.dart';
+import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_section_provider.dart';
 import 'package:meta/meta.dart';
 
 final class SyncWalletBackupUsecase {
@@ -18,6 +21,7 @@ final class SyncWalletBackupUsecase {
   final WalletBackupRemoteRepository _remote;
   final KeychainManifestFacade _keychainManifest;
   final DeriveWalletBackupSignerUsecase _deriveSigner;
+  final WalletMetadataBackupSectionProvider? _metadata;
 
   const SyncWalletBackupUsecase({
     required this._buildEnvelope,
@@ -26,7 +30,8 @@ final class SyncWalletBackupUsecase {
     required this._remote,
     required this._keychainManifest,
     required this._deriveSigner,
-  });
+    WalletMetadataBackupSectionProvider? metadata,
+  }) : _metadata = metadata;
 
   @useResult
   Future<Result<WalletBackupSyncResult, WalletBackupFailure>> execute({
@@ -79,7 +84,7 @@ final class SyncWalletBackupUsecase {
           return Err(failure);
       }
 
-      final candidateResult = _composeCandidate(
+      final candidateResult = await _composeCandidate(
         local: local,
         current: current,
         key: key,
@@ -145,12 +150,12 @@ final class SyncWalletBackupUsecase {
     return const Err(WalletBackupUnexpectedFailure('sync attempts exhausted'));
   }
 
-  Result<_ComposedBackup, WalletBackupFailure> _composeCandidate({
+  Future<Result<_ComposedBackup, WalletBackupFailure>> _composeCandidate({
     required WalletBackupEnvelope local,
     required WalletBackupRemoteHead current,
     required WalletBackupEncryptionKey key,
     required String parentFingerprint,
-  }) {
+  }) async {
     final ciphertext = current.ciphertext;
     if (ciphertext == null) {
       return Ok(_ComposedBackup(envelope: local, matchesRemote: false));
@@ -183,7 +188,22 @@ final class SyncWalletBackupUsecase {
         expectedParentFingerprint: parentFingerprint,
         generatedAt: local.createdAt,
       );
-      if (merged.payload == remoteEnvelope.manifest.payload) {
+      final metadataResult = _metadata == null
+          ? null
+          : await _metadata.composeSection(
+              parentFingerprint: parentFingerprint,
+              remotePayload: remoteEnvelope.metadata?.payload,
+            );
+      if (metadataResult case Err(:final failure)) {
+        return Err(WalletBackupManifestFailure(failure.runtimeType.toString()));
+      }
+      final metadataPayload = switch (metadataResult) {
+        null => remoteEnvelope.metadata?.payload,
+        Ok(:final value) => value,
+        Err() => null,
+      };
+      if (merged.payload == remoteEnvelope.manifest.payload &&
+          metadataPayload == remoteEnvelope.metadata?.payload) {
         return Ok(
           _ComposedBackup(envelope: remoteEnvelope, matchesRemote: true),
         );
@@ -197,6 +217,12 @@ final class SyncWalletBackupUsecase {
               payload: merged.payload,
               parentFingerprint: merged.parentFingerprint,
             ),
+            metadata: metadataPayload == null
+                ? null
+                : WalletBackupMetadataSection(
+                    payload: metadataPayload,
+                    parentFingerprint: parentFingerprint,
+                  ),
           ),
           matchesRemote: false,
         ),

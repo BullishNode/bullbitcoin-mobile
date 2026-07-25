@@ -164,8 +164,6 @@ class AppLocator {
     RecipientsLocator.setup(locator);
     BitBoxLocator.setup(locator);
     ArkCoreLocator.setup(locator);
-
-    await WalletMetadataBackupLocator.start(locator);
   }
 
   static void startForeground(GetIt locator) {

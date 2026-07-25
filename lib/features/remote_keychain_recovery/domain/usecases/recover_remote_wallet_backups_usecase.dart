@@ -23,16 +23,15 @@ final class RecoverRemoteWalletBackupsUsecase {
     RemoteKeychainRecoveryResult? keychainResult;
 
     try {
-      try {
-        session = await _metadataBackup.beginRecoverySession();
-      } on Exception catch (error, stack) {
-        log.warning(
-          'Could not suppress metadata publication during wallet recovery',
-          error: error,
-          trace: stack,
-        );
-      }
-
+      session = await _metadataBackup.beginRecoverySession();
+    } on Object catch (error, stack) {
+      log.warning(
+        'Could not prepare metadata recovery session',
+        error: error,
+        trace: stack,
+      );
+    }
+    try {
       try {
         keychainResult = await _recoverKeychain();
       } on Exception catch (error, stack) {
@@ -40,13 +39,24 @@ final class RecoverRemoteWalletBackupsUsecase {
         keychainStack = stack;
       }
 
-      await _recoverMetadata(
-        session: session,
-        createdWalletRefs: {
-          ...defaultCreatedWalletIds,
-          ...?keychainResult?.createdWalletIds,
-        },
-      );
+      final metadataPayload = keychainResult?.metadataPayload;
+      if (metadataPayload != null) {
+        await _recoverMetadata(
+          payload: metadataPayload,
+          createdWalletRefs: {
+            ...defaultCreatedWalletIds,
+            ...?keychainResult?.createdWalletIds,
+          },
+        );
+      } else if (session != null) {
+        await _recoverMetadataSession(
+          session: session,
+          createdWalletRefs: {
+            ...defaultCreatedWalletIds,
+            ...?keychainResult?.createdWalletIds,
+          },
+        );
+      }
     } finally {
       session?.close();
     }
@@ -57,16 +67,12 @@ final class RecoverRemoteWalletBackupsUsecase {
     return keychainResult!;
   }
 
-  Future<void> _recoverMetadata({
-    required WalletMetadataRecoverySession? session,
+  Future<void> _recoverMetadataSession({
+    required WalletMetadataRecoverySession session,
     required Set<String> createdWalletRefs,
   }) async {
-    WalletMetadataRecoverySession? fallbackSession;
     try {
-      final activeSession =
-          session ??
-          (fallbackSession = await _metadataBackup.beginRecoverySession());
-      final result = await activeSession.recover(
+      final result = await session.recover(
         createdWalletRefs: Set.unmodifiable(createdWalletRefs),
       );
       if (result case Err(:final failure)) {
@@ -81,8 +87,30 @@ final class RecoverRemoteWalletBackupsUsecase {
         error: error,
         trace: stack,
       );
-    } finally {
-      fallbackSession?.close();
+    }
+  }
+
+  Future<void> _recoverMetadata({
+    required String payload,
+    required Set<String> createdWalletRefs,
+  }) async {
+    try {
+      final result = await _metadataBackup.recoverSection(
+        payload: payload,
+        createdWalletRefs: Set.unmodifiable(createdWalletRefs),
+      );
+      if (result case Err(:final failure)) {
+        log.warning(
+          'Remote wallet metadata recovery failed',
+          error: StateError(failure.runtimeType.toString()),
+        );
+      }
+    } on Exception catch (error, stack) {
+      log.warning(
+        'Remote wallet metadata recovery threw unexpectedly',
+        error: error,
+        trace: stack,
+      );
     }
   }
 }

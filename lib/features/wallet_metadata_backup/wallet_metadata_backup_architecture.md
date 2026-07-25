@@ -2,10 +2,11 @@
 
 ## Scope
 
-`wallet_metadata_backup` owns one encrypted, versioned wallet-metadata snapshot,
-its contributor registry, durable local control state, publication scheduling,
-and recovery planning/apply. Bullnym is the only remote store. The wallet does
-not open relay WebSockets, construct Nostr events, or expose relay policy here.
+`wallet_metadata_backup` owns the versioned `wallet_metadata` section, its
+contributor registry, and recovery planning/apply. The wallet-backup feature
+owns encryption, transport, durable state, scheduling, and lifecycle. Bullnym
+is the only remote store. The wallet does not open relay WebSockets, construct
+Nostr events, or expose relay policy here.
 
 The keychain manifest and metadata remain separate owned sections inside the
 single `wallet_backup` stream. They share one activation, signing identity,
@@ -51,15 +52,15 @@ ciphertext, never the xprv, encryption key, fingerprint, records, or labels.
 
 ## Remote Boundary
 
-`BullnymWalletMetadataRemoteRepository` maps the shared Bullnym facade's typed
-fetch/store/delete results into metadata domain results. HTTP, JSON, base64
-request mapping, signed request layout, and status-code mapping stay in
-`features/bullnym`. The adapter uses only stream `wallet_backup` and a
-short-lived signer capability; no metadata-owned wire client exists.
+`WalletMetadataBackupSectionProvider` maps contributor exports and recovery to
+the outer wallet-backup envelope. HTTP, JSON, base64 request mapping, signed
+request layout, encryption, and status-code mapping stay in
+`features/wallet_backup` and `features/bullnym`. There is no metadata-owned
+remote repository, signer, encryption key, or wire client.
 
 ## Local State
 
-Schema 17 stores one row with:
+The unified wallet-backup state stores one row with:
 
 - activation;
 - `dirty` plus monotonic `dirtyRevision`;
@@ -68,11 +69,11 @@ Schema 17 stores one row with:
 - an unsupported-newer-envelope block;
 - a recovery-apply block.
 
-Activation itself is the explicit storage choice; there is no second persisted
-consent boolean. Enabling marks current metadata dirty. Disabling stops
-future stores but preserves dirty work and the checkpoint. Explicit deletion
-first fetches the authoritative Bullnym head, conditionally deletes that exact
-generation and ETag, then clears the remote checkpoint.
+Activation itself is the explicit storage choice; there is no metadata-specific
+consent or checkpoint. Enabling marks the unified backup dirty. Disabling
+stops future stores but preserves dirty work and the checkpoint. Explicit
+deletion is performed once by the wallet-backup coordinator and conditionally
+deletes the exact current generation and ETag.
 
 Every mutation increments `dirtyRevision`, even while already dirty. A store may
 clear dirty work only when the captured revision still matches. Mutations that
@@ -80,14 +81,15 @@ arrive during encryption or HTTP work therefore remain pending.
 
 ## Publication
 
-Publication performs these steps:
+The wallet-backup coordinator performs these steps:
 
 1. Require enabled, dirty, and no version/recovery block.
-2. Capture the dirty revision and export every contributor.
+2. Capture the dirty revision and export the manifest and every metadata
+   contributor.
 3. Fetch the current Bullnym object.
 4. Authenticate, bound, decrypt, parse, and validate it when present.
 5. Refuse to overwrite malformed, undecryptable, or newer-version data.
-6. Compose local owned projections over compatible remote unknown data.
+6. Compose both owned sections over compatible remote unknown data.
 7. Skip the store when canonical content is unchanged.
 8. Encrypt one complete snapshot and conditionally store generation plus one.
 9. Persist the receipt and clear only the captured dirty revision.
@@ -96,13 +98,17 @@ Publication performs these steps:
 An initially empty inventory creates no object. Once an object exists, an
 intentional later empty inventory is a valid replacement.
 
-Owner post-commit streams mark durable dirty state and arm one debounced delayed fallback. A successful foreground wallet sync is the normal flush trigger, resuming the app retries pending work, and `Back up now` bypasses the wait. Only one store may be in flight.
+Manifest and metadata post-commit streams mark the one durable wallet-backup
+state dirty and arm one debounced delayed fallback. A successful foreground
+wallet sync is the normal flush trigger, and `Back up now` bypasses the wait.
+Only one store may be in flight.
 
 ## Recovery
 
 Recovery is automatic after keychain recovery has determined which wallets
-exist. It derives the independent metadata signer and encryption key, fetches
-the current Bullnym blob, validates it, and builds an opaque recovery plan.
+exist. The already-fetched, authenticated wallet-backup envelope supplies the
+metadata section to the section provider, which validates it and builds a
+recovery plan.
 Bullnym absence or network failure never blocks seed recovery.
 
 Apply revalidates every planned intent against the authenticated snapshot before
@@ -113,9 +119,9 @@ in this recovery run.
 Existing local choices are preserved and absent wallet references are deferred.
 
 Publication suppression spans keychain materialization through metadata apply.
-Apply does not enable backup and does not publish. A complete apply records the
-Bullnym checkpoint as verified; unsupported, invalid, deferred, conflicting, or
-failed work leaves a protective recovery block.
+Apply does not enable backup and does not publish. Unsupported, invalid,
+deferred, conflicting, or failed work is reported without creating a second
+metadata lifecycle or remote mutation.
 
 ## Contributors
 
