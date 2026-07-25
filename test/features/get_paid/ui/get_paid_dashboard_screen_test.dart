@@ -113,4 +113,66 @@ void main() {
 
     expect(find.text('invoice-create-destination'), findsOneWidget);
   });
+
+  testWidgets('the invoices card shows pending fallback attention', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const GetPaidDashboardState(
+        invoicesWalletReady: true,
+        fallbackAttentionCount: 2,
+      ),
+    );
+
+    expect(find.text('2 SETTLEMENTS PENDING'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pending fallback attention opens the invoice list', (
+    tester,
+  ) async {
+    final cubit = _StubCubit(
+      const GetPaidDashboardState(
+        invoicesWalletReady: true,
+        fallbackAttentionCount: 1,
+      ),
+    );
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) =>
+              BlocProvider<GetPaidDashboardCubit>.value(
+                value: cubit,
+                child: const GetPaidDashboardScreen(),
+              ),
+        ),
+        GoRoute(
+          name: InvoicesRoute.list.name,
+          path: '/invoices',
+          builder: (context, state) =>
+              const Scaffold(body: Text('invoice-list-destination')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    addTearDown(cubit.close);
+
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        theme: AppTheme.themeData(AppThemeType.light),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Invoices'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('invoice-list-destination'), findsOneWidget);
+  });
 }

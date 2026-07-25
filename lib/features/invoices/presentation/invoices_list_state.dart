@@ -10,14 +10,24 @@ class InvoicesListState {
   final InvoicesListStatus status;
   final List<Invoice> invoices;
   final InvoiceStatus? filter;
+  final int page;
   final bool hasMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
+  final bool fallbackSupervisionUnavailable;
+  final bool fallbackSupervisionOverflow;
   final InvoicesFailure? failure;
 
   const InvoicesListState({
     this.status = InvoicesListStatus.initial,
     this.invoices = const [],
     this.filter,
+    this.page = 0,
     this.hasMore = false,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
+    this.fallbackSupervisionUnavailable = false,
+    this.fallbackSupervisionOverflow = false,
     this.failure,
   });
 
@@ -35,7 +45,12 @@ class InvoicesListState {
     InvoicesListStatus? status,
     List<Invoice>? invoices,
     InvoiceStatus? filter,
+    int? page,
     bool? hasMore,
+    bool? loadingMore,
+    bool? loadMoreFailed,
+    bool? fallbackSupervisionUnavailable,
+    bool? fallbackSupervisionOverflow,
     InvoicesFailure? failure,
     bool clearFilter = false,
     bool clearFailure = false,
@@ -44,7 +59,14 @@ class InvoicesListState {
       status: status ?? this.status,
       invoices: invoices ?? this.invoices,
       filter: clearFilter ? null : filter ?? this.filter,
+      page: page ?? this.page,
       hasMore: hasMore ?? this.hasMore,
+      loadingMore: loadingMore ?? this.loadingMore,
+      loadMoreFailed: loadMoreFailed ?? this.loadMoreFailed,
+      fallbackSupervisionUnavailable:
+          fallbackSupervisionUnavailable ?? this.fallbackSupervisionUnavailable,
+      fallbackSupervisionOverflow:
+          fallbackSupervisionOverflow ?? this.fallbackSupervisionOverflow,
       failure: clearFailure ? null : failure ?? this.failure,
     );
   }
