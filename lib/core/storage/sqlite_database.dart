@@ -23,6 +23,7 @@ import 'package:bb_mobile/core/storage/tables/settings_table.dart';
 import 'package:bb_mobile/core/storage/tables/swaps_table.dart';
 import 'package:bb_mobile/core/storage/tables/transactions_table.dart';
 import 'package:bb_mobile/core/storage/tables/wallet_backup_states_table.dart';
+import 'package:bb_mobile/core/storage/tables/wallet_metadata_backup_states_table.dart';
 import 'package:bb_mobile/core/storage/tables/wallet_metadata_table.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/isolate.dart';
@@ -56,6 +57,7 @@ part 'sqlite_database.g.dart';
     Prices,
     FrozenUtxos,
     DismissedAnnouncements,
+    WalletMetadataBackupStates,
   ],
 )
 class SqliteDatabase extends _$SqliteDatabase {
@@ -105,7 +107,7 @@ class SqliteDatabase extends _$SqliteDatabase {
   /// Current drift schema version. Bump in lockstep with adding a new
   /// `Schema<N-1>To<N>.migrate` step in [migration] and regenerating the
   /// schema snapshots (`make drift-migrations`).
-  static const int currentSchemaVersion = 17;
+  static const int currentSchemaVersion = 18;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -165,6 +167,7 @@ class SqliteDatabase extends _$SqliteDatabase {
         from14To15: _reportingMigration('from14To15', Schema14To15.migrate),
         from15To16: _reportingMigration('from15To16', Schema15To16.migrate),
         from16To17: _reportingMigration('from16To17', Schema16To17.migrate),
+        from17To18: _reportingMigration('from17To18', Schema17To18.migrate),
       ),
       // Backfills `Report.fromVersion` for installs that predate the
       // `_lastVersionKey` SharedPreferences marker (added in v6.6.0).

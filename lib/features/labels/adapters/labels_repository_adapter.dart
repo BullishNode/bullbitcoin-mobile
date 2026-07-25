@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bb_mobile/core/storage/storage.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/labels/adapters/label_mapper.dart';
@@ -7,26 +9,37 @@ import 'package:bb_mobile/features/labels/domain/new_label.dart';
 
 class DriftLabelsRepositoryAdapter implements LabelsRepositoryPort {
   final SqliteDatabase _database;
+  final StreamController<void> _changes = StreamController<void>.broadcast(
+    sync: true,
+  );
 
   DriftLabelsRepositoryAdapter({required this._database});
 
   @override
-  Future<LabelEntity> store(NewLabel newLabel) async {
-    // Validate BEFORE writing: constructing a LabelEntity is what enforces
-    // its invariants (see LabelEntity._validateReference), and it must
-    // throw here — before the insert below — or a caller told the store
-    // failed has in fact already had its row persisted (the previous shape
-    // built the companion from the unvalidated newLabel directly and only
-    // constructed a LabelEntity afterwards, purely to shape the return
-    // value, by which point the row was already committed).
-    LabelEntity(
-      id: 0, // unknown before insert; only the validation side effect matters
-      type: newLabel.type,
-      label: newLabel.label,
-      reference: newLabel.reference,
-      origin: newLabel.origin,
-    );
+  Stream<void> get changes => _changes.stream;
 
+  @override
+  Future<LabelEntity> store(NewLabel newLabel) async {
+    _validate(newLabel);
+    final stored = await _store(newLabel);
+    _changes.add(null);
+    return stored;
+  }
+
+  @override
+  Future<void> storeAll(List<NewLabel> labels) async {
+    for (final label in labels) {
+      _validate(label);
+    }
+    await _database.transaction(() async {
+      for (final label in labels) {
+        await _store(label);
+      }
+    });
+    if (labels.isNotEmpty) _changes.add(null);
+  }
+
+  Future<LabelEntity> _store(NewLabel newLabel) async {
     final companion = LabelMapper.newLabelEntityToCompanion(newLabel);
     final id = await _database
         .into(_database.labels)
@@ -44,6 +57,16 @@ class DriftLabelsRepositoryAdapter implements LabelsRepositoryPort {
       label: newLabel.label,
       reference: newLabel.reference,
       origin: newLabel.origin,
+    );
+  }
+
+  void _validate(NewLabel label) {
+    LabelEntity(
+      id: label.id ?? 0,
+      type: label.type,
+      label: label.label,
+      reference: label.reference,
+      origin: label.origin,
     );
   }
 
@@ -73,7 +96,10 @@ class DriftLabelsRepositoryAdapter implements LabelsRepositoryPort {
 
   @override
   Future<void> trash(int id) async {
-    await _database.managers.labels.filter((l) => l.id(id)).delete();
+    final deleted = await _database.managers.labels
+        .filter((l) => l.id(id))
+        .delete();
+    if (deleted > 0) _changes.add(null);
   }
 
   @override
