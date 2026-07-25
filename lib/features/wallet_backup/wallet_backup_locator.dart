@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/storage/sqlite_database.dart';
 import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/watch_electrum_sync_results_usecase.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
@@ -21,11 +22,13 @@ import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_b
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_signer_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/fetch_wallet_backup_manifest_import_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/get_wallet_backup_state_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/usecases/mark_wallet_backup_dirty_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_backup_enabled_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/sync_wallet_backup_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/watch_wallet_backup_state_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_wallet_port.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
+import 'package:bb_mobile/features/wallet_backup/watchers/wallet_backup_coordinator.dart';
 import 'package:get_it/get_it.dart';
 
 class WalletBackupLocator {
@@ -89,6 +92,20 @@ class WalletBackupLocator {
         clock: locator<Clock>(),
       ),
     );
+    locator.registerFactory<MarkWalletBackupDirtyUsecase>(
+      () =>
+          MarkWalletBackupDirtyUsecase(locator<WalletBackupStateRepository>()),
+    );
+    locator.registerLazySingleton<WalletBackupCoordinator>(
+      () => WalletBackupCoordinator(
+        manifestChanges: locator<KeychainManifestFacade>()
+            .watchCommittedChanges(),
+        syncResults: locator<WatchElectrumSyncResultsUsecase>().execute(),
+        publishBackup: locator<BackupWalletNowUsecase>().execute,
+        markDirty: locator<MarkWalletBackupDirtyUsecase>().execute,
+      ),
+      dispose: (coordinator) => coordinator.dispose(),
+    );
     locator.registerFactory<DeleteWalletBackupUsecase>(
       () => DeleteWalletBackupUsecase(
         remote: locator<WalletBackupRemoteRepository>(),
@@ -113,10 +130,14 @@ class WalletBackupLocator {
         getState: locator<GetWalletBackupStateUsecase>(),
         watchState: locator<WatchWalletBackupStateUsecase>(),
         setEnabled: locator<SetWalletBackupEnabledUsecase>(),
-        backupNow: locator<BackupWalletNowUsecase>(),
         delete: locator<DeleteWalletBackupUsecase>(),
         fetchManifestImport: locator<FetchWalletBackupManifestImportUsecase>(),
+        coordinator: locator<WalletBackupCoordinator>(),
       ),
     );
+  }
+
+  static void start(GetIt locator) {
+    locator<WalletBackupCoordinator>().start();
   }
 }

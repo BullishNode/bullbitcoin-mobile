@@ -7,7 +7,7 @@ This slice includes the outer envelope, the manifest section adapter, authentica
 This slice also owns one durable `WalletBackupState` row, the public lifecycle
 controls for that unified backup, and the read-only remote manifest import-plan
 boundary. `remote_keychain_recovery` owns application of that validated
-boundary; scheduling remains owned by its later PR.
+boundary. It also owns the one automatic publication coordinator.
 
 This is one backup lifecycle, not a wrapper around separate manifest and
 metadata backup systems. `keychain_manifest` remains the source of truth for
@@ -143,6 +143,9 @@ publication, confirmed remote deletion, and remote manifest import planning.
 Enabling marks the current inventory dirty. Disabling stops future publication without deleting remote data or clearing pending dirty work. An explicit publication is a no-op when the state is already clean and is rejected while disabled or blocked by a newer outer-envelope version. Observing such a version during publication persists the block before returning the typed failure.
 
 Remote deletion requires an explicit confirmation argument. It fetches the current head and uses its generation and ETag for conditional deletion. The local remote checkpoint is cleared only after the remote reports success; enablement and dirty state remain unchanged.
+Deletion waits for an already-started publication to become idle, so a store
+that began before backup was disabled cannot recreate the remote object after a
+confirmed delete.
 
 The active default Bitcoin wallet seed is loaded and its canonical root xprv
 is derived only inside publication, confirmed deletion, or authenticated
@@ -164,10 +167,22 @@ The state repository preserves dirty work when a store that captured an older re
 Disabling does not clear dirty work or delete the remote object, and clearing a confirmed remote checkpoint does not change enablement.
 Section owners do not write this table directly; later lifecycle and coordinator PRs connect their committed public change signals to `wallet_backup`.
 
+## Publication Coordinator
+
+`WalletBackupCoordinator` is the only automatic publication scheduler. It listens to the committed change stream exposed by `keychain_manifest/public`, marks the unified state dirty through a use case, and schedules a publication. A failed dirty-state write remains pending in memory and is retried by the next normal coordinator trigger. Recovery-originated manifest records emit no change signal and therefore never publish or enable backup.
+
+The coordinator starts only from the foreground application initialization path; background Workmanager locators register the feature but never start another coordinator. It retries already-dirty work at foreground app startup, app resume, and after a successful foreground Electrum wallet sync. Disabled, clean, and newer-version-blocked state remains a cheap no-op or typed failure at the publication use case; no private key is derived merely because a trigger fires.
+
+All explicit and automatic publication passes use the same single-flight queue. Queue ownership is cleared before waiting callers complete, disposal fences pending dirty tasks, and a trigger arriving during a store requests one more pass. The state repository compares the captured dirty revision against the current revision, so a successful older store cannot clear a change that committed while it was in flight.
+
+The existing global Wallet Backup settings screen consumes only
+`wallet_backup/public` for the one enable switch, status, “Back up now,” and
+confirmed remote-delete controls. Generic backup lifecycle controls do not
+belong to Get Paid settings.
+
 ## Non-goals in This Slice
 
-- automated publication coordination
-- settings or onboarding UI
+- onboarding consent UI
 - recovery orchestration
 - metadata payload semantics
 - compatibility with pre-release backup streams or encryption reservations
