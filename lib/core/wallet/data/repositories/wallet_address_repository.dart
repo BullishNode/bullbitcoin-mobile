@@ -7,6 +7,7 @@ import 'package:bb_mobile/core/wallet/data/datasources/wallet_metadata_datasourc
 import 'package:bb_mobile/core/wallet/data/mappers/wallet_address_mapper.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_address_model.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_model.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/liquid_receive_address_with_blinding_secret.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet_address.dart';
 import 'package:bb_mobile/core/wallet/domain/wallet_error.dart';
 
@@ -153,6 +154,64 @@ class WalletAddressRepository {
     );
 
     return walletAddress;
+  }
+
+  /// Generate a FRESH confidential Liquid receive address together with its
+  /// per-address blinding secret hex. Mirrors [generateNewReceiveAddress]'s LWK
+  /// branch (next index after the last unused, skipping system-labelled
+  /// indices) but also returns the secret the confidential-invoice payout path
+  /// needs. Throws [WalletError] for a Bitcoin (BDK) wallet.
+  Future<LiquidReceiveAddressWithBlindingSecret>
+  generateNewLiquidReceiveAddressWithBlindingSecret({
+    required String walletId,
+  }) async {
+    final metadata = await _walletMetadataDatasource.fetch(walletId);
+
+    if (metadata == null) {
+      throw WalletError.notFound(walletId);
+    }
+
+    final walletModel = WalletModel.fromMetadata(metadata);
+    if (walletModel is! PublicLwkWalletModel) {
+      throw WalletError.unexpected(
+        'A Liquid receive address with a blinding secret requires a Liquid '
+        'wallet: $walletId',
+      );
+    }
+
+    final lastUnusedAddressInfo = await _lwkWallet.getLastUnusedAddress(
+      wallet: walletModel,
+    );
+    var addressInfo = await _lwkWallet.getAddressWithBlindingSecretByIndex(
+      lastUnusedAddressInfo.index + 1,
+      wallet: walletModel,
+    );
+    var index = addressInfo.index;
+    var address = addressInfo.confidential;
+    var blindingSecret = addressInfo.blindingSecret;
+
+    var labels = await _labelsFacade.fetchByReference(address);
+    while (labels.any((label) => LabelSystem.isSystemLabel(label.label))) {
+      index++;
+      addressInfo = await _lwkWallet.getAddressWithBlindingSecretByIndex(
+        index,
+        wallet: walletModel,
+      );
+      address = addressInfo.confidential;
+      blindingSecret = addressInfo.blindingSecret;
+      labels = await _labelsFacade.fetchByReference(address);
+    }
+
+    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(blindingSecret)) {
+      throw WalletError.unexpected(
+        'Liquid receive address has an invalid blinding secret: $walletId',
+      );
+    }
+
+    return LiquidReceiveAddressWithBlindingSecret(
+      address: address,
+      blindingSecretHex: blindingSecret,
+    );
   }
 
   Future<List<WalletAddress>> getGeneratedReceiveAddresses(
