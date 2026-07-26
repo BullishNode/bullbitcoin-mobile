@@ -19,9 +19,9 @@ import 'package:bb_mobile/core/wallet/domain/usecases/watch_started_wallet_syncs
 import 'package:bb_mobile/core/wallet/domain/usecases/watch_wallet_transaction_by_tx_id_usecase.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/transactions/adapters/csv_transaction_export_formatter.dart';
-import 'package:bb_mobile/features/transactions/adapters/csv_transaction_export_saver.dart';
+import 'package:bb_mobile/core/export/adapters/csv_transaction_export_saver.dart';
 import 'package:bb_mobile/features/transactions/application/ports/transaction_export_formatter.dart';
-import 'package:bb_mobile/features/transactions/application/ports/transaction_export_saver.dart';
+import 'package:bb_mobile/core/export/domain/transaction_export_saver.dart';
 import 'package:bb_mobile/features/transactions/application/usecases/export_transactions_csv_usecase.dart';
 import 'package:bb_mobile/features/transactions/application/usecases/get_transactions_by_tx_id_usecase.dart';
 import 'package:bb_mobile/features/transactions/application/usecases/get_transactions_usecase.dart';

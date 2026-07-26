@@ -1,5 +1,4 @@
 {
-  "_comment": "MOBILE-side v3 fixture ANTICIPATING the bullnym merchant-accounting contract per ~/GETPAID_ACCOUNTING_PLAN.md. Adds settlement_details.creation_rate_minor_per_btc + creation_rate_currency (R1, invoice FACE currency) and fiat-leg execution_rate_minor_per_btc (R2, LEG currency). To be REPLACED byte-identical when the bullnym server PR lands. Not yet emitted by any server.",
   "transactions": [
     {
       "transaction_id": "10000000-0000-4000-8000-000000000001",
