@@ -82,13 +82,23 @@ final class WalletBackupSettingsCubit extends Cubit<WalletBackupSettingsState> {
       ),
     );
     try {
-      await retryRecovery.execute();
+      final result = await retryRecovery.execute();
+      if (_inactive) return;
+      emit(
+        state.copyWith(
+          lastRecoveryOutcome: RemoteRecoveryOutcome(
+            status: result.status,
+            atUnix: DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000,
+            restoredCount: result.restoredCount,
+            failedCount: result.failedCount,
+          ),
+        ),
+      );
     } catch (_) {
       if (!_inactive) {
         _emitFailure(const BackupSettingsUnexpectedFailure());
       }
     } finally {
-      await _refreshRecoveryOutcome();
       if (!_inactive) {
         emit(state.copyWith(operation: WalletBackupSettingsOperation.idle));
       }
