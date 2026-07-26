@@ -28,8 +28,7 @@ final class WalletBackupSettingsState {
   });
 
   bool get busy => operation != WalletBackupSettingsOperation.idle;
-  bool get canRetryRecovery =>
-      !busy && (lastRecoveryOutcome?.isIncomplete ?? false);
+  bool get canRetryRecovery => !busy && (backup?.recoveryBlocked ?? false);
 
   WalletBackupSettingsState copyWith({
     WalletBackupState? backup,

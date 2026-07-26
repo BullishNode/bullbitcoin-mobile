@@ -56,7 +56,8 @@ class WalletBackupControls extends StatelessWidget {
                       color: context.appColors.textMuted,
                     ),
                   ),
-                  if (state.lastRecoveryOutcome?.isIncomplete ?? false) ...[
+                  if (backup?.recoveryBlocked == true ||
+                      (state.lastRecoveryOutcome?.isIncomplete ?? false)) ...[
                     const Gap(12),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
