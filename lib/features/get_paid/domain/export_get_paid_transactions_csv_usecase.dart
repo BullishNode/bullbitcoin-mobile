@@ -45,6 +45,10 @@ class ExportGetPaidTransactionsCsvUsecase {
   Future<Result<GetPaidCsvExport, GetPaidFailure>> execute() async {
     final transactions = <GetPaidTransaction>[];
     final seenKeys = <String>{};
+    // Every cursor we have already requested (seeded with the empty start
+    // cursor). If the server ever hands back one of these as the next cursor it
+    // is looping; we must stop and fail rather than walk the same page forever.
+    final requestedCursors = <String>{''};
     var cursor = '';
     for (var page = 0; page < maxPages; page++) {
       final result = await _listTransactions.execute(
@@ -64,14 +68,29 @@ class ExportGetPaidTransactionsCsvUsecase {
           if (next == null) {
             return Ok(_export(transactions));
           }
+          // Loop guard: a cursor we have already requested means the server is
+          // cycling. Never present the partial history gathered so far as a
+          // complete export.
+          if (!requestedCursors.add(next)) {
+            return const Err(
+              GetPaidFailure.incompleteHistory(
+                logMessage: 'export aborted: server repeated a history cursor',
+              ),
+            );
+          }
           cursor = next;
         case Err(:final failure):
           return Err(failure);
       }
     }
-    // Reached the page cap without the server ending the walk: return what we
-    // have rather than spin forever.
-    return Ok(_export(transactions));
+    // Hit the page cap while the server was still offering a continuation
+    // cursor: the history is larger than we can walk, so fail rather than pass
+    // off a truncated file as the complete accounting export.
+    return const Err(
+      GetPaidFailure.incompleteHistory(
+        logMessage: 'export aborted: page cap reached with history remaining',
+      ),
+    );
   }
 
   GetPaidCsvExport _export(List<GetPaidTransaction> transactions) =>

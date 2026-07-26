@@ -2,7 +2,7 @@ import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/get_paid/domain/export_get_paid_transactions_csv_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_state.dart';
-import 'package:bb_mobile/features/transactions/application/ports/transaction_export_saver.dart';
+import 'package:bb_mobile/core/export/domain/transaction_export_saver.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Drives the merchant Get Paid accounting CSV export: page the full history,
@@ -28,6 +28,9 @@ class GetPaidExportCubit extends Cubit<GetPaidExportState> {
     if (state.isLoading) return;
     emit(const GetPaidExportState(status: GetPaidExportStatus.loading));
     final result = await _exportCsv.execute();
+    // The history walk can outlive the route: if it was left the cubit is
+    // closed and emitting throws, so bail before touching state.
+    if (isClosed) return;
     switch (result) {
       case Ok(:final value):
         if (value.transactionCount == 0) {
@@ -36,6 +39,9 @@ class GetPaidExportCubit extends Cubit<GetPaidExportState> {
         }
         try {
           final saved = await _saver.save(value.csv);
+          // The save/share sheet is a second async gap the route can be left
+          // during; guard again before emitting the result.
+          if (isClosed) return;
           emit(
             GetPaidExportState(
               status: saved
@@ -49,6 +55,8 @@ class GetPaidExportCubit extends Cubit<GetPaidExportState> {
             error: error,
             trace: trace,
           );
+          // A save that threw after the route was left must not emit either.
+          if (isClosed) return;
           emit(const GetPaidExportState(status: GetPaidExportStatus.failure));
         }
       case Err(:final failure):

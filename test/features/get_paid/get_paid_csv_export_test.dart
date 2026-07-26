@@ -171,5 +171,78 @@ void main() {
       final result = await usecase.execute();
       expect(result, isA<Err<GetPaidCsvExport, GetPaidFailure>>());
     });
+
+    test(
+      'reaching the page cap with a cursor still pending fails as incomplete',
+      () async {
+        // The server never returns a null cursor: every page yields a fresh
+        // cursor so the loop guard never trips, and the walk hits the cap.
+        var page = 0;
+        when(
+          () => list.execute(
+            cursor: any(named: 'cursor'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer(
+          (_) async => Ok(
+            GetPaidTransactionPage(
+              transactions: const [],
+              nextCursor: 'page-${page++}',
+            ),
+          ),
+        );
+
+        final usecase = ExportGetPaidTransactionsCsvUsecase(
+          listTransactions: list,
+        );
+        final result = await usecase.execute();
+
+        final failure = switch (result) {
+          Err(:final failure) => failure,
+          Ok() => fail('expected the export to fail, not truncate silently'),
+        };
+        expect(failure, isA<GetPaidIncompleteHistoryFailure>());
+        // Walked exactly the cap — never presented a partial file as complete.
+        verify(
+          () => list.execute(
+            cursor: any(named: 'cursor'),
+            limit: any(named: 'limit'),
+          ),
+        ).called(ExportGetPaidTransactionsCsvUsecase.maxPages);
+      },
+    );
+
+    test('a repeated server cursor aborts the export as incomplete', () async {
+      when(() => list.execute(cursor: '', limit: 100)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(
+            transactions: [_tx(id: '10000000-0000-4000-8000-000000000001')],
+            nextCursor: 'loop',
+          ),
+        ),
+      );
+      // The server hands back 'loop' a second time: a cycle, not progress.
+      when(() => list.execute(cursor: 'loop', limit: 100)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(
+            transactions: [_tx(id: '20000000-0000-4000-8000-000000000002')],
+            nextCursor: 'loop',
+          ),
+        ),
+      );
+
+      final usecase = ExportGetPaidTransactionsCsvUsecase(
+        listTransactions: list,
+      );
+      final result = await usecase.execute();
+
+      final failure = switch (result) {
+        Err(:final failure) => failure,
+        Ok() => fail('expected the looping export to fail'),
+      };
+      expect(failure, isA<GetPaidIncompleteHistoryFailure>());
+      verify(() => list.execute(cursor: '', limit: 100)).called(1);
+      verify(() => list.execute(cursor: 'loop', limit: 100)).called(1);
+    });
   });
 }

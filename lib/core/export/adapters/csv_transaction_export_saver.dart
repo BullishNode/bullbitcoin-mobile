@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:bb_mobile/features/transactions/application/ports/transaction_export_saver.dart';
+import 'package:bb_mobile/core/export/domain/transaction_export_saver.dart';
 import 'package:file_picker/file_picker.dart';
 
 class CsvTransactionExportSaver implements TransactionExportSaver {
