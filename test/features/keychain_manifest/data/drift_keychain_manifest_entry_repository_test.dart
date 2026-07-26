@@ -136,6 +136,25 @@ void main() {
 
     expect(records.map((record) => record.walletId), ['existing-wallet']);
   });
+
+  test('keeps local Nostr purpose revisions strictly monotonic', () async {
+    final record = _nostrRecord(updatedAt: 100);
+    await store.insertNostrKeyRecords([record]);
+
+    await store.updateNostrKeyPurpose(
+      parentFingerprint: record.entry.parentFingerprint,
+      entryId: record.entryId,
+      purpose: 'edited immediately',
+      updatedAt: 100,
+    );
+
+    final updated = (await store.fetchNostrKeyRecordsByParentFingerprint(
+      'fedcba98',
+    )).single;
+    expect(updated.nostrKeyMaterialization.purpose, 'edited immediately');
+    expect(updated.nostrKeyMaterialization.updatedAt, 101);
+    expect(updated.entry.updatedAt, 101);
+  });
 }
 
 KeychainManifestWalletMaterializationRecord _record({
@@ -172,6 +191,31 @@ KeychainManifestWalletMaterializationRecord _record({
       scriptType: scriptType,
       createdAt: 1,
       updatedAt: 1,
+    ),
+  );
+}
+
+KeychainManifestNostrKeyRecord _nostrRecord({int updatedAt = 1}) {
+  final entry = KeychainManifestEntry(
+    parentFingerprint: 'fedcba98',
+    bip85DerivationPath: "128002'/1'/1'",
+    reservationId: 'nostr_user_key',
+    entryType: 'userGenerated',
+    ownerFeature: 'nostr',
+    bip85Application: 128002,
+    bip85Index: 1,
+    createdAt: 1,
+    updatedAt: updatedAt,
+  );
+  return KeychainManifestNostrKeyRecord(
+    entry: entry,
+    nostrKeyMaterialization: KeychainManifestNostrKeyMaterialization(
+      entryId: entry.entryId,
+      publicKeyHex: '11' * 32,
+      keyKind: KeychainManifestNostrKeyKind.userGenerated,
+      purpose: 'personal identity',
+      createdAt: 1,
+      updatedAt: updatedAt,
     ),
   );
 }

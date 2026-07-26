@@ -268,17 +268,22 @@ class DriftKeychainManifestEntryRepository
         );
       }
       if (key.purpose == normalizedPurpose) return;
+      final effectiveUpdatedAt = updatedAt > key.updatedAt
+          ? updatedAt
+          : key.updatedAt + 1;
       await (_database.update(
         _database.keychainManifestNostrKeys,
       )..where((row) => row.entryId.equals(entryId))).write(
         KeychainManifestNostrKeysCompanion(
           purpose: Value(normalizedPurpose),
-          updatedAt: Value(updatedAt),
+          updatedAt: Value(effectiveUpdatedAt),
         ),
       );
-      await (_database.update(_database.keychainManifestEntries)
-            ..where((row) => row.entryId.equals(entryId)))
-          .write(KeychainManifestEntriesCompanion(updatedAt: Value(updatedAt)));
+      await (_database.update(
+        _database.keychainManifestEntries,
+      )..where((row) => row.entryId.equals(entryId))).write(
+        KeychainManifestEntriesCompanion(updatedAt: Value(effectiveUpdatedAt)),
+      );
     });
   }
 
