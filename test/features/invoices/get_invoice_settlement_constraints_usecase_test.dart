@@ -33,7 +33,7 @@ void main() {
 
     final result = await usecase.execute();
 
-    expect(result?.directLiquidAvailable, isFalse);
+    expect(result.directLiquidAvailable, isFalse);
   });
 
   test('bitcoin-only and fiat-only settlement keep direct Liquid', () async {
@@ -55,15 +55,15 @@ void main() {
 
       final result = await usecase.execute();
 
-      expect(result?.directLiquidAvailable, isTrue);
+      expect(result.directLiquidAvailable, isTrue);
     }
   });
 
-  test('configuration failure preserves the caller last-known state', () async {
+  test('configuration failure disables direct Liquid', () async {
     when(
       () => facade.configuration(),
     ).thenAnswer((_) async => const Err(FiatSettlementFailure.unexpected()));
 
-    expect(await usecase.execute(), isNull);
+    expect((await usecase.execute()).directLiquidAvailable, isFalse);
   });
 }

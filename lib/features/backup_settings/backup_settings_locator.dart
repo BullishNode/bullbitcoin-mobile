@@ -40,7 +40,6 @@ class BackupSettingsLocator {
     );
     locator.registerFactory<RetryWalletBackupRecoveryUsecase>(
       () => RetryWalletBackupRecoveryUsecase(
-        locator<GetWalletsUsecase>(),
         locator<RemoteKeychainRecoveryFacade>(),
       ),
     );

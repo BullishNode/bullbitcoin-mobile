@@ -1,21 +1,27 @@
-import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
+import 'package:bb_mobile/features/backup_settings/domain/usecases/get_last_wallet_backup_recovery_outcome_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
 
 final class RetryWalletBackupRecoveryUsecase {
-  final GetWalletsUsecase _getWallets;
   final RemoteKeychainRecoveryFacade _remoteRecovery;
+  final DateTime Function() _now;
 
-  const RetryWalletBackupRecoveryUsecase(
-    this._getWallets,
-    this._remoteRecovery,
-  );
+  RetryWalletBackupRecoveryUsecase(
+    this._remoteRecovery, {
+    DateTime Function()? now,
+  }) : _now = now ?? (() => DateTime.now().toUtc());
 
-  Future<RemoteKeychainRecoveryResult> execute() async {
-    final defaultWallets = await _getWallets.execute(onlyDefaults: true);
-    return _remoteRecovery.recover(
-      defaultCreatedWalletIds: defaultWallets
-          .map((wallet) => wallet.id)
-          .toSet(),
+  Future<WalletBackupRecoveryOutcome> execute() async {
+    final result = await _remoteRecovery.recover(
+      // Manual retry runs against an already initialized wallet. Existing
+      // defaults were not created by this recovery and must never authorize
+      // recovered metadata to overwrite their local preferences.
+      defaultCreatedWalletIds: const {},
+    );
+    return WalletBackupRecoveryOutcome(
+      status: mapRemoteRecoveryStatus(result.status),
+      atUnix: _now().millisecondsSinceEpoch ~/ 1000,
+      restoredCount: result.restoredCount,
+      failedCount: result.failedCount,
     );
   }
 }

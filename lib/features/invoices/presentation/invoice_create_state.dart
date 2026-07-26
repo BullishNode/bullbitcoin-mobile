@@ -1,5 +1,7 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
-import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_results.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_supported_currency.dart';
+import 'package:bb_mobile/features/invoices/domain/invoices_failure.dart';
 
 /// The amount entry denomination, which also fixes the invoice pricing (Q17):
 /// [fiat] creates a fiat-fixed invoice, [bitcoin] a sat-fixed one. The bitcoin
@@ -65,7 +67,7 @@ class InvoiceCreateState {
   final String payeeAddress;
   final String payeeEmail;
   final String payeePhone;
-  final List<BullnymSupportedCurrency> currencies;
+  final List<InvoiceSupportedCurrency> currencies;
   final bool currenciesUnavailable;
   final InvoiceCreateField? invalidField;
 
@@ -82,8 +84,8 @@ class InvoiceCreateState {
     this.equivalentLabel,
     this.acceptBtc = true,
     this.acceptLn = true,
-    this.acceptLiquid = true,
-    this.directLiquidAvailable = true,
+    this.acceptLiquid = false,
+    this.directLiquidAvailable = false,
     this.payerName = '',
     this.payerCorporateName = '',
     this.payerAddress = '',
@@ -164,7 +166,7 @@ class InvoiceCreateState {
     String? payeeAddress,
     String? payeeEmail,
     String? payeePhone,
-    List<BullnymSupportedCurrency>? currencies,
+    List<InvoiceSupportedCurrency>? currencies,
     bool? currenciesUnavailable,
     InvoiceCreateField? invalidField,
     bool clearFailure = false,

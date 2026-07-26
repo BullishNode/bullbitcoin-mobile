@@ -287,7 +287,8 @@ void main() {
   group('persists the last unified wallet recovery outcome', () {
     test('a completed pass records status, timestamp, and counts - nothing '
         'else', () async {
-      final store = RemoteRecoveryOutcomeStore(_MemoryKv());
+      final storage = _MemoryKv();
+      final store = RemoteRecoveryOutcomeStore(storage);
       final usecase = RecoverRemoteWalletBackupsUsecase(
         (_) async => const RemoteKeychainRecoveryResult(
           status: RemoteKeychainRecoveryStatus.partiallyRestored,
@@ -297,7 +298,7 @@ void main() {
         ),
         walletBackup,
         metadataBackup,
-        outcomeStore: store,
+        outcomeRepository: store,
       );
 
       await usecase.execute(defaultCreatedWalletIds: {'bitcoin-default'});
@@ -310,7 +311,7 @@ void main() {
       expect(outcome.isIncomplete, isTrue);
       // Sanitization: the record carries exactly status/at/counts - never
       // wallet ids or manifest entries.
-      expect(outcome.toJsonString(), isNot(contains('wallet-alpha')));
+      expect(storage._values.values.single, isNot(contains('wallet-alpha')));
     });
 
     test('a pass that exceeds its budget records timedOut', () async {
@@ -326,7 +327,7 @@ void main() {
         ),
         walletBackup,
         metadataBackup,
-        outcomeStore: store,
+        outcomeRepository: store,
         budget: const Duration(milliseconds: 10),
       );
 
@@ -344,13 +345,33 @@ void main() {
         ),
         walletBackup,
         metadataBackup,
-        outcomeStore: RemoteRecoveryOutcomeStore(_ThrowingKv()),
+        outcomeRepository: RemoteRecoveryOutcomeStore(_ThrowingKv()),
       );
 
       final result = await usecase.execute(defaultCreatedWalletIds: const {});
 
       expect(result.status, RemoteKeychainRecoveryStatus.restored);
     });
+
+    test(
+      'a stalled persistence write cannot extend recovery completion',
+      () async {
+        final usecase = RecoverRemoteWalletBackupsUsecase(
+          (_) async => const RemoteKeychainRecoveryResult(
+            status: RemoteKeychainRecoveryStatus.restored,
+          ),
+          walletBackup,
+          metadataBackup,
+          outcomeRepository: RemoteRecoveryOutcomeStore(_HangingKv()),
+        );
+
+        final result = await usecase
+            .execute(defaultCreatedWalletIds: const {})
+            .timeout(const Duration(seconds: 1));
+
+        expect(result.status, RemoteKeychainRecoveryStatus.restored);
+      },
+    );
   });
 }
 
@@ -387,6 +408,12 @@ final class _ThrowingKv extends _MemoryKv {
   Future<void> saveValue({required String key, required String value}) async {
     throw StateError('disk full');
   }
+}
+
+final class _HangingKv extends _MemoryKv {
+  @override
+  Future<void> saveValue({required String key, required String value}) =>
+      Completer<void>().future;
 }
 
 RecoverRemoteWalletBackupsUsecase _usecase({

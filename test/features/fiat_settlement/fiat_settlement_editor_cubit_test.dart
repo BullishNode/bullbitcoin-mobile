@@ -161,6 +161,39 @@ void main() {
     expect(cubit.state.status, FiatSettlementEditorStatus.success);
   });
 
+  test('retry after an outcome-unknown disable calls disable again', () async {
+    when(() => facade.configuration()).thenAnswer(
+      (_) async => Ok(_view(product, 50, currency: FiatCurrency.cad)),
+    );
+    var attempts = 0;
+    when(() => facade.disable(product: any(named: 'product'))).thenAnswer((
+      _,
+    ) async {
+      attempts++;
+      return attempts == 1
+          ? const Err(FiatSettlementFailure.bullnymUnreachable())
+          : Ok(_view(product, 0));
+    });
+    final cubit = build();
+    await cubit.load();
+
+    await cubit.disable();
+    expect(cubit.state.mode, FiatSettlementReceiveMode.bitcoin);
+    expect(cubit.state.failure, isNotNull);
+
+    await cubit.save();
+
+    verify(() => facade.disable(product: product)).called(2);
+    verifyNever(
+      () => facade.set(
+        product: any(named: 'product'),
+        fiatPercentage: any(named: 'fiatPercentage'),
+        currency: any(named: 'currency'),
+      ),
+    );
+    expect(cubit.state.status, FiatSettlementEditorStatus.success);
+  });
+
   test('percentage-only change on same currency skips acceptance', () async {
     when(() => facade.configuration()).thenAnswer(
       (_) async => Ok(_view(product, 50, currency: FiatCurrency.cad)),

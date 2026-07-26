@@ -57,8 +57,6 @@ class GetPaidLocator {
     locator.registerFactory<GetPaidTransactionHistoryCubit>(
       () => GetPaidTransactionHistoryCubit(
         listTransactions: locator<ListGetPaidTransactionsUsecase>(),
-        fiatSettlement: locator<FiatSettlementFacade>(),
-        getSettings: locator<GetSettingsUsecase>(),
       ),
     );
     locator.registerFactory<GetPaidDashboardCubit>(
