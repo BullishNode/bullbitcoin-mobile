@@ -107,6 +107,20 @@ void main() {
     }
   });
 
+  test('allocates user Nostr identities around the app-owned range', () {
+    expect(registry.nostrUserKeyPath(1), "128002'/1'/1'");
+    expect(registry.nostrUserKeyPath(99), "128002'/99'/1'");
+    expect(registry.nostrUserKeyPath(200), "128002'/200'/1'");
+    expect(registry.isNostrUserKeyPath("128002'/7'/1'"), isTrue);
+    expect(registry.nostrUserKeyIdentity("128002'/7'/1'"), 7);
+    expect(registry.isNostrUserKeyPath("128002'/0'/1'"), isFalse);
+    expect(registry.isNostrUserKeyPath("128002'/100'/1'"), isFalse);
+    expect(registry.isNostrUserKeyPath("128002'/7'/0'"), isFalse);
+    expect(() => registry.nostrUserKeyPath(0), throwsArgumentError);
+    expect(() => registry.nostrUserKeyPath(100), throwsArgumentError);
+    expect(() => registry.nostrUserKeyPath(199), throwsArgumentError);
+  });
+
   test('models wallet backup encryption as a separate app 1642 key', () {
     final reservation = _keyReservation('wallet_backup_encryption_key');
 

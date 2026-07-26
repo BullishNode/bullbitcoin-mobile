@@ -11,4 +11,18 @@ abstract interface class KeychainManifestEntryRepository {
   Future<void> insertWalletMaterializationRecords(
     List<KeychainManifestWalletMaterializationRecord> records,
   );
+
+  Future<List<KeychainManifestNostrKeyRecord>>
+  fetchNostrKeyRecordsByParentFingerprint(String parentFingerprint);
+
+  Future<void> insertNostrKeyRecords(
+    List<KeychainManifestNostrKeyRecord> records,
+  );
+
+  Future<void> updateNostrKeyPurpose({
+    required String parentFingerprint,
+    required String entryId,
+    required String purpose,
+    required int updatedAt,
+  });
 }

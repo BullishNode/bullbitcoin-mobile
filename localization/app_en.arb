@@ -17315,5 +17315,45 @@
   "metadataBackupRetryBackup": "Retry backup",
   "@metadataBackupRetryBackup": {
     "description": "Metadata backup page: retry failed publication action"
+  },
+  "settingsNostrKeysTitle": "Nostr keys",
+  "@settingsNostrKeysTitle": {
+    "description": "Settings entry and screen title for Nostr keys"
+  },
+  "settingsNostrKeysEmpty": "No Nostr keys have been created yet.",
+  "@settingsNostrKeysEmpty": {
+    "description": "Empty Nostr keys screen message"
+  },
+  "settingsNostrKeysCreate": "Create Nostr key",
+  "@settingsNostrKeysCreate": {
+    "description": "Button to create a user Nostr key"
+  },
+  "settingsNostrKeysPurpose": "Purpose",
+  "@settingsNostrKeysPurpose": {
+    "description": "Nostr key purpose label"
+  },
+  "settingsNostrKeysPurposeHint": "e.g. personal identity",
+  "@settingsNostrKeysPurposeHint": {
+    "description": "Nostr key purpose input hint"
+  },
+  "settingsNostrKeysSave": "Save",
+  "@settingsNostrKeysSave": {
+    "description": "Save Nostr key purpose"
+  },
+  "settingsNostrKeysShowPrivate": "Show nsec",
+  "@settingsNostrKeysShowPrivate": {
+    "description": "Reveal a Nostr private key"
+  },
+  "settingsNostrKeysCopy": "Copy nsec",
+  "@settingsNostrKeysCopy": {
+    "description": "Copy a revealed Nostr private key"
+  },
+  "settingsNostrKeysCreated": "Nostr key created",
+  "@settingsNostrKeysCreated": {
+    "description": "Confirmation after creating a Nostr key"
+  },
+  "settingsNostrKeysFailure": "Nostr key action failed. Try again.",
+  "@settingsNostrKeysFailure": {
+    "description": "Generic failure shown for Nostr key settings actions"
   }
 }

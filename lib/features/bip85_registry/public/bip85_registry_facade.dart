@@ -40,6 +40,17 @@ class Bip85RegistryFacade {
 
   int get nostrApplicationNumber => Bip85Reservations.nostrApplicationNumber;
 
+  String get nostrUserKeyReservationId =>
+      Bip85Reservations.nostrUserKeyReservationId;
+
+  int get nostrUserKeyApplication => nostrApplicationNumber;
+
+  int get nostrUserIdentityStart => Bip85Reservations.nostrUserIdentityStart;
+
+  int get nostrUserIdentityEnd => Bip85Reservations.nostrUserIdentityEnd;
+
+  int get nostrUserAccount => Bip85Reservations.nostrUserAccount;
+
   int get nostrAppReservedIdentityStart =>
       Bip85Reservations.nostrAppReservedIdentityStart;
 
@@ -49,6 +60,42 @@ class Bip85RegistryFacade {
   bool isNostrAppReservedIdentity(int identity) =>
       identity >= nostrAppReservedIdentityStart &&
       identity <= nostrAppReservedIdentityEnd;
+
+  String nostrUserKeyPath(int identity) {
+    if (identity < nostrUserIdentityStart ||
+        identity > nostrUserIdentityEnd ||
+        isNostrAppReservedIdentity(identity)) {
+      throw ArgumentError.value(identity, 'identity');
+    }
+    return "$nostrUserKeyApplication'/$identity'/$nostrUserAccount'";
+  }
+
+  bool isNostrUserKeyPath(String path) {
+    final normalized = path.trim();
+    final identity = nostrUserKeyIdentity(normalized);
+    return identity != null && nostrUserKeyPath(identity) == normalized;
+  }
+
+  int? nostrUserKeyIdentity(String path) {
+    final normalized = path.trim();
+    final parts = normalized.split('/');
+    if (parts.length != 3 ||
+        parts[0] != "$nostrUserKeyApplication'" ||
+        parts[2] != "$nostrUserAccount'") {
+      return null;
+    }
+    final identityPart = parts[1];
+    if (!identityPart.endsWith("'") || identityPart.length == 1) return null;
+    final identity = int.tryParse(
+      identityPart.substring(0, identityPart.length - 1),
+    );
+    return identity != null &&
+            identity >= nostrUserIdentityStart &&
+            identity <= nostrUserIdentityEnd &&
+            !isNostrAppReservedIdentity(identity)
+        ? identity
+        : null;
+  }
 
   Bip85Reservation? reservationById(String id) {
     for (final reservation in reservations) {

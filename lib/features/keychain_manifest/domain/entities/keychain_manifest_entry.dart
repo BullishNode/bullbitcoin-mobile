@@ -154,6 +154,81 @@ class KeychainManifestWalletMaterializationRecord {
   }
 }
 
+enum KeychainManifestNostrKeyKind { reserved, userGenerated }
+
+class KeychainManifestNostrKeyMaterialization {
+  final String entryId;
+  final String publicKeyHex;
+  final KeychainManifestNostrKeyKind keyKind;
+  final String purpose;
+  final int createdAt;
+  final int updatedAt;
+
+  KeychainManifestNostrKeyMaterialization({
+    required this.entryId,
+    required String publicKeyHex,
+    required this.keyKind,
+    required String purpose,
+    required this.createdAt,
+    required this.updatedAt,
+  }) : publicKeyHex = publicKeyHex.toLowerCase(),
+       purpose = purpose.trim() {
+    if (entryId.trim().isEmpty) {
+      throw KeychainManifestInvalidEntryException('entry id is required');
+    }
+    if (!RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(publicKeyHex)) {
+      throw KeychainManifestInvalidEntryException(
+        'Nostr public key must be 32-byte hex',
+      );
+    }
+    if (this.purpose.isEmpty || this.purpose.length > 80) {
+      throw KeychainManifestInvalidEntryException(
+        'Nostr key purpose must contain 1 to 80 characters',
+      );
+    }
+    if (this.purpose.contains(RegExp(r'[\u0000-\u001F\u007F]'))) {
+      throw KeychainManifestInvalidEntryException(
+        'Nostr key purpose contains a control character',
+      );
+    }
+    if (createdAt < 0 || updatedAt < 0) {
+      throw KeychainManifestInvalidEntryException(
+        'timestamps must be non-negative',
+      );
+    }
+  }
+
+  bool sameIdentityAs(KeychainManifestNostrKeyMaterialization other) {
+    return entryId == other.entryId &&
+        publicKeyHex == other.publicKeyHex &&
+        keyKind == other.keyKind &&
+        createdAt == other.createdAt;
+  }
+
+  bool sameRecordAs(KeychainManifestNostrKeyMaterialization other) {
+    return sameIdentityAs(other) &&
+        purpose == other.purpose &&
+        updatedAt == other.updatedAt;
+  }
+}
+
+class KeychainManifestNostrKeyRecord {
+  final KeychainManifestEntry entry;
+  final KeychainManifestNostrKeyMaterialization nostrKeyMaterialization;
+
+  const KeychainManifestNostrKeyRecord({
+    required this.entry,
+    required this.nostrKeyMaterialization,
+  });
+
+  String get entryId => entry.entryId;
+
+  bool sameRecordAs(KeychainManifestNostrKeyRecord other) {
+    return entry.sameRecordAs(other.entry) &&
+        nostrKeyMaterialization.sameRecordAs(other.nostrKeyMaterialization);
+  }
+}
+
 class KeychainManifestEntryIdentity {
   final String parentFingerprint;
   final String bip85DerivationPath;

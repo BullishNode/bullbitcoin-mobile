@@ -51,6 +51,7 @@ part 'sqlite_database.g.dart';
     KeychainManifestEntries,
     KeychainManifestWalletBindings,
     WalletBackupStates,
+    KeychainManifestNostrKeys,
     Recoverbull,
     Prices,
     FrozenUtxos,
@@ -103,7 +104,7 @@ class SqliteDatabase extends _$SqliteDatabase {
   /// Current drift schema version. Bump in lockstep with adding a new
   /// `Schema<N-1>To<N>.migrate` step in [migration] and regenerating the
   /// schema snapshots (`make drift-migrations`).
-  static const int currentSchemaVersion = 18;
+  static const int currentSchemaVersion = 19;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -164,6 +165,7 @@ class SqliteDatabase extends _$SqliteDatabase {
         from15To16: _reportingMigration('from15To16', Schema15To16.migrate),
         from16To17: _reportingMigration('from16To17', Schema16To17.migrate),
         from17To18: _reportingMigration('from17To18', Schema17To18.migrate),
+        from18To19: _reportingMigration('from18To19', Schema18To19.migrate),
       ),
       // Backfills `Report.fromVersion` for installs that predate the
       // `_lastVersionKey` SharedPreferences marker (added in v6.6.0).
