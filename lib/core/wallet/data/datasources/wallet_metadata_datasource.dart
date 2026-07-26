@@ -40,6 +40,34 @@ class WalletMetadataDatasource {
     }
   }
 
+  /// Applies recovered preference fields only while the classified local
+  /// preference projection is still current.
+  Future<Set<String>> storeRecoveredPreferencesConditionally(
+    List<WalletMetadataPreferenceRecoveryUpdate> updates,
+  ) async {
+    if (updates.isEmpty) return const {};
+    final conflicted = <String>{};
+    var changed = false;
+    await _sqlite.transaction(() async {
+      for (final update in updates) {
+        final current = await fetch(update.walletRef);
+        if (current == null || !_matchesExpectedPreferences(current, update)) {
+          conflicted.add(update.walletRef);
+          continue;
+        }
+        final recovered = current.copyWith(
+          label: update.recoveredLabel,
+          hideOnHome: update.recoveredHideOnHome,
+          autoSweepEnabled: update.recoveredAutoSweepEnabled,
+        );
+        if (_preferencesDiffer(current, recovered)) changed = true;
+        await _store(recovered);
+      }
+    });
+    if (changed) _preferenceChanges.add(null);
+    return Set.unmodifiable(conflicted);
+  }
+
   Future<WalletMetadataModel?> fetch(String walletId) async {
     final row = await _sqlite.managers.walletMetadatas
         .filter((e) => e.id(walletId))
@@ -66,6 +94,34 @@ class WalletMetadataDatasource {
     }
   }
 }
+
+final class WalletMetadataPreferenceRecoveryUpdate {
+  final String walletRef;
+  final String? expectedLabel;
+  final bool? expectedHideOnHome;
+  final bool? expectedAutoSweepEnabled;
+  final String? recoveredLabel;
+  final bool? recoveredHideOnHome;
+  final bool? recoveredAutoSweepEnabled;
+
+  const WalletMetadataPreferenceRecoveryUpdate({
+    required this.walletRef,
+    required this.expectedLabel,
+    required this.expectedHideOnHome,
+    required this.expectedAutoSweepEnabled,
+    required this.recoveredLabel,
+    required this.recoveredHideOnHome,
+    required this.recoveredAutoSweepEnabled,
+  });
+}
+
+bool _matchesExpectedPreferences(
+  WalletMetadataModel current,
+  WalletMetadataPreferenceRecoveryUpdate update,
+) =>
+    current.label == update.expectedLabel &&
+    current.hideOnHome == update.expectedHideOnHome &&
+    current.autoSweepEnabled == update.expectedAutoSweepEnabled;
 
 bool _preferencesDiffer(
   WalletMetadataModel? previous,

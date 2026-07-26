@@ -38,6 +38,52 @@ class DriftLabelsRepositoryAdapter implements LabelsRepositoryPort {
     if (labels.isNotEmpty) _changes.add(null);
   }
 
+  @override
+  Future<LabelRecoveryWriteResult> restoreMissing(List<NewLabel> labels) async {
+    final identities = <(String, String)>{};
+    for (final label in labels) {
+      _validate(label);
+      if (!identities.add((label.label, label.reference))) {
+        throw const FormatException('Duplicate label recovery identity');
+      }
+    }
+
+    final result = await _database.transaction(() async {
+      var restoredCount = 0;
+      var alreadyPresentCount = 0;
+      var preservedLocalConflictCount = 0;
+      for (final label in labels) {
+        final query = _database.select(_database.labels)
+          ..where(
+            (row) =>
+                row.label.equals(label.label) &
+                row.reference.equals(label.reference),
+          );
+        final currentRow = await query.getSingleOrNull();
+        if (currentRow == null) {
+          await _database
+              .into(_database.labels)
+              .insert(LabelMapper.newLabelEntityToCompanion(label));
+          restoredCount++;
+          continue;
+        }
+        final current = LabelMapper.toLabelEntity(currentRow);
+        if (_sameLabel(current, label)) {
+          alreadyPresentCount++;
+        } else {
+          preservedLocalConflictCount++;
+        }
+      }
+      return LabelRecoveryWriteResult(
+        restoredCount: restoredCount,
+        alreadyPresentCount: alreadyPresentCount,
+        preservedLocalConflictCount: preservedLocalConflictCount,
+      );
+    });
+    if (result.restoredCount > 0) _changes.add(null);
+    return result;
+  }
+
   Future<LabelEntity> _store(NewLabel newLabel) async {
     final companion = LabelMapper.newLabelEntityToCompanion(newLabel);
     final id = await _database
@@ -107,3 +153,9 @@ class DriftLabelsRepositoryAdapter implements LabelsRepositoryPort {
     return rows.map((row) => LabelMapper.toLabelEntity(row)).toList();
   }
 }
+
+bool _sameLabel(LabelEntity current, NewLabel recovered) =>
+    current.type == recovered.type &&
+    current.reference == recovered.reference &&
+    current.label == recovered.label &&
+    current.origin == recovered.origin;

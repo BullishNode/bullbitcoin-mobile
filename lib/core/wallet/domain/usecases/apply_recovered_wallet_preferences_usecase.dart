@@ -10,9 +10,8 @@ final class ApplyRecoveredWalletPreferencesUsecase {
   const ApplyRecoveredWalletPreferencesUsecase(this._repository);
 
   @useResult
-  Future<Result<Null, WalletPreferencesFailure>> execute(
-    List<WalletPreferences> preferences,
-  ) {
-    return _repository.applyRecovered(preferences);
+  Future<Result<WalletPreferencesRecoveryApplyResult, WalletPreferencesFailure>>
+  execute(List<WalletPreferencesRecoveryUpdate> updates) {
+    return _repository.applyRecovered(updates);
   }
 }

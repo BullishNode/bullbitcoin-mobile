@@ -145,7 +145,7 @@ final class WalletPreferencesMetadataContributor
       final currentByWallet = {
         for (final preference in current) preference.walletRef: preference,
       };
-      final toApply = <WalletPreferences>[];
+      final updates = <WalletPreferencesRecoveryUpdate>[];
       var restoredCount = 0;
       var alreadyPresentCount = 0;
       var conflictCount = 0;
@@ -160,26 +160,52 @@ final class WalletPreferencesMetadataContributor
         );
         switch (disposition) {
           case WalletPreferencesRestoreDisposition.applyToCreatedWallet:
-            toApply.add(preference);
-            if (_samePreferences(existing!, preference)) {
-              alreadyPresentCount++;
-            } else {
-              restoredCount++;
-            }
+            updates.add(
+              WalletPreferencesRecoveryUpdate(
+                expected: existing!,
+                recovered: preference,
+              ),
+            );
           case WalletPreferencesRestoreDisposition.conflictWithExistingWallet:
             conflictCount++;
           case WalletPreferencesRestoreDisposition.deferredMissingWallet:
             deferredCount++;
         }
       }
-      final applyResult = await _applyPreferences.execute(toApply);
-      if (applyResult case Err()) {
+      final applyResult = await _applyPreferences.execute(updates);
+      final WalletPreferencesRecoveryApplyResult applied;
+      switch (applyResult) {
+        case Ok(:final value):
+          applied = value;
+        case Err():
+          return const Err(WalletMetadataBackupContributorFailure(type));
+      }
+      final expectedWalletRefs = {
+        for (final update in updates) update.recovered.walletRef,
+      };
+      final reportedWalletRefs = applied.appliedWalletRefs.union(
+        applied.conflictedWalletRefs,
+      );
+      if (reportedWalletRefs.length != updates.length ||
+          !reportedWalletRefs.containsAll(expectedWalletRefs)) {
         return const Err(WalletMetadataBackupContributorFailure(type));
+      }
+      for (final update in updates) {
+        final walletRef = update.recovered.walletRef;
+        if (applied.conflictedWalletRefs.contains(walletRef)) {
+          conflictCount++;
+        } else if (_samePreferences(update.expected, update.recovered)) {
+          alreadyPresentCount++;
+        } else {
+          restoredCount++;
+        }
       }
 
       final projected = Map<String, WalletPreferences>.of(currentByWallet);
-      for (final preference in toApply) {
-        projected[preference.walletRef] = preference;
+      for (final update in updates) {
+        if (applied.appliedWalletRefs.contains(update.recovered.walletRef)) {
+          projected[update.recovered.walletRef] = update.recovered;
+        }
       }
       final projectedRecords = projected.values
           .where((preference) => preference.hasRepresentedValue)
