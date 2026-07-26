@@ -4,12 +4,16 @@ import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/backup_settings/domain/backup_settings_failure.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/backup_wallet_now_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/delete_wallet_backup_usecase.dart';
+import 'package:bb_mobile/features/backup_settings/domain/usecases/retry_wallet_backup_recovery_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/set_wallet_backup_enabled_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/watch_wallet_backup_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/presentation/cubit/wallet_backup_settings_cubit.dart';
 import 'package:bb_mobile/features/backup_settings/presentation/cubit/wallet_backup_settings_state.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/public/get_last_remote_recovery_outcome_usecase.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 
 void main() {
   late _FakeWalletBackupFacade backup;
@@ -92,6 +96,105 @@ void main() {
 
     expect(watched.hasListener, isFalse);
   });
+
+  test(
+    'retry applies its returned outcome without rereading persistence',
+    () async {
+      final getLast = _MockGetLastRecoveryOutcome();
+      final remoteRecovery = _MockRemoteRecovery();
+      when(() => getLast.execute()).thenAnswer(
+        (_) async => const RemoteRecoveryOutcome(
+          status: RemoteKeychainRecoveryStatus.partiallyRestored,
+          atUnix: 1,
+          restoredCount: 1,
+          failedCount: 1,
+        ),
+      );
+      when(
+        () => remoteRecovery.recover(
+          defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
+        ),
+      ).thenAnswer(
+        (_) async => const RemoteKeychainRecoveryResult(
+          status: RemoteKeychainRecoveryStatus.restored,
+          restoredCount: 2,
+        ),
+      );
+      await cubit.close();
+      cubit = WalletBackupSettingsCubit(
+        WatchWalletBackupUsecase(backup),
+        SetWalletBackupEnabledUsecase(backup),
+        BackupWalletNowUsecase(backup),
+        DeleteWalletBackupUsecase(backup),
+        getLast,
+        RetryWalletBackupRecoveryUsecase(remoteRecovery),
+      );
+      await cubit.load();
+      backup.states.add(
+        Ok(_state(enabled: true, dirty: false, recoveryBlocked: true)),
+      );
+      await pumpEventQueue();
+
+      await cubit.retryRecovery();
+
+      expect(
+        cubit.state.lastRecoveryOutcome?.status,
+        RemoteKeychainRecoveryStatus.restored,
+      );
+      expect(cubit.state.lastRecoveryOutcome?.restoredCount, 2);
+      expect(cubit.state.operation, WalletBackupSettingsOperation.idle);
+      verify(() => getLast.execute()).called(1);
+    },
+  );
+
+  test('transient recovery failure remains retryable while fenced', () async {
+    final getLast = _MockGetLastRecoveryOutcome();
+    final remoteRecovery = _MockRemoteRecovery();
+    when(() => getLast.execute()).thenAnswer(
+      (_) async => const RemoteRecoveryOutcome(
+        status: RemoteKeychainRecoveryStatus.unavailable,
+        atUnix: 1,
+        restoredCount: 0,
+        failedCount: 1,
+      ),
+    );
+    when(
+      () => remoteRecovery.recover(
+        defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
+      ),
+    ).thenAnswer(
+      (_) async => const RemoteKeychainRecoveryResult(
+        status: RemoteKeychainRecoveryStatus.unavailable,
+        failedCount: 1,
+      ),
+    );
+    await cubit.close();
+    cubit = WalletBackupSettingsCubit(
+      WatchWalletBackupUsecase(backup),
+      SetWalletBackupEnabledUsecase(backup),
+      BackupWalletNowUsecase(backup),
+      DeleteWalletBackupUsecase(backup),
+      getLast,
+      RetryWalletBackupRecoveryUsecase(remoteRecovery),
+    );
+    await cubit.load();
+    backup.states.add(
+      Ok(_state(enabled: true, dirty: false, recoveryBlocked: true)),
+    );
+    await pumpEventQueue();
+
+    expect(cubit.state.canRetryRecovery, isTrue);
+    await cubit.retryRecovery();
+
+    expect(
+      cubit.state.lastRecoveryOutcome?.status,
+      RemoteKeychainRecoveryStatus.unavailable,
+    );
+    expect(cubit.state.canRetryRecovery, isTrue);
+    verify(
+      () => remoteRecovery.recover(defaultCreatedWalletIds: const {}),
+    ).called(1);
+  });
 }
 
 WalletBackupSettingsCubit _cubit(WalletBackupFacade backup) {
@@ -103,7 +206,11 @@ WalletBackupSettingsCubit _cubit(WalletBackupFacade backup) {
   );
 }
 
-WalletBackupState _state({required bool enabled, required bool dirty}) {
+WalletBackupState _state({
+  required bool enabled,
+  required bool dirty,
+  bool recoveryBlocked = false,
+}) {
   return WalletBackupState(
     enabled: enabled,
     dirty: dirty,
@@ -114,6 +221,7 @@ WalletBackupState _state({required bool enabled, required bool dirty}) {
     remoteEtag: null,
     contentHash: null,
     unsupportedVersion: null,
+    recoveryBlocked: recoveryBlocked,
   );
 }
 
@@ -164,3 +272,9 @@ final class _FakeWalletBackupFacade implements WalletBackupFacade {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+final class _MockGetLastRecoveryOutcome extends Mock
+    implements GetLastRemoteRecoveryOutcomeUsecase {}
+
+final class _MockRemoteRecovery extends Mock
+    implements RemoteKeychainRecoveryFacade {}

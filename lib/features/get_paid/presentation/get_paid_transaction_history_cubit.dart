@@ -9,6 +9,7 @@ class GetPaidTransactionHistoryCubit
   static const int pageSize = 20;
 
   final ListGetPaidTransactionsUsecase _listTransactions;
+
   int _generation = 0;
   Set<String> _seenCursors = const {};
 

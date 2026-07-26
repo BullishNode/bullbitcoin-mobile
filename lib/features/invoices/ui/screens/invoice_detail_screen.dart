@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/utils/amount_formatting.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
@@ -86,6 +87,8 @@ class InvoiceDetailScreen extends StatelessWidget {
             context.loc.invoiceStatusLabel,
             invoiceStatusText(context, status),
           ),
+          if (snapshot.isAwaitingConfirmation)
+            _supportingStatus(context, context.loc.invoiceAwaitingConfirmation),
           if (invoiceSettlementSupportingText(context, snapshot.settlementState)
               case final settlementText?)
             _supportingStatus(context, settlementText),
@@ -95,7 +98,7 @@ class InvoiceDetailScreen extends StatelessWidget {
           _row(
             context,
             context.loc.invoiceAmountLabel,
-            context.loc.invoiceAmountSats(snapshot.amountSat),
+            _faceAmountText(context, snapshot),
           ),
           if (snapshot.paidAmountSat case final paidAmountSat?)
             _row(
@@ -109,19 +112,21 @@ class InvoiceDetailScreen extends StatelessWidget {
               context.loc.invoicePaymentRemainingLabel,
               context.loc.invoiceAmountSats(snapshot.remainingAmountSat),
             ),
-          if (snapshot.paidAmountSat case final paidAmountSat?
-              when paidAmountSat > snapshot.amountSat)
+          if (snapshot.overpaidAmountSat case final overpaidAmountSat?)
             _row(
               context,
               context.loc.invoicePaymentOverpaidByLabel,
-              context.loc.invoiceAmountSats(paidAmountSat - snapshot.amountSat),
+              context.loc.invoiceAmountSats(overpaidAmountSat),
             ),
           const Divider(),
           _expiry(context, snapshot),
           const Divider(),
           if (unsupported)
             _unsupportedStatus(context)
-          else if (snapshot.isFiatFixed) ...[
+          // A payer quote (and its unavailability) is only meaningful while the
+          // invoice is genuinely awaiting a payer; once payment evidence exists
+          // or the invoice is terminal the quote is irrelevant.
+          else if (snapshot.isFiatFixed && snapshot.isAwaitingPayer) ...[
             _quoteBlock(context, state, cubit, snapshot),
             const Divider(),
           ],
@@ -460,6 +465,24 @@ class InvoiceDetailScreen extends StatelessWidget {
               ),
       ],
     );
+  }
+
+  /// The invoice face amount. Fiat-priced invoices headline their fiat face
+  /// value (the locked sat target is 0 on the row, so it must never render as
+  /// "0 sats"); sat-priced invoices headline the sat target.
+  String _faceAmountText(BuildContext context, InvoiceStatusSnapshot snapshot) {
+    if (snapshot.hasFiatFace) {
+      // Bull Bitcoin fiat currencies use 2-decimal minor units, matching the
+      // app's fixed 2-decimal fiat rendering.
+      return FormatAmount.fiat(
+        snapshot.fiatAmountMinor! / 100,
+        snapshot.fiatCurrency!,
+      );
+    }
+    if (snapshot.amountSat > 0) {
+      return context.loc.invoiceAmountSats(snapshot.amountSat);
+    }
+    return context.loc.invoiceAmountUnavailable;
   }
 
   Widget _row(BuildContext context, String label, String value) {

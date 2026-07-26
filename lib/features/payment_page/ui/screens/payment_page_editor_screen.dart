@@ -5,6 +5,11 @@ import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
+import 'package:bb_mobile/core/widgets/bottom_sheet/x.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_activation_offer.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_tile.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/payment_page/domain/payment_page_validation.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
@@ -29,6 +34,14 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
   final _twitter = TextEditingController();
   final _instagram = TextEditingController();
   final _alias = TextEditingController();
+
+  /// The edit form is collapsed behind an Edit button on an existing (live or
+  /// archived) page; creation stays form-first. A failed save keeps it open.
+  bool _editing = false;
+
+  /// Snapshot of the editable fields captured when Edit is opened, so a cancel
+  /// can detect unsaved changes and confirm before discarding them.
+  _EditSnapshot? _snapshot;
 
   @override
   void initState() {
@@ -60,31 +73,43 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<PaymentPageCubit, PaymentPageState>(
+    return BlocListener<PaymentPageCubit, PaymentPageState>(
+      // Offer the fiat chooser exactly once, on the creation transition from the
+      // create form to a live (edit) page — never on later edits of an existing
+      // page, and never on a reload (which passes through `loading` first).
       listenWhen: (previous, current) =>
-          previous.failure != current.failure && current.failure != null,
-      listener: (context, state) {
-        final failure = state.failure;
-        if (failure == null) return;
-        SnackBarUtils.showSnackBar(context, failure.toTranslated(context));
-      },
-      builder: (context, state) {
-        _syncControllers(state);
-        return PopScope(
-          canPop: !state.submitting,
-          onPopInvokedWithResult: (didPop, _) {
-            if (didPop || !state.submitting) return;
-            SnackBarUtils.showSnackBar(
-              context,
-              context.loc.paymentPageOperationInProgress,
-            );
-          },
-          child: Scaffold(
-            appBar: AppBar(title: Text(context.loc.paymentPageScreenTitle)),
-            body: SafeArea(child: _body(context, state)),
-          ),
-        );
-      },
+          previous.status == PaymentPageStatus.create &&
+          current.status == PaymentPageStatus.edit,
+      listener: (context, _) => offerFiatSettlementAfterActivation(
+        context,
+        FiatSettlementProduct.paymentPage,
+      ),
+      child: BlocConsumer<PaymentPageCubit, PaymentPageState>(
+        listenWhen: (previous, current) =>
+            previous.failure != current.failure && current.failure != null,
+        listener: (context, state) {
+          final failure = state.failure;
+          if (failure == null) return;
+          SnackBarUtils.showSnackBar(context, failure.toTranslated(context));
+        },
+        builder: (context, state) {
+          _syncControllers(state);
+          return PopScope(
+            canPop: !state.submitting,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop || !state.submitting) return;
+              SnackBarUtils.showSnackBar(
+                context,
+                context.loc.paymentPageOperationInProgress,
+              );
+            },
+            child: Scaffold(
+              appBar: AppBar(title: Text(context.loc.paymentPageScreenTitle)),
+              body: SafeArea(child: _body(context, state)),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -195,9 +220,13 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     bool isArchived = false,
   }) {
     final isCreate = state.status == PaymentPageStatus.create;
+    // Creation is form-first; an existing page keeps the form collapsed behind
+    // the Edit button until the user chooses to edit.
+    final showForm = isCreate || _editing;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // Product section.
         if (isArchived)
           _StatusNotice(
             icon: Icons.pause_circle_outline,
@@ -220,116 +249,161 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           const Gap(16),
         ],
         _permanentAliasSection(context, state, cubit),
-        if (!isCreate) ...[
-          const Gap(16),
-          _SurfaceOnlineControl(
-            online: !isArchived,
-            saving: state.submitting,
-            onChanged: (online) =>
-                _setOnline(cubit: cubit, state: state, online: online),
-          ),
-        ],
-        const Gap(20),
-        _byteCountedField(
-          context: context,
-          controller: _header,
-          label: context.loc.paymentPageHeaderLabel,
-          hint: context.loc.paymentPageHeaderHint,
-          value: state.header,
-          maxBytes: paymentPageHeaderMaxBytes,
-          enabled: !state.submitting,
-          onChanged: cubit.headerChanged,
-          errorText: state.invalidField == PaymentPageField.header
-              ? context.loc.paymentPageHeaderError
-              : null,
-        ),
-        const Gap(16),
-        _characterCountedDescriptionField(
-          context: context,
-          controller: _description,
-          label: context.loc.paymentPageDescriptionLabel,
-          hint: context.loc.paymentPageDescriptionHint,
-          value: state.description,
-          enabled: !state.submitting,
-          onChanged: cubit.descriptionChanged,
-          errorText: state.invalidField == PaymentPageField.description
-              ? context.loc.paymentPageDescriptionError
-              : null,
-        ),
-        const Gap(16),
-        _currencyField(context, state, cubit),
-        const Gap(16),
-        TextField(
-          controller: _website,
-          enabled: !state.submitting,
-          keyboardType: TextInputType.url,
-          autocorrect: false,
-          onChanged: cubit.websiteChanged,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            labelText: context.loc.paymentPageWebsiteLabel,
-            errorText: state.invalidField == PaymentPageField.website
-                ? context.loc.paymentPageWebsiteError
-                : null,
-          ),
-        ),
-        const Gap(16),
-        TextField(
-          controller: _twitter,
-          enabled: !state.submitting,
-          autocorrect: false,
-          enableSuggestions: false,
-          onChanged: cubit.twitterChanged,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            labelText: context.loc.paymentPageTwitterLabel,
-            errorText: state.invalidField == PaymentPageField.twitter
-                ? context.loc.paymentPageTwitterError
-                : null,
-          ),
-        ),
-        const Gap(16),
-        TextField(
-          controller: _instagram,
-          enabled: !state.submitting,
-          autocorrect: false,
-          enableSuggestions: false,
-          onChanged: cubit.instagramChanged,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            labelText: context.loc.paymentPageInstagramLabel,
-            errorText: state.invalidField == PaymentPageField.instagram
-                ? context.loc.paymentPageInstagramError
-                : null,
-          ),
-        ),
+        // Status + link.
         if (!isCreate && state.publicUrl != null) ...[
           const Gap(24),
           _shareRow(context, state.publicUrl!),
         ],
-        const Gap(24),
-        BBButton.big(
-          label: state.submitting
-              ? context.loc.paymentPageSubmitting
-              : isArchived
-              ? context.loc.paymentPageSaveAndTurnOnButton
-              : isCreate
-              ? context.loc.paymentPageCreateButton
-              : context.loc.paymentPageSaveButton,
-          onPressed: () => _save(cubit),
-          // Always tappable: save() validates on tap and surfaces the specific
-          // invalid field, rather than silently disabling with no feedback.
-          disabled: state.submitting,
-          bgColor: context.appColors.primary,
-          textColor: context.appColors.onPrimary,
-        ),
-        if (state.walletBehavior != null)
-          _WalletBehaviorControls(
-            behavior: state.walletBehavior!,
-            saving: state.walletBehaviorSaving,
+        // Fiat conversion.
+        if (!isCreate) ...[
+          const Gap(24),
+          const FiatSettlementEntryTile(
+            product: FiatSettlementProduct.paymentPage,
           ),
+        ],
+        // Edit — the form, collapsed behind a button on an existing page.
+        const Gap(24),
+        if (showForm)
+          ..._editFields(context, state, cubit, isCreate: isCreate)
+        else
+          BBButton.big(
+            key: const Key('payment_page_edit_button'),
+            label: context.loc.getPaidEditButton,
+            iconData: Icons.edit_outlined,
+            iconFirst: true,
+            onPressed: () => _beginEdit(state),
+            bgColor: context.appColors.secondary,
+            textColor: context.appColors.onSecondary,
+          ),
+        // Advanced settings — the shared sheet (turn on/off + wallet behavior).
+        if (!isCreate) ...[
+          const Gap(24),
+          _AdvancedSettingsButton(
+            online: !isArchived,
+            onlineSaving: state.submitting,
+            onOnlineChanged: (online) =>
+                _setOnline(cubit: cubit, state: state, online: online),
+            walletBehavior: state.walletBehavior,
+            walletBehaviorSaving: state.walletBehaviorSaving,
+          ),
+        ],
       ],
     );
+  }
+
+  /// The editable page fields plus the primary save action. On an existing page
+  /// this block is revealed by the Edit button and offers a Cancel that
+  /// confirms before discarding unsaved changes; creation stays form-first.
+  List<Widget> _editFields(
+    BuildContext context,
+    PaymentPageState state,
+    PaymentPageCubit cubit, {
+    required bool isCreate,
+  }) {
+    final isArchived = state.isArchived;
+    return [
+      _byteCountedField(
+        context: context,
+        controller: _header,
+        label: context.loc.paymentPageHeaderLabel,
+        hint: context.loc.paymentPageHeaderHint,
+        value: state.header,
+        maxBytes: paymentPageHeaderMaxBytes,
+        enabled: !state.submitting,
+        onChanged: cubit.headerChanged,
+        errorText: state.invalidField == PaymentPageField.header
+            ? context.loc.paymentPageHeaderError
+            : null,
+      ),
+      const Gap(16),
+      _characterCountedDescriptionField(
+        context: context,
+        controller: _description,
+        label: context.loc.paymentPageDescriptionLabel,
+        hint: context.loc.paymentPageDescriptionHint,
+        value: state.description,
+        enabled: !state.submitting,
+        onChanged: cubit.descriptionChanged,
+        errorText: state.invalidField == PaymentPageField.description
+            ? context.loc.paymentPageDescriptionError
+            : null,
+      ),
+      const Gap(16),
+      // Display currency is intentionally not collected here: the payer chooses
+      // their currency on the hosted page, so the merchant never picks one. The
+      // server still requires a `display_currency`, so a sensible default is
+      // sent silently in the payload (see PaymentPageCubit / state defaults).
+      TextField(
+        controller: _website,
+        enabled: !state.submitting,
+        keyboardType: TextInputType.url,
+        autocorrect: false,
+        onChanged: cubit.websiteChanged,
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          labelText: context.loc.paymentPageWebsiteLabel,
+          errorText: state.invalidField == PaymentPageField.website
+              ? context.loc.paymentPageWebsiteError
+              : null,
+        ),
+      ),
+      const Gap(16),
+      TextField(
+        controller: _twitter,
+        enabled: !state.submitting,
+        autocorrect: false,
+        enableSuggestions: false,
+        onChanged: cubit.twitterChanged,
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          labelText: context.loc.paymentPageTwitterLabel,
+          errorText: state.invalidField == PaymentPageField.twitter
+              ? context.loc.paymentPageTwitterError
+              : null,
+        ),
+      ),
+      const Gap(16),
+      TextField(
+        controller: _instagram,
+        enabled: !state.submitting,
+        autocorrect: false,
+        enableSuggestions: false,
+        onChanged: cubit.instagramChanged,
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          labelText: context.loc.paymentPageInstagramLabel,
+          errorText: state.invalidField == PaymentPageField.instagram
+              ? context.loc.paymentPageInstagramError
+              : null,
+        ),
+      ),
+      const Gap(24),
+      BBButton.big(
+        label: state.submitting
+            ? context.loc.paymentPageSubmitting
+            : isArchived
+            ? context.loc.paymentPageSaveAndTurnOnButton
+            : isCreate
+            ? context.loc.paymentPageCreateButton
+            : context.loc.paymentPageSaveButton,
+        onPressed: () => _saveFromEditor(cubit),
+        // Always tappable: save() validates on tap and surfaces the specific
+        // invalid field, rather than silently disabling with no feedback.
+        disabled: state.submitting,
+        bgColor: context.appColors.primary,
+        textColor: context.appColors.onPrimary,
+      ),
+      // Creation has nothing to cancel back to; an existing page can collapse
+      // the editor (confirming first if there are unsaved changes).
+      if (!isCreate) ...[
+        const Gap(8),
+        TextButton(
+          key: const Key('payment_page_cancel_edit'),
+          onPressed: state.submitting ? null : () => _cancelEdit(cubit, state),
+          child: Text(context.loc.getPaidCancelButton),
+        ),
+      ],
+    ];
   }
 
   Widget _permanentAliasSection(
@@ -354,63 +428,12 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
         labelText: context.loc.paymentPageAliasLabel,
         helperText: context.loc.paymentPageAliasHelper,
         errorText: state.invalidField == PaymentPageField.alias
-            ? context.loc.paymentPageAliasInvalid
+            ? (state.aliasTakenFailure
+                  ? context.loc.paymentPageAliasTaken
+                  : context.loc.paymentPageAliasInvalid)
             : null,
         errorMaxLines: 2,
       ),
-    );
-  }
-
-  Widget _currencyField(
-    BuildContext context,
-    PaymentPageState state,
-    PaymentPageCubit cubit,
-  ) {
-    if (state.currenciesUnavailable) {
-      return Row(
-        children: [
-          Expanded(
-            child: _InfoRow(
-              label: context.loc.paymentPageCurrencyLabel,
-              value: context.loc.paymentPageCurrenciesUnavailable(
-                state.displayCurrency.isEmpty
-                    ? paymentPageFallbackCurrency
-                    : state.displayCurrency,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: cubit.retryCurrencies,
-            child: Text(context.loc.paymentPageRetryCurrencies),
-          ),
-        ],
-      );
-    }
-
-    final codes = <String>{
-      ...state.currencies.map((c) => c.code),
-      if (state.displayCurrency.isNotEmpty) state.displayCurrency,
-    }.toList();
-    return DropdownButtonFormField<String>(
-      initialValue: state.displayCurrency.isEmpty
-          ? null
-          : state.displayCurrency,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        labelText: context.loc.paymentPageCurrencyLabel,
-        errorText: state.invalidField == PaymentPageField.displayCurrency
-            ? context.loc.paymentPageCurrencyError
-            : null,
-      ),
-      items: [
-        for (final code in codes)
-          DropdownMenuItem(value: code, child: Text(code)),
-      ],
-      onChanged: state.submitting
-          ? null
-          : (value) {
-              if (value != null) cubit.displayCurrencyChanged(value);
-            },
     );
   }
 
@@ -504,7 +527,10 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     );
   }
 
-  Future<void> _save(PaymentPageCubit cubit) async {
+  /// Runs the save (confirming a first alias claim first). Returns true when a
+  /// save was actually attempted, false when the user backed out of the alias
+  /// confirmation — so the caller can tell a declined confirm from a failure.
+  Future<bool> _save(PaymentPageCubit cubit) async {
     final state = cubit.state;
     if (state.permanentAlias == null && state.aliasDraft.isNotEmpty) {
       final confirmed = await showDialog<bool>(
@@ -526,9 +552,65 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           ],
         ),
       );
-      if (!mounted || confirmed != true) return;
+      if (!mounted || confirmed != true) return false;
     }
     await cubit.save();
+    return true;
+  }
+
+  /// Save initiated from the revealed editor: on success the form collapses
+  /// back to the summary; a failed save keeps the editor open so the user can
+  /// correct and retry.
+  Future<void> _saveFromEditor(PaymentPageCubit cubit) async {
+    final attempted = await _save(cubit);
+    if (!mounted || !attempted) return;
+    final after = cubit.state;
+    if (after.failure == null && !after.submitting) {
+      setState(() {
+        _editing = false;
+        _snapshot = null;
+      });
+    }
+  }
+
+  void _beginEdit(PaymentPageState state) {
+    setState(() {
+      _snapshot = _EditSnapshot.of(state);
+      _editing = true;
+    });
+  }
+
+  Future<void> _cancelEdit(
+    PaymentPageCubit cubit,
+    PaymentPageState state,
+  ) async {
+    if (_snapshot != null && !_snapshot!.matches(state)) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(dialogContext.loc.getPaidDiscardChangesTitle),
+          content: Text(dialogContext.loc.getPaidDiscardChangesBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(dialogContext.loc.getPaidDiscardChangesKeep),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(dialogContext.loc.getPaidDiscardChangesDiscard),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || discard != true) return;
+      // Reload restores the persisted values, discarding the unsaved edits.
+      await cubit.load();
+      if (!mounted) return;
+    }
+    setState(() {
+      _editing = false;
+      _snapshot = null;
+    });
   }
 
   Future<void> _setOnline({
@@ -595,34 +677,107 @@ class _PermanentAliasSummary extends StatelessWidget {
   }
 }
 
-class _SurfaceOnlineControl extends StatelessWidget {
-  final bool online;
-  final bool saving;
-  final ValueChanged<bool> onChanged;
+/// Snapshot of the editable page fields, used to detect unsaved changes when
+/// the user cancels out of the revealed editor.
+class _EditSnapshot {
+  final String header;
+  final String description;
+  final String displayCurrency;
+  final String website;
+  final String twitter;
+  final String instagram;
+  final String aliasDraft;
 
-  const _SurfaceOnlineControl({
+  const _EditSnapshot({
+    required this.header,
+    required this.description,
+    required this.displayCurrency,
+    required this.website,
+    required this.twitter,
+    required this.instagram,
+    required this.aliasDraft,
+  });
+
+  factory _EditSnapshot.of(PaymentPageState state) => _EditSnapshot(
+    header: state.header,
+    description: state.description,
+    displayCurrency: state.displayCurrency,
+    website: state.website,
+    twitter: state.twitter,
+    instagram: state.instagram,
+    aliasDraft: state.aliasDraft,
+  );
+
+  bool matches(PaymentPageState state) =>
+      header == state.header &&
+      description == state.description &&
+      displayCurrency == state.displayCurrency &&
+      website == state.website &&
+      twitter == state.twitter &&
+      instagram == state.instagram &&
+      aliasDraft == state.aliasDraft;
+}
+
+/// Opens the shared Advanced Settings sheet for the Donation Page. The cubit is
+/// read here (in the screen's context) and the wallet-behavior writes are bound
+/// as callbacks, so the sheet — shown in a modal whose context has no provider
+/// — stays presentational.
+class _AdvancedSettingsButton extends StatelessWidget {
+  final bool online;
+  final bool onlineSaving;
+  final ValueChanged<bool> onOnlineChanged;
+  final GetPaidWalletBehavior? walletBehavior;
+  final bool walletBehaviorSaving;
+
+  const _AdvancedSettingsButton({
     required this.online,
-    required this.saving,
-    required this.onChanged,
+    required this.onlineSaving,
+    required this.onOnlineChanged,
+    required this.walletBehavior,
+    required this.walletBehaviorSaving,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: SwitchListTile(
-        key: const Key('payment_page_online_switch'),
-        value: online,
-        onChanged: saving ? null : onChanged,
-        title: Text(context.loc.paymentPageOnlineToggleLabel),
-        subtitle: Text(context.loc.paymentPageOnlineToggleBody),
+    final cubit = context.read<PaymentPageCubit>();
+    final behavior = walletBehavior;
+    return Align(
+      alignment: Alignment.center,
+      child: TextButton(
+        key: const Key('payment_page_advanced_settings_button'),
+        onPressed: () => BlurredBottomSheet.show(
+          context: context,
+          child: GetPaidAdvancedSettingsSheet(
+            onlineSwitchKey: const Key('payment_page_online_switch'),
+            onlineTitle: context.loc.paymentPageOnlineToggleLabel,
+            onlineSubtitle: context.loc.paymentPageOnlineToggleBody,
+            online: online,
+            onlineSaving: onlineSaving,
+            onlineSavingLabel: context.loc.paymentPageSubmitting,
+            onOnlineChanged: onOnlineChanged,
+            walletBehavior: behavior,
+            walletBehaviorSaving: walletBehaviorSaving,
+            onAutoSweepChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior!.walletId,
+              autoSweepEnabled: value,
+            ),
+            onHideOnHomeChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior!.walletId,
+              hideOnHome: value,
+            ),
+          ),
+        ),
+        child: Text(
+          context.loc.getPaidAdvancedSettingsButton,
+          style: TextStyle(color: context.appColors.error),
+        ),
       ),
     );
   }
 }
 
-/// Reserved-wallet behavior controls (auto-sweep + hide-on-home) for wallet 102.
-/// Mirrors BTCPay's `_BtcpayWalletBehaviorTile`; the safe defaults are applied
-/// at wallet creation, these rows only let the user review and change them.
+/// Reserved-wallet behavior controls shown when the online product is
+/// unavailable but its deterministic wallet still exists.
 class _WalletBehaviorControls extends StatelessWidget {
   final GetPaidWalletBehavior behavior;
   final bool saving;

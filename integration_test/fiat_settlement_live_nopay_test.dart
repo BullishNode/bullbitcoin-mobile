@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
+import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:bb_mobile/main.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,23 +12,21 @@ import 'package:integration_test/integration_test.dart';
 // provides it).
 //
 // No-pay guarantees: an app-created throwaway wallet that is never funded, no
-// nym/permanent-name registration (no one-name-per-seed burn), no invoice, no
-// send/broadcast surface anywhere in the import graph. Server writes are
-// limited to fiat-settlement PUTs that are EXPECTED to be rejected (no scoped
-// credential exists for this fresh identity), so no server-side settlement
-// state is created.
+// invoice, and no send/broadcast surface anywhere in the import graph. The
+// fiat-capable lane registers one fresh wallet-owned nym because Bullnym
+// requires an active identity before returning private configuration. Other
+// server writes are limited to fiat-settlement PUTs that are EXPECTED to be
+// rejected (no scoped credential exists), so no settlement state is created.
 //
-// Lane 1 (always): server-version-agnostic degradation proofs. They hold on
-// TODAY'S deployed pay2 (no fiat endpoints; the client's 404 degradation
-// yields an all-Bitcoin view) AND on a future BullishNode/bullnym#196 server
-// (a fresh identity has no explicit settings - same all-Bitcoin view).
-//
-// Lane 2 (dart-define GETPAID_FIAT_CONTRACT_LIVE=true): pinned #196 contract
-// proofs that only a fiat-capable server can pass - a keyless PUT must answer
-// the stable BULL_BITCOIN_CREDENTIAL_REQUIRED code (which also proves the signed
+// The live probes are explicitly armed with
+// GETPAID_FIAT_CONTRACT_LIVE=true. The configured server must expose the fiat
+// routes and accept registration of the fresh wallet-owned identity used by
+// this test. A keyless PUT must answer
+// the stable FIAT_CREDENTIAL_REQUIRED code (which also proves the signed
 // bullpay-la-v2 request verified server-side; a broken signature would fail
 // auth, mapping to a different failure).
 const _contractLive = bool.fromEnvironment('GETPAID_FIAT_CONTRACT_LIVE');
+const _runId = String.fromEnvironment('GETPAID_FIAT_RUN_ID');
 
 Future<void> main({bool isInitialized = false}) async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -35,12 +34,21 @@ Future<void> main({bool isInitialized = false}) async {
 
   setUpAll(() async {
     // App-created throwaway wallet: the fiat signer needs the default wallet
-    // xprv; nothing is registered server-side and the wallet is never funded.
+    // xprv. A live fiat server requires this npub to own an active identity,
+    // so register a unique nym only for the explicitly armed contract lane.
     await locator<CreateDefaultWalletsUsecase>().execute();
+    if (_contractLive) {
+      final suffix = _runId.isEmpty
+          ? DateTime.now().toUtc().millisecondsSinceEpoch.toString()
+          : _runId;
+      final base = 'fsnp$suffix';
+      final nym = base.length > 32 ? base.substring(0, 32) : base;
+      await locator<LightningAddressFacade>().registerWalletOwned(nym: nym);
+    }
   });
 
-  test('LIVE configuration read yields an all-Bitcoin view on any server '
-      'version - old servers degrade, never error-wall', () async {
+  test('LIVE configuration read yields an all-Bitcoin view for a fresh '
+      'identity', () async {
     final result = await locator<FiatSettlementFacade>().configuration();
     final view = switch (result) {
       Ok(:final value) => value,
@@ -56,7 +64,7 @@ Future<void> main({bool isInitialized = false}) async {
       );
     }
     expect(view.credentialActive, isFalse);
-  });
+  }, skip: _contractLive ? false : 'needs an explicitly armed fiat server');
 
   test('LIVE keyless activation attempt is rejected with a typed failure and '
       'leaves no settlement state behind', () async {
@@ -97,11 +105,11 @@ Future<void> main({bool isInitialized = false}) async {
       view.configFor(FiatSettlementProduct.paymentPage).isBitcoinOnly,
       isTrue,
     );
-  });
+  }, skip: _contractLive ? false : 'needs an explicitly armed fiat server');
 
   test(
     'LIVE #196 contract: keyless PUT answers the stable '
-    'BULL_BITCOIN_CREDENTIAL_REQUIRED code (signed request verified)',
+    'FIAT_CREDENTIAL_REQUIRED code (signed request verified)',
     () async {
       final write = await locator<FiatSettlementFacade>().set(
         product: FiatSettlementProduct.pos,
@@ -112,8 +120,8 @@ Future<void> main({bool isInitialized = false}) async {
         Ok() => fail('keyless activation must never succeed for a fresh nym'),
         Err(:final failure) => failure,
       };
-      // credentialProblem is reachable ONLY via BULL_BITCOIN_CREDENTIAL_REQUIRED /
-      // BULL_BITCOIN_CREDENTIAL_INVALID - i.e. the server understood and authenticated
+      // credentialProblem is reachable ONLY via FIAT_CREDENTIAL_REQUIRED /
+      // FIAT_CREDENTIAL_INVALID - i.e. the server understood and authenticated
       // the signed fiat-settlement request and applied the #196 contract.
       expect(failure, const FiatSettlementFailure.credentialProblem());
     },

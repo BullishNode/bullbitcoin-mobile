@@ -25,16 +25,23 @@ Map<String, dynamic> _tx({
   };
 }
 
+const _absent = Object();
+
 Map<String, dynamic> _fiatLeg({
   Object? amountMinor,
   Object? currency = 'CAD',
   Object? orderId = _orderId,
   Object? status = 'settled',
+  Object? quotedAmountMinor = _absent,
 }) => {
   'amount_minor': amountMinor,
   'currency': currency,
   'order_id': orderId,
   'status': status,
+  // Omit the key entirely when not supplied so the "absent" (v1) shape is
+  // exercised; pass an explicit value (including null) to test v2 shapes.
+  if (!identical(quotedAmountMinor, _absent))
+    'quoted_amount_minor': quotedAmountMinor,
 };
 
 Map<String, dynamic> _btcLeg({
@@ -463,6 +470,217 @@ void main() {
       expectUnavailable(
         'fiat not a list',
         _tx(settlementKind: 'fiat', details: {'kind': 'fiat', 'fiat': 'nope'}),
+      );
+    });
+  });
+
+  group('v2 quote + split — valid projections', () {
+    test('pending fiat leg exposes a positive locked quote', () {
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat_percentage': 100,
+            'fiat': [
+              _fiatLeg(
+                amountMinor: null,
+                status: 'pending',
+                quotedAmountMinor: 5000,
+              ),
+            ],
+          },
+        ),
+      )!;
+      expect(s.kind, BullnymSettlementKind.fiat);
+      expect(s.fiatPercentage, 100);
+      expect(s.fiat.single.quotedAmountMinor, 5000);
+      expect(s.fiat.single.amountMinor, isNull);
+    });
+
+    test('settled fiat leg keeps credited amount distinct from the quote', () {
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat_percentage': 100,
+            'fiat': [_fiatLeg(amountMinor: 12345, quotedAmountMinor: 12000)],
+          },
+        ),
+      )!;
+      expect(s.fiat.single.amountMinor, 12345);
+      expect(s.fiat.single.quotedAmountMinor, 12000);
+    });
+
+    test('legacy leg: absent quote and absent split parse as null', () {
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      )!;
+      expect(s.fiatPercentage, isNull);
+      expect(s.fiat.single.quotedAmountMinor, isNull);
+    });
+
+    test('legacy leg: explicit null quote and null split parse as null', () {
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat_percentage': null,
+            'fiat': [_fiatLeg(amountMinor: 12345, quotedAmountMinor: null)],
+          },
+        ),
+      )!;
+      expect(s.fiatPercentage, isNull);
+      expect(s.fiat.single.quotedAmountMinor, isNull);
+    });
+
+    test('mixed carries the captured 1..=99 split', () {
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(
+          settlementKind: 'mixed',
+          details: {
+            'kind': 'mixed',
+            'fiat_percentage': 40,
+            'bitcoin': [_btcLeg()],
+            'fiat': [_fiatLeg(amountMinor: 12345, quotedAmountMinor: 12345)],
+          },
+        ),
+      )!;
+      expect(s.kind, BullnymSettlementKind.mixed);
+      expect(s.fiatPercentage, 40);
+    });
+  });
+
+  group('v2 quote + split — fail closed to unavailable', () {
+    void expectUnavailable(String reason, Map<String, dynamic> json) {
+      expect(
+        BullnymGetPaidSettlement.tryParse(json)?.kind,
+        BullnymSettlementKind.unavailable,
+        reason: reason,
+      );
+    }
+
+    test('pending quote of zero', () {
+      expectUnavailable(
+        'zero quote',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat': [
+              _fiatLeg(
+                amountMinor: null,
+                status: 'pending',
+                quotedAmountMinor: 0,
+              ),
+            ],
+          },
+        ),
+      );
+    });
+
+    test('negative quote', () {
+      expectUnavailable(
+        'negative quote',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat': [_fiatLeg(amountMinor: 12345, quotedAmountMinor: -5)],
+          },
+        ),
+      );
+    });
+
+    test('non-int quote', () {
+      expectUnavailable(
+        'non-int quote',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat': [_fiatLeg(amountMinor: 12345, quotedAmountMinor: '5000')],
+          },
+        ),
+      );
+    });
+
+    test('fiat split of zero', () {
+      expectUnavailable(
+        'zero split',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat_percentage': 0,
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      );
+    });
+
+    test('fiat split above 100', () {
+      expectUnavailable(
+        'split > 100',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat_percentage': 101,
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      );
+    });
+
+    test('fiat kind with a mixed-only split (not 100)', () {
+      expectUnavailable(
+        'fiat split 40',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat_percentage': 40,
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      );
+    });
+
+    test('non-int split', () {
+      expectUnavailable(
+        'non-int split',
+        _tx(
+          settlementKind: 'fiat',
+          details: {
+            'kind': 'fiat',
+            'fiat_percentage': '100',
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
+      );
+    });
+
+    test('mixed kind with a 100 split (fiat-only value)', () {
+      expectUnavailable(
+        'mixed split 100',
+        _tx(
+          settlementKind: 'mixed',
+          details: {
+            'kind': 'mixed',
+            'fiat_percentage': 100,
+            'bitcoin': [_btcLeg()],
+            'fiat': [_fiatLeg(amountMinor: 12345)],
+          },
+        ),
       );
     });
   });

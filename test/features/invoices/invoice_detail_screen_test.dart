@@ -82,6 +82,40 @@ InvoiceStatusSnapshot _historySnapshot({
   );
 }
 
+/// A fiat-priced snapshot: the invoice row carries no sat target (`amountSat`
+/// is 0); the face value lives in fiat.
+InvoiceStatusSnapshot _fiatSnapshot({
+  required InvoiceStatus status,
+  required InvoiceSettlementState settlementState,
+  int fiatAmountMinor = 500,
+  String fiatCurrency = 'USD',
+  int? paidAmountSat,
+  List<InvoicePaymentEvent> paymentEvents = const [],
+  InvoiceQuoteRailAvailability? quoteRailAvailability,
+}) {
+  return InvoiceStatusSnapshot(
+    status: status,
+    settlementState: settlementState,
+    pricingMode: 'fiat_fixed',
+    settlementStatus: 'ignored-after-domain-mapping',
+    amountSat: 0,
+    fiatAmountMinor: fiatAmountMinor,
+    fiatCurrency: fiatCurrency,
+    remainingAmountSat: 0,
+    paymentToleranceSat: 0,
+    rateLocksUntil: DateTime.utc(2030),
+    expiresAt: DateTime.utc(2030),
+    paidVia: paidAmountSat == null ? null : PaymentMethod.btc,
+    paidAt: paidAmountSat == null ? null : DateTime.utc(2026, 2),
+    paidAmountSat: paidAmountSat,
+    acceptBtc: true,
+    acceptLn: true,
+    acceptLiquid: true,
+    quoteRailAvailability: quoteRailAvailability,
+    paymentEvents: paymentEvents,
+  );
+}
+
 InvoiceStatusSnapshot _privateLinkSnapshot(InvoiceStatus status) {
   return InvoiceStatusSnapshot(
     status: status,
@@ -351,14 +385,9 @@ void main() {
       tester,
       InvoiceDetailState(
         status: InvoiceDetailStatus.loaded,
-        snapshot: _historySnapshot(
+        snapshot: _fiatSnapshot(
           status: InvoiceStatus.unpaid,
           settlementState: InvoiceSettlementState.none,
-          payment: _bitcoinPayment(
-            state: InvoicePaymentEventState.pending,
-            isLate: false,
-          ),
-          pricingMode: 'fiat_fixed',
           quoteRailAvailability: const InvoiceQuoteRailAvailability(
             lightning: true,
             liquid: true,
@@ -387,14 +416,9 @@ void main() {
       tester,
       InvoiceDetailState(
         status: InvoiceDetailStatus.loaded,
-        snapshot: _historySnapshot(
+        snapshot: _fiatSnapshot(
           status: InvoiceStatus.unpaid,
           settlementState: InvoiceSettlementState.none,
-          payment: _bitcoinPayment(
-            state: InvoicePaymentEventState.pending,
-            isLate: false,
-          ),
-          pricingMode: 'fiat_fixed',
           quoteRailAvailability: const InvoiceQuoteRailAvailability(
             lightning: false,
             liquid: false,
@@ -409,6 +433,92 @@ void main() {
 
     expect(find.text('Refreshing payer quote…'), findsOneWidget);
     expect(find.text(quote.instruction.copyPayload), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('fiat-priced paid invoice headlines fiat, no false overpaid, '
+      'no quote banner', (tester) async {
+    await _pump(
+      tester,
+      InvoiceDetailState(
+        status: InvoiceDetailStatus.loaded,
+        snapshot: _fiatSnapshot(
+          status: InvoiceStatus.paid,
+          settlementState: InvoiceSettlementState.settled,
+          fiatAmountMinor: 500,
+          fiatCurrency: 'USD',
+          paidAmountSat: 7794,
+          paymentEvents: [
+            _bitcoinPayment(
+              state: InvoicePaymentEventState.settled,
+              isLate: false,
+              confirmations: 1,
+              amountSat: 7794,
+            ),
+          ],
+          quoteRailAvailability: const InvoiceQuoteRailAvailability(
+            lightning: false,
+            liquid: false,
+            bitcoin: false,
+          ),
+        ),
+        privateLinkLookupComplete: true,
+      ),
+    );
+
+    expect(find.text('Paid'), findsOneWidget);
+    // Fiat face value headlined, never "0 sats".
+    expect(find.text('5.00 USD'), findsOneWidget);
+    expect(find.text('0 sats'), findsNothing);
+    // Actual paid sats shown alongside.
+    expect(find.text('7794 sats'), findsWidgets);
+    // No false overpaid row (fiat invoice has no positive sat target).
+    expect(find.text('Overpaid by'), findsNothing);
+    // Quote is irrelevant once terminal / paid.
+    expect(find.text('Payer quote'), findsNothing);
+    expect(find.text('Payer quote is temporarily unavailable'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('fiat-priced 0-conf shows awaiting-confirmation, not a quote '
+      'banner', (tester) async {
+    await _pump(
+      tester,
+      InvoiceDetailState(
+        status: InvoiceDetailStatus.loaded,
+        snapshot: _fiatSnapshot(
+          status: InvoiceStatus.inProgress,
+          settlementState: InvoiceSettlementState.pending,
+          fiatAmountMinor: 500,
+          fiatCurrency: 'USD',
+          paymentEvents: [
+            _bitcoinPayment(
+              state: InvoicePaymentEventState.pending,
+              isLate: false,
+              amountSat: 7794,
+            ),
+          ],
+          // TTL-expired availability must not surface a banner once payment
+          // evidence exists.
+          quoteRailAvailability: const InvoiceQuoteRailAvailability(
+            lightning: false,
+            liquid: false,
+            bitcoin: false,
+          ),
+        ),
+        privateLinkLookupComplete: true,
+      ),
+    );
+
+    expect(
+      find.text('Payment detected — waiting for confirmation'),
+      findsOneWidget,
+    );
+    expect(find.text('5.00 USD'), findsOneWidget);
+    expect(find.text('0 sats'), findsNothing);
+    expect(find.text('Overpaid by'), findsNothing);
+    expect(find.text('Payer quote'), findsNothing);
+    expect(find.text('Payer quote is temporarily unavailable'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

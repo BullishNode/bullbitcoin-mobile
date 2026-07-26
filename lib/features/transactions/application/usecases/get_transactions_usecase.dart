@@ -55,7 +55,16 @@ class GetTransactionsUsecase {
         _boltzSwapRepository.getAllSwaps(walletId: walletId),
       ).wait;
 
-      if (orders.isNotEmpty) await _labelExchangeOrdersUsecase.execute();
+      if (orders.isNotEmpty) {
+        // Only outgoing wallet transactions can be this wallet's own sell, so
+        // the sell tx-label is stamped only for those txids (see the usecase).
+        await _labelExchangeOrdersUsecase.execute(
+          walletFundedTxIds: walletTransactions
+              .where((wt) => wt.isOutgoing)
+              .map((wt) => wt.txId)
+              .toSet(),
+        );
+      }
 
       // Add related payjoins, swaps and orders to the broadcasted wallet transactions
       //  as they should be linked and form a single Transaction entity.
@@ -99,7 +108,20 @@ class GetTransactionsUsecase {
 
         Order? order;
         try {
-          order = orders.firstWhere((o) => o.transactionId == wt.txId);
+          // Match on txid AND direction, like the payjoin matcher above. An
+          // order's payin can be funded by any source, so a txid can be shared
+          // by a wallet transaction that played no part in the order. A Get
+          // Paid mixed settlement is one Liquid transaction paid for by the
+          // incoming payment itself; its outputs cover Bull Bitcoin's sell
+          // deposit and the merchant's own wallet as siblings. Merging is only
+          // correct when this wallet actually took the order's role — funded a
+          // sell (outgoing) or received a buy payout (incoming). A txid match in
+          // the opposite direction means this wallet merely received a sibling
+          // output, so keep them separate: the wallet shows a plain receive and
+          // the order stays its own standalone row.
+          order = orders.firstWhere(
+            (o) => o.transactionId == wt.txId && o.isIncoming == wt.isIncoming,
+          );
           // Remove the order from the list of orders to avoid duplication
           //  since it's already included in the broadcasted transaction
           orders.remove(order);

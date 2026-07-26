@@ -70,6 +70,13 @@ void main() {
         find.textContaining('Permanent alias shared with Point of Sale'),
         findsOneWidget,
       );
+
+      // The turn on/off control (and its kind-scoped explanation) now lives in
+      // the shared Advanced Settings sheet.
+      await tester.tap(
+        find.byKey(const Key('payment_page_advanced_settings_button')),
+      );
+      await tester.pumpAndSettle();
       expect(
         find.text(
           'Controls only your Donation Page. Lightning Address and Point of '
@@ -147,6 +154,11 @@ void main() {
         find.textContaining('Permanent alias shared with Donation Page'),
         findsOneWidget,
       );
+
+      // The turn on/off control (and its kind-scoped explanation) now lives in
+      // the shared Advanced Settings sheet.
+      await tester.tap(find.byKey(const Key('pos_advanced_settings_button')));
+      await tester.pumpAndSettle();
       expect(
         find.text(
           'Controls only your Point of Sale. Lightning Address and Donation '
@@ -214,6 +226,8 @@ Future<_StubPaymentPageCubit> _pumpPage(
   WidgetTester tester,
   PaymentPageState state,
 ) async {
+  await tester.binding.setSurfaceSize(const Size(1200, 3000));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   final cubit = _StubPaymentPageCubit(state);
   addTearDown(cubit.close);
   await tester.pumpWidget(
@@ -233,6 +247,8 @@ Future<_StubPaymentPageCubit> _pumpPage(
 }
 
 Future<_StubPosCubit> _pumpPos(WidgetTester tester, PosState state) async {
+  await tester.binding.setSurfaceSize(const Size(1200, 3000));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   final cubit = _StubPosCubit(state);
   addTearDown(cubit.close);
   await tester.pumpWidget(

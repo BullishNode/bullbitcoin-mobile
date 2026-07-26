@@ -5,6 +5,7 @@ import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/automatic_fallback/public/automatic_fallback_facade.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
 import 'package:bb_mobile/features/get_paid/data/get_paid_default_wallet_xprv_adapter.dart';
@@ -67,7 +68,10 @@ class GetPaidLocator {
         getWallets: locator<GetWalletsUsecase>(),
         ensureAutomaticFallback:
             locator<EnsureGetPaidAutomaticFallbackUsecase>(),
+        ensureProductWallet: locator<EnsureGetPaidProductWalletUsecase>(),
         fallbackAttention: locator<GetPaidFallbackAttentionUsecase>(),
+        fiatSettlement: locator<FiatSettlementFacade>(),
+        getSettings: locator<GetSettingsUsecase>(),
       ),
     );
   }
