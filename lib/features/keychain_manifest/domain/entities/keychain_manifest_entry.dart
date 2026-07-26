@@ -157,6 +157,10 @@ class KeychainManifestWalletMaterializationRecord {
 enum KeychainManifestNostrKeyKind { reserved, userGenerated }
 
 class KeychainManifestNostrKeyMaterialization {
+  /// Upper bound on the key's name (its `purpose`). Named so an input field can
+  /// enforce the same bound the entity does instead of repeating the number.
+  static const maxPurposeLength = 80;
+
   /// Upper bound on the optional free-form description. Long enough for a
   /// sentence of context, short enough to stay inside the manifest file's
   /// per-field string cap.
@@ -198,9 +202,9 @@ class KeychainManifestNostrKeyMaterialization {
         'Nostr public key must be 32-byte hex',
       );
     }
-    if (this.purpose.isEmpty || this.purpose.length > 80) {
+    if (this.purpose.isEmpty || this.purpose.length > maxPurposeLength) {
       throw KeychainManifestInvalidEntryException(
-        'Nostr key purpose must contain 1 to 80 characters',
+        'Nostr key purpose must contain 1 to $maxPurposeLength characters',
       );
     }
     if (this.purpose.contains(RegExp(r'[\u0000-\u001F\u007F]'))) {
