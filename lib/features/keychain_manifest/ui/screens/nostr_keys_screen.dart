@@ -14,8 +14,6 @@ class NostrKeysScreen extends StatefulWidget {
 }
 
 class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
-  final _revealedNsecs = <String, String>{};
-
   @override
   void initState() {
     super.initState();
@@ -26,7 +24,6 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
   @override
   void dispose() {
     disableScreenPrivacy();
-    _revealedNsecs.clear();
     super.dispose();
   }
 
@@ -54,10 +51,15 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
     );
   }
 
-  Future<void> _reveal(KeychainManifestNostrKeyRecord key) async {
-    final nsec = await context.read<NostrKeysCubit>().reveal(key);
-    if (!mounted || nsec == null) return;
-    setState(() => _revealedNsecs[key.entryId] = nsec);
+  Future<void> _showNsec(KeychainManifestNostrKeyRecord key) {
+    final cubit = context.read<NostrKeysCubit>();
+    return showDialog<void>(
+      context: context,
+      builder: (_) => BlocProvider.value(
+        value: cubit,
+        child: _NsecRevealDialog(keyRecord: key),
+      ),
+    );
   }
 
   void _showFailure() {
@@ -131,7 +133,6 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
 
   Widget _keyTile(KeychainManifestNostrKeyRecord key) {
     final materialization = key.nostrKeyMaterialization;
-    final nsec = _revealedNsecs[key.entryId];
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -154,25 +155,111 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
-            if (nsec == null)
+            if (materialization.keyKind ==
+                KeychainManifestNostrKeyKind.userGenerated)
               OutlinedButton.icon(
-                onPressed: () => _reveal(key),
+                onPressed: () => _showNsec(key),
                 icon: const Icon(Icons.visibility),
                 label: Text(context.loc.settingsNostrKeysShowPrivate),
-              )
-            else
-              ExcludeSemantics(child: SelectableText(nsec)),
-            if (nsec != null)
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => Clipboard.setData(ClipboardData(text: nsec)),
-                  icon: const Icon(Icons.copy),
-                  label: Text(context.loc.settingsNostrKeysCopy),
-                ),
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _NsecRevealDialog extends StatefulWidget {
+  final KeychainManifestNostrKeyRecord keyRecord;
+
+  const _NsecRevealDialog({required this.keyRecord});
+
+  @override
+  State<_NsecRevealDialog> createState() => _NsecRevealDialogState();
+}
+
+class _NsecRevealDialogState extends State<_NsecRevealDialog>
+    with WidgetsBindingObserver {
+  String? _nsec;
+  bool _dismissQueued = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _derive());
+  }
+
+  @override
+  void dispose() {
+    _dismissQueued = true;
+    WidgetsBinding.instance.removeObserver(this);
+    _nsec = null;
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && mounted) {
+      _clearAndDismiss();
+    }
+  }
+
+  Future<void> _derive() async {
+    final nsec = await context.read<NostrKeysCubit>().reveal(widget.keyRecord);
+    if (!mounted || _dismissQueued) return;
+    if (nsec == null) {
+      _clearAndDismiss();
+      return;
+    }
+    setState(() => _nsec = nsec);
+  }
+
+  Future<void> _copy() async {
+    final nsec = _nsec;
+    if (nsec == null) return;
+    _clearAndDismiss();
+    await Clipboard.setData(ClipboardData(text: nsec));
+  }
+
+  void _clearAndDismiss() {
+    if (!mounted || _dismissQueued) return;
+    _dismissQueued = true;
+    final hadSecret = _nsec != null;
+    if (hadSecret) setState(() => _nsec = null);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nsec = _nsec;
+    return PopScope(
+      canPop: nsec == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _clearAndDismiss();
+      },
+      child: AlertDialog(
+        title: Text(context.loc.settingsNostrKeysShowPrivate),
+        content: nsec == null
+            ? const SizedBox.square(
+                dimension: 32,
+                child: CircularProgressIndicator(),
+              )
+            : ExcludeSemantics(child: Text(nsec)),
+        actions: [
+          TextButton(
+            onPressed: _clearAndDismiss,
+            child: Text(MaterialLocalizations.of(context).closeButtonLabel),
+          ),
+          if (nsec != null)
+            FilledButton.icon(
+              onPressed: _copy,
+              icon: const Icon(Icons.copy),
+              label: Text(context.loc.settingsNostrKeysCopy),
+            ),
+        ],
       ),
     );
   }

@@ -12,6 +12,10 @@ final class RevealKeychainManifestNostrKeyUsecase {
   }) : _wallet = wallet;
 
   Future<String> execute(KeychainManifestNostrKeyRecord record) async {
+    if (record.nostrKeyMaterialization.keyKind !=
+        KeychainManifestNostrKeyKind.userGenerated) {
+      throw StateError('App-reserved Nostr keys cannot be exported');
+    }
     final source = await _wallet.deriveDefaultWallet();
     if (source.parentFingerprint.toLowerCase() !=
         record.entry.parentFingerprint.toLowerCase()) {

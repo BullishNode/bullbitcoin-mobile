@@ -17,9 +17,10 @@ m/83696968'/128002'/{identity}'/{account_index}'
 ```
 
 Bull's namespace policy leaves identity `0'` and account `0'` unused because
-the current BIP proposal reserves them. User-created identities allocate the
-first free identity in `1'..99'`, always at account `1'`. App-owned roles use
-identities `100'..199'`, also at account `1'`; currently assigned roles are
+the current BIP proposal reserves them. User-created identities allocate
+monotonically from identity `1'`, always at account `1'`, and skip the complete
+app-owned range `100'..199'`. App-owned roles use that range at account `1'`;
+currently assigned roles are
 wallet backup (`100'`), Bullnym authentication (`101'`), and NIP-05 public-nym
 verification (`102'`). User allocation can therefore never collide with an app
 role, including a future role added within the reserved app range.
@@ -41,9 +42,11 @@ canonical registry suffix paths, such as `128002'/100'/1'`, from
   x-only public keys, and signs explicit 32-byte hash hex values.
 - `NostrKeychainSecretMaterializer` is restricted to explicit private-key
   reveal flows; its result is ephemeral Nsec text and must never be persisted.
-- The settings key list persists public materialization metadata only. An nsec
-  is derived from the local root key when the user explicitly reveals it, held
-  only in presentation memory, and discarded when the screen is disposed.
+- The settings key list persists public materialization metadata only. A
+  user-generated key's nsec is derived from the local root key only when the
+  user explicitly reveals it, held by the sealed reveal widget, and discarded
+  when hidden, copied, backgrounded, or disposed. App-reserved service keys are
+  visible after materialization but are not exportable.
 
 ## Boundaries
 

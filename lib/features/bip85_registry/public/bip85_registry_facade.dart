@@ -62,7 +62,9 @@ class Bip85RegistryFacade {
       identity <= nostrAppReservedIdentityEnd;
 
   String nostrUserKeyPath(int identity) {
-    if (identity < nostrUserIdentityStart || identity > nostrUserIdentityEnd) {
+    if (identity < nostrUserIdentityStart ||
+        identity > nostrUserIdentityEnd ||
+        isNostrAppReservedIdentity(identity)) {
       throw ArgumentError.value(identity, 'identity');
     }
     return "$nostrUserKeyApplication'/$identity'/$nostrUserAccount'";
@@ -89,7 +91,8 @@ class Bip85RegistryFacade {
     );
     return identity != null &&
             identity >= nostrUserIdentityStart &&
-            identity <= nostrUserIdentityEnd
+            identity <= nostrUserIdentityEnd &&
+            !isNostrAppReservedIdentity(identity)
         ? identity
         : null;
   }

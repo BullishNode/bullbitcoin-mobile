@@ -267,10 +267,11 @@ class DriftKeychainManifestEntryRepository
           'keychain manifest Nostr key does not exist',
         );
       }
-      if (key.purpose == normalizedPurpose) return;
-      final effectiveUpdatedAt = updatedAt > key.updatedAt
-          ? updatedAt
-          : key.updatedAt + 1;
+      final purposeChanged = key.purpose != normalizedPurpose;
+      if (!purposeChanged && updatedAt <= key.updatedAt) return;
+      final effectiveUpdatedAt = purposeChanged && updatedAt <= key.updatedAt
+          ? key.updatedAt + 1
+          : updatedAt;
       await (_database.update(
         _database.keychainManifestNostrKeys,
       )..where((row) => row.entryId.equals(entryId))).write(
