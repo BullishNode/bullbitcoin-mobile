@@ -93,8 +93,25 @@ class RecordKeychainManifestNostrKeyUsecase {
               materialization.publicKeyHex &&
           stored.nostrKeyMaterialization.keyKind == materialization.keyKind) {
         final storedMaterialization = stored.nostrKeyMaterialization;
-        if (storedMaterialization.purpose == materialization.purpose ||
-            materialization.updatedAt < storedMaterialization.updatedAt) {
+        if (storedMaterialization.purpose == materialization.purpose) {
+          if (updatedAt != null &&
+              materialization.updatedAt > storedMaterialization.updatedAt) {
+            await _repository.updateNostrKeyPurpose(
+              parentFingerprint: entry.parentFingerprint,
+              entryId: entry.entryId,
+              purpose: materialization.purpose,
+              updatedAt: materialization.updatedAt,
+            );
+            return true;
+          }
+          return false;
+        }
+        if (updatedAt == null) {
+          throw KeychainManifestEntryConflictException(
+            'Nostr key path was allocated with a different purpose',
+          );
+        }
+        if (materialization.updatedAt < storedMaterialization.updatedAt) {
           return false;
         }
         if (materialization.updatedAt == storedMaterialization.updatedAt) {

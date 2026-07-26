@@ -155,6 +155,27 @@ void main() {
     expect(updated.nostrKeyMaterialization.updatedAt, 101);
     expect(updated.entry.updatedAt, 101);
   });
+
+  test(
+    'preserves a newer recovered revision for an unchanged purpose',
+    () async {
+      final record = _nostrRecord(updatedAt: 100);
+      await store.insertNostrKeyRecords([record]);
+
+      await store.updateNostrKeyPurpose(
+        parentFingerprint: record.entry.parentFingerprint,
+        entryId: record.entryId,
+        purpose: record.nostrKeyMaterialization.purpose,
+        updatedAt: 150,
+      );
+
+      final updated = (await store.fetchNostrKeyRecordsByParentFingerprint(
+        'fedcba98',
+      )).single;
+      expect(updated.nostrKeyMaterialization.updatedAt, 150);
+      expect(updated.entry.updatedAt, 150);
+    },
+  );
 }
 
 KeychainManifestWalletMaterializationRecord _record({

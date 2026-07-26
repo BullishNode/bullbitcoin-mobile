@@ -1,10 +1,13 @@
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
+import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_backup_wallet.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/create_keychain_manifest_nostr_key_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_nostr_key_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/reveal_keychain_manifest_nostr_key_usecase.dart';
 import 'package:test/test.dart';
 
 const _xprv =
@@ -14,10 +17,10 @@ const _registry = Bip85RegistryFacade();
 
 void main() {
   test(
-    'allocates the first free user identity and never the app range',
+    'allocates after the user identity high-water mark without filling gaps',
     () async {
       final repository = _MemoryRepository()
-        ..nostrRecords.add(_record(identity: 1));
+        ..nostrRecords.add(_record(identity: 2));
       final record = RecordKeychainManifestNostrKeyUsecase(
         repository: repository,
         registry: _registry,
@@ -34,7 +37,7 @@ void main() {
         now: DateTime.fromMillisecondsSinceEpoch(2000, isUtc: true),
       );
 
-      expect(created.derivationPath, "128002'/2'/1'");
+      expect(created.derivationPath, "128002'/3'/1'");
       expect(created.purpose, 'personal identity');
       expect(repository.nostrRecords.last.entry.bip85Index, 1);
       expect(
@@ -44,13 +47,29 @@ void main() {
     },
   );
 
+  test('jumps over the complete app-reserved identity range', () async {
+    final repository = _MemoryRepository()
+      ..nostrRecords.add(_record(identity: 99));
+    final create = CreateKeychainManifestNostrKeyUsecase(
+      wallet: const _Wallet(),
+      repository: repository,
+      record: RecordKeychainManifestNostrKeyUsecase(
+        repository: repository,
+        registry: _registry,
+      ),
+      registry: _registry,
+    );
+
+    final created = await create.execute(purpose: 'after app range');
+
+    expect(created.derivationPath, "128002'/200'/1'");
+    expect(repository.nostrRecords, hasLength(2));
+  });
+
   test(
-    'fails instead of crossing into the app namespace when slots are full',
+    'retries from the durable high-water mark after an allocation race',
     () async {
-      final repository = _MemoryRepository();
-      for (var identity = 1; identity <= 99; identity++) {
-        repository.nostrRecords.add(_record(identity: identity));
-      }
+      final repository = _RacingRepository();
       final create = CreateKeychainManifestNostrKeyUsecase(
         wallet: const _Wallet(),
         repository: repository,
@@ -61,11 +80,47 @@ void main() {
         registry: _registry,
       );
 
-      await expectLater(
-        create.execute(purpose: 'one too many'),
-        throwsA(isA<StateError>()),
+      final created = await create.execute(purpose: 'second caller');
+
+      expect(created.derivationPath, "128002'/2'/1'");
+      expect(
+        repository.nostrRecords.map(
+          (record) => record.entry.bip85DerivationPath,
+        ),
+        ["128002'/1'/1'", "128002'/2'/1'"],
       );
-      expect(repository.nostrRecords, hasLength(99));
+    },
+  );
+
+  test(
+    'does not overwrite a concurrent allocator purpose before retrying',
+    () async {
+      final repository = _ObservedAllocationRaceRepository();
+      final create = CreateKeychainManifestNostrKeyUsecase(
+        wallet: const _Wallet(),
+        repository: repository,
+        record: RecordKeychainManifestNostrKeyUsecase(
+          repository: repository,
+          registry: _registry,
+        ),
+        registry: _registry,
+      );
+
+      final created = await create.execute(
+        purpose: 'second caller',
+        now: DateTime.fromMillisecondsSinceEpoch(2000, isUtc: true),
+      );
+
+      expect(created.derivationPath, "128002'/2'/1'");
+      expect(repository.nostrRecords, hasLength(2));
+      expect(
+        repository.nostrRecords.first.nostrKeyMaterialization.purpose,
+        'first caller',
+      );
+      expect(
+        repository.nostrRecords.last.nostrKeyMaterialization.purpose,
+        'second caller',
+      );
     },
   );
 
@@ -113,6 +168,67 @@ void main() {
   });
 
   test(
+    'recovery preserves a newer revision when the purpose is unchanged',
+    () async {
+      final repository = _MemoryRepository();
+      final usecase = RecordKeychainManifestNostrKeyUsecase(
+        repository: repository,
+        registry: _registry,
+      );
+      final request = _request(purpose: 'same purpose');
+
+      await usecase.execute(
+        request,
+        now: DateTime.fromMillisecondsSinceEpoch(1000, isUtc: true),
+      );
+      expect(
+        await usecase.execute(
+          request,
+          now: DateTime.fromMillisecondsSinceEpoch(1000, isUtc: true),
+          updatedAt: DateTime.fromMillisecondsSinceEpoch(4000, isUtc: true),
+        ),
+        isTrue,
+      );
+      expect(
+        repository.nostrRecords.single.nostrKeyMaterialization.updatedAt,
+        4,
+      );
+    },
+  );
+
+  test('does not export an app-reserved Nostr service key', () async {
+    final entry = KeychainManifestEntry(
+      parentFingerprint: _parentFingerprint,
+      bip85DerivationPath: "128002'/100'/1'",
+      reservationId: 'nostr_wallet_backup_key',
+      entryType: 'nonWalletNostrKey',
+      ownerFeature: 'nostr',
+      bip85Application: 128002,
+      bip85Index: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    );
+    final record = KeychainManifestNostrKeyRecord(
+      entry: entry,
+      nostrKeyMaterialization: KeychainManifestNostrKeyMaterialization(
+        entryId: entry.entryId,
+        publicKeyHex: 'ab' * 32,
+        keyKind: KeychainManifestNostrKeyKind.reserved,
+        purpose: 'Wallet backup',
+        createdAt: 1,
+        updatedAt: 1,
+      ),
+    );
+
+    await expectLater(
+      const RevealKeychainManifestNostrKeyUsecase(
+        wallet: _Wallet(),
+      ).execute(record),
+      throwsStateError,
+    );
+  });
+
+  test(
     'repeated materialization of the same reserved key is not a change',
     () async {
       final repository = _MemoryRepository();
@@ -140,7 +256,11 @@ KeychainManifestNostrKeyRequest _request({required String purpose}) {
   );
 }
 
-KeychainManifestNostrKeyRecord _record({required int identity}) {
+KeychainManifestNostrKeyRecord _record({
+  required int identity,
+  String? purpose,
+  String? publicKeyHex,
+}) {
   final path = _registry.nostrUserKeyPath(identity);
   final entry = KeychainManifestEntry(
     parentFingerprint: _parentFingerprint,
@@ -157,9 +277,9 @@ KeychainManifestNostrKeyRecord _record({required int identity}) {
     entry: entry,
     nostrKeyMaterialization: KeychainManifestNostrKeyMaterialization(
       entryId: entry.entryId,
-      publicKeyHex: 'ab' * 32,
+      publicKeyHex: publicKeyHex ?? 'ab' * 32,
       keyKind: KeychainManifestNostrKeyKind.userGenerated,
-      purpose: 'key $identity',
+      purpose: purpose ?? 'key $identity',
       createdAt: 1,
       updatedAt: 1,
     ),
@@ -233,4 +353,44 @@ final class _MemoryRepository implements KeychainManifestEntryRepository {
   Future<void> insertWalletMaterializationRecords(
     List<KeychainManifestWalletMaterializationRecord> records,
   ) async {}
+}
+
+final class _RacingRepository extends _MemoryRepository {
+  var _collideOnce = true;
+
+  @override
+  Future<void> insertNostrKeyRecords(
+    List<KeychainManifestNostrKeyRecord> records,
+  ) async {
+    if (_collideOnce) {
+      _collideOnce = false;
+      nostrRecords.add(records.single);
+      throw KeychainManifestDuplicateException('simulated allocation race');
+    }
+    await super.insertNostrKeyRecords(records);
+  }
+}
+
+final class _ObservedAllocationRaceRepository extends _MemoryRepository {
+  var _fetchCount = 0;
+
+  @override
+  Future<List<KeychainManifestNostrKeyRecord>>
+  fetchNostrKeyRecordsByParentFingerprint(String parentFingerprint) async {
+    _fetchCount += 1;
+    if (_fetchCount == 2) {
+      final path = _registry.nostrUserKeyPath(1);
+      nostrRecords.add(
+        _record(
+          identity: 1,
+          purpose: 'first caller',
+          publicKeyHex: NostrKeychainHandle.deriveFromBip85Path(
+            xprvBase58: _xprv,
+            hardenedPath: path,
+          ).publicKeyHex,
+        ),
+      );
+    }
+    return super.fetchNostrKeyRecordsByParentFingerprint(parentFingerprint);
+  }
 }

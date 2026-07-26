@@ -8,7 +8,7 @@ class Bip85Reservations {
 
   static const nostrUserKeyReservationId = 'nostr_user_key';
   static const nostrUserIdentityStart = 1;
-  static const nostrUserIdentityEnd = 99;
+  static const nostrUserIdentityEnd = 0x7fffffff;
   static const nostrUserAccount = 1;
 
   /// Identity range owned by Bull Bitcoin application roles. User-created
