@@ -152,9 +152,7 @@ void main() {
     ).thenAnswer((_) async => <Swap>[]);
     when(() => testnetOrders.getOrders()).thenAnswer((_) async => <Order>[]);
     when(
-      () => labeler.execute(
-        walletFundedTxIds: any(named: 'walletFundedTxIds'),
-      ),
+      () => labeler.execute(walletFundedTxIds: any(named: 'walletFundedTxIds')),
     ).thenAnswer((_) async {});
   });
 
@@ -168,28 +166,25 @@ void main() {
     ).thenAnswer((_) async => txs);
   }
 
-  test(
-    'sell order + incoming wallet tx with same txid stays split: a plain '
-    'receive plus a standalone order row',
-    () async {
-      const txid = 'shared_txid';
-      stubWalletTxs([
-        _walletTx(txId: txid, direction: WalletTransactionDirection.incoming),
-      ]);
-      when(
-        () => mainnetOrders.getOrders(),
-      ).thenAnswer((_) async => [_sellOrder(txId: txid)]);
+  test('sell order + incoming wallet tx with same txid stays split: a plain '
+      'receive plus a standalone order row', () async {
+    const txid = 'shared_txid';
+    stubWalletTxs([
+      _walletTx(txId: txid, direction: WalletTransactionDirection.incoming),
+    ]);
+    when(
+      () => mainnetOrders.getOrders(),
+    ).thenAnswer((_) async => [_sellOrder(txId: txid)]);
 
-      final result = await usecase.execute();
+    final result = await usecase.execute();
 
-      expect(result.length, 2);
-      final walletRow = result.firstWhere((t) => t.walletTransaction != null);
-      expect(walletRow.order, isNull, reason: 'receive is not merged');
-      final orderRow = result.firstWhere((t) => t.order != null);
-      expect(orderRow.walletTransaction, isNull);
-      expect(orderRow.order, isA<SellOrder>());
-    },
-  );
+    expect(result.length, 2);
+    final walletRow = result.firstWhere((t) => t.walletTransaction != null);
+    expect(walletRow.order, isNull, reason: 'receive is not merged');
+    final orderRow = result.firstWhere((t) => t.order != null);
+    expect(orderRow.walletTransaction, isNull);
+    expect(orderRow.order, isA<SellOrder>());
+  });
 
   test(
     'sell order + outgoing wallet tx with same txid merges into one row',
@@ -243,11 +238,13 @@ void main() {
 
       await usecase.execute();
 
-      final captured = verify(
-        () => labeler.execute(
-          walletFundedTxIds: captureAny(named: 'walletFundedTxIds'),
-        ),
-      ).captured.single as Set<String>;
+      final captured =
+          verify(
+                () => labeler.execute(
+                  walletFundedTxIds: captureAny(named: 'walletFundedTxIds'),
+                ),
+              ).captured.single
+              as Set<String>;
       expect(captured, contains('out'));
       expect(captured, isNot(contains('in')));
     },

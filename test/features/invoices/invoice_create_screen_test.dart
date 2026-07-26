@@ -217,7 +217,10 @@ void main() {
     expect(find.byKey(const Key('invoice_edit_rails_button')), findsOneWidget);
     expect(find.text('Accepted payment methods'), findsNothing);
     expect(find.widgetWithText(SwitchListTile, 'Lightning'), findsNothing);
-    expect(find.widgetWithText(SwitchListTile, 'On-chain Bitcoin'), findsNothing);
+    expect(
+      find.widgetWithText(SwitchListTile, 'On-chain Bitcoin'),
+      findsNothing,
+    );
 
     // Tapping reveals the toggles and the section label.
     await tester.tap(find.byKey(const Key('invoice_edit_rails_button')));
