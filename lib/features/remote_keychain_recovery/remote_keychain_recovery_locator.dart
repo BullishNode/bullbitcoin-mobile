@@ -31,6 +31,7 @@ final class RemoteKeychainRecoveryLocator {
     locator.registerFactory<RecoverRemoteWalletBackupsUsecase>(
       () => RecoverRemoteWalletBackupsUsecase(
         () => locator<RecoverRemoteKeychainManifestUsecase>().execute(),
+        locator<WalletBackupFacade>(),
         locator<WalletMetadataBackupFacade>(),
       ),
     );

@@ -215,6 +215,7 @@ final class DriftWalletBackupStateRepository
           remoteEtag: Value(null),
           contentHash: Value(null),
           unsupportedVersion: Value(null),
+          recoveryBlocked: Value(false),
         ),
       );
     });

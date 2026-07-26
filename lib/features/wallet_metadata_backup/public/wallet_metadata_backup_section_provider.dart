@@ -3,10 +3,6 @@ import 'package:bb_mobile/features/wallet_metadata_backup/domain/entities/wallet
 import 'package:bb_mobile/features/wallet_metadata_backup/domain/wallet_metadata_backup_failure.dart';
 import 'package:meta/meta.dart';
 
-abstract interface class WalletMetadataRecoveryFence {
-  void close();
-}
-
 /// The wallet-backup feature owns transport, encryption, state, and
 /// publication. Metadata contributes only this section-level boundary.
 abstract interface class WalletMetadataBackupSectionProvider {

@@ -173,10 +173,26 @@ final class _FakeWalletBackupFacade implements WalletBackupFacade {
   fetchManifestImport() async => const Ok(null);
 
   @override
-  Future<WalletMetadataRecoveryFence> beginRecoveryLease() async => _Fence();
+  Future<WalletBackupLifecycleLease> beginRecoveryLease() async => _Fence();
+
+  @override
+  Future<Result<WalletBackupRemoteIdentity, WalletBackupFailure>>
+  fetchRemoteIdentity() async => Ok(
+    WalletBackupRemoteIdentity(
+      found: false,
+      generation: 0,
+      etag: null,
+      ciphertextSha256: null,
+    ),
+  );
+
+  @override
+  Future<Result<void, WalletBackupFailure>> setRecoveryBlocked(
+    bool blocked,
+  ) async => const Ok(null);
 }
 
-final class _Fence implements WalletMetadataRecoveryFence {
+final class _Fence implements WalletBackupLifecycleLease {
   @override
   void close() {}
 }

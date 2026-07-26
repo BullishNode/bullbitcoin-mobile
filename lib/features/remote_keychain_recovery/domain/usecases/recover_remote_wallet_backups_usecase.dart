@@ -1,39 +1,43 @@
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
+import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_facade.dart';
 
 typedef _RecoverKeychain = Future<RemoteKeychainRecoveryResult> Function();
 
 final class RecoverRemoteWalletBackupsUsecase {
   final _RecoverKeychain _recoverKeychain;
+  final WalletBackupFacade _walletBackup;
   final WalletMetadataBackupFacade _metadataBackup;
 
   const RecoverRemoteWalletBackupsUsecase(
     this._recoverKeychain,
+    this._walletBackup,
     this._metadataBackup,
   );
 
   Future<RemoteKeychainRecoveryResult> execute({
     required Set<String> defaultCreatedWalletIds,
   }) async {
-    WalletMetadataRecoverySession? session;
+    WalletBackupLifecycleLease? lease;
     Object? keychainError;
     StackTrace? keychainStack;
     RemoteKeychainRecoveryResult? keychainResult;
     var metadataComplete = true;
+    WalletBackupRemoteIdentity initialRemoteIdentity;
 
+    lease = await _walletBackup.beginRecoveryLease();
     try {
-      session = await _metadataBackup.beginRecoverySession();
-    } on Object catch (error, stack) {
-      metadataComplete = false;
-      log.warning(
-        'Could not prepare metadata recovery session',
-        error: error,
-        trace: stack,
+      _requireOk(
+        await _walletBackup.setRecoveryBlocked(true),
+        'persist recovery block before restore',
       );
-    }
-    try {
+      initialRemoteIdentity = _requireValue(
+        await _walletBackup.fetchRemoteIdentity(),
+        'capture remote checkpoint before restore',
+      );
+
       try {
         keychainResult = await _recoverKeychain();
       } on Exception catch (error, stack) {
@@ -50,14 +54,6 @@ final class RecoverRemoteWalletBackupsUsecase {
             ...?keychainResult?.createdWalletIds,
           },
         );
-      } else if (session != null) {
-        metadataComplete = await _recoverMetadataSession(
-          session: session,
-          createdWalletRefs: {
-            ...defaultCreatedWalletIds,
-            ...?keychainResult?.createdWalletIds,
-          },
-        );
       }
 
       final keychainComplete =
@@ -69,55 +65,52 @@ final class RecoverRemoteWalletBackupsUsecase {
             RemoteKeychainRecoveryStatus.restored => true,
             _ => false,
           };
-      final blockResult = await _metadataBackup.setRecoveryBlocked(
-        !keychainComplete || !metadataComplete,
-      );
-      if (blockResult case Err(:final failure)) {
+      if (keychainComplete && metadataComplete) {
+        final finalIdentityResult = await _walletBackup.fetchRemoteIdentity();
+        final WalletBackupRemoteIdentity finalRemoteIdentity;
+        switch (finalIdentityResult) {
+          case Ok(:final value):
+            finalRemoteIdentity = value;
+          case Err(:final failure):
+            log.warning(
+              'Could not revalidate remote wallet backup after recovery',
+              error: failure.runtimeType,
+            );
+            return _withStatus(
+              keychainResult,
+              RemoteKeychainRecoveryStatus.unavailable,
+            );
+        }
+        if (finalRemoteIdentity != initialRemoteIdentity) {
+          log.warning('Remote wallet backup changed during recovery');
+          return _withStatus(
+            keychainResult,
+            RemoteKeychainRecoveryStatus.conflict,
+          );
+        }
+        _requireOk(
+          await _walletBackup.setRecoveryBlocked(false),
+          'clear recovery block after revalidation',
+        );
+      } else {
         log.warning(
-          'Could not persist unified backup recovery state',
-          error: failure.runtimeType,
+          'Unified wallet backup recovery remains publication-blocked',
         );
       }
     } finally {
-      session?.close();
+      lease.close();
     }
 
     if (keychainError != null) {
       Error.throwWithStackTrace(keychainError, keychainStack!);
     }
-    return keychainResult!;
-  }
-
-  Future<bool> _recoverMetadataSession({
-    required WalletMetadataRecoverySession session,
-    required Set<String> createdWalletRefs,
-  }) async {
-    try {
-      final result = await session.recover(
-        createdWalletRefs: Set.unmodifiable(createdWalletRefs),
+    if (!metadataComplete) {
+      return _withStatus(
+        keychainResult!,
+        RemoteKeychainRecoveryStatus.partiallyRestored,
       );
-      if (result case Err(:final failure)) {
-        log.warning(
-          'Remote wallet metadata recovery failed',
-          error: StateError(failure.runtimeType.toString()),
-        );
-        return false;
-      }
-      switch (result) {
-        case Ok(:final value):
-          return value.status == WalletMetadataRecoveryStatus.recovered ||
-              value.status == WalletMetadataRecoveryStatus.noSnapshotFound;
-        case Err():
-          return false;
-      }
-    } on Exception catch (error, stack) {
-      log.warning(
-        'Remote wallet metadata recovery threw unexpectedly',
-        error: error,
-        trace: stack,
-      );
-      return false;
     }
+    return keychainResult!;
   }
 
   Future<bool> _recoverMetadata({
@@ -152,4 +145,36 @@ final class RecoverRemoteWalletBackupsUsecase {
       return false;
     }
   }
+
+  T _requireValue<T>(Result<T, WalletBackupFailure> result, String operation) {
+    return switch (result) {
+      Ok(:final value) => value,
+      Err(:final failure) => throw _WalletBackupRecoveryException(
+        '$operation failed: ${failure.runtimeType}',
+      ),
+    };
+  }
+
+  void _requireOk(Result<void, WalletBackupFailure> result, String operation) =>
+      _requireValue(result, operation);
+
+  RemoteKeychainRecoveryResult _withStatus(
+    RemoteKeychainRecoveryResult result,
+    RemoteKeychainRecoveryStatus status,
+  ) => RemoteKeychainRecoveryResult(
+    status: status,
+    restoredCount: result.restoredCount,
+    failedCount: result.failedCount,
+    createdWalletIds: result.createdWalletIds,
+    metadataPayload: result.metadataPayload,
+  );
+}
+
+final class _WalletBackupRecoveryException implements Exception {
+  final String message;
+
+  const _WalletBackupRecoveryException(this.message);
+
+  @override
+  String toString() => message;
 }
