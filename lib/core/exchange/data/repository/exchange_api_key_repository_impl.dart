@@ -39,8 +39,24 @@ class ExchangeApiKeyRepositoryImpl implements ExchangeApiKeyRepository {
     // Resolve any previously stored scoped credential and, if it belongs to a
     // different Bull Bitcoin user, remove it before completing the switch so a
     // foreign scoped key can never survive an account change.
-    final existingScoped = await _bullbitcoinApiKeyDatasource
-        .getSellToFiatBalanceApiKey(isTestnet: isTestnet);
+    ScopedApiKeyModel? existingScoped;
+    try {
+      existingScoped = await _bullbitcoinApiKeyDatasource
+          .getSellToFiatBalanceApiKey(isTestnet: isTestnet);
+    } catch (_) {
+      // Absence and an unreadable secure-storage record are different states.
+      // If the record cannot be inspected, remove it before storing a possibly
+      // different broad account so an old user's scoped credential cannot
+      // survive the switch.
+      try {
+        await _bullbitcoinApiKeyDatasource.deleteSellToFiatBalanceApiKey(
+          isTestnet: isTestnet,
+        );
+      } catch (_) {
+        throw Exception(_credentialImportError);
+      }
+      existingScoped = null;
+    }
     final isAccountSwitch =
         existingScoped != null && existingScoped.userId != apiKeyModel.userId;
     if (isAccountSwitch) {

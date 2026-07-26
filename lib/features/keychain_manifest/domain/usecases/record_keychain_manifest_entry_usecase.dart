@@ -17,7 +17,7 @@ class RecordKeychainManifestEntryUsecase {
     this._clock = const SystemClock(),
   });
 
-  Future<void> execute(
+  Future<bool> execute(
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
   }) async {
@@ -74,7 +74,22 @@ class RecordKeychainManifestEntryUsecase {
         })
         .toList(growable: false);
 
+    final existing = await _repository
+        .fetchWalletMaterializationRecordsByParentFingerprint(
+          entry.parentFingerprint,
+        );
+    final existingByWallet = {
+      for (final record in existing) record.walletId: record,
+    };
+    if (records.every(
+      (record) =>
+          existingByWallet[record.walletId]?.sameRecordAs(record) ?? false,
+    )) {
+      return false;
+    }
+
     await _executeMany(records);
+    return true;
   }
 
   Future<void> _executeMany(

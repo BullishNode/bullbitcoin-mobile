@@ -96,7 +96,7 @@ class WalletBackupFacade {
 
   /// Holds unified-backup publication while remote recovery restores local
   /// keychain and metadata state.
-  Future<WalletBackupLifecycleLease> beginRecoveryLease() {
-    return _coordinator.beginRecoveryLease();
+  Future<WalletBackupLifecycleLease> beginRecoveryLease({Duration? timeout}) {
+    return _coordinator.beginRecoveryLease(timeout: timeout);
   }
 }

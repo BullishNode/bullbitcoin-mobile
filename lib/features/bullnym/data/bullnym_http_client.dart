@@ -679,30 +679,57 @@ class BullnymHttpClient implements BullnymClientPort {
       );
     }
     final rawSettings = json['settings'];
+    if (rawSettings is! List) {
+      throw const _BullnymClientException(
+        BullnymFailure.invalidServerResponse(
+          logMessage: 'Fiat settlement settings must be a list',
+        ),
+      );
+    }
     final settings = <BullnymFiatSettlementSetting>[];
-    if (rawSettings is List) {
-      for (final entry in rawSettings) {
-        if (entry is! Map<String, dynamic>) {
-          throw const _BullnymClientException(
-            BullnymFailure.invalidServerResponse(
-              logMessage: 'Fiat settlement entry has an unexpected shape',
-            ),
-          );
-        }
-        final product = _fiatSettlementProductFromWire(
-          _requiredString(entry, 'product'),
-        );
-        // A product this client version does not recognize is skipped rather
-        // than failing the whole configuration read.
-        if (product == null) continue;
-        settings.add(
-          BullnymFiatSettlementSetting(
-            product: product,
-            fiatPercentage: _requiredInt(entry, 'fiat_percentage'),
-            fiatCurrency: _optionalString(entry, 'fiat_currency'),
+    final seenProducts = <BullnymFiatSettlementProduct>{};
+    const supportedCurrencies = {
+      'ARS',
+      'CAD',
+      'COP',
+      'CRC',
+      'EUR',
+      'MXN',
+      'USD',
+    };
+    for (final entry in rawSettings) {
+      if (entry is! Map<String, dynamic>) {
+        throw const _BullnymClientException(
+          BullnymFailure.invalidServerResponse(
+            logMessage: 'Fiat settlement entry has an unexpected shape',
           ),
         );
       }
+      final product = _fiatSettlementProductFromWire(
+        _requiredString(entry, 'product'),
+      );
+      // A future product is ignored, but every product this client understands
+      // must satisfy the complete v1 contract.
+      if (product == null) continue;
+      final fiatPercentage = _requiredInt(entry, 'fiat_percentage');
+      final fiatCurrency = _requiredString(entry, 'fiat_currency');
+      if (!seenProducts.add(product) ||
+          fiatPercentage < 1 ||
+          fiatPercentage > 100 ||
+          !supportedCurrencies.contains(fiatCurrency)) {
+        throw const _BullnymClientException(
+          BullnymFailure.invalidServerResponse(
+            logMessage: 'Fiat settlement entry violates the v1 contract',
+          ),
+        );
+      }
+      settings.add(
+        BullnymFiatSettlementSetting(
+          product: product,
+          fiatPercentage: fiatPercentage,
+          fiatCurrency: fiatCurrency,
+        ),
+      );
     }
     return BullnymFiatSettlementConfiguration(
       settings: settings,

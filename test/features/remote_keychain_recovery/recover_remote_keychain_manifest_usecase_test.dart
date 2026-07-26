@@ -233,6 +233,40 @@ void main() {
     expect(pos.ensureCalls, 1);
   });
 
+  test('payment-page healing respects the shared recovery deadline', () async {
+    final now = DateTime.utc(2026);
+    paymentPage.pending = Completer<PaymentPageHealOutcome>();
+    final healer = HealRecoveredProductsUsecase(
+      lightningAddress,
+      paymentPage,
+      pos,
+      clock: _FakeClock(now),
+    );
+
+    final status = await healer.execute(const {
+      'payment_page_wallet_seed',
+    }, deadline: now);
+
+    expect(status, RecoveredProductsHealStatus.timedOut);
+  });
+
+  test('point-of-sale healing respects the shared recovery deadline', () async {
+    final now = DateTime.utc(2026);
+    pos.pending = Completer<PosHealOutcome>();
+    final healer = HealRecoveredProductsUsecase(
+      lightningAddress,
+      paymentPage,
+      pos,
+      clock: _FakeClock(now),
+    );
+
+    final status = await healer.execute(const {
+      'pos_wallet_seed',
+    }, deadline: now);
+
+    expect(status, RecoveredProductsHealStatus.timedOut);
+  });
+
   test('reports partial restoration without discarding successes', () async {
     final plan = _plan(entries: [_entry()]);
     walletBackup.fetchResult = Ok(_manifestImport());
@@ -699,6 +733,7 @@ final class _FakeLightningAddressFacade implements LightningAddressFacade {
 
 final class _FakePaymentPageFacade implements PaymentPageFacade {
   int ensureCalls = 0;
+  Completer<PaymentPageHealOutcome>? pending;
   PaymentPageHealOutcome outcome = const PaymentPageHealOutcome(
     liveness: PaymentPageLiveness.live,
   );
@@ -706,6 +741,8 @@ final class _FakePaymentPageFacade implements PaymentPageFacade {
   @override
   Future<PaymentPageHealOutcome> ensurePageLive() async {
     ensureCalls++;
+    final pending = this.pending;
+    if (pending != null) return pending.future;
     return outcome;
   }
 
@@ -715,11 +752,14 @@ final class _FakePaymentPageFacade implements PaymentPageFacade {
 
 final class _FakePosFacade implements PosFacade {
   int ensureCalls = 0;
+  Completer<PosHealOutcome>? pending;
   PosHealOutcome outcome = const PosHealOutcome(liveness: PosLiveness.live);
 
   @override
   Future<PosHealOutcome> ensurePosLive() async {
     ensureCalls++;
+    final pending = this.pending;
+    if (pending != null) return pending.future;
     return outcome;
   }
 

@@ -197,6 +197,39 @@ void main() {
     await coordinator.dispose();
   });
 
+  test(
+    'timed-out lease acquisition does not strand the lifecycle queue',
+    () async {
+      final publication = Completer<Result<void, WalletBackupFailure>>();
+      var publishCalls = 0;
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () {
+          publishCalls++;
+          return publishCalls == 1
+              ? publication.future
+              : Future.value(const Ok(null));
+        },
+        markDirty: () async => const Ok(null),
+      );
+
+      final activePublication = coordinator.publish();
+      await expectLater(
+        coordinator.beginRecoveryLease(
+          timeout: const Duration(milliseconds: 10),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      publication.complete(const Ok(null));
+      await activePublication;
+      final laterLease = await coordinator.beginRecoveryLease();
+      laterLease.close();
+      await coordinator.dispose();
+    },
+  );
+
   testWidgets(
     'a manifest change during publication dirties and queues a second pass',
     (tester) async {

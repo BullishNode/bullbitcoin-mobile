@@ -64,17 +64,18 @@ changes remote checkpoint state.
 
 ## Deadline
 
-One 60-second wall-clock budget covers fetch, local materialization, and product
-healing. Remote fetch and Lightning Address lookup are bounded by their
-remaining time. Keychain recovery receives the same absolute deadline and does
-not start another manifest entry after it expires. Product healing is skipped
-after expiry and will not start re-registration after a lookup timeout.
+One 60-second wall-clock budget starts before lifecycle-lease acquisition and
+covers remote checkpoint reads, keychain materialization, metadata application,
+final checkpoint revalidation, and product healing. Read-only remote calls use
+their remaining time. Keychain and metadata recovery receive the same absolute
+deadline and do not start another local mutation after it expires. Lightning
+Address, Donation Page, and Point of Sale healing all share that deadline;
+recovery never starts re-registration.
 
-Dart futures are not cancellable. An already-started remote request or
-registration may finish after the caller receives `timedOut`. Once local wallet
-materialization starts, the caller awaits it to settle before returning and
-releasing the unified-backup recovery lease; cooperative checks ensure no later
-recovery step is then started.
+Dart futures are not cancellable. An already-started read-only request may
+finish after the caller receives `timedOut`. Once local mutation starts, the
+caller awaits it to settle before releasing the unified-backup recovery lease;
+cooperative checks ensure no later recovery step is then started.
 
 ## Outcomes
 

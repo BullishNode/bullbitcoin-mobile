@@ -21,7 +21,7 @@ import 'package:bb_mobile/core/tor/domain/ports/tor_config_port.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/recoverbull/domain/recoverbull_failure.dart';
 import 'package:bb_mobile/features/recoverbull/presentation/bloc.dart';
-import 'package:bb_mobile/features/remote_keychain_recovery/public/recover_remote_keychain_usecase.dart';
+import 'package:bb_mobile/features/recoverbull/recover_remote_keychain_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,7 +45,7 @@ class _MockDecrypt extends Mock implements DecryptVaultUsecase {}
 class _MockRestore extends Mock implements RestoreVaultUsecase {}
 
 class _MockRecoverRemoteKeychain extends Mock
-    implements RecoverRemoteKeychainUsecase {}
+    implements RecoverBullRemoteKeychainUsecase {}
 
 class _MockRecoveryFacade extends Mock
     implements RemoteKeychainRecoveryFacade {}
@@ -126,7 +126,7 @@ void main() {
   RecoverBullBloc buildBloc({
     required RecoverBullFlow flow,
     EncryptedVault? preSelectedVault,
-    RecoverRemoteKeychainUsecase? recoverOverride,
+    RecoverBullRemoteKeychainUsecase? recoverOverride,
   }) => RecoverBullBloc(
     flow: flow,
     preSelectedVault: preSelectedVault,
@@ -309,7 +309,7 @@ void main() {
       final bloc = buildBloc(
         flow: RecoverBullFlow.recoverVault,
         preSelectedVault: vault,
-        recoverOverride: RecoverRemoteKeychainUsecase(facade),
+        recoverOverride: RecoverBullRemoteKeychainUsecase(facade),
       );
       addTearDown(bloc.close);
 

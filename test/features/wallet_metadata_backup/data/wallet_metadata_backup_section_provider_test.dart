@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/data/wallet_metadata_backup_section_provider.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/data/wallet_metadata_snapshot_codec.dart';
@@ -55,6 +56,38 @@ void main() {
     await pumpEventQueue();
     expect(changeCount, 1);
   });
+
+  test(
+    'does not start metadata mutation after the recovery deadline',
+    () async {
+      final now = DateTime.utc(2026);
+      final contributor = _Contributor();
+      final provider = WalletMetadataBackupSectionProviderImpl(
+        contributors: [contributor],
+        restoringContributors: [contributor],
+        clock: _FixedClock(now),
+      );
+      addTearDown(provider.dispose);
+
+      final result = await provider.recoverSection(
+        payload: '{}',
+        createdWalletRefs: const {},
+        deadline: now,
+      );
+
+      expect(result, isA<Err<dynamic, WalletMetadataBackupFailure>>());
+      expect(contributor.applyStarted.isCompleted, isFalse);
+    },
+  );
+}
+
+final class _FixedClock implements Clock {
+  final DateTime now;
+
+  const _FixedClock(this.now);
+
+  @override
+  DateTime nowUtc() => now;
 }
 
 final class _Contributor

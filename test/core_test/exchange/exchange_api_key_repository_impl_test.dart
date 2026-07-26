@@ -206,6 +206,35 @@ void main() {
       verify(() => datasource.store(any(), isTestnet: false)).called(1);
     });
 
+    test('an unreadable scoped record is deleted before broad login', () async {
+      when(
+        () => datasource.getSellToFiatBalanceApiKey(isTestnet: false),
+      ).thenThrow(Exception('secure storage read failed'));
+
+      await repository.saveApiKey(_validResponse(), isTestnet: false);
+
+      verifyInOrder([
+        () => datasource.deleteSellToFiatBalanceApiKey(isTestnet: false),
+        () => datasource.store(any(), isTestnet: false),
+        () => datasource.storeSellToFiatBalanceApiKey(any(), isTestnet: false),
+      ]);
+    });
+
+    test('fails closed when an unreadable scoped record cannot be deleted', () {
+      when(
+        () => datasource.getSellToFiatBalanceApiKey(isTestnet: false),
+      ).thenThrow(Exception('secure storage read failed'));
+      when(
+        () => datasource.deleteSellToFiatBalanceApiKey(isTestnet: false),
+      ).thenThrow(Exception('secure storage delete failed'));
+
+      expect(
+        repository.saveApiKey(_validResponse(), isTestnet: false),
+        throwsA(_fixedImportError),
+      );
+      verifyNever(() => datasource.store(any(), isTestnet: false));
+    });
+
     final invalidResponses = <String, Map<String, dynamic>>{
       'missing broad credential': {'sellToFiatBalanceApiKey': _scopedKey},
       'malformed broad credential': {

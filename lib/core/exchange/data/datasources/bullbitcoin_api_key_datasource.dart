@@ -69,7 +69,7 @@ class BullbitcoinApiKeyDatasource {
       return ScopedApiKeyModel.fromJson(json);
     } catch (_) {
       log.warning('Unable to retrieve scoped Bull Bitcoin API key');
-      return null;
+      rethrow;
     }
   }
 
