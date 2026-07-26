@@ -116,6 +116,10 @@ class FiatSettlementEditorCubit extends Cubit<FiatSettlementEditorState> {
     emit(
       state.copyWith(
         status: FiatSettlementEditorStatus.saving,
+        // Preserve the attempted operation in the draft. If the disable
+        // outcome is unknown, the generic Retry action must call disable
+        // again—not save the previously active fiat configuration.
+        mode: FiatSettlementReceiveMode.bitcoin,
         clearFailure: true,
       ),
     );

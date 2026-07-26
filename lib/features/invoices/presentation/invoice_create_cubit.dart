@@ -207,12 +207,11 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
     if (usecase == null) return;
     final constraints = await usecase.execute();
     if (isClosed) return;
-    if (constraints == null) return;
     emit(
       state.copyWith(
         directLiquidAvailable: constraints.directLiquidAvailable,
         acceptLiquid: constraints.directLiquidAvailable
-            ? state.acceptLiquid
+            ? (state.initializing ? true : state.acceptLiquid)
             : false,
       ),
     );

@@ -13,7 +13,7 @@ class GetInvoiceSettlementConstraintsUsecase {
 
   const GetInvoiceSettlementConstraintsUsecase(this._fiatSettlement);
 
-  Future<InvoiceSettlementConstraints?> execute() async {
+  Future<InvoiceSettlementConstraints> execute() async {
     final result = await _fiatSettlement.configuration();
     return switch (result) {
       Ok(:final value) => InvoiceSettlementConstraints(
@@ -21,7 +21,9 @@ class GetInvoiceSettlementConstraintsUsecase {
             value.configFor(FiatSettlementProduct.invoice).mode !=
             FiatSettlementMode.mixed,
       ),
-      Err() => null,
+      // Configuration uncertainty must fail closed: mixed settlement cannot
+      // safely accept direct Liquid because that rail bypasses conversion.
+      Err() => const InvoiceSettlementConstraints(directLiquidAvailable: false),
     };
   }
 }

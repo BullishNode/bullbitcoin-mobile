@@ -142,17 +142,16 @@ void main() {
 
   test('the last enabled rail cannot be turned off (Q19)', () async {
     final cubit = await initialized();
-    // Fresh invoices default all three rails on.
+    // Without a verified settlement constraint, direct Liquid fails closed.
     expect(cubit.state.acceptBtc, isTrue);
     expect(cubit.state.acceptLn, isTrue);
-    expect(cubit.state.acceptLiquid, isTrue);
+    expect(cubit.state.acceptLiquid, isFalse);
 
     cubit.acceptBtcChanged(false);
+    // Only Lightning remains; the guard refuses to empty the last rail.
     cubit.acceptLnChanged(false);
-    // Only Liquid remains; the guard refuses to empty the last rail.
-    cubit.acceptLiquidChanged(false);
 
-    expect(cubit.state.acceptLiquid, isTrue);
+    expect(cubit.state.acceptLn, isTrue);
     expect(cubit.state.enabledRailCount, 1);
     expect(cubit.state.hasAnyRail, isTrue);
     await cubit.close();
@@ -262,13 +261,17 @@ void main() {
     await cubit.close();
   });
 
-  test('fresh invoice defaults all three rails on', () async {
-    final cubit = await initialized();
-    expect(cubit.state.acceptBtc, isTrue);
-    expect(cubit.state.acceptLn, isTrue);
-    expect(cubit.state.acceptLiquid, isTrue);
-    await cubit.close();
-  });
+  test(
+    'an unwired settlement constraint fails closed for direct Liquid',
+    () async {
+      final cubit = await initialized();
+      expect(cubit.state.acceptBtc, isTrue);
+      expect(cubit.state.acceptLn, isTrue);
+      expect(cubit.state.acceptLiquid, isFalse);
+      expect(cubit.state.directLiquidAvailable, isFalse);
+      await cubit.close();
+    },
+  );
 
   test(
     'BTC-unit entry converts to exact satoshis (submitted command)',

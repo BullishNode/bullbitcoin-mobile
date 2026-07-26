@@ -40,7 +40,7 @@ final class RecoverRemoteWalletBackupsUsecase {
       final result = await _executeWithinBudget(
         defaultCreatedWalletIds: defaultCreatedWalletIds,
       );
-      await _persistOutcome(result);
+      _persistOutcome(result);
       return result;
     } on Exception catch (error, stack) {
       log.warning(
@@ -48,7 +48,7 @@ final class RecoverRemoteWalletBackupsUsecase {
         error: error,
         trace: stack,
       );
-      await _persistOutcome(
+      _persistOutcome(
         const RemoteKeychainRecoveryResult(
           status: RemoteKeychainRecoveryStatus.localFailure,
         ),
@@ -58,25 +58,27 @@ final class RecoverRemoteWalletBackupsUsecase {
   }
 
   /// Best-effort record for the unified wallet-backup settings surface.
-  Future<void> _persistOutcome(RemoteKeychainRecoveryResult result) async {
+  void _persistOutcome(RemoteKeychainRecoveryResult result) {
     final store = outcomeStore;
     if (store == null) return;
-    try {
-      await store.save(
-        RemoteRecoveryOutcome(
-          status: result.status,
-          atUnix: clock.nowUtc().millisecondsSinceEpoch ~/ 1000,
-          restoredCount: result.restoredCount,
-          failedCount: result.failedCount,
-        ),
-      );
-    } catch (error, stack) {
-      log.warning(
-        'Could not persist the remote recovery outcome',
-        error: error,
-        trace: stack,
-      );
-    }
+    unawaited(
+      store
+          .save(
+            RemoteRecoveryOutcome(
+              status: result.status,
+              atUnix: clock.nowUtc().millisecondsSinceEpoch ~/ 1000,
+              restoredCount: result.restoredCount,
+              failedCount: result.failedCount,
+            ),
+          )
+          .catchError((Object error, StackTrace stack) {
+            log.warning(
+              'Could not persist the remote recovery outcome',
+              error: error,
+              trace: stack,
+            );
+          }),
+    );
   }
 
   Future<RemoteKeychainRecoveryResult> _executeWithinBudget({

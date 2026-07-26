@@ -1,6 +1,5 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
-import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
@@ -293,43 +292,36 @@ void main() {
       expect(find.text('Mixed Fiat-BTC'), findsOneWidget);
     });
 
-    testWidgets(
-      'an unclassified row uses the expected product kind from config',
-      (tester) async {
-        await _pumpHistory(
-          tester,
-          GetPaidTransactionHistoryState(
-            status: GetPaidTransactionHistoryStatus.loaded,
-            transactions: [_transaction()],
-            expectedSettlementKinds: const {
-              FiatSettlementProduct.lightningAddress: FiatSettlementMode.mixed,
-            },
-          ),
-        );
+    testWidgets('an unclassified row remains labeled by its captured rail', (
+      tester,
+    ) async {
+      await _pumpHistory(
+        tester,
+        GetPaidTransactionHistoryState(
+          status: GetPaidTransactionHistoryStatus.loaded,
+          transactions: [_transaction()],
+        ),
+      );
 
-        // No server settlement classification, but the product config says this
-        // Lightning Address product is supposed to settle mixed.
-        expect(find.text('Mixed Fiat-BTC'), findsOneWidget);
-      },
-    );
+      expect(find.text('Lightning'), findsOneWidget);
+      expect(find.text('Mixed Fiat-BTC'), findsNothing);
+    });
 
-    testWidgets(
-      'no server kind and no expected-kind map falls back to the rail label',
-      (tester) async {
-        await _pumpHistory(
-          tester,
-          GetPaidTransactionHistoryState(
-            status: GetPaidTransactionHistoryStatus.loaded,
-            transactions: [_transaction(rail: GetPaidTransactionRail.liquid)],
-          ),
-        );
+    testWidgets('an unavailable server kind falls back to the rail label', (
+      tester,
+    ) async {
+      await _pumpHistory(
+        tester,
+        GetPaidTransactionHistoryState(
+          status: GetPaidTransactionHistoryStatus.loaded,
+          transactions: [_transaction(rail: GetPaidTransactionRail.liquid)],
+        ),
+      );
 
-        // The facade was unavailable (no expected-kind map): never an invented
-        // kind, just the original rail label.
-        expect(find.text('Liquid'), findsOneWidget);
-        expect(find.text('Mixed Fiat-BTC'), findsNothing);
-      },
-    );
+      // Never invent a settlement kind from current configuration.
+      expect(find.text('Liquid'), findsOneWidget);
+      expect(find.text('Mixed Fiat-BTC'), findsNothing);
+    });
   });
 
   testWidgets('groups transactions under wallet-history day headers', (

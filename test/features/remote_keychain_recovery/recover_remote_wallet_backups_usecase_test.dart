@@ -351,6 +351,26 @@ void main() {
 
       expect(result.status, RemoteKeychainRecoveryStatus.restored);
     });
+
+    test(
+      'a stalled persistence write cannot extend recovery completion',
+      () async {
+        final usecase = RecoverRemoteWalletBackupsUsecase(
+          (_) async => const RemoteKeychainRecoveryResult(
+            status: RemoteKeychainRecoveryStatus.restored,
+          ),
+          walletBackup,
+          metadataBackup,
+          outcomeStore: RemoteRecoveryOutcomeStore(_HangingKv()),
+        );
+
+        final result = await usecase
+            .execute(defaultCreatedWalletIds: const {})
+            .timeout(const Duration(seconds: 1));
+
+        expect(result.status, RemoteKeychainRecoveryStatus.restored);
+      },
+    );
   });
 }
 
@@ -387,6 +407,12 @@ final class _ThrowingKv extends _MemoryKv {
   Future<void> saveValue({required String key, required String value}) async {
     throw StateError('disk full');
   }
+}
+
+final class _HangingKv extends _MemoryKv {
+  @override
+  Future<void> saveValue({required String key, required String value}) =>
+      Completer<void>().future;
 }
 
 RecoverRemoteWalletBackupsUsecase _usecase({
