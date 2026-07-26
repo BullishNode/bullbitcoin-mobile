@@ -159,6 +159,7 @@ class RestoreKeychainManifestWalletsUsecase {
             publicKeyHex: intent.publicKeyHex,
             keyKind: intent.keyKind,
             purpose: intent.purpose,
+            description: intent.description,
           ),
           now: DateTime.fromMillisecondsSinceEpoch(
             intent.createdAt * 1000,

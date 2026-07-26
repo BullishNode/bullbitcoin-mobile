@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bb_mobile/core/mixins/privacy_screen.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
@@ -13,18 +15,11 @@ class NostrKeysScreen extends StatefulWidget {
   State<NostrKeysScreen> createState() => _NostrKeysScreenState();
 }
 
-class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
+class _NostrKeysScreenState extends State<NostrKeysScreen> {
   @override
   void initState() {
     super.initState();
-    enableScreenPrivacy();
     context.read<NostrKeysCubit>().load();
-  }
-
-  @override
-  void dispose() {
-    disableScreenPrivacy();
-    super.dispose();
   }
 
   Future<void> _createKey() async {
@@ -68,16 +63,17 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
     );
   }
 
-  Future<String?> _purposeDialog({String initial = ''}) async {
-    final controller = TextEditingController(text: initial);
-    final result = await showDialog<String>(
+  Future<String?> _purposeDialog({String initial = ''}) {
+    var purpose = initial;
+    return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.loc.settingsNostrKeysPurpose),
-        content: TextField(
-          controller: controller,
+        content: TextFormField(
+          initialValue: initial,
           autofocus: true,
           maxLength: 80,
+          onChanged: (value) => purpose = value,
           decoration: InputDecoration(
             hintText: context.loc.settingsNostrKeysPurposeHint,
           ),
@@ -89,8 +85,9 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
           ),
           FilledButton(
             onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                Navigator.pop(context, controller.text.trim());
+              final normalizedPurpose = purpose.trim();
+              if (normalizedPurpose.isNotEmpty) {
+                Navigator.pop(context, normalizedPurpose);
               }
             },
             child: Text(context.loc.settingsNostrKeysSave),
@@ -98,8 +95,6 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
         ],
       ),
     );
-    controller.dispose();
-    return result;
   }
 
   @override
@@ -144,11 +139,15 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> with PrivacyScreen {
               leading: const Icon(Icons.key),
               title: Text(materialization.purpose),
               subtitle: Text(materialization.publicKeyHex),
-              trailing: IconButton(
-                tooltip: context.loc.settingsNostrKeysSave,
-                icon: const Icon(Icons.edit),
-                onPressed: () => _editPurpose(key),
-              ),
+              trailing:
+                  materialization.keyKind ==
+                      KeychainManifestNostrKeyKind.userGenerated
+                  ? IconButton(
+                      tooltip: context.loc.settingsNostrKeysSave,
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _editPurpose(key),
+                    )
+                  : null,
             ),
             Text(
               key.entry.bip85DerivationPath,
@@ -179,7 +178,7 @@ class _NsecRevealDialog extends StatefulWidget {
 }
 
 class _NsecRevealDialogState extends State<_NsecRevealDialog>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, PrivacyScreen {
   String? _nsec;
   bool _dismissQueued = false;
 
@@ -187,6 +186,7 @@ class _NsecRevealDialogState extends State<_NsecRevealDialog>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(enableScreenPrivacy());
     WidgetsBinding.instance.addPostFrameCallback((_) => _derive());
   }
 
@@ -195,6 +195,7 @@ class _NsecRevealDialogState extends State<_NsecRevealDialog>
     _dismissQueued = true;
     WidgetsBinding.instance.removeObserver(this);
     _nsec = null;
+    unawaited(disableScreenPrivacy());
     super.dispose();
   }
 

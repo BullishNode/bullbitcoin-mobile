@@ -23,6 +23,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/usecases/reveal_keyc
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/update_keychain_manifest_nostr_key_purpose_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/presentation/nostr_keys_cubit.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/ui/widgets/nostr_nsec_reveal_dialog.dart';
 import 'package:get_it/get_it.dart';
 
 class KeychainManifestLocator {
@@ -71,21 +72,30 @@ class KeychainManifestLocator {
       () => GetDefaultWalletNostrKeysUsecase(
         wallet: locator<KeychainManifestBackupWalletPort>(),
         getKeys: locator<GetKeychainManifestNostrKeysUsecase>(),
+        registry: locator<Bip85RegistryFacade>(),
       ),
     );
     locator.registerFactory<UpdateKeychainManifestNostrKeyPurposeUsecase>(
       () => UpdateKeychainManifestNostrKeyPurposeUsecase(
         repository: locator<KeychainManifestEntryRepository>(),
+        registry: locator<Bip85RegistryFacade>(),
         clock: locator<Clock>(),
       ),
     );
-    locator.registerFactory<RevealKeychainManifestNostrKeyUsecase>(
-      () => RevealKeychainManifestNostrKeyUsecase(
-        wallet: locator<KeychainManifestBackupWalletPort>(),
+    locator.registerFactory<NostrNsecRevealPresenter>(
+      () => NostrNsecRevealPresenter(
+        reveal: RevealKeychainManifestNostrKeyUsecase(
+          wallet: locator<KeychainManifestBackupWalletPort>(),
+        ),
       ),
     );
     locator.registerFactory<NostrKeysCubit>(
-      () => NostrKeysCubit(locator<KeychainManifestFacade>()),
+      () => NostrKeysCubit(
+        loadKeys: locator<GetDefaultWalletNostrKeysUsecase>().execute,
+        createKey: locator<CreateKeychainManifestNostrKeyUsecase>().execute,
+        updateKey:
+            locator<UpdateKeychainManifestNostrKeyPurposeUsecase>().execute,
+      ),
     );
     locator.registerFactory<GetKeychainManifestReservationWalletIdsUsecase>(
       () => GetKeychainManifestReservationWalletIdsUsecase(
@@ -114,18 +124,20 @@ class KeychainManifestLocator {
     locator.registerLazySingleton<KeychainManifestFacade>(
       () => KeychainManifestFacade(
         recordEntry: locator<RecordKeychainManifestEntryUsecase>(),
-        recordNostrKey: locator<RecordKeychainManifestNostrKeyUsecase>(),
-        getNostrKeys: locator<GetKeychainManifestNostrKeysUsecase>(),
-        getDefaultNostrKeys: locator<GetDefaultWalletNostrKeysUsecase>(),
+        recordNostrKey:
+            locator<RecordKeychainManifestNostrKeyUsecase>().execute,
+        getNostrKeys: locator<GetKeychainManifestNostrKeysUsecase>().execute,
+        getDefaultNostrKeys:
+            locator<GetDefaultWalletNostrKeysUsecase>().execute,
         updateNostrKeyPurpose:
-            locator<UpdateKeychainManifestNostrKeyPurposeUsecase>(),
+            locator<UpdateKeychainManifestNostrKeyPurposeUsecase>().execute,
         buildManifestFile: locator<BuildKeychainManifestFileUsecase>(),
         mergeManifestFiles: locator<MergeKeychainManifestFilePayloadsUsecase>(),
         parseManifestFile: locator<ParseKeychainManifestFileUsecase>(),
         reservationWalletIds:
             locator<GetKeychainManifestReservationWalletIdsUsecase>(),
-        createNostrKey: locator<CreateKeychainManifestNostrKeyUsecase>(),
-        revealNostrKey: locator<RevealKeychainManifestNostrKeyUsecase>(),
+        createNostrKey:
+            locator<CreateKeychainManifestNostrKeyUsecase>().execute,
       ),
       dispose: (facade) => facade.close(),
     );

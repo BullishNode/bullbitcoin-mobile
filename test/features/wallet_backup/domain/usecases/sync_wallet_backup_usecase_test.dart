@@ -33,6 +33,7 @@ import 'package:bip32_keys/bip32_keys.dart' as bip32;
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../../keychain_manifest/support/unavailable_manifest_nostr_operations.dart';
 
 void main() {
   test('stores the first unified manifest backup', () async {
@@ -464,6 +465,10 @@ final class _Fixture {
         repository: store,
         bip85Registry: registry,
       ),
+      recordNostrKey: UnavailableManifestNostrOperations.record,
+      getNostrKeys: UnavailableManifestNostrOperations.get,
+      getDefaultNostrKeys: UnavailableManifestNostrOperations.getDefault,
+      updateNostrKeyPurpose: UnavailableManifestNostrOperations.update,
       buildManifestFile: BuildKeychainManifestFileUsecase(
         repository: store,
         registry: registry,
@@ -476,6 +481,7 @@ final class _Fixture {
       reservationWalletIds: GetKeychainManifestReservationWalletIdsUsecase(
         repository: store,
       ),
+      createNostrKey: UnavailableManifestNostrOperations.create,
     );
   }
 
@@ -570,10 +576,11 @@ final class _StaticManifestStore implements KeychainManifestEntryRepository {
   ) async {}
 
   @override
-  Future<void> updateNostrKeyPurpose({
+  Future<void> updateNostrKeyMetadata({
     required String parentFingerprint,
     required String entryId,
     required String purpose,
+    required String? description,
     required int updatedAt,
   }) async {}
 }

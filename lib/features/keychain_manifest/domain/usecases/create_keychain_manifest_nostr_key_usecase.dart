@@ -4,25 +4,12 @@ import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_backup_wallet.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/created_keychain_manifest_nostr_key.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_nostr_key_usecase.dart';
-
-final class CreatedKeychainManifestNostrKey {
-  final String parentFingerprint;
-  final String derivationPath;
-  final String publicKeyHex;
-  final String purpose;
-
-  const CreatedKeychainManifestNostrKey({
-    required this.parentFingerprint,
-    required this.derivationPath,
-    required this.publicKeyHex,
-    required this.purpose,
-  });
-}
 
 final class CreateKeychainManifestNostrKeyUsecase {
   final KeychainManifestBackupWalletPort _wallet;
@@ -44,6 +31,7 @@ final class CreateKeychainManifestNostrKeyUsecase {
 
   Future<CreatedKeychainManifestNostrKey> execute({
     required String purpose,
+    String? description,
     DateTime? now,
   }) async {
     final source = await _wallet.deriveDefaultWallet();
@@ -88,6 +76,7 @@ final class CreateKeychainManifestNostrKeyUsecase {
             publicKeyHex: publicKeyHex,
             keyKind: KeychainManifestNostrKeyKind.userGenerated,
             purpose: purpose,
+            description: description,
           ),
           now: timestamp,
         );
@@ -97,6 +86,10 @@ final class CreateKeychainManifestNostrKeyUsecase {
           derivationPath: path,
           publicKeyHex: publicKeyHex,
           purpose: purpose.trim(),
+          description:
+              KeychainManifestNostrKeyMaterialization.normalizeDescription(
+                description,
+              ),
         );
       } on KeychainManifestEntryConflictException {
         // Another allocator committed this path after our high-water read.

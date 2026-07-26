@@ -41,6 +41,10 @@ class KeychainManifestNostrKeyRequest {
   final KeychainManifestNostrKeyKind keyKind;
   final String purpose;
 
+  /// Optional free-form context. App-reserved recorder paths leave this null:
+  /// a system key's meaning comes from its role, not from user-authored text.
+  final String? description;
+
   const KeychainManifestNostrKeyRequest({
     required this.reservationId,
     required this.parentFingerprint,
@@ -48,5 +52,6 @@ class KeychainManifestNostrKeyRequest {
     required this.publicKeyHex,
     required this.keyKind,
     required this.purpose,
+    this.description,
   });
 }

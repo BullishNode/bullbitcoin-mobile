@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -27,6 +28,55 @@ void main() {
         codec.encode(codec.decode(_emptyManifestPayload)),
         _emptyManifestPayload,
       );
+    });
+
+    test('Nostr key descriptions round-trip byte-exact', () {
+      expect(
+        codec.encode(codec.decode(_describedNostrManifestPayload)),
+        _describedNostrManifestPayload,
+      );
+      final materialization =
+          codec
+                  .decode(_describedNostrManifestPayload)
+                  .entries
+                  .single
+                  .materializations
+                  .single
+              as KeychainManifestFileNostrKeyMaterialization;
+      expect(materialization.description, 'Long-form notes and replies');
+    });
+
+    test('a payload written before descriptions existed parses to null', () {
+      final manifestFile = codec.decode(_legacyNostrManifestPayload);
+      final materialization =
+          manifestFile.entries.single.materializations.single
+              as KeychainManifestFileNostrKeyMaterialization;
+
+      expect(materialization.purpose, 'Personal identity');
+      expect(materialization.description, isNull);
+    });
+
+    test('an absent description re-encodes without the key', () {
+      // The wallet-backup envelope rejects a manifest section that is not
+      // byte-identical to its canonical encoding, so a backup written before
+      // the field existed must not gain a "description":null on re-encode.
+      expect(
+        codec.encode(codec.decode(_legacyNostrManifestPayload)),
+        _legacyNostrManifestPayload,
+      );
+    });
+
+    test('an explicit null description parses as absent', () {
+      final payload = _legacyNostrManifestPayload.replaceFirst(
+        '"purpose":"Personal identity"',
+        '"purpose":"Personal identity","description":null',
+      );
+
+      final materialization =
+          codec.decode(payload).entries.single.materializations.single
+              as KeychainManifestFileNostrKeyMaterialization;
+
+      expect(materialization.description, isNull);
     });
 
     test('encode restores canonical entry and materialization order', () {
@@ -240,6 +290,33 @@ void main() {
     });
   });
 }
+
+/// A v1 manifest holding one user Nostr key, as written before the optional
+/// description field existed.
+final _legacyNostrManifestPayload =
+    '{"version":1,"parentFingerprint":"fedcba98","generatedAt":20,'
+    '"inventoryUpdatedAt":12,"entryCount":1,"materializationCount":1,'
+    '"entries":[{"entryId":"fedcba98:128002\'/1\'/1\'",'
+    '"bip85DerivationPath":"128002\'/1\'/1\'",'
+    '"reservationId":"nostr_user_key","entryType":"userGenerated",'
+    '"ownerFeature":"nostr","bip85Application":128002,"bip85Index":1,'
+    '"createdAt":10,"updatedAt":12,"materializations":[{"type":"nostrKey",'
+    '"publicKeyHex":"${'ab' * 32}","keyKind":"userGenerated",'
+    '"purpose":"Personal identity","createdAt":10,"updatedAt":12}]}]}';
+
+/// The same manifest with a description present.
+final _describedNostrManifestPayload =
+    '{"version":1,"parentFingerprint":"fedcba98","generatedAt":20,'
+    '"inventoryUpdatedAt":12,"entryCount":1,"materializationCount":1,'
+    '"entries":[{"entryId":"fedcba98:128002\'/1\'/1\'",'
+    '"bip85DerivationPath":"128002\'/1\'/1\'",'
+    '"reservationId":"nostr_user_key","entryType":"userGenerated",'
+    '"ownerFeature":"nostr","bip85Application":128002,"bip85Index":1,'
+    '"createdAt":10,"updatedAt":12,"materializations":[{"type":"nostrKey",'
+    '"publicKeyHex":"${'ab' * 32}","keyKind":"userGenerated",'
+    '"purpose":"Personal identity",'
+    '"description":"Long-form notes and replies",'
+    '"createdAt":10,"updatedAt":12}]}]}';
 
 const _emptyManifestPayload =
     '{"version":1,"parentFingerprint":"fedcba98","generatedAt":20,'
