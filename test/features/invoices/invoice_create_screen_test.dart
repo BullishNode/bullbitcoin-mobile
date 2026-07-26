@@ -1,3 +1,5 @@
+import 'package:bb_mobile/core/exchange/domain/usecases/convert_currency_to_sats_amount_usecase.dart';
+import 'package:bb_mobile/core/exchange/domain/usecases/convert_sats_to_currency_amount_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
@@ -8,6 +10,7 @@ import 'package:bb_mobile/features/invoices/ui/screens/invoice_create_screen.dar
 import 'package:bb_mobile/features/invoices/ui/widgets/invoice_amount_card.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
+import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,25 +23,43 @@ class _MockSettlementConstraints extends Mock
 
 class _MockGetSettings extends Mock implements GetSettingsUsecase {}
 
+class _MockConvertToSats extends Mock
+    implements ConvertCurrencyToSatsAmountUsecase {}
+
+class _MockConvertToFiat extends Mock
+    implements ConvertSatsToCurrencyAmountUsecase {}
+
 void main() {
   late _MockFacade facade;
   late InvoiceCreateCubit cubit;
 
   setUp(() async {
+    final appSettings = _MockGetSettings();
+    when(() => appSettings.execute()).thenAnswer(
+      (_) async => SettingsEntity(
+        environment: Environment.testnet,
+        bitcoinUnit: BitcoinUnit.sats,
+        currencyCode: 'CAD',
+      ),
+    );
+    locator.registerSingleton<GetSettingsUsecase>(appSettings);
     facade = _MockFacade();
     when(() => facade.resumeCreate()).thenAnswer(
       (_) async => const Ok<CreateInvoiceResult?, InvoicesFailure>(null),
     );
     when(() => facade.supportedCurrencies()).thenAnswer(
-      (_) async => const Ok<BullnymSupportedCurrencies, InvoicesFailure>(
-        BullnymSupportedCurrencies(currencies: []),
+      (_) async => const Ok<InvoiceSupportedCurrencies, InvoicesFailure>(
+        InvoiceSupportedCurrencies(currencies: []),
       ),
     );
-    cubit = InvoiceCreateCubit(facade: facade);
+    cubit = _buildCubit(facade);
     await cubit.initialize();
   });
 
-  tearDown(() => cubit.close());
+  tearDown(() async {
+    await cubit.close();
+    await locator.reset();
+  });
 
   testWidgets('optional private details are collapsed and preserve values', (
     tester,
@@ -106,10 +127,7 @@ void main() {
       (_) async =>
           const InvoiceSettlementConstraints(directLiquidAvailable: false),
     );
-    cubit = InvoiceCreateCubit(
-      facade: facade,
-      settlementConstraints: constraints,
-    );
+    cubit = _buildCubit(facade, settlementConstraints: constraints);
     await cubit.initialize();
 
     await tester.pumpWidget(
@@ -217,7 +235,10 @@ void main() {
     expect(find.byKey(const Key('invoice_edit_rails_button')), findsOneWidget);
     expect(find.text('Accepted payment methods'), findsNothing);
     expect(find.widgetWithText(SwitchListTile, 'Lightning'), findsNothing);
-    expect(find.widgetWithText(SwitchListTile, 'On-chain Bitcoin'), findsNothing);
+    expect(
+      find.widgetWithText(SwitchListTile, 'On-chain Bitcoin'),
+      findsNothing,
+    );
 
     // Tapping reveals the toggles and the section label.
     await tester.tap(find.byKey(const Key('invoice_edit_rails_button')));
@@ -240,9 +261,9 @@ void main() {
 
 Future<InvoiceCreateCubit> _fiatSeededCubit(_MockFacade facade) async {
   when(() => facade.supportedCurrencies()).thenAnswer(
-    (_) async => const Ok<BullnymSupportedCurrencies, InvoicesFailure>(
-      BullnymSupportedCurrencies(
-        currencies: [BullnymSupportedCurrency(code: 'CAD', precision: 2)],
+    (_) async => const Ok<InvoiceSupportedCurrencies, InvoicesFailure>(
+      InvoiceSupportedCurrencies(
+        currencies: [InvoiceSupportedCurrency(code: 'CAD', precision: 2)],
       ),
     ),
   );
@@ -254,9 +275,57 @@ Future<InvoiceCreateCubit> _fiatSeededCubit(_MockFacade facade) async {
       currencyCode: 'CAD',
     ),
   );
-  final cubit = InvoiceCreateCubit(facade: facade, getSettings: getSettings);
+  final cubit = _buildCubit(facade, getSettings: getSettings);
   await cubit.initialize();
   return cubit;
+}
+
+InvoiceCreateCubit _buildCubit(
+  _MockFacade facade, {
+  GetInvoiceSettlementConstraintsUsecase? settlementConstraints,
+  GetSettingsUsecase? getSettings,
+}) {
+  final effectiveConstraints =
+      settlementConstraints ?? _MockSettlementConstraints();
+  if (settlementConstraints == null) {
+    when(() => effectiveConstraints.execute()).thenAnswer(
+      (_) async =>
+          const InvoiceSettlementConstraints(directLiquidAvailable: true),
+    );
+  }
+  final effectiveSettings = getSettings ?? _MockGetSettings();
+  if (getSettings == null) {
+    when(() => effectiveSettings.execute()).thenAnswer(
+      (_) async => SettingsEntity(
+        environment: Environment.mainnet,
+        bitcoinUnit: BitcoinUnit.sats,
+        currencyCode: 'CAD',
+      ),
+    );
+  }
+  final convertToSats = _MockConvertToSats();
+  when(
+    () => convertToSats.execute(
+      amountFiat: any(named: 'amountFiat'),
+      currencyCode: any(named: 'currencyCode'),
+    ),
+  ).thenThrow(Exception('rate unavailable'));
+  final convertToFiat = _MockConvertToFiat();
+  when(
+    () => convertToFiat.execute(
+      amountSat: any(named: 'amountSat'),
+      currencyCode: any(named: 'currencyCode'),
+    ),
+  ).thenThrow(Exception('rate unavailable'));
+  return InvoiceCreateCubit(
+    create: facade.create,
+    resumeCreate: facade.resumeCreate,
+    supportedCurrencies: facade.supportedCurrencies,
+    settlementConstraints: effectiveConstraints,
+    getSettings: effectiveSettings,
+    convertToSats: convertToSats,
+    convertToFiat: convertToFiat,
+  );
 }
 
 Future<void> _pumpScreen(WidgetTester tester, InvoiceCreateCubit cubit) async {

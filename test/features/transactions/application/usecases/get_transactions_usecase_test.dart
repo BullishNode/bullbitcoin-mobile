@@ -155,6 +155,13 @@ void main() {
       ),
     );
     when(
+      () => walletTxs.getWalletTransactions(
+        walletId: any(named: 'walletId'),
+        sync: any(named: 'sync'),
+        environment: any(named: 'environment'),
+      ),
+    ).thenAnswer((_) async => <WalletTransaction>[]);
+    when(
       () => payjoins.getPayjoins(
         walletId: any(named: 'walletId'),
         environment: any(named: 'environment'),
@@ -163,11 +170,10 @@ void main() {
     when(
       () => swaps.getAllSwaps(walletId: any(named: 'walletId')),
     ).thenAnswer((_) async => <Swap>[]);
+    when(() => mainnetOrders.getOrders()).thenAnswer((_) async => <Order>[]);
     when(() => testnetOrders.getOrders()).thenAnswer((_) async => <Order>[]);
     when(
-      () => labeler.execute(
-        walletFundedTxIds: any(named: 'walletFundedTxIds'),
-      ),
+      () => labeler.execute(walletFundedTxIds: any(named: 'walletFundedTxIds')),
     ).thenAnswer((_) async {});
   });
 
@@ -182,27 +188,54 @@ void main() {
   }
 
   test(
-    'sell order + incoming wallet tx with same txid stays split: a plain '
-    'receive plus a standalone order row',
+    'hides an aborted Payjoin until its original wallet tx is synced',
     () async {
-      const txid = 'shared_txid';
-      stubWalletTxs([
-        _walletTx(txId: txid, direction: WalletTransactionDirection.incoming),
-      ]);
       when(
-        () => mainnetOrders.getOrders(),
-      ).thenAnswer((_) async => [_sellOrder(txId: txid)]);
+        () => payjoins.getPayjoins(
+          walletId: any(named: 'walletId'),
+          environment: any(named: 'environment'),
+        ),
+      ).thenAnswer((_) async => [_receiver(PayjoinStatus.aborted)]);
 
-      final result = await usecase.execute();
+      final transactions = await usecase.execute();
 
-      expect(result.length, 2);
-      final walletRow = result.firstWhere((t) => t.walletTransaction != null);
-      expect(walletRow.order, isNull, reason: 'receive is not merged');
-      final orderRow = result.firstWhere((t) => t.order != null);
-      expect(orderRow.walletTransaction, isNull);
-      expect(orderRow.order, isA<SellOrder>());
+      expect(transactions, isEmpty);
     },
   );
+
+  test('keeps a genuinely pending Payjoin in the transaction list', () async {
+    when(
+      () => payjoins.getPayjoins(
+        walletId: any(named: 'walletId'),
+        environment: any(named: 'environment'),
+      ),
+    ).thenAnswer((_) async => [_receiver(PayjoinStatus.requested)]);
+
+    final transactions = await usecase.execute();
+
+    expect(transactions, hasLength(1));
+    expect(transactions.single.payjoin?.status, PayjoinStatus.requested);
+  });
+
+  test('sell order + incoming wallet tx with same txid stays split: a plain '
+      'receive plus a standalone order row', () async {
+    const txid = 'shared_txid';
+    stubWalletTxs([
+      _walletTx(txId: txid, direction: WalletTransactionDirection.incoming),
+    ]);
+    when(
+      () => mainnetOrders.getOrders(),
+    ).thenAnswer((_) async => [_sellOrder(txId: txid)]);
+
+    final result = await usecase.execute();
+
+    expect(result.length, 2);
+    final walletRow = result.firstWhere((t) => t.walletTransaction != null);
+    expect(walletRow.order, isNull, reason: 'receive is not merged');
+    final orderRow = result.firstWhere((t) => t.order != null);
+    expect(orderRow.walletTransaction, isNull);
+    expect(orderRow.order, isA<SellOrder>());
+  });
 
   test(
     'sell order + outgoing wallet tx with same txid merges into one row',
@@ -256,47 +289,15 @@ void main() {
 
       await usecase.execute();
 
-      final captured = verify(
-        () => labeler.execute(
-          walletFundedTxIds: captureAny(named: 'walletFundedTxIds'),
-        ),
-      ).captured.single as Set<String>;
+      final captured =
+          verify(
+                () => labeler.execute(
+                  walletFundedTxIds: captureAny(named: 'walletFundedTxIds'),
+                ),
+              ).captured.single
+              as Set<String>;
       expect(captured, contains('out'));
       expect(captured, isNot(contains('in')));
     },
   );
-
-  test(
-    'hides an aborted Payjoin until its original wallet tx is synced',
-    () async {
-      stubWalletTxs([]);
-      when(
-        () => payjoins.getPayjoins(
-          walletId: any(named: 'walletId'),
-          environment: any(named: 'environment'),
-        ),
-      ).thenAnswer((_) async => [_receiver(PayjoinStatus.aborted)]);
-      when(() => mainnetOrders.getOrders()).thenAnswer((_) async => <Order>[]);
-
-      final transactions = await usecase.execute();
-
-      expect(transactions, isEmpty);
-    },
-  );
-
-  test('keeps a genuinely pending Payjoin in the transaction list', () async {
-    stubWalletTxs([]);
-    when(
-      () => payjoins.getPayjoins(
-        walletId: any(named: 'walletId'),
-        environment: any(named: 'environment'),
-      ),
-    ).thenAnswer((_) async => [_receiver(PayjoinStatus.requested)]);
-    when(() => mainnetOrders.getOrders()).thenAnswer((_) async => <Order>[]);
-
-    final transactions = await usecase.execute();
-
-    expect(transactions, hasLength(1));
-    expect(transactions.single.payjoin?.status, PayjoinStatus.requested);
-  });
 }

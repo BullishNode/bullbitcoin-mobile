@@ -239,9 +239,7 @@ void main() {
     ) async {
       await _pumpDetail(
         tester,
-        _tx(
-          settlement: _fiat(amountMinor: 12345, quotedAmountMinor: 12000),
-        ),
+        _tx(settlement: _fiat(amountMinor: 12345, quotedAmountMinor: 12000)),
       );
       // Credited amount under the plain label; the (differing) quote is gone.
       expect(find.text('Fiat amount'), findsOneWidget);
@@ -299,10 +297,7 @@ void main() {
         ),
       );
       expect(find.text('Invoice ID'), findsOneWidget);
-      expect(
-        find.text('50000000-0000-4000-8000-000000000005'),
-        findsOneWidget,
-      );
+      expect(find.text('50000000-0000-4000-8000-000000000005'), findsOneWidget);
       // The row carries the copy affordance (same idiom as the order-id row).
       expect(find.byIcon(Icons.copy_outlined), findsWidgets);
     });

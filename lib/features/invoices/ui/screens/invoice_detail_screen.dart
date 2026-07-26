@@ -88,10 +88,7 @@ class InvoiceDetailScreen extends StatelessWidget {
             invoiceStatusText(context, status),
           ),
           if (snapshot.isAwaitingConfirmation)
-            _supportingStatus(
-              context,
-              context.loc.invoiceAwaitingConfirmation,
-            ),
+            _supportingStatus(context, context.loc.invoiceAwaitingConfirmation),
           if (invoiceSettlementSupportingText(context, snapshot.settlementState)
               case final settlementText?)
             _supportingStatus(context, settlementText),

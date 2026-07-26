@@ -476,10 +476,7 @@ void main() {
     expect(find.text('Overpaid by'), findsNothing);
     // Quote is irrelevant once terminal / paid.
     expect(find.text('Payer quote'), findsNothing);
-    expect(
-      find.text('Payer quote is temporarily unavailable'),
-      findsNothing,
-    );
+    expect(find.text('Payer quote is temporarily unavailable'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -521,10 +518,7 @@ void main() {
     expect(find.text('0 sats'), findsNothing);
     expect(find.text('Overpaid by'), findsNothing);
     expect(find.text('Payer quote'), findsNothing);
-    expect(
-      find.text('Payer quote is temporarily unavailable'),
-      findsNothing,
-    );
+    expect(find.text('Payer quote is temporarily unavailable'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

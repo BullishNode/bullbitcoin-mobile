@@ -52,9 +52,9 @@ void main() {
     );
     // No pre-existing exchange labels, so the pass runs.
     when(() => facade.fetchAll()).thenAnswer((_) async => <Label>[]);
-    when(() => facade.store(any())).thenAnswer(
-      (_) async => Ok<Label, LabelFailure>(_FakeLabel()),
-    );
+    when(
+      () => facade.store(any()),
+    ).thenAnswer((_) async => Ok<Label, LabelFailure>(_FakeLabel()));
   });
 
   test('a sell tx not funded by the wallet is not stamped "Sell"', () async {
