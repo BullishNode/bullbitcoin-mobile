@@ -28,36 +28,18 @@ final class RestoreBip329LabelRecordsUsecase {
       if (decoded.length != records.length) {
         throw const FormatException('BIP329 metadata conversion lost records');
       }
-      final existing = _converter.convertToMetadataRecords(
-        await _repository.fetchAll(),
-      );
-      final existingById = {
-        for (final record in existing) record.recordId: record,
-      };
-      var alreadyPresentCount = 0;
-      var preservedLocalConflictCount = 0;
-      final toStore = <int>[];
-      for (var index = 0; index < records.length; index++) {
-        final record = records[index];
-        final current = existingById[record.recordId];
-        if (current == null) {
-          toStore.add(index);
-        } else if (_sameLabel(current, record)) {
-          alreadyPresentCount++;
-        } else {
-          preservedLocalConflictCount++;
-        }
+      final writeResult = await _repository.restoreMissing(decoded);
+      if (writeResult.intendedCount != records.length) {
+        throw const FormatException('BIP329 recovery write lost records');
       }
-      await _repository.storeAll(
-        toStore.map((index) => decoded[index]).toList(growable: false),
-      );
       return Ok(
         Bip329LabelRestoreSummary(
           intendedCount: records.length,
-          restoredCount: toStore.length,
-          alreadyPresentCount: alreadyPresentCount,
-          preservedLocalConflictCount: preservedLocalConflictCount,
-          localProjectionMatchesSnapshot: preservedLocalConflictCount == 0,
+          restoredCount: writeResult.restoredCount,
+          alreadyPresentCount: writeResult.alreadyPresentCount,
+          preservedLocalConflictCount: writeResult.preservedLocalConflictCount,
+          localProjectionMatchesSnapshot:
+              writeResult.preservedLocalConflictCount == 0,
         ),
       );
     } on Exception catch (_, st) {
@@ -69,11 +51,4 @@ final class RestoreBip329LabelRecordsUsecase {
       return const Err(LabelUnexpectedFailure());
     }
   }
-}
-
-bool _sameLabel(Bip329LabelRecord left, Bip329LabelRecord right) {
-  return left.type == right.type &&
-      left.reference == right.reference &&
-      left.label == right.label &&
-      left.origin == right.origin;
 }

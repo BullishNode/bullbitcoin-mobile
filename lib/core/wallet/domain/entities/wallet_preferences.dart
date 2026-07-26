@@ -35,3 +35,35 @@ final class WalletPreferences {
   bool get hasRepresentedValue =>
       label != null || hideOnHome != null || autoSweepEnabled != null;
 }
+
+/// One recovery write guarded by the preference state that was classified.
+final class WalletPreferencesRecoveryUpdate {
+  final WalletPreferences expected;
+  final WalletPreferences recovered;
+
+  WalletPreferencesRecoveryUpdate({
+    required this.expected,
+    required this.recovered,
+  }) {
+    if (expected.walletRef != recovered.walletRef) {
+      throw ArgumentError('wallet preference recovery identity changed');
+    }
+  }
+}
+
+final class WalletPreferencesRecoveryApplyResult {
+  final Set<String> appliedWalletRefs;
+  final Set<String> conflictedWalletRefs;
+
+  WalletPreferencesRecoveryApplyResult({
+    required Set<String> appliedWalletRefs,
+    required Set<String> conflictedWalletRefs,
+  }) : appliedWalletRefs = Set.unmodifiable(appliedWalletRefs),
+       conflictedWalletRefs = Set.unmodifiable(conflictedWalletRefs) {
+    if (this.appliedWalletRefs
+        .intersection(this.conflictedWalletRefs)
+        .isNotEmpty) {
+      throw ArgumentError('wallet preference recovery result overlaps');
+    }
+  }
+}

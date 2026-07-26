@@ -167,9 +167,14 @@ void main() {
         WalletPreferences(walletRef: 'existing', hideOnHome: false),
       ]),
     );
-    when(
-      () => repository.applyRecovered(any()),
-    ).thenAnswer((_) async => const Ok(null));
+    when(() => repository.applyRecovered(any())).thenAnswer(
+      (_) async => Ok(
+        WalletPreferencesRecoveryApplyResult(
+          appliedWalletRefs: const {'created'},
+          conflictedWalletRefs: const {},
+        ),
+      ),
+    );
     final records = [
       _preferenceRecord('created', const {'label': 'restored'}),
       _preferenceRecord('existing', const {'hideOnHome': true}),
@@ -200,11 +205,13 @@ void main() {
     expect(summary.localProjectionMatchesSnapshot, isFalse);
     final applied =
         verify(() => repository.applyRecovered(captureAny())).captured.single
-            as List<WalletPreferences>;
+            as List<WalletPreferencesRecoveryUpdate>;
     expect(applied, hasLength(1));
-    expect(applied.single.walletRef, 'created');
-    expect(applied.single.label, 'restored');
-    expect(applied.single.hideOnHome, isNull);
+    expect(applied.single.expected.walletRef, 'created');
+    expect(applied.single.expected.label, 'product default');
+    expect(applied.single.recovered.walletRef, 'created');
+    expect(applied.single.recovered.label, 'restored');
+    expect(applied.single.recovered.hideOnHome, isNull);
   });
 
   test('allows unrelated local wallet preferences during recovery', () async {
@@ -214,9 +221,14 @@ void main() {
         WalletPreferences(walletRef: 'local-only', label: 'Keep me'),
       ]),
     );
-    when(
-      () => repository.applyRecovered(any()),
-    ).thenAnswer((_) async => const Ok(null));
+    when(() => repository.applyRecovered(any())).thenAnswer(
+      (_) async => Ok(
+        WalletPreferencesRecoveryApplyResult(
+          appliedWalletRefs: const {'created'},
+          conflictedWalletRefs: const {},
+        ),
+      ),
+    );
     final record = _preferenceRecord('created', const {'hideOnHome': true});
 
     final result = await contributor.applyIntents(
@@ -229,6 +241,137 @@ void main() {
 
     expect(_requireSummary(result).localProjectionMatchesSnapshot, isTrue);
   });
+
+  test(
+    'retry treats identical existing preferences as already present',
+    () async {
+      when(() => repository.fetchAll()).thenAnswer(
+        (_) async => Ok([
+          WalletPreferences(
+            walletRef: 'existing',
+            label: 'Point of Sale',
+            hideOnHome: true,
+            autoSweepEnabled: false,
+          ),
+        ]),
+      );
+      when(() => repository.applyRecovered(any())).thenAnswer(
+        (_) async => Ok(
+          WalletPreferencesRecoveryApplyResult(
+            appliedWalletRefs: const {'existing'},
+            conflictedWalletRefs: const {},
+          ),
+        ),
+      );
+      final record = _preferenceRecord('existing', const {
+        'label': 'Point of Sale',
+        'hideOnHome': true,
+        'autoSweepEnabled': false,
+      });
+
+      final result = await contributor.applyIntents(
+        intents: [
+          (contributor.validateRecord(record) as WalletMetadataRecordValid)
+              .intent,
+        ],
+        context: WalletMetadataApplyContext(createdWalletRefs: const {}),
+      );
+      final summary = _requireSummary(result);
+
+      expect(summary.restoredCount, 0);
+      expect(summary.alreadyPresentCount, 1);
+      expect(summary.preservedLocalConflictCount, 0);
+      expect(summary.deferredMissingWalletCount, 0);
+      expect(summary.localProjectionMatchesSnapshot, isTrue);
+      final applied =
+          verify(() => repository.applyRecovered(captureAny())).captured.single
+              as List<WalletPreferencesRecoveryUpdate>;
+      expect(applied, hasLength(1));
+      expect(applied.single.expected.walletRef, 'existing');
+      expect(applied.single.expected.label, 'Point of Sale');
+      expect(applied.single.recovered.walletRef, 'existing');
+      expect(applied.single.recovered.label, 'Point of Sale');
+    },
+  );
+
+  test(
+    'retry preserves divergent existing preferences as a conflict',
+    () async {
+      when(() => repository.fetchAll()).thenAnswer(
+        (_) async => Ok([
+          WalletPreferences(walletRef: 'existing', label: 'Local label'),
+        ]),
+      );
+      when(() => repository.applyRecovered(any())).thenAnswer(
+        (_) async => Ok(
+          WalletPreferencesRecoveryApplyResult(
+            appliedWalletRefs: const {},
+            conflictedWalletRefs: const {},
+          ),
+        ),
+      );
+      final record = _preferenceRecord('existing', const {
+        'label': 'Remote label',
+      });
+
+      final result = await contributor.applyIntents(
+        intents: [
+          (contributor.validateRecord(record) as WalletMetadataRecordValid)
+              .intent,
+        ],
+        context: WalletMetadataApplyContext(createdWalletRefs: const {}),
+      );
+      final summary = _requireSummary(result);
+
+      expect(summary.restoredCount, 0);
+      expect(summary.alreadyPresentCount, 0);
+      expect(summary.preservedLocalConflictCount, 1);
+      expect(summary.deferredMissingWalletCount, 0);
+      expect(summary.localProjectionMatchesSnapshot, isFalse);
+      final applied =
+          verify(() => repository.applyRecovered(captureAny())).captured.single
+              as List<WalletPreferencesRecoveryUpdate>;
+      expect(applied, isEmpty);
+    },
+  );
+
+  test(
+    'reports a preference changed after classification as conflict',
+    () async {
+      when(() => repository.fetchAll()).thenAnswer(
+        (_) async => Ok([
+          WalletPreferences(walletRef: 'created', label: 'product default'),
+        ]),
+      );
+      when(() => repository.applyRecovered(any())).thenAnswer(
+        (_) async => Ok(
+          WalletPreferencesRecoveryApplyResult(
+            appliedWalletRefs: const {},
+            conflictedWalletRefs: const {'created'},
+          ),
+        ),
+      );
+      final record = _preferenceRecord('created', const {
+        'label': 'remote label',
+      });
+
+      final result = await contributor.applyIntents(
+        intents: [
+          (contributor.validateRecord(record) as WalletMetadataRecordValid)
+              .intent,
+        ],
+        context: WalletMetadataApplyContext(
+          createdWalletRefs: const {'created'},
+        ),
+      );
+      final summary = _requireSummary(result);
+
+      expect(summary.restoredCount, 0);
+      expect(summary.alreadyPresentCount, 0);
+      expect(summary.preservedLocalConflictCount, 1);
+      expect(summary.localProjectionMatchesSnapshot, isFalse);
+    },
+  );
 }
 
 WalletMetadataContributorApplySummary _requireSummary(

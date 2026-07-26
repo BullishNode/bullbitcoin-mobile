@@ -10,7 +10,6 @@ abstract interface class WalletPreferencesRepository {
   Future<Result<List<WalletPreferences>, WalletPreferencesFailure>> fetchAll();
 
   @useResult
-  Future<Result<Null, WalletPreferencesFailure>> applyRecovered(
-    List<WalletPreferences> preferences,
-  );
+  Future<Result<WalletPreferencesRecoveryApplyResult, WalletPreferencesFailure>>
+  applyRecovered(List<WalletPreferencesRecoveryUpdate> updates);
 }
