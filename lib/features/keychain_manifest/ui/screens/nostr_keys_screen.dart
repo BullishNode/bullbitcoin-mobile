@@ -1,13 +1,23 @@
-import 'dart:async';
-
-import 'package:bb_mobile/core/mixins/privacy_screen.dart';
+import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
+import 'package:bb_mobile/core/widgets/settings_entry_item.dart';
+import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
+import 'package:bb_mobile/core/widgets/text/text.dart';
+import 'package:bb_mobile/core/widgets/warning_bottom_sheet.dart';
+import 'package:bb_mobile/features/keychain_manifest/presentation/nostr_key_l10n.dart';
 import 'package:bb_mobile/features/keychain_manifest/presentation/nostr_keys_cubit.dart';
+import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
+import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_routes.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+/// The Nostr keys list. Rows carry the key NAME only — no npub, no hex, no
+/// path — and open the detail page; everything else about a key lives there.
+///
+/// App-owned keys are deliberately hard to reach: they are troubleshooting and
+/// recovery material, not identities, so they stay collapsed behind a muted
+/// footer affordance gated by a warning, and render subdued when revealed.
 class NostrKeysScreen extends StatefulWidget {
   const NostrKeysScreen({super.key});
 
@@ -22,79 +32,43 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> {
     context.read<NostrKeysCubit>().load();
   }
 
-  Future<void> _createKey() async {
-    final purpose = await _purposeDialog();
-    if (purpose == null) return;
-    final created = await context.read<NostrKeysCubit>().create(purpose);
-    if (!mounted || !created) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.loc.settingsNostrKeysCreated)),
+  Future<void> _openCreate() async {
+    final cubit = context.read<NostrKeysCubit>();
+    final created = await context.pushNamed<bool>(
+      KeychainManifestRoutes.nostrKeyCreateName,
     );
+    await cubit.load();
+    if (!mounted || created != true) return;
+    SnackBarUtils.showSnackBar(context, context.loc.settingsNostrKeysCreated);
   }
 
-  Future<void> _editPurpose(KeychainManifestNostrKeyRecord key) async {
-    final purpose = await _purposeDialog(
-      initial: key.nostrKeyMaterialization.purpose,
+  Future<void> _openDetail(KeychainManifestNostrKeyRecord key) async {
+    final cubit = context.read<NostrKeysCubit>();
+    await context.pushNamed(
+      KeychainManifestRoutes.nostrKeyDetailName,
+      extra: key,
     );
-    if (purpose == null ||
-        purpose.trim() == key.nostrKeyMaterialization.purpose) {
+    await cubit.load();
+  }
+
+  Future<void> _toggleSystemKeys(bool shown) async {
+    final cubit = context.read<NostrKeysCubit>();
+    if (shown) {
+      // Hiding needs no confirmation; only the reveal is gated.
+      cubit.setShowSystemKeys(false);
       return;
     }
-    await context.read<NostrKeysCubit>().updatePurpose(
-      key: key,
-      purpose: purpose,
-    );
-  }
-
-  Future<void> _showNsec(KeychainManifestNostrKeyRecord key) {
-    final cubit = context.read<NostrKeysCubit>();
-    return showDialog<void>(
-      context: context,
-      builder: (_) => BlocProvider.value(
-        value: cubit,
-        child: _NsecRevealDialog(keyRecord: key),
-      ),
+    await WarningBottomSheet.show(
+      context,
+      title: context.loc.settingsNostrKeysSystemKeysWarningTitle,
+      message: context.loc.settingsNostrKeysSystemKeysWarningMessage,
+      confirmLabel: context.loc.settingsNostrKeysWarningUnderstand,
+      onConfirm: () => cubit.setShowSystemKeys(true),
     );
   }
 
   void _showFailure() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.loc.settingsNostrKeysFailure)),
-    );
-  }
-
-  Future<String?> _purposeDialog({String initial = ''}) {
-    var purpose = initial;
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.loc.settingsNostrKeysPurpose),
-        content: TextFormField(
-          initialValue: initial,
-          autofocus: true,
-          maxLength: 80,
-          onChanged: (value) => purpose = value,
-          decoration: InputDecoration(
-            hintText: context.loc.settingsNostrKeysPurposeHint,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-          ),
-          FilledButton(
-            onPressed: () {
-              final normalizedPurpose = purpose.trim();
-              if (normalizedPurpose.isNotEmpty) {
-                Navigator.pop(context, normalizedPurpose);
-              }
-            },
-            child: Text(context.loc.settingsNostrKeysSave),
-          ),
-        ],
-      ),
-    );
+    SnackBarUtils.showSnackBar(context, context.loc.settingsNostrKeysFailure);
   }
 
   @override
@@ -105,162 +79,96 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> {
       listener: (_, _) => _showFailure(),
       child: BlocBuilder<NostrKeysCubit, NostrKeysState>(
         builder: (context, state) => Scaffold(
-          appBar: AppBar(title: Text(context.loc.settingsNostrKeysTitle)),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: state.loading || state.busy ? null : _createKey,
-            icon: const Icon(Icons.add),
-            label: Text(context.loc.settingsNostrKeysCreate),
-          ),
-          body: state.loading
-              ? const Center(child: CircularProgressIndicator())
-              : state.keys.isEmpty
-              ? Center(child: Text(context.loc.settingsNostrKeysEmpty))
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-                  itemCount: state.keys.length,
-                  separatorBuilder: (_, index) => const Divider(),
-                  itemBuilder: (context, index) => _keyTile(state.keys[index]),
-                ),
-        ),
-      ),
-    );
-  }
-
-  Widget _keyTile(KeychainManifestNostrKeyRecord key) {
-    final materialization = key.nostrKeyMaterialization;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.key),
-              title: Text(materialization.purpose),
-              subtitle: Text(materialization.publicKeyHex),
-              trailing:
-                  materialization.keyKind ==
-                      KeychainManifestNostrKeyKind.userGenerated
-                  ? IconButton(
-                      tooltip: context.loc.settingsNostrKeysSave,
-                      icon: const Icon(Icons.edit),
-                      onPressed: () => _editPurpose(key),
-                    )
-                  : null,
-            ),
-            Text(
-              key.entry.bip85DerivationPath,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            if (materialization.keyKind ==
-                KeychainManifestNostrKeyKind.userGenerated)
-              OutlinedButton.icon(
-                onPressed: () => _showNsec(key),
-                icon: const Icon(Icons.visibility),
-                label: Text(context.loc.settingsNostrKeysShowPrivate),
+          appBar: AppBar(
+            title: Text(context.loc.settingsNostrKeysTitle),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: context.loc.settingsNostrKeysCreate,
+                onPressed: state.loading || state.busy ? null : _openCreate,
               ),
-          ],
+            ],
+          ),
+          body: SafeArea(
+            child: state.loading
+                ? const Center(child: CircularProgressIndicator())
+                : _body(context, state),
+          ),
         ),
       ),
     );
   }
-}
 
-class _NsecRevealDialog extends StatefulWidget {
-  final KeychainManifestNostrKeyRecord keyRecord;
-
-  const _NsecRevealDialog({required this.keyRecord});
-
-  @override
-  State<_NsecRevealDialog> createState() => _NsecRevealDialogState();
-}
-
-class _NsecRevealDialogState extends State<_NsecRevealDialog>
-    with WidgetsBindingObserver, PrivacyScreen {
-  String? _nsec;
-  bool _dismissQueued = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    unawaited(enableScreenPrivacy());
-    WidgetsBinding.instance.addPostFrameCallback((_) => _derive());
-  }
-
-  @override
-  void dispose() {
-    _dismissQueued = true;
-    WidgetsBinding.instance.removeObserver(this);
-    _nsec = null;
-    unawaited(disableScreenPrivacy());
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed && mounted) {
-      _clearAndDismiss();
-    }
-  }
-
-  Future<void> _derive() async {
-    final nsec = await context.read<NostrKeysCubit>().reveal(widget.keyRecord);
-    if (!mounted || _dismissQueued) return;
-    if (nsec == null) {
-      _clearAndDismiss();
-      return;
-    }
-    setState(() => _nsec = nsec);
-  }
-
-  Future<void> _copy() async {
-    final nsec = _nsec;
-    if (nsec == null) return;
-    _clearAndDismiss();
-    await Clipboard.setData(ClipboardData(text: nsec));
-  }
-
-  void _clearAndDismiss() {
-    if (!mounted || _dismissQueued) return;
-    _dismissQueued = true;
-    final hadSecret = _nsec != null;
-    if (hadSecret) setState(() => _nsec = null);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) Navigator.of(context).pop();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final nsec = _nsec;
-    return PopScope(
-      canPop: nsec == null,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _clearAndDismiss();
-      },
-      child: AlertDialog(
-        title: Text(context.loc.settingsNostrKeysShowPrivate),
-        content: nsec == null
-            ? const SizedBox.square(
-                dimension: 32,
-                child: CircularProgressIndicator(),
-              )
-            : ExcludeSemantics(child: Text(nsec)),
-        actions: [
-          TextButton(
-            onPressed: _clearAndDismiss,
-            child: Text(MaterialLocalizations.of(context).closeButtonLabel),
+  Widget _body(BuildContext context, NostrKeysState state) {
+    final userKeys = state.userKeys;
+    final systemKeys = state.systemKeys;
+    return ListView(
+      children: [
+        if (userKeys.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: BBText(
+              context.loc.settingsNostrKeysEmpty,
+              style: context.font.bodyMedium,
+              color: context.appColors.textMuted,
+              textAlign: TextAlign.center,
+            ),
+          )
+        else
+          for (final key in userKeys)
+            SettingsEntryItem(
+              icon: Icons.key,
+              title: key.displayName(context),
+              onTap: () => _openDetail(key),
+            ),
+        if (state.showSystemKeys && systemKeys.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 24,
+              bottom: 4,
+            ),
+            child: BBText(
+              context.loc.settingsNostrKeysSystemKeysSection,
+              style: context.font.labelSmall,
+              color: context.appColors.textMuted,
+            ),
           ),
-          if (nsec != null)
-            FilledButton.icon(
-              onPressed: _copy,
-              icon: const Icon(Icons.copy),
-              label: Text(context.loc.settingsNostrKeysCopy),
+          for (final key in systemKeys)
+            SettingsEntryItem(
+              icon: Icons.settings_suggest,
+              title: key.displayName(context),
+              iconColor: context.appColors.textMuted,
+              textColor: context.appColors.textMuted,
+              onTap: () => _openDetail(key),
             ),
         ],
+        if (systemKeys.isNotEmpty) _systemKeysToggle(context, state),
+      ],
+    );
+  }
+
+  /// Low-prominence footer affordance, styled after the all-settings footer
+  /// rather than a settings row so it never reads as a key.
+  Widget _systemKeysToggle(BuildContext context, NostrKeysState state) {
+    final label = state.showSystemKeys
+        ? context.loc.settingsNostrKeysHideSystemKeys
+        : context.loc.settingsNostrKeysShowSystemKeys;
+    return Padding(
+      padding: const EdgeInsets.only(top: 32, bottom: 24),
+      child: Center(
+        child: InkWell(
+          onTap: () => _toggleSystemKeys(state.showSystemKeys),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: BBText(
+              label,
+              style: context.font.labelMedium,
+              color: context.appColors.textMuted,
+            ),
+          ),
+        ),
       ),
     );
   }

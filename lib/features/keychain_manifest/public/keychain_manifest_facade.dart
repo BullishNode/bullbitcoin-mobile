@@ -30,7 +30,10 @@ export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_re
         KeychainManifestWalletMaterializationRequest,
         KeychainManifestNostrKeyRequest;
 export 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart'
-    show KeychainManifestNostrKeyKind, KeychainManifestNostrKeyRecord;
+    show
+        KeychainManifestNostrKeyKind,
+        KeychainManifestNostrKeyMaterialization,
+        KeychainManifestNostrKeyRecord;
 export 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_backup_wallet.dart'
     show KeychainManifestBackupWallet, KeychainManifestBackupWalletPort;
 export 'package:bb_mobile/features/keychain_manifest/domain/usecases/create_keychain_manifest_nostr_key_usecase.dart'
