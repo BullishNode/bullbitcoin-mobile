@@ -4,7 +4,6 @@ import 'package:bb_mobile/core/electrum/domain/value_objects/electrum_sync_resul
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_failure.dart';
-import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_section_provider.dart';
 import 'package:flutter/widgets.dart';
 
 typedef PublishWalletBackup =
@@ -16,11 +15,15 @@ typedef MarkWalletBackupDirty =
 ///
 /// A lease is intentionally owned by the coordinator so recovery cannot race
 /// with a queued or in-flight publication of the same unified object.
-final class WalletBackupRecoveryLease implements WalletMetadataRecoveryFence {
+abstract interface class WalletBackupLifecycleLease {
+  void close();
+}
+
+final class _WalletBackupLifecycleLease implements WalletBackupLifecycleLease {
   final void Function() _release;
   bool _closed = false;
 
-  WalletBackupRecoveryLease(this._release);
+  _WalletBackupLifecycleLease(this._release);
 
   @override
   void close() {
@@ -51,7 +54,8 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
   bool _dirtyPending = false;
   bool _started = false;
   bool _disposed = false;
-  int _recoveryLeases = 0;
+  int _publicationLeases = 0;
+  Future<void> _lifecycleTail = Future.value();
   final List<Completer<Result<void, WalletBackupFailure>>>
   _deferredPublications = [];
 
@@ -113,7 +117,7 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
         ),
       );
     }
-    if (_recoveryLeases > 0) {
+    if (_publicationLeases > 0) {
       final deferred = Completer<Result<void, WalletBackupFailure>>();
       _deferredPublications.add(deferred);
       return deferred.future;
@@ -149,23 +153,15 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
   /// Existing publication and dirty-state work are drained first. Changes
   /// observed while the lease is held remain durable and are retried when the
   /// lease is released.
-  Future<WalletBackupRecoveryLease> beginRecoveryLease() async {
-    if (_disposed) {
-      throw StateError('wallet backup coordinator disposed');
-    }
-    _recoveryLeases++;
-    try {
-      await waitForIdle();
-      return WalletBackupRecoveryLease(_releaseRecoveryLease);
-    } catch (_) {
-      // A failed drain must not strand the coordinator in recovery mode.
-      _recoveryLeases--;
-      rethrow;
-    }
-  }
+  Future<WalletBackupLifecycleLease> beginRecoveryLease() =>
+      _beginLifecycleLease();
+
+  /// Serializes confirmed deletion with recovery and publication.
+  Future<WalletBackupLifecycleLease> beginDeletionLease() =>
+      _beginLifecycleLease();
 
   void retry() {
-    if (_disposed || _recoveryLeases > 0) return;
+    if (_disposed || _publicationLeases > 0) return;
     if (_dirtying != null) return;
     if (_dirtyPending) {
       _scheduleDirtying();
@@ -301,10 +297,44 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
     _deferredPublications.clear();
   }
 
-  void _releaseRecoveryLease() {
-    if (_recoveryLeases == 0) return;
-    _recoveryLeases--;
-    if (_recoveryLeases != 0 || _disposed) return;
+  Future<WalletBackupLifecycleLease> _beginLifecycleLease() async {
+    if (_disposed) {
+      throw StateError('wallet backup coordinator disposed');
+    }
+
+    _publicationLeases++;
+    final predecessor = _lifecycleTail;
+    final released = Completer<void>();
+    _lifecycleTail = released.future;
+    var closed = false;
+
+    void release() {
+      if (closed) return;
+      closed = true;
+      if (!released.isCompleted) released.complete();
+      _releasePublicationLease();
+    }
+
+    try {
+      await predecessor;
+      if (_disposed) {
+        throw StateError('wallet backup coordinator disposed');
+      }
+      await waitForIdle();
+      return _WalletBackupLifecycleLease(release);
+    } catch (_) {
+      // Release both queue ownership and the publication block. In particular,
+      // this drains callers deferred while a failing publication was being
+      // awaited instead of leaving their futures stranded.
+      release();
+      rethrow;
+    }
+  }
+
+  void _releasePublicationLease() {
+    if (_publicationLeases == 0) return;
+    _publicationLeases--;
+    if (_publicationLeases != 0 || _disposed) return;
     final deferred = List<Completer<Result<void, WalletBackupFailure>>>.from(
       _deferredPublications,
     );

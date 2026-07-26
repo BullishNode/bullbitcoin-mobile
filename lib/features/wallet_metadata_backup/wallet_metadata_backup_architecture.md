@@ -112,13 +112,16 @@ recovery plan.
 Bullnym absence or network failure never blocks seed recovery.
 
 Apply revalidates every planned intent against the authenticated snapshot before
-writing. It also refetches Bullnym and rejects the plan if generation, ETag, or
-canonical content changed. Labels restore additively, freezes only add frozen
-outpoints, and wallet preferences overwrite defaults only for wallets created
-in this recovery run.
+writing. The recovery orchestrator captures the authenticated unified remote
+head before any local writes and refetches it afterward; it leaves publication
+blocked unless generation, ETag, presence, and ciphertext hash are unchanged.
+Labels restore additively, freezes only add frozen outpoints, and wallet
+preferences overwrite defaults only for wallets created in this recovery run.
 Existing local choices are preserved and absent wallet references are deferred.
 
 Publication suppression spans keychain materialization through metadata apply.
+The durable suppression flag is written before materialization starts, survives
+process termination, and is cleared only after complete remote revalidation.
 Apply does not enable backup and does not publish. Unsupported, invalid,
 deferred, conflicting, or failed work is reported without creating a second
 metadata lifecycle or remote mutation.

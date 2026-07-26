@@ -27,8 +27,10 @@ import 'package:bb_mobile/features/wallet_backup/domain/usecases/delete_wallet_b
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_encryption_key_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_signer_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/fetch_wallet_backup_manifest_import_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/usecases/fetch_wallet_backup_remote_identity_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/get_wallet_backup_state_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_backup_enabled_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_backup_recovery_blocked_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/watch_wallet_backup_state_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_wallet_port.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
@@ -323,6 +325,7 @@ void main() {
   test('WalletBackupFacade exposes the unified lifecycle only', () async {
     final state = _FakeStateRepository(_state());
     final wallet = _FakeWalletPort();
+    final remote = _FakeRemoteRepository();
     final backupNow = BackupWalletNowUsecase(
       state: state,
       wallet: wallet,
@@ -330,26 +333,29 @@ void main() {
           Ok(_syncResult()),
       clock: _SequenceClock([1, 2]),
     );
+    final coordinator = WalletBackupCoordinator(
+      manifestChanges: const Stream.empty(),
+      syncResults: const Stream.empty(),
+      publishBackup: backupNow.execute,
+      markDirty: state.markDirty,
+    );
     final facade = WalletBackupFacade(
       getState: GetWalletBackupStateUsecase(state),
       watchState: WatchWalletBackupStateUsecase(state),
       setEnabled: SetWalletBackupEnabledUsecase(state),
-      coordinator: WalletBackupCoordinator(
-        manifestChanges: const Stream.empty(),
-        syncResults: const Stream.empty(),
-        publishBackup: backupNow.execute,
-        markDirty: state.markDirty,
-      ),
-      delete: _deleteUsecase(
-        wallet: wallet,
-        state: state,
-        remote: _FakeRemoteRepository(),
-      ),
+      coordinator: coordinator,
+      delete: _deleteUsecase(wallet: wallet, state: state, remote: remote),
       fetchManifestImport: _fetchManifestImportUsecase(
         wallet: wallet,
         state: state,
         remote: _FakeRemoteRepository(),
       ),
+      fetchRemoteIdentity: FetchWalletBackupRemoteIdentityUsecase(
+        wallet,
+        DeriveWalletBackupSignerUsecase(_FakeNostrIdentityFacade()),
+        remote,
+      ),
+      setRecoveryBlocked: SetWalletBackupRecoveryBlockedUsecase(state),
     );
 
     expect(_value(await facade.getState()).enabled, isFalse);
@@ -360,6 +366,18 @@ void main() {
       isA<Ok<WalletBackupState, WalletBackupFailure>>(),
     );
     expect(_value(await facade.fetchManifestImport()), isNull);
+    expect(_value(await facade.fetchRemoteIdentity()).found, isFalse);
+
+    final recovery = await facade.beginRecoveryLease();
+    _expectOk(await facade.setRecoveryBlocked(true));
+    final deletion = facade.deleteRemoteBackup(confirmed: true);
+    await pumpEventQueue();
+    expect(remote.deleteCalls, 0);
+    recovery.close();
+    _expectOk(await deletion);
+    expect(remote.deleteCalls, 1);
+    expect(state.current.recoveryBlocked, isFalse);
+    await coordinator.dispose();
   });
 }
 
@@ -469,6 +487,12 @@ final class _FakeStateRepository implements WalletBackupStateRepository {
   @override
   Future<Result<void, WalletBackupFailure>> clearRemoteCheckpoint() async {
     clearCalls++;
+    current = _state(
+      enabled: current.enabled,
+      dirty: current.dirty,
+      dirtyRevision: current.dirtyRevision,
+      recoveryBlocked: false,
+    );
     return const Ok(null);
   }
 }

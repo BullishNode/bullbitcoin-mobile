@@ -21,16 +21,17 @@ import 'package:bb_mobile/features/wallet_backup/domain/usecases/delete_wallet_b
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_encryption_key_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_signer_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/fetch_wallet_backup_manifest_import_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/usecases/fetch_wallet_backup_remote_identity_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/get_wallet_backup_state_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/mark_wallet_backup_dirty_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_backup_enabled_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_backup_recovery_blocked_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/sync_wallet_backup_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/watch_wallet_backup_state_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_wallet_port.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:bb_mobile/features/wallet_backup/watchers/wallet_backup_coordinator.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_section_provider.dart';
-import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_facade.dart';
 import 'package:get_it/get_it.dart';
 
 class WalletBackupLocator {
@@ -130,6 +131,18 @@ class WalletBackupLocator {
         state: locator<WalletBackupStateRepository>(),
       ),
     );
+    locator.registerFactory<FetchWalletBackupRemoteIdentityUsecase>(
+      () => FetchWalletBackupRemoteIdentityUsecase(
+        locator<WalletBackupWalletPort>(),
+        locator<DeriveWalletBackupSignerUsecase>(),
+        locator<WalletBackupRemoteRepository>(),
+      ),
+    );
+    locator.registerFactory<SetWalletBackupRecoveryBlockedUsecase>(
+      () => SetWalletBackupRecoveryBlockedUsecase(
+        locator<WalletBackupStateRepository>(),
+      ),
+    );
     locator.registerFactory<WalletBackupFacade>(
       () => WalletBackupFacade(
         getState: locator<GetWalletBackupStateUsecase>(),
@@ -137,17 +150,9 @@ class WalletBackupLocator {
         setEnabled: locator<SetWalletBackupEnabledUsecase>(),
         delete: locator<DeleteWalletBackupUsecase>(),
         fetchManifestImport: locator<FetchWalletBackupManifestImportUsecase>(),
+        fetchRemoteIdentity: locator<FetchWalletBackupRemoteIdentityUsecase>(),
+        setRecoveryBlocked: locator<SetWalletBackupRecoveryBlockedUsecase>(),
         coordinator: locator<WalletBackupCoordinator>(),
-      ),
-    );
-    locator.registerLazySingleton<WalletMetadataBackupFacade>(
-      () => WalletMetadataBackupFacade.unified(
-        setWalletEnabled: (enabled) =>
-            locator<WalletBackupFacade>().setEnabled(enabled),
-        beginRecovery: () => locator<WalletBackupFacade>().beginRecoveryLease(),
-        setRecoveryBlocked: (blocked) =>
-            locator<WalletBackupStateRepository>().setRecoveryBlocked(blocked),
-        sectionProvider: locator<WalletMetadataBackupSectionProvider>(),
       ),
     );
   }

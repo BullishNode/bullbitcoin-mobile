@@ -1,7 +1,7 @@
 import 'package:bb_mobile/core/settings/domain/repositories/settings_repository.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_facade.dart';
+import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/apply_pending_wizard_choices_usecase.dart';
@@ -12,13 +12,12 @@ class _MockWizardRepository extends Mock implements WizardRepository {}
 
 class _MockSettingsRepository extends Mock implements SettingsRepository {}
 
-class _MockWalletMetadataBackupFacade extends Mock
-    implements WalletMetadataBackupFacade {}
+class _MockWalletBackupFacade extends Mock implements WalletBackupFacade {}
 
 void main() {
   late _MockWizardRepository wizard;
   late _MockSettingsRepository settings;
-  late _MockWalletMetadataBackupFacade metadataBackup;
+  late _MockWalletBackupFacade walletBackup;
   late ApplyPendingWizardChoicesUsecase usecase;
 
   setUpAll(() {
@@ -29,11 +28,11 @@ void main() {
   setUp(() {
     wizard = _MockWizardRepository();
     settings = _MockSettingsRepository();
-    metadataBackup = _MockWalletMetadataBackupFacade();
+    walletBackup = _MockWalletBackupFacade();
     usecase = ApplyPendingWizardChoicesUsecase(
       wizardRepository: wizard,
       settingsRepository: settings,
-      metadataBackup: metadataBackup,
+      walletBackup: walletBackup,
     );
     when(() => wizard.clearPending()).thenAnswer((_) async {});
     when(() => wizard.markComplete()).thenAnswer((_) async {});
@@ -44,7 +43,7 @@ void main() {
       () => settings.setErrorReportingEnabled(any()),
     ).thenAnswer((_) async {});
     when(
-      () => metadataBackup.setEnabled(any()),
+      () => walletBackup.setEnabled(any()),
     ).thenAnswer((_) async => const Ok(null));
   });
 
@@ -56,7 +55,7 @@ void main() {
     verify(() => wizard.readPending()).called(1);
     verifyNoMoreInteractions(wizard);
     verifyZeroInteractions(settings);
-    verifyZeroInteractions(metadataBackup);
+    verifyZeroInteractions(walletBackup);
   });
 
   test(
@@ -127,7 +126,7 @@ void main() {
     verify(() => settings.setThemeMode(AppThemeMode.light)).called(1);
     verify(() => settings.setCurrency('CAD')).called(1);
     verify(() => settings.setErrorReportingEnabled(false)).called(1);
-    verify(() => metadataBackup.setEnabled(true)).called(1);
+    verify(() => walletBackup.setEnabled(true)).called(1);
     verify(() => wizard.clearPending()).called(1);
     verify(() => wizard.markComplete()).called(1);
   });
@@ -142,6 +141,6 @@ void main() {
 
     await usecase.execute();
 
-    verify(() => metadataBackup.setEnabled(false)).called(1);
+    verify(() => walletBackup.setEnabled(false)).called(1);
   });
 }

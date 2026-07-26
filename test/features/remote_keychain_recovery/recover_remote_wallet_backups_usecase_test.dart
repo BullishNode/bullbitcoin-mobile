@@ -1,147 +1,281 @@
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/recover_remote_wallet_backups_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 void main() {
+  late _WalletBackupFacade walletBackup;
   late _MetadataBackupFacade metadataBackup;
-  late _MetadataRecoverySession metadataSession;
+  late _LifecycleLease lease;
 
   setUp(() {
+    walletBackup = _WalletBackupFacade();
     metadataBackup = _MetadataBackupFacade();
-    metadataSession = _MetadataRecoverySession();
+    lease = _LifecycleLease();
+    when(walletBackup.beginRecoveryLease).thenAnswer((_) async => lease);
     when(
-      metadataBackup.beginRecoverySession,
-    ).thenAnswer((_) async => metadataSession);
-    when(
-      () => metadataSession.recover(
-        createdWalletRefs: any(named: 'createdWalletRefs'),
-      ),
-    ).thenAnswer(
-      (_) async => const Ok(WalletMetadataRecoveryResult.noSnapshotFound()),
-    );
-    when(
-      () => metadataBackup.setRecoveryBlocked(any()),
+      () => walletBackup.setRecoveryBlocked(any()),
     ).thenAnswer((_) async => const Ok(null));
+    when(
+      walletBackup.fetchRemoteIdentity,
+    ).thenAnswer((_) async => Ok(_initialIdentity));
   });
 
-  test(
-    'recovers metadata after keychain absence using default wallet ids',
-    () async {
-      final calls = <String>[];
-      when(metadataSession.close).thenAnswer((_) {
-        calls.add('close');
-      });
-      when(() => metadataBackup.setRecoveryBlocked(any())).thenAnswer((
-        _,
-      ) async {
-        calls.add('block');
-        return const Ok(null);
-      });
-      when(metadataBackup.beginRecoverySession).thenAnswer((_) async {
-        calls.add('begin');
-        return metadataSession;
-      });
-      when(
-        () => metadataSession.recover(
-          createdWalletRefs: any(named: 'createdWalletRefs'),
-        ),
-      ).thenAnswer((invocation) async {
-        calls.add('metadata');
-        expect(invocation.namedArguments[#createdWalletRefs], {
-          'bitcoin-default',
-          'liquid-default',
-        });
-        return const Ok(WalletMetadataRecoveryResult.noSnapshotFound());
-      });
-      final usecase = RecoverRemoteWalletBackupsUsecase(() async {
+  test('persists fence before restore and clears after revalidation', () async {
+    final calls = <String>[];
+    when(walletBackup.beginRecoveryLease).thenAnswer((_) async {
+      calls.add('lease');
+      return _LifecycleLease(() => calls.add('close'));
+    });
+    when(() => walletBackup.setRecoveryBlocked(any())).thenAnswer((
+      invocation,
+    ) async {
+      calls.add('blocked:${invocation.positionalArguments.single}');
+      return const Ok(null);
+    });
+    when(walletBackup.fetchRemoteIdentity).thenAnswer((_) async {
+      calls.add('head');
+      return Ok(_initialIdentity);
+    });
+    final usecase = _usecase(
+      walletBackup: walletBackup,
+      metadataBackup: metadataBackup,
+      recover: () async {
         calls.add('keychain');
         return const RemoteKeychainRecoveryResult(
           status: RemoteKeychainRecoveryStatus.noBackup,
         );
-      }, metadataBackup);
+      },
+    );
 
-      final result = await usecase.execute(
-        defaultCreatedWalletIds: {'bitcoin-default', 'liquid-default'},
-      );
+    final result = await usecase.execute(
+      defaultCreatedWalletIds: const {'bitcoin-default'},
+    );
 
-      expect(result.status, RemoteKeychainRecoveryStatus.noBackup);
-      expect(calls, ['begin', 'keychain', 'metadata', 'block', 'close']);
-      verify(metadataSession.close).called(1);
-      verify(() => metadataBackup.setRecoveryBlocked(false)).called(1);
-    },
-  );
+    expect(result.status, RemoteKeychainRecoveryStatus.noBackup);
+    expect(calls, [
+      'lease',
+      'blocked:true',
+      'head',
+      'keychain',
+      'head',
+      'blocked:false',
+      'close',
+    ]);
+  });
 
-  test(
-    'unions default and keychain-created wallet ids for metadata apply',
-    () async {
-      final usecase = RecoverRemoteWalletBackupsUsecase(
-        () async => const RemoteKeychainRecoveryResult(
+  test('aborts before restore when durable fence cannot be written', () async {
+    when(() => walletBackup.setRecoveryBlocked(true)).thenAnswer(
+      (_) async => const Err(WalletBackupStorageFailure('database failed')),
+    );
+    var recoveryCalls = 0;
+    final usecase = _usecase(
+      walletBackup: walletBackup,
+      metadataBackup: metadataBackup,
+      recover: () async {
+        recoveryCalls++;
+        return const RemoteKeychainRecoveryResult(
           status: RemoteKeychainRecoveryStatus.restored,
-          createdWalletIds: ['get-paid-wallet'],
-        ),
-        metadataBackup,
-      );
-
-      await usecase.execute(defaultCreatedWalletIds: {'bitcoin-default'});
-
-      final captured =
-          verify(
-                () => metadataSession.recover(
-                  createdWalletRefs: captureAny(named: 'createdWalletRefs'),
-                ),
-              ).captured.single
-              as Set<String>;
-      expect(captured, {'bitcoin-default', 'get-paid-wallet'});
-      verify(() => metadataBackup.setRecoveryBlocked(false)).called(1);
-    },
-  );
-
-  test(
-    'still attempts metadata recovery when keychain recovery throws',
-    () async {
-      final usecase = RecoverRemoteWalletBackupsUsecase(
-        () async => throw Exception('keychain database unavailable'),
-        metadataBackup,
-      );
-
-      await expectLater(
-        usecase.execute(defaultCreatedWalletIds: {'bitcoin-default'}),
-        throwsA(isA<Exception>()),
-      );
-
-      verify(
-        () => metadataSession.recover(createdWalletRefs: {'bitcoin-default'}),
-      ).called(1);
-      verify(metadataSession.close).called(1);
-      verify(() => metadataBackup.setRecoveryBlocked(true)).called(1);
-    },
-  );
-
-  test('does not swallow programmer errors from keychain recovery', () async {
-    final usecase = RecoverRemoteWalletBackupsUsecase(
-      () async => throw StateError('programmer bug'),
-      metadataBackup,
+        );
+      },
     );
 
     await expectLater(
-      usecase.execute(defaultCreatedWalletIds: {'bitcoin-default'}),
+      usecase.execute(defaultCreatedWalletIds: const {}),
+      throwsA(isA<Exception>()),
+    );
+
+    expect(recoveryCalls, 0);
+    expect(lease.closeCalls, 1);
+    verifyNever(walletBackup.fetchRemoteIdentity);
+  });
+
+  test('aborts when recovery lease acquisition fails', () async {
+    when(
+      walletBackup.beginRecoveryLease,
+    ).thenAnswer((_) async => throw StateError('publication drain failed'));
+    var recoveryCalls = 0;
+    final usecase = _usecase(
+      walletBackup: walletBackup,
+      metadataBackup: metadataBackup,
+      recover: () async {
+        recoveryCalls++;
+        return const RemoteKeychainRecoveryResult(
+          status: RemoteKeychainRecoveryStatus.restored,
+        );
+      },
+    );
+
+    await expectLater(
+      usecase.execute(defaultCreatedWalletIds: const {}),
       throwsA(isA<StateError>()),
     );
 
-    verifyNever(
-      () => metadataSession.recover(
-        createdWalletRefs: any(named: 'createdWalletRefs'),
+    expect(recoveryCalls, 0);
+    verifyNever(() => walletBackup.setRecoveryBlocked(any()));
+  });
+
+  test('leaves fence set when remote head changes during recovery', () async {
+    var fetchCalls = 0;
+    when(walletBackup.fetchRemoteIdentity).thenAnswer((_) async {
+      fetchCalls++;
+      return Ok(fetchCalls == 1 ? _initialIdentity : _changedIdentity);
+    });
+    final usecase = _usecase(
+      walletBackup: walletBackup,
+      metadataBackup: metadataBackup,
+      recover: () async => const RemoteKeychainRecoveryResult(
+        status: RemoteKeychainRecoveryStatus.restored,
+        restoredCount: 1,
       ),
     );
-    verify(metadataSession.close).called(1);
+
+    final result = await usecase.execute(defaultCreatedWalletIds: const {});
+
+    expect(result.status, RemoteKeychainRecoveryStatus.conflict);
+    expect(result.restoredCount, 1);
+    verify(() => walletBackup.setRecoveryBlocked(true)).called(1);
+    verifyNever(() => walletBackup.setRecoveryBlocked(false));
+    expect(lease.closeCalls, 1);
   });
+
+  test('leaves fence set when final remote head is unavailable', () async {
+    var fetchCalls = 0;
+    when(walletBackup.fetchRemoteIdentity).thenAnswer((_) async {
+      fetchCalls++;
+      if (fetchCalls == 1) return Ok(_initialIdentity);
+      return const Err(WalletBackupRemoteUnavailableFailure('offline'));
+    });
+    final usecase = _usecase(
+      walletBackup: walletBackup,
+      metadataBackup: metadataBackup,
+      recover: () async => const RemoteKeychainRecoveryResult(
+        status: RemoteKeychainRecoveryStatus.nothingToRestore,
+      ),
+    );
+
+    final result = await usecase.execute(defaultCreatedWalletIds: const {});
+
+    expect(result.status, RemoteKeychainRecoveryStatus.unavailable);
+    verifyNever(() => walletBackup.setRecoveryBlocked(false));
+  });
+
+  test(
+    'reports failure when the completed recovery fence cannot clear',
+    () async {
+      when(() => walletBackup.setRecoveryBlocked(false)).thenAnswer(
+        (_) async => const Err(WalletBackupStorageFailure('database failed')),
+      );
+      final usecase = _usecase(
+        walletBackup: walletBackup,
+        metadataBackup: metadataBackup,
+        recover: () async => const RemoteKeychainRecoveryResult(
+          status: RemoteKeychainRecoveryStatus.restored,
+        ),
+      );
+
+      await expectLater(
+        usecase.execute(defaultCreatedWalletIds: const {}),
+        throwsA(isA<Exception>()),
+      );
+
+      verify(() => walletBackup.setRecoveryBlocked(true)).called(1);
+      verify(() => walletBackup.setRecoveryBlocked(false)).called(1);
+      expect(lease.closeCalls, 1);
+    },
+  );
+
+  test(
+    'restores metadata for all created wallets before clearing fence',
+    () async {
+      when(
+        () => metadataBackup.recoverSection(
+          payload: any(named: 'payload'),
+          createdWalletRefs: any(named: 'createdWalletRefs'),
+        ),
+      ).thenAnswer(
+        (_) async => const Ok(WalletMetadataRecoveryResult.noSnapshotFound()),
+      );
+      final usecase = _usecase(
+        walletBackup: walletBackup,
+        metadataBackup: metadataBackup,
+        recover: () async => const RemoteKeychainRecoveryResult(
+          status: RemoteKeychainRecoveryStatus.restored,
+          createdWalletIds: ['get-paid-wallet'],
+          metadataPayload: '{"metadata":true}',
+        ),
+      );
+
+      await usecase.execute(defaultCreatedWalletIds: const {'bitcoin-default'});
+
+      verify(
+        () => metadataBackup.recoverSection(
+          payload: '{"metadata":true}',
+          createdWalletRefs: {'bitcoin-default', 'get-paid-wallet'},
+        ),
+      ).called(1);
+      verify(() => walletBackup.setRecoveryBlocked(false)).called(1);
+    },
+  );
+
+  test(
+    'keychain exception leaves durable fence set and releases lease',
+    () async {
+      final usecase = _usecase(
+        walletBackup: walletBackup,
+        metadataBackup: metadataBackup,
+        recover: () async => throw Exception('keychain database unavailable'),
+      );
+
+      await expectLater(
+        usecase.execute(defaultCreatedWalletIds: const {}),
+        throwsA(isA<Exception>()),
+      );
+
+      verify(() => walletBackup.setRecoveryBlocked(true)).called(1);
+      verifyNever(() => walletBackup.setRecoveryBlocked(false));
+      expect(lease.closeCalls, 1);
+    },
+  );
 }
+
+RecoverRemoteWalletBackupsUsecase _usecase({
+  required WalletBackupFacade walletBackup,
+  required WalletMetadataBackupFacade metadataBackup,
+  required Future<RemoteKeychainRecoveryResult> Function() recover,
+}) => RecoverRemoteWalletBackupsUsecase(recover, walletBackup, metadataBackup);
+
+final _initialIdentity = WalletBackupRemoteIdentity(
+  found: true,
+  generation: 1,
+  etag: '11' * 32,
+  ciphertextSha256: '22' * 32,
+);
+
+final _changedIdentity = WalletBackupRemoteIdentity(
+  found: true,
+  generation: 2,
+  etag: '33' * 32,
+  ciphertextSha256: '44' * 32,
+);
+
+final class _WalletBackupFacade extends Mock implements WalletBackupFacade {}
 
 final class _MetadataBackupFacade extends Mock
     implements WalletMetadataBackupFacade {}
 
-final class _MetadataRecoverySession extends Mock
-    implements WalletMetadataRecoverySession {}
+final class _LifecycleLease implements WalletBackupLifecycleLease {
+  final void Function()? _onClose;
+  int closeCalls = 0;
+
+  _LifecycleLease([this._onClose]);
+
+  @override
+  void close() {
+    closeCalls++;
+    _onClose?.call();
+  }
+}
