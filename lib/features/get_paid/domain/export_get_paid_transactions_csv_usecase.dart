@@ -35,7 +35,10 @@ class ExportGetPaidTransactionsCsvUsecase {
   const ExportGetPaidTransactionsCsvUsecase({
     required ListGetPaidTransactionsUsecase listTransactions,
     GetPaidCsvExportFormatter formatter = const GetPaidCsvExportFormatter(),
+    // Preserve public named parameters while keeping collaborators private.
+    // ignore: prefer_initializing_formals
   }) : _listTransactions = listTransactions,
+       // ignore: prefer_initializing_formals
        _formatter = formatter;
 
   @useResult

@@ -80,9 +80,7 @@ void main() {
     });
 
     test('a mixed row renders exact columns, face≠leg currencies kept apart', () {
-      final csv = formatter.format([
-        _tx(settlement: _mixedFaceUsdLegCad()),
-      ]);
+      final csv = formatter.format([_tx(settlement: _mixedFaceUsdLegCad())]);
       final dataRow = csv.trim().split('\n')[1];
       // The btc-leg estimate: 60000 sats × 6416000 / 1e8 = 3850 minor → 38.50,
       // in the FACE currency (USD); R2 (63900.00) is in the LEG currency (CAD).
@@ -132,9 +130,7 @@ void main() {
       when(() => list.execute(cursor: '', limit: 100)).thenAnswer(
         (_) async => Ok(
           GetPaidTransactionPage(
-            transactions: [
-              _tx(id: '10000000-0000-4000-8000-000000000001'),
-            ],
+            transactions: [_tx(id: '10000000-0000-4000-8000-000000000001')],
             nextCursor: 'page-2',
           ),
         ),
@@ -142,9 +138,7 @@ void main() {
       when(() => list.execute(cursor: 'page-2', limit: 100)).thenAnswer(
         (_) async => Ok(
           GetPaidTransactionPage(
-            transactions: [
-              _tx(id: '20000000-0000-4000-8000-000000000002'),
-            ],
+            transactions: [_tx(id: '20000000-0000-4000-8000-000000000002')],
             nextCursor: null,
           ),
         ),

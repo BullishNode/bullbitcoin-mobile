@@ -751,23 +751,26 @@ void main() {
       expect(s.fiat.single.currency, 'CAD');
     });
 
-    test('R1 rate present without a currency keeps the rate, currency null', () {
-      // A rate with no face currency is retained (the UI omits the row rather
-      // than guess a denomination) — this is NOT a fail-closed case.
-      final s = BullnymGetPaidSettlement.tryParse(
-        _tx(
-          settlementKind: 'fiat',
-          details: {
-            'kind': 'fiat',
-            'creation_rate_minor_per_btc': 6400000,
-            'fiat': [_fiatLeg(amountMinor: 12345)],
-          },
-        ),
-      )!;
-      expect(s.kind, BullnymSettlementKind.fiat);
-      expect(s.creationRateMinorPerBtc, 6400000);
-      expect(s.creationRateCurrency, isNull);
-    });
+    test(
+      'R1 rate present without a currency keeps the rate, currency null',
+      () {
+        // A rate with no face currency is retained (the UI omits the row rather
+        // than guess a denomination) — this is NOT a fail-closed case.
+        final s = BullnymGetPaidSettlement.tryParse(
+          _tx(
+            settlementKind: 'fiat',
+            details: {
+              'kind': 'fiat',
+              'creation_rate_minor_per_btc': 6400000,
+              'fiat': [_fiatLeg(amountMinor: 12345)],
+            },
+          ),
+        )!;
+        expect(s.kind, BullnymSettlementKind.fiat);
+        expect(s.creationRateMinorPerBtc, 6400000);
+        expect(s.creationRateCurrency, isNull);
+      },
+    );
 
     void expectUnavailable(String reason, Map<String, dynamic> json) {
       expect(

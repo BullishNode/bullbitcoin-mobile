@@ -328,8 +328,7 @@ List<DetailsTableItem> _fiatLegRows(
     // it as a muted sub-line under the exact credited amount. R2 is exact and
     // in the leg's own currency, so it carries no ≈; a pending leg keeps its
     // quoted/awaiting sub-line (rendered under the status row below) instead.
-    final showExecutionRate =
-        settled && leg.executionRateMinorPerBtc != null;
+    final showExecutionRate = settled && leg.executionRateMinorPerBtc != null;
     if (showExecutionRate) {
       rows.add(
         DetailsTableItem(
