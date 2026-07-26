@@ -130,6 +130,10 @@ void main() {
         RetryWalletBackupRecoveryUsecase(remoteRecovery),
       );
       await cubit.load();
+      backup.states.add(
+        Ok(_state(enabled: true, dirty: false, recoveryBlocked: true)),
+      );
+      await pumpEventQueue();
 
       await cubit.retryRecovery();
 
@@ -142,6 +146,55 @@ void main() {
       verify(() => getLast.execute()).called(1);
     },
   );
+
+  test('transient recovery failure remains retryable while fenced', () async {
+    final getLast = _MockGetLastRecoveryOutcome();
+    final remoteRecovery = _MockRemoteRecovery();
+    when(() => getLast.execute()).thenAnswer(
+      (_) async => const RemoteRecoveryOutcome(
+        status: RemoteKeychainRecoveryStatus.unavailable,
+        atUnix: 1,
+        restoredCount: 0,
+        failedCount: 1,
+      ),
+    );
+    when(
+      () => remoteRecovery.recover(
+        defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
+      ),
+    ).thenAnswer(
+      (_) async => const RemoteKeychainRecoveryResult(
+        status: RemoteKeychainRecoveryStatus.unavailable,
+        failedCount: 1,
+      ),
+    );
+    await cubit.close();
+    cubit = WalletBackupSettingsCubit(
+      WatchWalletBackupUsecase(backup),
+      SetWalletBackupEnabledUsecase(backup),
+      BackupWalletNowUsecase(backup),
+      DeleteWalletBackupUsecase(backup),
+      getLast,
+      RetryWalletBackupRecoveryUsecase(remoteRecovery),
+    );
+    await cubit.load();
+    backup.states.add(
+      Ok(_state(enabled: true, dirty: false, recoveryBlocked: true)),
+    );
+    await pumpEventQueue();
+
+    expect(cubit.state.canRetryRecovery, isTrue);
+    await cubit.retryRecovery();
+
+    expect(
+      cubit.state.lastRecoveryOutcome?.status,
+      RemoteKeychainRecoveryStatus.unavailable,
+    );
+    expect(cubit.state.canRetryRecovery, isTrue);
+    verify(
+      () => remoteRecovery.recover(defaultCreatedWalletIds: const {}),
+    ).called(1);
+  });
 }
 
 WalletBackupSettingsCubit _cubit(WalletBackupFacade backup) {
@@ -153,7 +206,11 @@ WalletBackupSettingsCubit _cubit(WalletBackupFacade backup) {
   );
 }
 
-WalletBackupState _state({required bool enabled, required bool dirty}) {
+WalletBackupState _state({
+  required bool enabled,
+  required bool dirty,
+  bool recoveryBlocked = false,
+}) {
   return WalletBackupState(
     enabled: enabled,
     dirty: dirty,
@@ -164,6 +221,7 @@ WalletBackupState _state({required bool enabled, required bool dirty}) {
     remoteEtag: null,
     contentHash: null,
     unsupportedVersion: null,
+    recoveryBlocked: recoveryBlocked,
   );
 }
 
