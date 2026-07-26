@@ -157,9 +157,11 @@ final class WalletMetadataBackupSectionProviderImpl
   recoverSection({
     required String payload,
     required Set<String> createdWalletRefs,
+    DateTime? deadline,
   }) async {
     _suppressChanges = true;
     try {
+      _throwIfDeadlineReached(deadline);
       final snapshot = _codec.decodeSnapshot(payload);
       final planResult = _buildPlan(snapshot);
       final WalletMetadataRecoveryPlan plan;
@@ -174,6 +176,7 @@ final class WalletMetadataBackupSectionProviderImpl
       );
       final outcomes = <WalletMetadataContributorApplyOutcome>[];
       for (final contributorPlan in plan.contributorPlans) {
+        _throwIfDeadlineReached(deadline);
         final contributor = _restoring[contributorPlan.contributorType];
         if (contributor == null) {
           return const Err(WalletMetadataBackupEncodingFailure());
@@ -183,6 +186,7 @@ final class WalletMetadataBackupSectionProviderImpl
             intents: contributorPlan.intents,
             context: context,
           );
+          _throwIfDeadlineReached(deadline);
           switch (applied) {
             case Err():
               outcomes.add(
@@ -240,6 +244,12 @@ final class WalletMetadataBackupSectionProviderImpl
         _changesDuringSuppression = false;
         if (!_changes.isClosed) _changes.add(null);
       }
+    }
+  }
+
+  void _throwIfDeadlineReached(DateTime? deadline) {
+    if (deadline != null && !_clock.nowUtc().isBefore(deadline)) {
+      throw TimeoutException('wallet metadata recovery deadline');
     }
   }
 

@@ -1,45 +1,62 @@
+import 'dart:async';
+
+import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_facade.dart';
 
-typedef _RecoverKeychain = Future<RemoteKeychainRecoveryResult> Function();
+typedef _RecoverKeychain =
+    Future<RemoteKeychainRecoveryResult> Function(DateTime deadline);
+
+enum _MetadataRecoveryStatus { complete, incomplete, timedOut }
 
 final class RecoverRemoteWalletBackupsUsecase {
+  static const defaultRecoveryBudget = Duration(seconds: 60);
+
   final _RecoverKeychain _recoverKeychain;
   final WalletBackupFacade _walletBackup;
   final WalletMetadataBackupFacade _metadataBackup;
+  final Clock clock;
+  final Duration budget;
 
   const RecoverRemoteWalletBackupsUsecase(
     this._recoverKeychain,
     this._walletBackup,
-    this._metadataBackup,
-  );
+    this._metadataBackup, {
+    this.clock = const SystemClock(),
+    this.budget = defaultRecoveryBudget,
+  });
 
   Future<RemoteKeychainRecoveryResult> execute({
     required Set<String> defaultCreatedWalletIds,
   }) async {
+    final deadline = clock.nowUtc().add(budget);
     WalletBackupLifecycleLease? lease;
     Object? keychainError;
     StackTrace? keychainStack;
     RemoteKeychainRecoveryResult? keychainResult;
-    var metadataComplete = true;
+    var metadataStatus = _MetadataRecoveryStatus.complete;
     WalletBackupRemoteIdentity initialRemoteIdentity;
 
-    lease = await _walletBackup.beginRecoveryLease();
     try {
+      lease = await _walletBackup.beginRecoveryLease(
+        timeout: _remaining(deadline),
+      );
+      _throwIfDeadlineReached(deadline);
       _requireOk(
         await _walletBackup.setRecoveryBlocked(true),
         'persist recovery block before restore',
       );
+      _throwIfDeadlineReached(deadline);
       initialRemoteIdentity = _requireValue(
-        await _walletBackup.fetchRemoteIdentity(),
+        await _walletBackup.fetchRemoteIdentity().timeout(_remaining(deadline)),
         'capture remote checkpoint before restore',
       );
 
       try {
-        keychainResult = await _recoverKeychain();
+        keychainResult = await _recoverKeychain(deadline);
       } on Exception catch (error, stack) {
         keychainError = error;
         keychainStack = stack;
@@ -47,12 +64,13 @@ final class RecoverRemoteWalletBackupsUsecase {
 
       final metadataPayload = keychainResult?.metadataPayload;
       if (metadataPayload != null) {
-        metadataComplete = await _recoverMetadata(
+        metadataStatus = await _recoverMetadata(
           payload: metadataPayload,
           createdWalletRefs: {
             ...defaultCreatedWalletIds,
             ...?keychainResult?.createdWalletIds,
           },
+          deadline: deadline,
         );
       }
 
@@ -65,8 +83,12 @@ final class RecoverRemoteWalletBackupsUsecase {
             RemoteKeychainRecoveryStatus.restored => true,
             _ => false,
           };
-      if (keychainComplete && metadataComplete) {
-        final finalIdentityResult = await _walletBackup.fetchRemoteIdentity();
+      if (keychainComplete &&
+          metadataStatus == _MetadataRecoveryStatus.complete) {
+        _throwIfDeadlineReached(deadline);
+        final finalIdentityResult = await _walletBackup
+            .fetchRemoteIdentity()
+            .timeout(_remaining(deadline));
         final WalletBackupRemoteIdentity finalRemoteIdentity;
         switch (finalIdentityResult) {
           case Ok(:final value):
@@ -88,6 +110,7 @@ final class RecoverRemoteWalletBackupsUsecase {
             RemoteKeychainRecoveryStatus.conflict,
           );
         }
+        _throwIfDeadlineReached(deadline);
         _requireOk(
           await _walletBackup.setRecoveryBlocked(false),
           'clear recovery block after revalidation',
@@ -97,52 +120,68 @@ final class RecoverRemoteWalletBackupsUsecase {
           'Unified wallet backup recovery remains publication-blocked',
         );
       }
+    } on TimeoutException {
+      return _withStatus(keychainResult, RemoteKeychainRecoveryStatus.timedOut);
     } finally {
-      lease.close();
+      lease?.close();
     }
 
     if (keychainError != null) {
       Error.throwWithStackTrace(keychainError, keychainStack!);
     }
-    if (!metadataComplete) {
+    if (metadataStatus != _MetadataRecoveryStatus.complete) {
       return _withStatus(
-        keychainResult!,
-        RemoteKeychainRecoveryStatus.partiallyRestored,
+        keychainResult,
+        metadataStatus == _MetadataRecoveryStatus.timedOut
+            ? RemoteKeychainRecoveryStatus.timedOut
+            : RemoteKeychainRecoveryStatus.partiallyRestored,
       );
     }
     return keychainResult!;
   }
 
-  Future<bool> _recoverMetadata({
+  Future<_MetadataRecoveryStatus> _recoverMetadata({
     required String payload,
     required Set<String> createdWalletRefs,
+    required DateTime deadline,
   }) async {
+    if (_deadlineReached(deadline)) {
+      return _MetadataRecoveryStatus.timedOut;
+    }
     try {
       final result = await _metadataBackup.recoverSection(
         payload: payload,
         createdWalletRefs: Set.unmodifiable(createdWalletRefs),
+        deadline: deadline,
       );
+      if (_deadlineReached(deadline)) {
+        return _MetadataRecoveryStatus.timedOut;
+      }
       if (result case Err(:final failure)) {
         log.warning(
           'Remote wallet metadata recovery failed',
           error: StateError(failure.runtimeType.toString()),
         );
-        return false;
+        return _MetadataRecoveryStatus.incomplete;
       }
       switch (result) {
         case Ok(:final value):
           return value.status == WalletMetadataRecoveryStatus.recovered ||
-              value.status == WalletMetadataRecoveryStatus.noSnapshotFound;
+                  value.status == WalletMetadataRecoveryStatus.noSnapshotFound
+              ? _MetadataRecoveryStatus.complete
+              : _MetadataRecoveryStatus.incomplete;
         case Err():
-          return false;
+          return _MetadataRecoveryStatus.incomplete;
       }
+    } on TimeoutException {
+      return _MetadataRecoveryStatus.timedOut;
     } on Exception catch (error, stack) {
       log.warning(
         'Remote wallet metadata recovery threw unexpectedly',
         error: error,
         trace: stack,
       );
-      return false;
+      return _MetadataRecoveryStatus.incomplete;
     }
   }
 
@@ -159,15 +198,27 @@ final class RecoverRemoteWalletBackupsUsecase {
       _requireValue(result, operation);
 
   RemoteKeychainRecoveryResult _withStatus(
-    RemoteKeychainRecoveryResult result,
+    RemoteKeychainRecoveryResult? result,
     RemoteKeychainRecoveryStatus status,
   ) => RemoteKeychainRecoveryResult(
     status: status,
-    restoredCount: result.restoredCount,
-    failedCount: result.failedCount,
-    createdWalletIds: result.createdWalletIds,
-    metadataPayload: result.metadataPayload,
+    restoredCount: result?.restoredCount ?? 0,
+    failedCount: result?.failedCount ?? 0,
+    createdWalletIds: result?.createdWalletIds ?? const [],
+    metadataPayload: result?.metadataPayload,
   );
+
+  Duration _remaining(DateTime deadline) {
+    final remaining = deadline.difference(clock.nowUtc());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  bool _deadlineReached(DateTime deadline) =>
+      !clock.nowUtc().isBefore(deadline);
+
+  void _throwIfDeadlineReached(DateTime deadline) {
+    if (_deadlineReached(deadline)) throw TimeoutException('recovery deadline');
+  }
 }
 
 final class _WalletBackupRecoveryException implements Exception {

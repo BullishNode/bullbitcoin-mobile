@@ -4,20 +4,13 @@ import 'package:bb_mobile/core/electrum/domain/value_objects/electrum_sync_resul
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_failure.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_lifecycle_lease.dart';
 import 'package:flutter/widgets.dart';
 
 typedef PublishWalletBackup =
     Future<Result<void, WalletBackupFailure>> Function();
 typedef MarkWalletBackupDirty =
     Future<Result<void, WalletBackupFailure>> Function();
-
-/// Holds automatic publication while remote recovery restores local state.
-///
-/// A lease is intentionally owned by the coordinator so recovery cannot race
-/// with a queued or in-flight publication of the same unified object.
-abstract interface class WalletBackupLifecycleLease {
-  void close();
-}
 
 final class _WalletBackupLifecycleLease implements WalletBackupLifecycleLease {
   final void Function() _release;
@@ -132,6 +125,25 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
     return completer.future;
   }
 
+  /// Publishes a snapshot that includes all state committed before this call.
+  ///
+  /// Change streams are deliberately asynchronous. A user can therefore tap
+  /// "Backup now" immediately after a product mutation, before the matching
+  /// stream event has durably marked the backup dirty. Explicit publication
+  /// closes that window by recording a fresh dirty revision first. The normal
+  /// single-flight queue then guarantees that an older in-flight publication
+  /// drains one more pass before the caller sees success.
+  Future<Result<void, WalletBackupFailure>> publishLatest() async {
+    if (_disposed) {
+      return const Err(
+        WalletBackupUnexpectedFailure('wallet backup coordinator disposed'),
+      );
+    }
+    final dirtyResult = await markDirty();
+    if (dirtyResult case Err(:final failure)) return Err(failure);
+    return publish();
+  }
+
   /// Used by confirmed deletion after backup has been disabled. It prevents a
   /// store that began before disablement from completing after the delete and
   /// recreating the remote object.
@@ -153,8 +165,8 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
   /// Existing publication and dirty-state work are drained first. Changes
   /// observed while the lease is held remain durable and are retried when the
   /// lease is released.
-  Future<WalletBackupLifecycleLease> beginRecoveryLease() =>
-      _beginLifecycleLease();
+  Future<WalletBackupLifecycleLease> beginRecoveryLease({Duration? timeout}) =>
+      _beginLifecycleLease(timeout: timeout);
 
   /// Serializes confirmed deletion with recovery and publication.
   Future<WalletBackupLifecycleLease> beginDeletionLease() =>
@@ -283,21 +295,31 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
     } catch (_) {
       // The task's logging handler already recorded this failure.
     }
-    await _inFlight;
-    _publishRequested = false;
-    for (final deferred in _deferredPublications) {
-      if (!deferred.isCompleted) {
-        deferred.complete(
-          const Err(
-            WalletBackupUnexpectedFailure('wallet backup coordinator disposed'),
-          ),
-        );
+    try {
+      await _inFlight;
+    } catch (_) {
+      // The publication caller receives the original error. Disposal still
+      // has to finish releasing every deferred caller and resource.
+    } finally {
+      _publishRequested = false;
+      for (final deferred in _deferredPublications) {
+        if (!deferred.isCompleted) {
+          deferred.complete(
+            const Err(
+              WalletBackupUnexpectedFailure(
+                'wallet backup coordinator disposed',
+              ),
+            ),
+          );
+        }
       }
+      _deferredPublications.clear();
     }
-    _deferredPublications.clear();
   }
 
-  Future<WalletBackupLifecycleLease> _beginLifecycleLease() async {
+  Future<WalletBackupLifecycleLease> _beginLifecycleLease({
+    Duration? timeout,
+  }) async {
     if (_disposed) {
       throw StateError('wallet backup coordinator disposed');
     }
@@ -307,6 +329,7 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
     final released = Completer<void>();
     _lifecycleTail = released.future;
     var closed = false;
+    final stopwatch = Stopwatch()..start();
 
     void release() {
       if (closed) return;
@@ -315,20 +338,38 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
       _releasePublicationLease();
     }
 
+    var predecessorFinished = false;
     try {
-      await predecessor;
+      await _beforeTimeout(predecessor, timeout, stopwatch.elapsed);
+      predecessorFinished = true;
       if (_disposed) {
         throw StateError('wallet backup coordinator disposed');
       }
-      await waitForIdle();
+      await _beforeTimeout(waitForIdle(), timeout, stopwatch.elapsed);
       return _WalletBackupLifecycleLease(release);
     } catch (_) {
       // Release both queue ownership and the publication block. In particular,
       // this drains callers deferred while a failing publication was being
       // awaited instead of leaving their futures stranded.
-      release();
+      if (predecessorFinished) {
+        release();
+      } else {
+        // Preserve lifecycle serialization even though this caller timed out:
+        // the queue slot is released only after its predecessor finishes.
+        unawaited(predecessor.whenComplete(release));
+      }
       rethrow;
     }
+  }
+
+  Future<void> _beforeTimeout(
+    Future<void> future,
+    Duration? timeout,
+    Duration elapsed,
+  ) {
+    if (timeout == null) return future;
+    final remaining = timeout - elapsed;
+    return future.timeout(remaining.isNegative ? Duration.zero : remaining);
   }
 
   void _releasePublicationLease() {

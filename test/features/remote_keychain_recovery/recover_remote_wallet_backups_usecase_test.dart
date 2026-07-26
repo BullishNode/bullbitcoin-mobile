@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/recover_remote_wallet_backups_usecase.dart';
@@ -11,11 +13,17 @@ void main() {
   late _MetadataBackupFacade metadataBackup;
   late _LifecycleLease lease;
 
+  setUpAll(() {
+    registerFallbackValue(Duration.zero);
+  });
+
   setUp(() {
     walletBackup = _WalletBackupFacade();
     metadataBackup = _MetadataBackupFacade();
     lease = _LifecycleLease();
-    when(walletBackup.beginRecoveryLease).thenAnswer((_) async => lease);
+    when(
+      () => walletBackup.beginRecoveryLease(timeout: any(named: 'timeout')),
+    ).thenAnswer((_) async => lease);
     when(
       () => walletBackup.setRecoveryBlocked(any()),
     ).thenAnswer((_) async => const Ok(null));
@@ -26,7 +34,9 @@ void main() {
 
   test('persists fence before restore and clears after revalidation', () async {
     final calls = <String>[];
-    when(walletBackup.beginRecoveryLease).thenAnswer((_) async {
+    when(
+      () => walletBackup.beginRecoveryLease(timeout: any(named: 'timeout')),
+    ).thenAnswer((_) async {
       calls.add('lease');
       return _LifecycleLease(() => calls.add('close'));
     });
@@ -67,6 +77,36 @@ void main() {
     ]);
   });
 
+  test(
+    'bounds a stalled initial remote identity read and releases lease',
+    () async {
+      when(walletBackup.fetchRemoteIdentity).thenAnswer(
+        (_) =>
+            Completer<Result<WalletBackupRemoteIdentity, WalletBackupFailure>>()
+                .future,
+      );
+      var recoveryCalls = 0;
+      final usecase = RecoverRemoteWalletBackupsUsecase(
+        (_) async {
+          recoveryCalls++;
+          return const RemoteKeychainRecoveryResult(
+            status: RemoteKeychainRecoveryStatus.restored,
+          );
+        },
+        walletBackup,
+        metadataBackup,
+        budget: const Duration(milliseconds: 10),
+      );
+
+      final result = await usecase.execute(defaultCreatedWalletIds: const {});
+
+      expect(result.status, RemoteKeychainRecoveryStatus.timedOut);
+      expect(recoveryCalls, 0);
+      expect(lease.closeCalls, 1);
+      verifyNever(() => walletBackup.setRecoveryBlocked(false));
+    },
+  );
+
   test('aborts before restore when durable fence cannot be written', () async {
     when(() => walletBackup.setRecoveryBlocked(true)).thenAnswer(
       (_) async => const Err(WalletBackupStorageFailure('database failed')),
@@ -95,7 +135,7 @@ void main() {
 
   test('aborts when recovery lease acquisition fails', () async {
     when(
-      walletBackup.beginRecoveryLease,
+      () => walletBackup.beginRecoveryLease(timeout: any(named: 'timeout')),
     ).thenAnswer((_) async => throw StateError('publication drain failed'));
     var recoveryCalls = 0;
     final usecase = _usecase(
@@ -195,6 +235,7 @@ void main() {
         () => metadataBackup.recoverSection(
           payload: any(named: 'payload'),
           createdWalletRefs: any(named: 'createdWalletRefs'),
+          deadline: any(named: 'deadline'),
         ),
       ).thenAnswer(
         (_) async => const Ok(WalletMetadataRecoveryResult.noSnapshotFound()),
@@ -215,6 +256,7 @@ void main() {
         () => metadataBackup.recoverSection(
           payload: '{"metadata":true}',
           createdWalletRefs: {'bitcoin-default', 'get-paid-wallet'},
+          deadline: any(named: 'deadline'),
         ),
       ).called(1);
       verify(() => walletBackup.setRecoveryBlocked(false)).called(1);
@@ -246,7 +288,11 @@ RecoverRemoteWalletBackupsUsecase _usecase({
   required WalletBackupFacade walletBackup,
   required WalletMetadataBackupFacade metadataBackup,
   required Future<RemoteKeychainRecoveryResult> Function() recover,
-}) => RecoverRemoteWalletBackupsUsecase(recover, walletBackup, metadataBackup);
+}) => RecoverRemoteWalletBackupsUsecase(
+  (_) => recover(),
+  walletBackup,
+  metadataBackup,
+);
 
 final _initialIdentity = WalletBackupRemoteIdentity(
   found: true,

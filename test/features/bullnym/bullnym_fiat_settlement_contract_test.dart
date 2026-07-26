@@ -390,6 +390,67 @@ void main() {
       expect(request.path, '/api/v1/fiat-settlement');
     });
 
+    final malformedConfigurations = <String, Map<String, dynamic>>{
+      'missing settings': {'version': 1, 'credential_status': 'active'},
+      'non-list settings': {
+        'version': 1,
+        'settings': <String, dynamic>{},
+        'credential_status': 'active',
+      },
+      'zero percent known setting': {
+        'version': 1,
+        'settings': [
+          {'product': 'pos', 'fiat_percentage': 0, 'fiat_currency': 'USD'},
+        ],
+        'credential_status': 'active',
+      },
+      'unsupported currency': {
+        'version': 1,
+        'settings': [
+          {'product': 'invoice', 'fiat_percentage': 50, 'fiat_currency': 'GBP'},
+        ],
+        'credential_status': 'active',
+      },
+      'duplicate product': {
+        'version': 1,
+        'settings': [
+          {
+            'product': 'payment_page',
+            'fiat_percentage': 50,
+            'fiat_currency': 'CAD',
+          },
+          {
+            'product': 'payment_page',
+            'fiat_percentage': 75,
+            'fiat_currency': 'CAD',
+          },
+        ],
+        'credential_status': 'active',
+      },
+    };
+
+    for (final entry in malformedConfigurations.entries) {
+      test('fails closed for ${entry.key}', () async {
+        final stub = _stubDio([(body: entry.value, status: 200)]);
+        final facade = BullnymFacade(
+          client: BullnymHttpClient.withDio(stub.dio, nowSecs: () => timestamp),
+        );
+
+        final result = await facade.getFiatSettlementConfiguration(
+          signer: signer,
+        );
+
+        expect(
+          (result as Err).failure,
+          isA<BullnymFailure>().having(
+            (failure) => failure.kind,
+            'kind',
+            BullnymFailureKind.invalidServerResponse,
+          ),
+        );
+      });
+    }
+
     test('degrades a 404 (old server) to an empty configuration', () async {
       final stub = _stubDio([(body: <String, dynamic>{}, status: 404)]);
       final facade = BullnymFacade(

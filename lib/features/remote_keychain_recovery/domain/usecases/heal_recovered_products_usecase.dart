@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -24,12 +27,14 @@ final class HealRecoveredProductsUsecase {
   final LightningAddressFacade _lightningAddress;
   final PaymentPageFacade _paymentPage;
   final PosFacade _pos;
+  final Clock _clock;
 
   const HealRecoveredProductsUsecase(
     this._lightningAddress,
     this._paymentPage,
-    this._pos,
-  );
+    this._pos, {
+    this._clock = const SystemClock(),
+  });
 
   Future<RecoveredProductsHealStatus> execute(
     Set<String> reactivationReservationIds, {
@@ -41,11 +46,13 @@ final class HealRecoveredProductsUsecase {
     }
 
     if (reactivationReservationIds.contains(_paymentPageReservationId)) {
-      await _healPaymentPage();
+      final timedOut = await _healPaymentPage(deadline);
+      if (timedOut) return RecoveredProductsHealStatus.timedOut;
     }
 
     if (reactivationReservationIds.contains(_posReservationId)) {
-      await _healPos();
+      final timedOut = await _healPos(deadline);
+      if (timedOut) return RecoveredProductsHealStatus.timedOut;
     }
 
     return RecoveredProductsHealStatus.finished;
@@ -83,9 +90,12 @@ final class HealRecoveredProductsUsecase {
     return false;
   }
 
-  Future<void> _healPaymentPage() async {
+  Future<bool> _healPaymentPage(DateTime? deadline) async {
     try {
-      final outcome = await _paymentPage.ensurePageLive();
+      final future = _paymentPage.ensurePageLive();
+      final outcome = deadline == null
+          ? await future
+          : await future.timeout(_remaining(deadline));
       if (outcome.liveness == PaymentPageLiveness.needsReactivation ||
           outcome.liveness == PaymentPageLiveness.unreachable) {
         log.warning(
@@ -93,6 +103,8 @@ final class HealRecoveredProductsUsecase {
           '${outcome.liveness.name}',
         );
       }
+    } on TimeoutException {
+      return true;
     } catch (error, stack) {
       log.warning(
         'Payment Page recovery heal failed',
@@ -100,11 +112,15 @@ final class HealRecoveredProductsUsecase {
         trace: stack,
       );
     }
+    return false;
   }
 
-  Future<void> _healPos() async {
+  Future<bool> _healPos(DateTime? deadline) async {
     try {
-      final outcome = await _pos.ensurePosLive();
+      final future = _pos.ensurePosLive();
+      final outcome = deadline == null
+          ? await future
+          : await future.timeout(_remaining(deadline));
       if (outcome.liveness == PosLiveness.needsReactivation ||
           outcome.liveness == PosLiveness.unreachable) {
         log.warning(
@@ -112,6 +128,8 @@ final class HealRecoveredProductsUsecase {
           '${outcome.liveness.name}',
         );
       }
+    } on TimeoutException {
+      return true;
     } catch (error, stack) {
       log.warning(
         'Point of Sale recovery heal failed',
@@ -119,5 +137,11 @@ final class HealRecoveredProductsUsecase {
         trace: stack,
       );
     }
+    return false;
+  }
+
+  Duration _remaining(DateTime deadline) {
+    final remaining = deadline.difference(_clock.nowUtc());
+    return remaining.isNegative ? Duration.zero : remaining;
   }
 }

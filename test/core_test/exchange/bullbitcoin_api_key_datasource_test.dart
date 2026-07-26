@@ -87,4 +87,15 @@ void main() {
 
     expect(stored, isNull);
   });
+
+  test('does not collapse a scoped secure-storage read failure to absence', () {
+    when(
+      () => storage.getValue('sell_to_fiat_balance_api_key'),
+    ).thenThrow(Exception('secure storage unavailable'));
+
+    expect(
+      datasource.getSellToFiatBalanceApiKey(isTestnet: false),
+      throwsA(isA<Exception>()),
+    );
+  });
 }

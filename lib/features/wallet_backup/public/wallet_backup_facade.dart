@@ -5,8 +5,7 @@ export 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_m
 export 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_remote_identity.dart'
     show WalletBackupRemoteIdentity;
 export 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_failure.dart';
-export 'package:bb_mobile/features/wallet_backup/watchers/wallet_backup_coordinator.dart'
-    show WalletBackupLifecycleLease;
+export 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_lifecycle_lease.dart';
 
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_manifest_import.dart';
@@ -20,6 +19,7 @@ import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_back
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_backup_recovery_blocked_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/watch_wallet_backup_state_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_failure.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_lifecycle_lease.dart';
 import 'package:bb_mobile/features/wallet_backup/watchers/wallet_backup_coordinator.dart';
 import 'package:meta/meta.dart';
 
@@ -64,7 +64,7 @@ class WalletBackupFacade {
 
   @useResult
   Future<Result<void, WalletBackupFailure>> backupNow() {
-    return _coordinator.publish();
+    return _coordinator.publishLatest();
   }
 
   @useResult
@@ -96,7 +96,7 @@ class WalletBackupFacade {
 
   /// Holds unified-backup publication while remote recovery restores local
   /// keychain and metadata state.
-  Future<WalletBackupLifecycleLease> beginRecoveryLease() {
-    return _coordinator.beginRecoveryLease();
+  Future<WalletBackupLifecycleLease> beginRecoveryLease({Duration? timeout}) {
+    return _coordinator.beginRecoveryLease(timeout: timeout);
   }
 }

@@ -62,6 +62,19 @@ void main() {
       await pumpEventQueue();
       expect(changeCount, 1);
 
+      // Re-recording the same durable binding is a true no-op: it must not
+      // dirty the unified backup or schedule another publication.
+      await facade.recordReservedDerivation(
+        KeychainManifestReservedDerivationRequest(
+          reservationId: 'btcpay_wallet_seed',
+          derivationPath: "39'/0'/12'/100'",
+          parentFingerprint: 'fedcba98',
+          materializations: [_walletMaterialization()],
+        ),
+      );
+      await pumpEventQueue();
+      expect(changeCount, 1);
+
       await facade.recordRecoveredDerivation(
         KeychainManifestReservedDerivationRequest(
           reservationId: 'btcpay_wallet_seed',

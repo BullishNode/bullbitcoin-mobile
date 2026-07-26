@@ -27,8 +27,21 @@ class ScopedSettlementKeyAdapter implements ScopedSettlementKeyPort {
 
   Future<ScopedApiKeyModel?> _read() async {
     final settings = await _getSettings.execute();
-    return _datasource.getSellToFiatBalanceApiKey(
-      isTestnet: settings.environment.isTestnet,
-    );
+    final isTestnet = settings.environment.isTestnet;
+    try {
+      final broad = await _datasource.get(isTestnet: isTestnet);
+      final scoped = await _datasource.getSellToFiatBalanceApiKey(
+        isTestnet: isTestnet,
+      );
+      if (broad == null ||
+          scoped == null ||
+          scoped.userId != broad.userId ||
+          !scoped.isWellFormed) {
+        return null;
+      }
+      return scoped;
+    } catch (_) {
+      return null;
+    }
   }
 }
