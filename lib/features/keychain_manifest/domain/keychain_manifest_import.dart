@@ -29,6 +29,11 @@ class KeychainManifestImportPlan {
   get walletMaterializations => entries
       .expand((entry) => entry.walletMaterializations)
       .toList(growable: false);
+
+  List<KeychainManifestNostrKeyMaterializationIntent>
+  get nostrKeyMaterializations => entries
+      .expand((entry) => entry.nostrKeyMaterializations)
+      .toList(growable: false);
 }
 
 class KeychainManifestImportEntryIntent {
@@ -59,6 +64,8 @@ class KeychainManifestImportEntryIntent {
 
   final List<KeychainManifestWalletMaterializationIntent>
   walletMaterializations;
+  final List<KeychainManifestNostrKeyMaterializationIntent>
+  nostrKeyMaterializations;
 
   KeychainManifestImportEntryIntent({
     required this.entryId,
@@ -69,15 +76,19 @@ class KeychainManifestImportEntryIntent {
     required this.ownerFeature,
     required this.bip85Application,
     required this.bip85Index,
-    required List<KeychainManifestWalletMaterializationIntent>
-    walletMaterializations,
+    List<KeychainManifestWalletMaterializationIntent> walletMaterializations =
+        const [],
+    List<KeychainManifestNostrKeyMaterializationIntent>
+        nostrKeyMaterializations =
+        const [],
   }) : parentFingerprint = KeychainManifestFingerprint.normalize(
          parentFingerprint,
        ),
        bip85DerivationPath = KeychainManifestBip85Path.normalize(
          bip85DerivationPath,
        ),
-       walletMaterializations = List.unmodifiable(walletMaterializations) {
+       walletMaterializations = List.unmodifiable(walletMaterializations),
+       nostrKeyMaterializations = List.unmodifiable(nostrKeyMaterializations) {
     if (entryType.trim().isEmpty || ownerFeature.trim().isEmpty) {
       throw KeychainManifestInvalidEntryException(
         'manifest import entry metadata is required',
@@ -88,17 +99,21 @@ class KeychainManifestImportEntryIntent {
         'manifest import BIP85 application and index must be non-negative',
       );
     }
-    if (this.walletMaterializations.isEmpty) {
+    if (this.walletMaterializations.isEmpty &&
+        this.nostrKeyMaterializations.isEmpty) {
       throw KeychainManifestInvalidEntryException(
-        'manifest import entry requires wallet materializations',
+        'manifest import entry requires a materialization',
       );
     }
   }
 
   factory KeychainManifestImportEntryIntent.fromFileEntry(
     KeychainManifestFileEntry entry, {
-    required List<KeychainManifestWalletMaterializationIntent>
-    walletMaterializations,
+    List<KeychainManifestWalletMaterializationIntent> walletMaterializations =
+        const [],
+    List<KeychainManifestNostrKeyMaterializationIntent>
+        nostrKeyMaterializations =
+        const [],
   }) {
     return KeychainManifestImportEntryIntent(
       entryId: entry.entryId,
@@ -110,6 +125,69 @@ class KeychainManifestImportEntryIntent {
       bip85Application: entry.bip85Application,
       bip85Index: entry.bip85Index,
       walletMaterializations: walletMaterializations,
+      nostrKeyMaterializations: nostrKeyMaterializations,
+    );
+  }
+}
+
+class KeychainManifestNostrKeyMaterializationIntent {
+  final String entryId;
+  final String reservationId;
+  final String bip85DerivationPath;
+  final String publicKeyHex;
+  final KeychainManifestNostrKeyKind keyKind;
+  final String purpose;
+  final int createdAt;
+  final int updatedAt;
+
+  KeychainManifestNostrKeyMaterializationIntent({
+    required this.entryId,
+    required this.reservationId,
+    required String bip85DerivationPath,
+    required String publicKeyHex,
+    required this.keyKind,
+    required String purpose,
+    required this.createdAt,
+    required this.updatedAt,
+  }) : bip85DerivationPath = KeychainManifestBip85Path.normalize(
+         bip85DerivationPath,
+       ),
+       publicKeyHex = publicKeyHex.toLowerCase(),
+       purpose = purpose.trim() {
+    final materialization = KeychainManifestNostrKeyMaterialization(
+      entryId: entryId,
+      publicKeyHex: publicKeyHex,
+      keyKind: keyKind,
+      purpose: purpose,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+    if (materialization.entryId != entryId || reservationId.trim().isEmpty) {
+      throw KeychainManifestInvalidEntryException(
+        'manifest import Nostr materialization metadata is required',
+      );
+    }
+  }
+
+  factory KeychainManifestNostrKeyMaterializationIntent.fromFileMaterialization({
+    required KeychainManifestFileEntry entry,
+    required KeychainManifestFileNostrKeyMaterialization materialization,
+  }) {
+    final keyKind = KeychainManifestNostrKeyKind.values.firstWhere(
+      (value) => value.name == materialization.keyKind,
+      orElse: () => throw KeychainManifestFileParseException(
+        reason: KeychainManifestFileParseFailureReason.invalidMetadata,
+      ),
+    );
+    return KeychainManifestNostrKeyMaterializationIntent(
+      entryId: entry.entryId,
+      reservationId: entry.reservationId,
+      bip85DerivationPath: entry.bip85DerivationPath,
+      publicKeyHex: materialization.publicKeyHex,
+      keyKind: keyKind,
+      purpose: materialization.purpose,
+      createdAt: materialization.createdAt,
+      updatedAt: materialization.updatedAt,
     );
   }
 }

@@ -72,11 +72,47 @@ final class MergeKeychainManifestFilePayloadsUsecase {
       );
     }
 
+    final firstWallets = first.materializations
+        .whereType<KeychainManifestFileWalletMaterialization>()
+        .toList(growable: false);
+    final secondWallets = second.materializations
+        .whereType<KeychainManifestFileWalletMaterialization>()
+        .toList(growable: false);
+    if (firstWallets.length == first.materializations.length &&
+        secondWallets.length == second.materializations.length) {
+      return _mergeWalletEntry(first, second, firstWallets, secondWallets);
+    }
+
+    final firstNostr = first.materializations
+        .whereType<KeychainManifestFileNostrKeyMaterialization>()
+        .toList(growable: false);
+    final secondNostr = second.materializations
+        .whereType<KeychainManifestFileNostrKeyMaterialization>()
+        .toList(growable: false);
+    if (firstNostr.length == 1 && secondNostr.length == 1) {
+      return _mergeNostrEntry(
+        first,
+        second,
+        firstNostr.single,
+        secondNostr.single,
+      );
+    }
+    throw KeychainManifestEntryConflictException(
+      'remote manifest materialization type conflicts with local inventory',
+    );
+  }
+
+  KeychainManifestFileEntry _mergeWalletEntry(
+    KeychainManifestFileEntry first,
+    KeychainManifestFileEntry second,
+    List<KeychainManifestFileWalletMaterialization> firstWallets,
+    List<KeychainManifestFileWalletMaterialization> secondWallets,
+  ) {
     final materializations =
         <String, KeychainManifestFileWalletMaterialization>{
-          for (final item in first.materializations) item.walletId: item,
+          for (final item in firstWallets) item.walletId: item,
         };
-    for (final item in second.materializations) {
+    for (final item in secondWallets) {
       final existing = materializations[item.walletId];
       if (existing != null &&
           (existing.entryId != item.entryId ||
@@ -120,6 +156,49 @@ final class MergeKeychainManifestFilePayloadsUsecase {
     );
   }
 
+  KeychainManifestFileEntry _mergeNostrEntry(
+    KeychainManifestFileEntry first,
+    KeychainManifestFileEntry second,
+    KeychainManifestFileNostrKeyMaterialization remote,
+    KeychainManifestFileNostrKeyMaterialization local,
+  ) {
+    if (remote.entryId != local.entryId ||
+        remote.publicKeyHex != local.publicKeyHex ||
+        remote.keyKind != local.keyKind) {
+      throw KeychainManifestEntryConflictException(
+        'remote Nostr key conflicts with local inventory',
+      );
+    }
+    if (remote.updatedAt == local.updatedAt &&
+        remote.purpose != local.purpose) {
+      throw KeychainManifestEntryConflictException(
+        'remote Nostr key purpose conflicts with local inventory',
+      );
+    }
+    final latest = local.updatedAt >= remote.updatedAt ? local : remote;
+    return KeychainManifestFileEntry(
+      parentFingerprint: first.parentFingerprint,
+      bip85DerivationPath: first.bip85DerivationPath,
+      reservationId: first.reservationId,
+      entryType: first.entryType,
+      ownerFeature: first.ownerFeature,
+      bip85Application: first.bip85Application,
+      bip85Index: first.bip85Index,
+      createdAt: _earlier(first.createdAt, second.createdAt),
+      updatedAt: _later(first.updatedAt, second.updatedAt),
+      materializations: [
+        KeychainManifestFileNostrKeyMaterialization(
+          entryId: remote.entryId,
+          publicKeyHex: remote.publicKeyHex,
+          keyKind: remote.keyKind,
+          purpose: latest.purpose,
+          createdAt: _earlier(remote.createdAt, local.createdAt),
+          updatedAt: _later(remote.updatedAt, local.updatedAt),
+        ),
+      ],
+    );
+  }
+
   bool _sameEntries(
     List<KeychainManifestFileEntry> current,
     Iterable<KeychainManifestFileEntry> merged,
@@ -149,19 +228,45 @@ final class MergeKeychainManifestFilePayloadsUsecase {
         current.materializations.length != merged.materializations.length) {
       return false;
     }
-    final mergedByWallet = {
-      for (final item in merged.materializations) item.walletId: item,
+    for (var index = 0; index < current.materializations.length; index++) {
+      if (!_sameMaterialization(
+        current.materializations[index],
+        merged.materializations[index],
+      )) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _sameMaterialization(
+    KeychainManifestFileMaterialization first,
+    KeychainManifestFileMaterialization second,
+  ) {
+    return switch ((first, second)) {
+      (
+        KeychainManifestFileWalletMaterialization first,
+        KeychainManifestFileWalletMaterialization second,
+      ) =>
+        first.entryId == second.entryId &&
+            first.walletId == second.walletId &&
+            first.childSeedFingerprint == second.childSeedFingerprint &&
+            first.network == second.network &&
+            first.scriptType == second.scriptType &&
+            first.createdAt == second.createdAt &&
+            first.updatedAt == second.updatedAt,
+      (
+        KeychainManifestFileNostrKeyMaterialization first,
+        KeychainManifestFileNostrKeyMaterialization second,
+      ) =>
+        first.entryId == second.entryId &&
+            first.publicKeyHex == second.publicKeyHex &&
+            first.keyKind == second.keyKind &&
+            first.purpose == second.purpose &&
+            first.createdAt == second.createdAt &&
+            first.updatedAt == second.updatedAt,
+      _ => false,
     };
-    return current.materializations.every((item) {
-      final other = mergedByWallet[item.walletId];
-      return other != null &&
-          item.entryId == other.entryId &&
-          item.childSeedFingerprint == other.childSeedFingerprint &&
-          item.network == other.network &&
-          item.scriptType == other.scriptType &&
-          item.createdAt == other.createdAt &&
-          item.updatedAt == other.updatedAt;
-    });
   }
 
   int _earlier(int first, int second) => first < second ? first : second;

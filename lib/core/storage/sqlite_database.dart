@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:bb_mobile/core/electrum/domain/value_objects/electrum_server_network.dart';
+import 'package:bb_mobile/core/storage/app_data_directory.dart';
 import 'package:bb_mobile/core/storage/migrations/migrations.dart';
 import 'package:bb_mobile/core/storage/sqlite_database.steps.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
@@ -30,7 +31,6 @@ import 'package:drift/native.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 part 'sqlite_database.g.dart';
 
@@ -51,6 +51,7 @@ part 'sqlite_database.g.dart';
     Bip85Derivations,
     KeychainManifestEntries,
     KeychainManifestWalletBindings,
+    KeychainManifestNostrKeys,
     WalletBackupStates,
     Recoverbull,
     Prices,
@@ -67,7 +68,7 @@ class SqliteDatabase extends _$SqliteDatabase {
       BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
       return LazyDatabase(() async {
-        final dbFolder = await getApplicationDocumentsDirectory();
+        final dbFolder = await AppDataDirectory.resolve();
         final dbPath = p.join(dbFolder.path, '${SqliteDatabase.name}.sqlite');
         return NativeDatabase(
           File(dbPath),
@@ -105,7 +106,7 @@ class SqliteDatabase extends _$SqliteDatabase {
   /// Current drift schema version. Bump in lockstep with adding a new
   /// `Schema<N-1>To<N>.migrate` step in [migration] and regenerating the
   /// schema snapshots (`make drift-migrations`).
-  static const int currentSchemaVersion = 19;
+  static const int currentSchemaVersion = 17;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -114,7 +115,7 @@ class SqliteDatabase extends _$SqliteDatabase {
     return driftDatabase(
       name: name,
       native: DriftNativeOptions(
-        databaseDirectory: getApplicationDocumentsDirectory,
+        databaseDirectory: AppDataDirectory.resolve,
 
         /// When using a shared instance, stream queries synchronize across the two
         /// isolates. Also, drift then manages concurrent access to the database,
@@ -165,8 +166,6 @@ class SqliteDatabase extends _$SqliteDatabase {
         from14To15: _reportingMigration('from14To15', Schema14To15.migrate),
         from15To16: _reportingMigration('from15To16', Schema15To16.migrate),
         from16To17: _reportingMigration('from16To17', Schema16To17.migrate),
-        from17To18: _reportingMigration('from17To18', Schema17To18.migrate),
-        from18To19: _reportingMigration('from18To19', Schema18To19.migrate),
       ),
       // Backfills `Report.fromVersion` for installs that predate the
       // `_lastVersionKey` SharedPreferences marker (added in v6.6.0).

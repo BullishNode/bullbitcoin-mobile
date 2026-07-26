@@ -94,6 +94,9 @@ final class RecoverRemoteKeychainManifestUsecase {
     final failedOutcomes = restored.walletOutcomes
         .where((outcome) => !outcome.succeeded)
         .toList(growable: false);
+    final failedNostrOutcomes = restored.nostrKeyOutcomes
+        .where((outcome) => !outcome.succeeded)
+        .toList(growable: false);
     final createdWalletIds = restored.walletOutcomes
         .where((outcome) => outcome.succeeded && outcome.created)
         .map((outcome) => outcome.walletId)
@@ -119,9 +122,9 @@ final class RecoverRemoteKeychainManifestUsecase {
     return RemoteKeychainRecoveryResult(
       status: restorationTimedOut || healingTimedOut
           ? RemoteKeychainRecoveryStatus.timedOut
-          : _statusForRestore(restored, failedOutcomes),
-      restoredCount: restored.restoredCount,
-      failedCount: failedOutcomes.length,
+          : _statusForRestore(restored, failedOutcomes, failedNostrOutcomes),
+      restoredCount: restored.restoredCount + restored.restoredNostrKeyCount,
+      failedCount: failedOutcomes.length + failedNostrOutcomes.length,
       createdWalletIds: createdWalletIds,
       metadataPayload: manifestImport.metadataPayload,
     );
@@ -158,29 +161,46 @@ final class RecoverRemoteKeychainManifestUsecase {
   RemoteKeychainRecoveryStatus _statusForRestore(
     KeychainRecoveryResult result,
     List<KeychainRecoveryWalletRestoreOutcome> failedOutcomes,
+    List<KeychainRecoveryNostrKeyRestoreOutcome> failedNostrOutcomes,
   ) {
-    if (failedOutcomes.isEmpty) return RemoteKeychainRecoveryStatus.restored;
+    if (failedOutcomes.isEmpty && failedNostrOutcomes.isEmpty) {
+      return RemoteKeychainRecoveryStatus.restored;
+    }
     if (failedOutcomes.any(
-      (outcome) =>
-          outcome.status ==
-          KeychainRecoveryWalletRestoreStatus.skippedTimeBudgetExpired,
-    )) {
+          (outcome) =>
+              outcome.status ==
+              KeychainRecoveryWalletRestoreStatus.skippedTimeBudgetExpired,
+        ) ||
+        failedNostrOutcomes.any(
+          (outcome) =>
+              outcome.status ==
+              KeychainRecoveryNostrKeyRestoreStatus.skippedTimeBudgetExpired,
+        )) {
       return RemoteKeychainRecoveryStatus.timedOut;
     }
-    if (result.restoredCount > 0) {
+    if (result.restoredCount + result.restoredNostrKeyCount > 0) {
       return RemoteKeychainRecoveryStatus.partiallyRestored;
     }
-    if (failedOutcomes.every(
-      (outcome) =>
-          outcome.status ==
-          KeychainRecoveryWalletRestoreStatus.failedInvalidImportPlan,
-    )) {
+    final allInvalid =
+        failedOutcomes.every(
+          (outcome) =>
+              outcome.status ==
+              KeychainRecoveryWalletRestoreStatus.failedInvalidImportPlan,
+        ) &&
+        failedNostrOutcomes.every(
+          (outcome) =>
+              outcome.status ==
+              KeychainRecoveryNostrKeyRestoreStatus.failedInvalidImportPlan,
+        );
+    if (allInvalid) {
       return RemoteKeychainRecoveryStatus.invalid;
     }
-    if (failedOutcomes.every(
-      (outcome) =>
-          outcome.status == KeychainRecoveryWalletRestoreStatus.failedConflict,
-    )) {
+    if (failedNostrOutcomes.isEmpty &&
+        failedOutcomes.every(
+          (outcome) =>
+              outcome.status ==
+              KeychainRecoveryWalletRestoreStatus.failedConflict,
+        )) {
       return RemoteKeychainRecoveryStatus.conflict;
     }
     return RemoteKeychainRecoveryStatus.localFailure;

@@ -462,6 +462,7 @@ class _InMemoryKeychainManifestStore
     implements KeychainManifestEntryRepository {
   final entries = <KeychainManifestEntry>[];
   final records = <KeychainManifestWalletMaterializationRecord>[];
+  final nostrRecords = <KeychainManifestNostrKeyRecord>[];
   String? failOnWalletId;
   bool insertIdenticalRowsBeforeBatch = false;
 
@@ -528,4 +529,27 @@ class _InMemoryKeychainManifestStore
       ..clear()
       ..addAll(nextRecords);
   }
+
+  @override
+  Future<List<KeychainManifestNostrKeyRecord>>
+  fetchNostrKeyRecordsByParentFingerprint(String parentFingerprint) async {
+    return nostrRecords
+        .where((record) => record.entry.parentFingerprint == parentFingerprint)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> insertNostrKeyRecords(
+    List<KeychainManifestNostrKeyRecord> records,
+  ) async {
+    nostrRecords.addAll(records);
+  }
+
+  @override
+  Future<void> updateNostrKeyPurpose({
+    required String parentFingerprint,
+    required String entryId,
+    required String purpose,
+    required int updatedAt,
+  }) async {}
 }

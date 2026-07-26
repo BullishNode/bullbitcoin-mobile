@@ -48,14 +48,6 @@ class ParseKeychainManifestFileUsecase {
     if (manifestFile.entries.isEmpty && !allowEmpty) {
       throw KeychainManifestEmptyInventoryException();
     }
-    // Every valid entry maps to a distinct registry reservation, so a file
-    // with more entries than reservations can never validate; bound the
-    // work before per-entry validation.
-    if (manifestFile.entries.length > _bip85Registry.reservations.length) {
-      throw KeychainManifestFileParseException(
-        reason: KeychainManifestFileParseFailureReason.invalidMetadata,
-      );
-    }
     final entries = manifestFile.entries
         .map(_entryIntent)
         .toList(growable: false);
@@ -69,29 +61,52 @@ class ParseKeychainManifestFileUsecase {
     KeychainManifestFileEntry entry,
   ) {
     final reservation = _bip85Registry.reservationById(entry.reservationId);
-    if (reservation == null) {
+    final isDynamicNostr =
+        entry.reservationId == _bip85Registry.nostrUserKeyReservationId &&
+        _bip85Registry.isNostrUserKeyPath(entry.bip85DerivationPath);
+    if (reservation == null && !isDynamicNostr) {
       throw KeychainManifestFileParseException(
         reason: KeychainManifestFileParseFailureReason.unknownReservation,
       );
     }
-    if (!reservation.scope.matchesExactPath(entry.bip85DerivationPath)) {
+    if (!isDynamicNostr &&
+        !reservation!.scope.matchesExactPath(entry.bip85DerivationPath)) {
       throw KeychainManifestFileParseException(
         reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
     }
-    // V1 wallet manifest files carry wallet-seed reservations only, so the
-    // support gate also proves the wallet-seed scope shape (and its typed
-    // wallet index).
-    if (reservation is! Bip85WalletSeedReservation ||
-        !_supportsWalletManifestImport(reservation)) {
+    final isWalletEntry = reservation is Bip85WalletSeedReservation;
+    final isNostrEntry = reservation is Bip85KeyReservation || isDynamicNostr;
+    if ((!isWalletEntry && !isNostrEntry) ||
+        (isWalletEntry &&
+            (!_supportsWalletManifestImport(reservation) ||
+                entry.materializations.any(
+                  (materialization) =>
+                      materialization
+                          is! KeychainManifestFileWalletMaterialization,
+                ))) ||
+        (isNostrEntry &&
+            entry.materializations.any(
+              (materialization) =>
+                  materialization
+                      is! KeychainManifestFileNostrKeyMaterialization,
+            ))) {
       throw KeychainManifestFileParseException(
         reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
     }
-    if (reservation.owner.name != entry.ownerFeature ||
-        reservation.purpose.name != entry.entryType ||
-        reservation.application.number != entry.bip85Application ||
-        reservation.walletIndex != entry.bip85Index) {
+    final metadataMatches = isDynamicNostr
+        ? entry.ownerFeature == 'nostr' &&
+              entry.entryType == 'userGenerated' &&
+              entry.bip85Application ==
+                  _bip85Registry.nostrUserKeyApplication &&
+              entry.bip85Index == _bip85Registry.nostrUserAccount
+        : reservation!.owner.name == entry.ownerFeature &&
+              reservation.purpose.name == entry.entryType &&
+              reservation.application.number == entry.bip85Application &&
+              (reservation is! Bip85WalletSeedReservation ||
+                  reservation.walletIndex == entry.bip85Index);
+    if (!metadataMatches) {
       throw KeychainManifestFileParseException(
         reason: KeychainManifestFileParseFailureReason.invalidMetadata,
       );
@@ -99,6 +114,7 @@ class ParseKeychainManifestFileUsecase {
     return KeychainManifestImportEntryIntent.fromFileEntry(
       entry,
       walletMaterializations: _walletMaterializations(entry),
+      nostrKeyMaterializations: _nostrKeyMaterializations(entry),
     );
   }
 
@@ -116,9 +132,25 @@ class ParseKeychainManifestFileUsecase {
     // KeychainManifestFile entity when the payload is decoded, so every
     // materialization reaching this point is unique.
     return entry.materializations
+        .whereType<KeychainManifestFileWalletMaterialization>()
         .map(
           (materialization) =>
               KeychainManifestWalletMaterializationIntent.fromFileMaterialization(
+                entry: entry,
+                materialization: materialization,
+              ),
+        )
+        .toList(growable: false);
+  }
+
+  List<KeychainManifestNostrKeyMaterializationIntent> _nostrKeyMaterializations(
+    KeychainManifestFileEntry entry,
+  ) {
+    return entry.materializations
+        .whereType<KeychainManifestFileNostrKeyMaterialization>()
+        .map(
+          (materialization) =>
+              KeychainManifestNostrKeyMaterializationIntent.fromFileMaterialization(
                 entry: entry,
                 materialization: materialization,
               ),
