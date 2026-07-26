@@ -56,8 +56,8 @@ class KeychainManifestFacade {
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
   }) async {
-    await _recordDerivation(request, now: now);
-    _committedChanges.add(null);
+    final changed = await _recordDerivation(request, now: now);
+    if (changed) _committedChanges.add(null);
   }
 
   /// Records inventory reconstructed from an authenticated remote backup.
@@ -68,7 +68,9 @@ class KeychainManifestFacade {
   Future<void> recordRecoveredDerivation(
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
-  }) => _recordDerivation(request, now: now);
+  }) async {
+    await _recordDerivation(request, now: now);
+  }
 
   /// Emits after a normal local inventory transaction commits.
   ///
@@ -78,12 +80,12 @@ class KeychainManifestFacade {
 
   Future<void> close() => _committedChanges.close();
 
-  Future<void> _recordDerivation(
+  Future<bool> _recordDerivation(
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
   }) async {
     try {
-      await _recordEntry.execute(request, now: now);
+      return await _recordEntry.execute(request, now: now);
     } catch (e) {
       throw KeychainManifestException.fromInternal(e);
     }

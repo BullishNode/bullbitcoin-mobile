@@ -11,6 +11,9 @@ enum KeychainRecoveryWalletRestoreStatus {
   failedWalletCreation,
   failedManifestRecord,
   failedConflict,
+  // The recovery time budget elapsed before this entry was materialized, so it
+  // was never attempted. Not a success; callers keep what restored and report
+  // the remainder as failures (a partial restore).
   skippedTimeBudgetExpired,
 }
 

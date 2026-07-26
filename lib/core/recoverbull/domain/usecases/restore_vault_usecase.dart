@@ -17,8 +17,10 @@ class RestoreVaultUsecase {
   }) : _createDefaultWallets = createDefaultWalletsUsecase;
 
   // Orchestrates the still-throwing wallet core repo; the local try/catch is
-  // the boundary, mapping any failure to a sanitized core failure.
-  Future<Result<Null, RecoverBullCoreFailure>> execute({
+  // the boundary, mapping any failure to a sanitized core failure. On success
+  // it returns the ids of the restored default wallets so the caller can drive
+  // remote manifest/metadata recovery for them.
+  Future<Result<List<String>, RecoverBullCoreFailure>> execute({
     required DecryptedVault decryptedVault,
   }) async {
     try {
@@ -40,7 +42,9 @@ class RestoreVaultUsecase {
       }
 
       log.fine('Vault restored');
-      return const Ok(null);
+      return Ok(
+        restoredWallets.map((wallet) => wallet.id).toList(growable: false),
+      );
     } catch (e, st) {
       log.severe(message: 'restoreVault failed', error: e, trace: st);
       return Err(RecoverBullUnexpectedCoreFailure(e.toString()));

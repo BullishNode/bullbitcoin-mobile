@@ -17,9 +17,11 @@ class WalletMetadataBackupFacade {
   recoverSection({
     required String payload,
     required Set<String> createdWalletRefs,
+    DateTime? deadline,
   }) async => (await _sectionProvider.recoverSection(
     payload: payload,
     createdWalletRefs: createdWalletRefs,
+    deadline: deadline,
   )).map(WalletMetadataRecoveryResult.applied);
 }
 

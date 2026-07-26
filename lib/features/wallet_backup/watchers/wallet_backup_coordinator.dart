@@ -153,8 +153,8 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
   /// Existing publication and dirty-state work are drained first. Changes
   /// observed while the lease is held remain durable and are retried when the
   /// lease is released.
-  Future<WalletBackupLifecycleLease> beginRecoveryLease() =>
-      _beginLifecycleLease();
+  Future<WalletBackupLifecycleLease> beginRecoveryLease({Duration? timeout}) =>
+      _beginLifecycleLease(timeout: timeout);
 
   /// Serializes confirmed deletion with recovery and publication.
   Future<WalletBackupLifecycleLease> beginDeletionLease() =>
@@ -297,7 +297,9 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
     _deferredPublications.clear();
   }
 
-  Future<WalletBackupLifecycleLease> _beginLifecycleLease() async {
+  Future<WalletBackupLifecycleLease> _beginLifecycleLease({
+    Duration? timeout,
+  }) async {
     if (_disposed) {
       throw StateError('wallet backup coordinator disposed');
     }
@@ -307,6 +309,7 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
     final released = Completer<void>();
     _lifecycleTail = released.future;
     var closed = false;
+    final stopwatch = Stopwatch()..start();
 
     void release() {
       if (closed) return;
@@ -315,20 +318,38 @@ final class WalletBackupCoordinator with WidgetsBindingObserver {
       _releasePublicationLease();
     }
 
+    var predecessorFinished = false;
     try {
-      await predecessor;
+      await _beforeTimeout(predecessor, timeout, stopwatch.elapsed);
+      predecessorFinished = true;
       if (_disposed) {
         throw StateError('wallet backup coordinator disposed');
       }
-      await waitForIdle();
+      await _beforeTimeout(waitForIdle(), timeout, stopwatch.elapsed);
       return _WalletBackupLifecycleLease(release);
     } catch (_) {
       // Release both queue ownership and the publication block. In particular,
       // this drains callers deferred while a failing publication was being
       // awaited instead of leaving their futures stranded.
-      release();
+      if (predecessorFinished) {
+        release();
+      } else {
+        // Preserve lifecycle serialization even though this caller timed out:
+        // the queue slot is released only after its predecessor finishes.
+        unawaited(predecessor.whenComplete(release));
+      }
       rethrow;
     }
+  }
+
+  Future<void> _beforeTimeout(
+    Future<void> future,
+    Duration? timeout,
+    Duration elapsed,
+  ) {
+    if (timeout == null) return future;
+    final remaining = timeout - elapsed;
+    return future.timeout(remaining.isNegative ? Duration.zero : remaining);
   }
 
   void _releasePublicationLease() {

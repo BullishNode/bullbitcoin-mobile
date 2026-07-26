@@ -83,7 +83,12 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
         mnemonicWords: event.mnemonic.words,
       );
       await _completePhysicalBackupVerificationUsecase.execute();
-      _recoverRemoteKeychainUsecase.execute(
+      // Await manifest recovery (bounded by its own time budget) BEFORE
+      // signalling success. Success drives WalletStarted, so awaiting here
+      // guarantees restored manifest wallets (e.g. Donation Page 102 and POS
+      // 103) exist before the wallet inventory first loads. The usecase never
+      // throws, so a recovery failure lets onboarding continue silently.
+      await _recoverRemoteKeychainUsecase.execute(
         defaultCreatedWalletIds: defaultWallets
             .map((wallet) => wallet.id)
             .toSet(),

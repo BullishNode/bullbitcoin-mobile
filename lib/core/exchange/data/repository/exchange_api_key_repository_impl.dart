@@ -1,8 +1,15 @@
 import 'package:bb_mobile/core/exchange/data/datasources/bullbitcoin_api_key_datasource.dart';
 import 'package:bb_mobile/core/exchange/data/models/api_key_model.dart';
+import 'package:bb_mobile/core/exchange/data/models/scoped_api_key_model.dart';
 import 'package:bb_mobile/core/exchange/domain/repositories/exchange_api_key_repository.dart';
+import 'package:bb_mobile/core/utils/logger.dart' show log;
 
 class ExchangeApiKeyRepositoryImpl implements ExchangeApiKeyRepository {
+  static const _credentialImportError =
+      'Unable to import Bull Bitcoin credentials';
+  static const _credentialDeletionError =
+      'Unable to delete Bull Bitcoin credentials';
+
   final BullbitcoinApiKeyDatasource _bullbitcoinApiKeyDatasource;
 
   ExchangeApiKeyRepositoryImpl({required this._bullbitcoinApiKeyDatasource});
@@ -12,41 +19,126 @@ class ExchangeApiKeyRepositoryImpl implements ExchangeApiKeyRepository {
     Map<String, dynamic> apiKeyResponseData, {
     required bool isTestnet,
   }) async {
-    Map<String, dynamic> apiKeyData;
-
-    // Check various formats the API might return
-    if (apiKeyResponseData.containsKey('apiKey')) {
-      // Format: { "apiKey": { ... } }
-      apiKeyData = apiKeyResponseData['apiKey'] as Map<String, dynamic>;
-    } else if (apiKeyResponseData.containsKey('result') &&
-        apiKeyResponseData['result'] is Map &&
-        (apiKeyResponseData['result'] as Map).containsKey('apiKey')) {
-      // Format: { "result": { "apiKey": { ... } } }
-      apiKeyData =
-          apiKeyResponseData['result']['apiKey'] as Map<String, dynamic>;
-    } else if (apiKeyResponseData.containsKey('data') &&
-        apiKeyResponseData['data'] is Map &&
-        (apiKeyResponseData['data'] as Map).containsKey('apiKey')) {
-      // Format: { "data": { "apiKey": { ... } } }
-      apiKeyData = apiKeyResponseData['data']['apiKey'] as Map<String, dynamic>;
-    } else {
-      apiKeyData = apiKeyResponseData;
+    // The ordinary Bull Bitcoin key is required for login. The scoped
+    // SELL_TO_FIAT_BALANCE key is optional: ordinary login must never depend on
+    // scoped issuance, so its absence, nullness, or malformation is tolerated.
+    final broadApiKeyData = apiKeyResponseData['apiKey'];
+    if (broadApiKeyData is! Map) {
+      throw Exception(_credentialImportError);
     }
 
-    final apiKeyModel = ExchangeApiKeyModel.fromJson(apiKeyData);
+    late final ExchangeApiKeyModel apiKeyModel;
+    try {
+      apiKeyModel = ExchangeApiKeyModel.fromJson(
+        Map<String, dynamic>.from(broadApiKeyData),
+      );
+    } catch (_) {
+      throw Exception(_credentialImportError);
+    }
 
+    // Resolve any previously stored scoped credential and, if it belongs to a
+    // different Bull Bitcoin user, remove it before completing the switch so a
+    // foreign scoped key can never survive an account change.
+    ScopedApiKeyModel? existingScoped;
+    try {
+      existingScoped = await _bullbitcoinApiKeyDatasource
+          .getSellToFiatBalanceApiKey(isTestnet: isTestnet);
+    } catch (_) {
+      // Absence and an unreadable secure-storage record are different states.
+      // If the record cannot be inspected, remove it before storing a possibly
+      // different broad account so an old user's scoped credential cannot
+      // survive the switch.
+      try {
+        await _bullbitcoinApiKeyDatasource.deleteSellToFiatBalanceApiKey(
+          isTestnet: isTestnet,
+        );
+      } catch (_) {
+        throw Exception(_credentialImportError);
+      }
+      existingScoped = null;
+    }
+    final isAccountSwitch =
+        existingScoped != null && existingScoped.userId != apiKeyModel.userId;
+    if (isAccountSwitch) {
+      await _bullbitcoinApiKeyDatasource.deleteSellToFiatBalanceApiKey(
+        isTestnet: isTestnet,
+      );
+    }
+
+    // Persist the ordinary key (this is the login / account switch itself).
     try {
       await _bullbitcoinApiKeyDatasource.store(
         apiKeyModel,
         isTestnet: isTestnet,
       );
-    } catch (e) {
-      throw Exception('Failed to save API key: $e');
+    } catch (_) {
+      throw Exception(_credentialImportError);
+    }
+
+    // Handle the optional scoped key on a best-effort basis: a failure here must
+    // not fail the login.
+    await _importScopedApiKey(
+      apiKeyResponseData['sellToFiatBalanceApiKey'],
+      userId: apiKeyModel.userId,
+      isTestnet: isTestnet,
+    );
+  }
+
+  Future<void> _importScopedApiKey(
+    Object? scopedValue, {
+    required String userId,
+    required bool isTestnet,
+  }) async {
+    // Field absent or null: preserve any existing same-user scoped key.
+    if (scopedValue == null) return;
+    // Anything non-string is treated as malformed: preserve, never store.
+    if (scopedValue is! String) return;
+
+    final candidate = ScopedApiKeyModel(
+      userId: userId,
+      key: scopedValue.trim(),
+    );
+    // Malformed value: do not store it; preserve a same-user existing key and
+    // never log the supplied value.
+    if (!candidate.isWellFormed) return;
+
+    try {
+      await _bullbitcoinApiKeyDatasource.storeSellToFiatBalanceApiKey(
+        candidate,
+        isTestnet: isTestnet,
+      );
+    } catch (_) {
+      // Scoped storage is best-effort; fiat conversion is simply unavailable
+      // until the next successful import. Never surface or log the value.
+      log.warning('Unable to store scoped Bull Bitcoin credential');
     }
   }
 
   @override
+  Future<bool> hasApiKey({required bool isTestnet}) async {
+    final key = await _bullbitcoinApiKeyDatasource.get(isTestnet: isTestnet);
+    return key != null;
+  }
+
+  @override
   Future<void> deleteApiKey({required bool isTestnet}) async {
-    await _bullbitcoinApiKeyDatasource.delete(isTestnet: isTestnet);
+    var failed = false;
+    try {
+      await _bullbitcoinApiKeyDatasource.delete(isTestnet: isTestnet);
+    } catch (_) {
+      failed = true;
+    }
+
+    try {
+      await _bullbitcoinApiKeyDatasource.deleteSellToFiatBalanceApiKey(
+        isTestnet: isTestnet,
+      );
+    } catch (_) {
+      failed = true;
+    }
+
+    if (failed) {
+      throw Exception(_credentialDeletionError);
+    }
   }
 }

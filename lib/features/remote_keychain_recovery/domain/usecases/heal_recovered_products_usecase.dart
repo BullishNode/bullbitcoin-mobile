@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -5,7 +8,17 @@ import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 
 enum RecoveredProductsHealStatus { finished, timedOut }
 
-/// Runs post-recovery liveness checks for Bullnym-backed products.
+/// Runs the DG-3 liveness check for the products a restore flagged for
+/// reactivation. It is READ-ONLY: recovery never writes to a Bullnym product
+/// (UX-1 / master-doc contract #4). All three products delegate to their
+/// read-only liveness checks (GET only; live/archived products are silent,
+/// missing/lapsed products surface needsReactivation, and unreachable servers
+/// degrade loudly). In particular Lightning Address is queried with
+/// `allowReregister: false`, so a lapsed-but-known legacy registration is
+/// flagged for user-driven reactivation instead of being silently re-registered
+/// — the dashboard/product screens own reactivation. Each product is healed
+/// independently. Unknown failures never throw; they degrade to the per-product
+/// `unreachable`.
 final class HealRecoveredProductsUsecase {
   static const _lightningAddressReservationId = 'lightning_address_wallet_seed';
   static const _paymentPageReservationId = 'payment_page_wallet_seed';
@@ -14,12 +27,14 @@ final class HealRecoveredProductsUsecase {
   final LightningAddressFacade _lightningAddress;
   final PaymentPageFacade _paymentPage;
   final PosFacade _pos;
+  final Clock _clock;
 
   const HealRecoveredProductsUsecase(
     this._lightningAddress,
     this._paymentPage,
-    this._pos,
-  );
+    this._pos, {
+    this._clock = const SystemClock(),
+  });
 
   Future<RecoveredProductsHealStatus> execute(
     Set<String> reactivationReservationIds, {
@@ -31,11 +46,13 @@ final class HealRecoveredProductsUsecase {
     }
 
     if (reactivationReservationIds.contains(_paymentPageReservationId)) {
-      await _healPaymentPage();
+      final timedOut = await _healPaymentPage(deadline);
+      if (timedOut) return RecoveredProductsHealStatus.timedOut;
     }
 
     if (reactivationReservationIds.contains(_posReservationId)) {
-      await _healPos();
+      final timedOut = await _healPos(deadline);
+      if (timedOut) return RecoveredProductsHealStatus.timedOut;
     }
 
     return RecoveredProductsHealStatus.finished;
@@ -45,6 +62,7 @@ final class HealRecoveredProductsUsecase {
     try {
       final outcome = await _lightningAddress.ensureRegistrationLive(
         deadline: deadline,
+        allowReregister: false,
       );
       if (outcome.liveness == LightningAddressRegistrationLiveness.timedOut) {
         log.warning(
@@ -72,9 +90,12 @@ final class HealRecoveredProductsUsecase {
     return false;
   }
 
-  Future<void> _healPaymentPage() async {
+  Future<bool> _healPaymentPage(DateTime? deadline) async {
     try {
-      final outcome = await _paymentPage.ensurePageLive();
+      final future = _paymentPage.ensurePageLive();
+      final outcome = deadline == null
+          ? await future
+          : await future.timeout(_remaining(deadline));
       if (outcome.liveness == PaymentPageLiveness.needsReactivation ||
           outcome.liveness == PaymentPageLiveness.unreachable) {
         log.warning(
@@ -82,6 +103,8 @@ final class HealRecoveredProductsUsecase {
           '${outcome.liveness.name}',
         );
       }
+    } on TimeoutException {
+      return true;
     } catch (error, stack) {
       log.warning(
         'Payment Page recovery heal failed',
@@ -89,11 +112,15 @@ final class HealRecoveredProductsUsecase {
         trace: stack,
       );
     }
+    return false;
   }
 
-  Future<void> _healPos() async {
+  Future<bool> _healPos(DateTime? deadline) async {
     try {
-      final outcome = await _pos.ensurePosLive();
+      final future = _pos.ensurePosLive();
+      final outcome = deadline == null
+          ? await future
+          : await future.timeout(_remaining(deadline));
       if (outcome.liveness == PosLiveness.needsReactivation ||
           outcome.liveness == PosLiveness.unreachable) {
         log.warning(
@@ -101,6 +128,8 @@ final class HealRecoveredProductsUsecase {
           '${outcome.liveness.name}',
         );
       }
+    } on TimeoutException {
+      return true;
     } catch (error, stack) {
       log.warning(
         'Point of Sale recovery heal failed',
@@ -108,5 +137,11 @@ final class HealRecoveredProductsUsecase {
         trace: stack,
       );
     }
+    return false;
+  }
+
+  Duration _remaining(DateTime deadline) {
+    final remaining = deadline.difference(_clock.nowUtc());
+    return remaining.isNegative ? Duration.zero : remaining;
   }
 }

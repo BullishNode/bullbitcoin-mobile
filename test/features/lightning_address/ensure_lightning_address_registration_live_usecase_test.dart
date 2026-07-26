@@ -176,6 +176,28 @@ void main() {
     expect(register.nyms, isEmpty);
   });
 
+  test('read-only mode flags a lapsed legacy registration for reactivation '
+      'without re-registering', () async {
+    final register = _FakeRegister();
+    final usecase = EnsureLightningAddressRegistrationLiveUsecase(
+      _FakeLookup(
+        status: const LightningAddressStatus(nym: 'alice', active: false),
+      ),
+      register,
+    );
+
+    final outcome = await usecase.execute(allowReregister: false);
+
+    expect(
+      outcome.liveness,
+      LightningAddressRegistrationLiveness.needsReactivation,
+    );
+    expect(outcome.nym, 'alice');
+    // The single write this check can make is suppressed in read-only mode.
+    expect(register.nyms, isEmpty);
+    expect(register.publishFlags, isEmpty);
+  });
+
   test('a network lookup failure reports unreachable', () async {
     final register = _FakeRegister();
     final usecase = EnsureLightningAddressRegistrationLiveUsecase(

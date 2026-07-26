@@ -91,6 +91,7 @@ class PosLocator {
       final archive = locator<ArchivePosUsecase>();
       final currencies = locator<GetSupportedDisplayCurrenciesUsecase>();
       final ensureLive = locator<EnsurePosLiveUsecase>();
+      final prepareWallet = locator<PreparePosWalletUsecase>();
       return PosFacade(
         find: ({required nym}) => find.execute(nym: nym),
         provision: (command) => provision.execute(
@@ -101,6 +102,7 @@ class PosLocator {
         archive: archive.execute,
         supportedCurrencies: currencies.execute,
         ensurePosLive: ensureLive.execute,
+        prepareWallet: prepareWallet.execute,
       );
     });
     locator.registerFactory<PosCubit>(

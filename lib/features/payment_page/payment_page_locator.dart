@@ -91,6 +91,7 @@ class PaymentPageLocator {
       final archive = locator<ArchivePaymentPageUsecase>();
       final currencies = locator<GetSupportedDisplayCurrenciesUsecase>();
       final ensureLive = locator<EnsurePaymentPageLiveUsecase>();
+      final prepareWallet = locator<PreparePaymentPageWalletUsecase>();
       return PaymentPageFacade(
         find: ({required nym}) => find.execute(nym: nym),
         save: (command) => save.execute(
@@ -105,6 +106,7 @@ class PaymentPageLocator {
         archive: archive.execute,
         supportedCurrencies: currencies.execute,
         ensurePageLive: ensureLive.execute,
+        prepareWallet: prepareWallet.execute,
       );
     });
     locator.registerFactory<PaymentPageCubit>(

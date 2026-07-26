@@ -1,12 +1,15 @@
 import 'package:bb_mobile/features/pos/domain/pos_liveness.dart';
 import 'package:bb_mobile/features/pos/domain/pos_terminal.dart';
 import 'package:bb_mobile/features/pos/domain/pos_validation.dart';
+import 'package:bb_mobile/features/pos/domain/pos_wallet.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_supported_display_currencies_usecase.dart';
 
 export 'package:bb_mobile/features/pos/domain/pos_error.dart';
 export 'package:bb_mobile/features/pos/domain/pos_liveness.dart';
 export 'package:bb_mobile/features/pos/domain/pos_terminal.dart';
 export 'package:bb_mobile/features/pos/domain/pos_validation.dart';
+export 'package:bb_mobile/features/pos/domain/pos_wallet.dart'
+    show PreparedPosWallet;
 export 'package:bb_mobile/features/pos/domain/usecases/get_supported_display_currencies_usecase.dart'
     show DisplayCurrency;
 
@@ -21,6 +24,7 @@ class PosFacade {
   final Future<PosTerminal?> Function() _archiveCallback;
   final Future<List<DisplayCurrency>> Function() _supportedCurrenciesCallback;
   final Future<PosHealOutcome> Function() _ensurePosLiveCallback;
+  final Future<PreparedPosWallet> Function() _prepareWalletCallback;
 
   const PosFacade({
     required Future<PosTerminal?> Function({required String nym}) find,
@@ -29,11 +33,13 @@ class PosFacade {
     required Future<PosTerminal?> Function() archive,
     required Future<List<DisplayCurrency>> Function() supportedCurrencies,
     required Future<PosHealOutcome> Function() ensurePosLive,
+    required Future<PreparedPosWallet> Function() prepareWallet,
   }) : _findCallback = find,
        _provisionCallback = provision,
        _archiveCallback = archive,
        _supportedCurrenciesCallback = supportedCurrencies,
-       _ensurePosLiveCallback = ensurePosLive;
+       _ensurePosLiveCallback = ensurePosLive,
+       _prepareWalletCallback = prepareWallet;
 
   /// Probe the current pos row for `nym`; null when no POS exists yet.
   Future<PosTerminal?> find({required String nym}) => _findCallback(nym: nym);
@@ -49,4 +55,10 @@ class PosFacade {
 
   /// DG-3 recovery heal - READ-ONLY liveness classification, never a write.
   Future<PosHealOutcome> ensurePosLive() => _ensurePosLiveCallback();
+
+  /// Ensure the fixed-path (BIP85 index 103) POS wallet exists, re-deriving and
+  /// recording it if missing. Idempotent: a re-prepare returns the existing
+  /// wallet with `created: false`. Used by the dashboard to self-heal a wallet
+  /// that is missing while the product is active (contract #4 Q9/Q9b).
+  Future<PreparedPosWallet> prepareWallet() => _prepareWalletCallback();
 }

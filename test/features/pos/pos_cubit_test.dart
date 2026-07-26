@@ -433,4 +433,7 @@ class _FakePosFacade implements PosFacade {
 
   @override
   Future<PosHealOutcome> ensurePosLive() async => throw UnimplementedError();
+
+  @override
+  Future<PreparedPosWallet> prepareWallet() async => throw UnimplementedError();
 }

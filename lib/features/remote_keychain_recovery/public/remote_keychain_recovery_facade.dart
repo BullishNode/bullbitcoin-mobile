@@ -3,7 +3,7 @@ import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/reco
 
 export 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 
-final class RemoteKeychainRecoveryFacade {
+class RemoteKeychainRecoveryFacade {
   final RecoverRemoteWalletBackupsUsecase recoverWalletBackups;
 
   const RemoteKeychainRecoveryFacade(this.recoverWalletBackups);
