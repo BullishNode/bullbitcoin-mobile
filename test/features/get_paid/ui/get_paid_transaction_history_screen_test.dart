@@ -3,6 +3,8 @@ import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_state.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_state.dart';
 import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
@@ -34,6 +36,18 @@ class _StubHistoryCubit extends Cubit<GetPaidTransactionHistoryState>
 
   @override
   Future<void> loadMore() async => loadMoreCalls++;
+}
+
+// The screen's export action reads a GetPaidExportCubit; a no-op stub keeps the
+// history-rendering tests focused (the export flow has its own test).
+class _StubExportCubit extends Cubit<GetPaidExportState>
+    implements GetPaidExportCubit {
+  int exportCalls = 0;
+
+  _StubExportCubit() : super(const GetPaidExportState());
+
+  @override
+  Future<void> exportCsv() async => exportCalls++;
 }
 
 // CurrencyText on the list rows reads the bitcoin unit and hide-amounts flag
@@ -97,10 +111,15 @@ Future<_StubHistoryCubit> _pumpHistory(
 ) async {
   final cubit = _StubHistoryCubit(state);
   addTearDown(cubit.close);
+  final exportCubit = _StubExportCubit();
+  addTearDown(exportCubit.close);
   await tester.pumpWidget(
     _app(
-      BlocProvider<GetPaidTransactionHistoryCubit>.value(
-        value: cubit,
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<GetPaidTransactionHistoryCubit>.value(value: cubit),
+          BlocProvider<GetPaidExportCubit>.value(value: exportCubit),
+        ],
         child: const GetPaidTransactionHistoryScreen(),
       ),
     ),
@@ -212,15 +231,19 @@ void main() {
         transactions: [transaction],
       ),
     );
+    final exportCubit = _StubExportCubit();
+    addTearDown(exportCubit.close);
     final router = GoRouter(
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) =>
-              BlocProvider<GetPaidTransactionHistoryCubit>.value(
-                value: cubit,
-                child: const GetPaidTransactionHistoryScreen(),
-              ),
+          builder: (context, state) => MultiBlocProvider(
+            providers: [
+              BlocProvider<GetPaidTransactionHistoryCubit>.value(value: cubit),
+              BlocProvider<GetPaidExportCubit>.value(value: exportCubit),
+            ],
+            child: const GetPaidTransactionHistoryScreen(),
+          ),
           routes: [
             GoRoute(
               name: GetPaidDashboardRoute.getPaidTransactionDetail.name,

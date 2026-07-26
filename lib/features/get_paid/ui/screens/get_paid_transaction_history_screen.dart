@@ -1,8 +1,11 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/features/bitcoin_price/ui/currency_text.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_state.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_state.dart';
 import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
@@ -34,42 +37,73 @@ class _GetPaidTransactionHistoryScreenState
     return BullScaffold(
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            BullTopBar(
-              title: context.loc.getPaidTransactionsTitle,
-              onBack: context.pop,
-            ),
-            Expanded(
-              child:
-                  BlocBuilder<
-                    GetPaidTransactionHistoryCubit,
-                    GetPaidTransactionHistoryState
-                  >(
-                    builder: (context, state) => switch (state.status) {
-                      GetPaidTransactionHistoryStatus.initial ||
-                      GetPaidTransactionHistoryStatus.loading =>
-                        const _LoadingHistory(),
-                      GetPaidTransactionHistoryStatus.failure =>
-                        _FailureHistory(
-                          onRetry: context
-                              .read<GetPaidTransactionHistoryCubit>()
-                              .refresh,
+        child: BlocListener<GetPaidExportCubit, GetPaidExportState>(
+          listenWhen: (previous, current) => previous.status != current.status,
+          listener: (context, state) {
+            switch (state.status) {
+              case GetPaidExportStatus.loading:
+                SnackBarUtils.showSnackBar(
+                  context,
+                  context.loc.getPaidTransactionsExportStarted,
+                );
+              case GetPaidExportStatus.success:
+                SnackBarUtils.showSnackBar(
+                  context,
+                  context.loc.getPaidTransactionsExportSuccess,
+                );
+              case GetPaidExportStatus.empty:
+                SnackBarUtils.showSnackBar(
+                  context,
+                  context.loc.getPaidTransactionsExportEmpty,
+                );
+              case GetPaidExportStatus.failure:
+                SnackBarUtils.showSnackBar(
+                  context,
+                  context.loc.getPaidTransactionsExportError,
+                );
+              case GetPaidExportStatus.initial:
+                break;
+            }
+          },
+          child: Column(
+            children: [
+              BullTopBar(
+                title: context.loc.getPaidTransactionsTitle,
+                onBack: context.pop,
+                actionIcon: Icons.file_download_outlined,
+                onAction: () => context.read<GetPaidExportCubit>().exportCsv(),
+              ),
+              Expanded(
+                child:
+                    BlocBuilder<
+                      GetPaidTransactionHistoryCubit,
+                      GetPaidTransactionHistoryState
+                    >(
+                      builder: (context, state) => switch (state.status) {
+                        GetPaidTransactionHistoryStatus.initial ||
+                        GetPaidTransactionHistoryStatus.loading =>
+                          const _LoadingHistory(),
+                        GetPaidTransactionHistoryStatus.failure =>
+                          _FailureHistory(
+                            onRetry: context
+                                .read<GetPaidTransactionHistoryCubit>()
+                                .refresh,
+                          ),
+                        GetPaidTransactionHistoryStatus.loaded
+                            when state.isEmpty =>
+                          _EmptyHistory(
+                            onRefresh: context
+                                .read<GetPaidTransactionHistoryCubit>()
+                                .refresh,
+                          ),
+                        GetPaidTransactionHistoryStatus.loaded => _HistoryList(
+                          state: state,
                         ),
-                      GetPaidTransactionHistoryStatus.loaded
-                          when state.isEmpty =>
-                        _EmptyHistory(
-                          onRefresh: context
-                              .read<GetPaidTransactionHistoryCubit>()
-                              .refresh,
-                        ),
-                      GetPaidTransactionHistoryStatus.loaded => _HistoryList(
-                        state: state,
-                      ),
-                    },
-                  ),
-            ),
-          ],
+                      },
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );

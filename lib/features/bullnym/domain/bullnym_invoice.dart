@@ -178,6 +178,7 @@ class BullnymInvoiceStatus {
   final int remainingAmountSat;
   final int paymentToleranceSat;
   final int? rateMinorPerBtc;
+  final int? creationRateMinorPerBtc;
   final int rateLocksUntilUnix;
   final int expiresAtUnix;
   final String? paidVia;
@@ -208,6 +209,7 @@ class BullnymInvoiceStatus {
     required this.remainingAmountSat,
     required this.paymentToleranceSat,
     this.rateMinorPerBtc,
+    this.creationRateMinorPerBtc,
     required this.rateLocksUntilUnix,
     required this.expiresAtUnix,
     this.paidVia,

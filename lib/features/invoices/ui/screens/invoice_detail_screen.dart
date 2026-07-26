@@ -100,6 +100,19 @@ class InvoiceDetailScreen extends StatelessWidget {
             context.loc.invoiceAmountLabel,
             _faceAmountText(context, snapshot),
           ),
+          // The R1 invoice-creation reference rate, shown only for a fiat-priced
+          // invoice that carries it. Approximate (a reference index, not an
+          // executed rate), so it wears the ≈ prefix; rendered in the invoice's
+          // own fiat currency.
+          if (snapshot.creationRateMinorPerBtc case final creationRate?)
+            if (snapshot.hasFiatFace)
+              _row(
+                context,
+                context.loc.getPaidSettlementRateAtCreationLabel,
+                context.loc.getPaidSettlementRateAtCreationValue(
+                  FormatAmount.fiat(creationRate / 100, snapshot.fiatCurrency!),
+                ),
+              ),
           if (snapshot.paidAmountSat case final paidAmountSat?)
             _row(
               context,

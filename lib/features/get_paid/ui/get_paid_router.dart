@@ -1,5 +1,6 @@
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
 import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
@@ -25,8 +26,13 @@ class GetPaidRouter {
       GoRoute(
         name: GetPaidDashboardRoute.getPaidTransactions.name,
         path: GetPaidDashboardRoute.getPaidTransactions.path,
-        builder: (context, state) => BlocProvider(
-          create: (_) => locator<GetPaidTransactionHistoryCubit>(),
+        builder: (context, state) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (_) => locator<GetPaidTransactionHistoryCubit>(),
+            ),
+            BlocProvider(create: (_) => locator<GetPaidExportCubit>()),
+          ],
           child: const GetPaidTransactionHistoryScreen(),
         ),
         routes: [

@@ -59,6 +59,7 @@ InvoiceStatusSnapshot _historySnapshot({
   int paidAmountSat = 1000,
   int remainingAmountSat = 0,
   String pricingMode = 'sat_fixed',
+  int? creationRateMinorPerBtc,
   InvoiceQuoteRailAvailability? quoteRailAvailability,
 }) {
   return InvoiceStatusSnapshot(
@@ -67,6 +68,7 @@ InvoiceStatusSnapshot _historySnapshot({
     pricingMode: pricingMode,
     settlementStatus: 'ignored-after-domain-mapping',
     amountSat: 1000,
+    creationRateMinorPerBtc: creationRateMinorPerBtc,
     remainingAmountSat: remainingAmountSat,
     paymentToleranceSat: 0,
     rateLocksUntil: DateTime.utc(2026, 1),
@@ -89,6 +91,7 @@ InvoiceStatusSnapshot _fiatSnapshot({
   required InvoiceSettlementState settlementState,
   int fiatAmountMinor = 500,
   String fiatCurrency = 'USD',
+  int? creationRateMinorPerBtc,
   int? paidAmountSat,
   List<InvoicePaymentEvent> paymentEvents = const [],
   InvoiceQuoteRailAvailability? quoteRailAvailability,
@@ -101,6 +104,7 @@ InvoiceStatusSnapshot _fiatSnapshot({
     amountSat: 0,
     fiatAmountMinor: fiatAmountMinor,
     fiatCurrency: fiatCurrency,
+    creationRateMinorPerBtc: creationRateMinorPerBtc,
     remainingAmountSat: 0,
     paymentToleranceSat: 0,
     rateLocksUntil: DateTime.utc(2030),
@@ -520,5 +524,69 @@ void main() {
     expect(find.text('Payer quote'), findsNothing);
     expect(find.text('Payer quote is temporarily unavailable'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'a fiat-priced invoice with a creation rate shows the Rate at creation row',
+    (tester) async {
+      await _pump(
+        tester,
+        InvoiceDetailState(
+          status: InvoiceDetailStatus.loaded,
+          snapshot: _fiatSnapshot(
+            status: InvoiceStatus.unpaid,
+            settlementState: InvoiceSettlementState.none,
+            fiatAmountMinor: 500,
+            fiatCurrency: 'USD',
+            creationRateMinorPerBtc: 6416000,
+          ),
+          privateLinkLookupComplete: true,
+        ),
+      );
+      expect(find.text('Rate at creation'), findsOneWidget);
+      // Rendered in the invoice's own fiat currency (USD), marked ≈.
+      expect(find.text('≈ 64,160.00 USD / BTC'), findsOneWidget);
+    },
+  );
+
+  testWidgets('a fiat-priced invoice without a creation rate shows no row', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      InvoiceDetailState(
+        status: InvoiceDetailStatus.loaded,
+        snapshot: _fiatSnapshot(
+          status: InvoiceStatus.unpaid,
+          settlementState: InvoiceSettlementState.none,
+        ),
+        privateLinkLookupComplete: true,
+      ),
+    );
+    expect(find.text('Rate at creation'), findsNothing);
+  });
+
+  testWidgets('a sat-priced invoice never shows the Rate at creation row', (
+    tester,
+  ) async {
+    // Even with a stray creation rate, a sat-priced invoice has no fiat face,
+    // so the merchant reference-rate row must not render.
+    await _pump(
+      tester,
+      InvoiceDetailState(
+        status: InvoiceDetailStatus.loaded,
+        snapshot: _historySnapshot(
+          status: InvoiceStatus.paid,
+          settlementState: InvoiceSettlementState.none,
+          payment: _bitcoinPayment(
+            state: InvoicePaymentEventState.settled,
+            isLate: false,
+          ),
+          creationRateMinorPerBtc: 6416000,
+        ),
+        privateLinkLookupComplete: true,
+      ),
+    );
+    expect(find.text('Rate at creation'), findsNothing);
   });
 }

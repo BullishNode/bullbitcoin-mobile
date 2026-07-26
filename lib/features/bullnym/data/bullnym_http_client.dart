@@ -1458,6 +1458,21 @@ class BullnymHttpClient implements BullnymClientPort {
     );
   }
 
+  /// Like [_optionalPositiveInt] but tolerant: a present-but-invalid value is
+  /// logged and treated as absent instead of failing the whole response. Used
+  /// for additive, optional accounting fields (the merchant creation rate)
+  /// whose absence or malformation must never break the invoice detail screen.
+  int? _tolerantOptionalPositiveInt(Map<String, dynamic> json, String key) {
+    final value = json[key];
+    if (value == null) return null;
+    if (value is int && value > 0) return value;
+    log.warning(
+      'Bullnym invoice status field $key is present but not a positive int; '
+      'treating as absent',
+    );
+    return null;
+  }
+
   void _validatePayerInstructionPair({
     required String name,
     required String? payload,
@@ -1776,6 +1791,10 @@ class BullnymHttpClient implements BullnymClientPort {
       remainingAmountSat: _requiredInt(json, 'remaining_amount_sat'),
       paymentToleranceSat: _requiredInt(json, 'payment_tolerance_sat'),
       rateMinorPerBtc: _optionalInt(json, 'rate_minor_per_btc'),
+      creationRateMinorPerBtc: _tolerantOptionalPositiveInt(
+        json,
+        'creation_rate_minor_per_btc',
+      ),
       rateLocksUntilUnix: _requiredInt(json, 'rate_locks_until_unix'),
       expiresAtUnix: _requiredInt(json, 'expires_at_unix'),
       paidVia: _optionalString(json, 'paid_via'),
