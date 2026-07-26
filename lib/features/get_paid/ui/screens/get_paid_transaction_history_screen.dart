@@ -70,8 +70,7 @@ class _GetPaidTransactionHistoryScreenState
                 title: context.loc.getPaidTransactionsTitle,
                 onBack: context.pop,
                 actionIcon: Icons.file_download_outlined,
-                onAction: () =>
-                    context.read<GetPaidExportCubit>().exportCsv(),
+                onAction: () => context.read<GetPaidExportCubit>().exportCsv(),
               ),
               Expanded(
                 child:

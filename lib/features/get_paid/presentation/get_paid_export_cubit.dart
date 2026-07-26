@@ -17,7 +17,10 @@ class GetPaidExportCubit extends Cubit<GetPaidExportState> {
   GetPaidExportCubit({
     required ExportGetPaidTransactionsCsvUsecase exportCsv,
     required TransactionExportSaver saver,
+    // Preserve public named parameters while keeping collaborators private.
+    // ignore: prefer_initializing_formals
   }) : _exportCsv = exportCsv,
+       // ignore: prefer_initializing_formals
        _saver = saver,
        super(const GetPaidExportState());
 

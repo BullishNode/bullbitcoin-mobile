@@ -352,10 +352,7 @@ void main() {
         expect(find.text('≈ 64160.00 USD / BTC'), findsOneWidget);
         // The L-BTC ≈ sub-line: 60000 sats × 6416000 / 1e8 = 3850 minor → 38.50,
         // in the FACE currency (USD), marked ≈.
-        expect(
-          find.text('≈ 38.50 USD at creation rate'),
-          findsOneWidget,
-        );
+        expect(find.text('≈ 38.50 USD at creation rate'), findsOneWidget);
         // The R2 execution sub-line under the settled fiat amount, in the LEG
         // currency (CAD), exact (no ≈).
         expect(find.text('executed at 63900.00 CAD / BTC'), findsOneWidget);
@@ -384,10 +381,7 @@ void main() {
     testWidgets('R1 rate without a face currency omits the row (no guess)', (
       tester,
     ) async {
-      await _pumpDetail(
-        tester,
-        mixedFaceUsdLegCad(creationRateCurrency: null),
-      );
+      await _pumpDetail(tester, mixedFaceUsdLegCad(creationRateCurrency: null));
       // No currency context ⇒ neither the rate row nor the ≈ value sub-line.
       expect(find.text('Rate at creation'), findsNothing);
       expect(find.textContaining('at creation rate'), findsNothing);
@@ -425,14 +419,15 @@ void main() {
       },
     );
 
-    testWidgets('an old-server settlement renders zero new accounting elements', (
-      tester,
-    ) async {
-      // Legacy fiat row: no R1, no R2 — batch-4 behaviour, bit-for-bit.
-      await _pumpDetail(tester, _tx(settlement: _fiat(fiatPercentage: 100)));
-      expect(find.text('Rate at creation'), findsNothing);
-      expect(find.textContaining('at creation rate'), findsNothing);
-      expect(find.textContaining('executed at'), findsNothing);
-    });
+    testWidgets(
+      'an old-server settlement renders zero new accounting elements',
+      (tester) async {
+        // Legacy fiat row: no R1, no R2 — batch-4 behaviour, bit-for-bit.
+        await _pumpDetail(tester, _tx(settlement: _fiat(fiatPercentage: 100)));
+        expect(find.text('Rate at creation'), findsNothing);
+        expect(find.textContaining('at creation rate'), findsNothing);
+        expect(find.textContaining('executed at'), findsNothing);
+      },
+    );
   });
 }
