@@ -50,6 +50,11 @@ class ApplyPendingWizardChoicesUsecase {
 
   void _requireBackupUpdate(Result<void, WalletBackupFailure> result) {
     if (result case Err(:final failure)) {
+      // Enabling persists the user's choice and marks the unified backup dirty
+      // before attempting its first publication. The pre-init wizard runs
+      // before a wallet can exist, so publication is expected to be deferred
+      // until the coordinator observes the wallet's first successful sync.
+      if (failure is WalletBackupWalletUnavailableFailure) return;
       throw _ApplyPendingWizardChoicesException(
         'Could not apply wizard wallet backup choice: '
         '${failure.runtimeType}',

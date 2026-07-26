@@ -143,4 +143,48 @@ void main() {
 
     verify(() => walletBackup.setEnabled(false)).called(1);
   });
+
+  test('defers initial backup publication until a wallet exists', () async {
+    when(() => wizard.readPending()).thenAnswer(
+      (_) async => const WizardChoices(
+        metadataBackupEnabled: true,
+        touched: {WizardField.metadataBackupEnabled},
+      ),
+    );
+    when(() => walletBackup.setEnabled(true)).thenAnswer(
+      (_) async => const Err(WalletBackupWalletUnavailableFailure()),
+    );
+
+    await usecase.execute();
+
+    verify(() => walletBackup.setEnabled(true)).called(1);
+    verify(() => wizard.clearPending()).called(1);
+    verify(() => wizard.markComplete()).called(1);
+  });
+
+  test('does not hide unexpected backup failures during startup', () async {
+    when(() => wizard.readPending()).thenAnswer(
+      (_) async => const WizardChoices(
+        metadataBackupEnabled: true,
+        touched: {WizardField.metadataBackupEnabled},
+      ),
+    );
+    when(
+      () => walletBackup.setEnabled(true),
+    ).thenAnswer((_) async => const Err(WalletBackupStorageFailure()));
+
+    await expectLater(
+      usecase.execute(),
+      throwsA(
+        isA<Exception>().having(
+          (error) => error.toString(),
+          'message',
+          contains('WalletBackupStorageFailure'),
+        ),
+      ),
+    );
+
+    verifyNever(() => wizard.clearPending());
+    verifyNever(() => wizard.markComplete());
+  });
 }
