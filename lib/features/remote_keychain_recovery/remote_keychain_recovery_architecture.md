@@ -70,9 +70,11 @@ remaining time. Keychain recovery receives the same absolute deadline and does
 not start another manifest entry after it expires. Product healing is skipped
 after expiry and will not start re-registration after a lookup timeout.
 
-Dart futures are not cancellable. An already-started remote request, wallet
-materialization, or registration may finish after the caller receives
-`timedOut`; cooperative checks ensure no later recovery step is then started.
+Dart futures are not cancellable. An already-started remote request or
+registration may finish after the caller receives `timedOut`. Once local wallet
+materialization starts, the caller awaits it to settle before returning and
+releasing the unified-backup recovery lease; cooperative checks ensure no later
+recovery step is then started.
 
 ## Outcomes
 
