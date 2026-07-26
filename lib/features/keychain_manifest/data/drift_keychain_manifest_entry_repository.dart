@@ -204,6 +204,9 @@ class DriftKeychainManifestEntryRepository
                     publicKeyHex: record.nostrKeyMaterialization.publicKeyHex,
                     keyKind: record.nostrKeyMaterialization.keyKind.name,
                     purpose: record.nostrKeyMaterialization.purpose,
+                    description: Value(
+                      record.nostrKeyMaterialization.description,
+                    ),
                     createdAt: record.nostrKeyMaterialization.createdAt,
                     updatedAt: record.nostrKeyMaterialization.updatedAt,
                   ),
@@ -236,23 +239,30 @@ class DriftKeychainManifestEntryRepository
   }
 
   @override
-  Future<void> updateNostrKeyPurpose({
+  Future<void> updateNostrKeyMetadata({
     required String parentFingerprint,
     required String entryId,
     required String purpose,
+    required String? description,
     required int updatedAt,
   }) async {
     final normalizedParentFingerprint = KeychainManifestFingerprint.normalize(
       parentFingerprint,
     );
-    final normalizedPurpose = KeychainManifestNostrKeyMaterialization(
+    // Normalizing through the entity keeps the stored row identical to what a
+    // fresh insert of the same values would write, and rejects invalid text
+    // before any write happens.
+    final normalized = KeychainManifestNostrKeyMaterialization(
       entryId: entryId,
       publicKeyHex: '0' * 64,
       keyKind: KeychainManifestNostrKeyKind.userGenerated,
       purpose: purpose,
+      description: description,
       createdAt: 0,
       updatedAt: updatedAt,
-    ).purpose;
+    );
+    final normalizedPurpose = normalized.purpose;
+    final normalizedDescription = normalized.description;
     await _database.transaction(() async {
       final entryQuery = _database.select(_database.keychainManifestEntries)
         ..where((row) => row.entryId.equals(entryId));
@@ -267,9 +277,11 @@ class DriftKeychainManifestEntryRepository
           'keychain manifest Nostr key does not exist',
         );
       }
-      final purposeChanged = key.purpose != normalizedPurpose;
-      if (!purposeChanged && updatedAt <= key.updatedAt) return;
-      final effectiveUpdatedAt = purposeChanged && updatedAt <= key.updatedAt
+      final metadataChanged =
+          key.purpose != normalizedPurpose ||
+          key.description != normalizedDescription;
+      if (!metadataChanged && updatedAt <= key.updatedAt) return;
+      final effectiveUpdatedAt = metadataChanged && updatedAt <= key.updatedAt
           ? key.updatedAt + 1
           : updatedAt;
       await (_database.update(
@@ -277,6 +289,7 @@ class DriftKeychainManifestEntryRepository
       )..where((row) => row.entryId.equals(entryId))).write(
         KeychainManifestNostrKeysCompanion(
           purpose: Value(normalizedPurpose),
+          description: Value(normalizedDescription),
           updatedAt: Value(effectiveUpdatedAt),
         ),
       );
@@ -385,6 +398,7 @@ class DriftKeychainManifestEntryRepository
       publicKeyHex: row.publicKeyHex,
       keyKind: keyKind,
       purpose: row.purpose,
+      description: row.description,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );

@@ -45,11 +45,14 @@ final class NostrKeysCubit extends Cubit<NostrKeysState> {
     }
   }
 
-  Future<bool> create(String purpose) async {
+  Future<bool> create(String purpose, {String? description}) async {
     if (isClosed || state.busy) return false;
     emit(state.copyWith(busy: true));
     try {
-      await _manifest.createUserNostrKey(purpose: purpose);
+      await _manifest.createUserNostrKey(
+        purpose: purpose,
+        description: description,
+      );
       await _reloadAfterMutation();
       return true;
     } catch (_) {
@@ -60,15 +63,17 @@ final class NostrKeysCubit extends Cubit<NostrKeysState> {
 
   Future<void> updatePurpose({
     required KeychainManifestNostrKeyRecord key,
-    required String purpose,
+    String? purpose,
+    String? description,
   }) async {
     if (isClosed || state.busy) return;
     emit(state.copyWith(busy: true));
     try {
-      await _manifest.updateNostrKeyPurpose(
+      await _manifest.updateNostrKey(
         parentFingerprint: key.entry.parentFingerprint,
         entryId: key.entryId,
         purpose: purpose,
+        description: description,
       );
       await _reloadAfterMutation();
     } catch (_) {

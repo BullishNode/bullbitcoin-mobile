@@ -157,10 +157,25 @@ class KeychainManifestWalletMaterializationRecord {
 enum KeychainManifestNostrKeyKind { reserved, userGenerated }
 
 class KeychainManifestNostrKeyMaterialization {
+  /// Upper bound on the optional free-form description. Long enough for a
+  /// sentence of context, short enough to stay inside the manifest file's
+  /// per-field string cap.
+  static const maxDescriptionLength = 200;
+
+  /// C0 control characters and DEL, rejected in user-authored metadata so
+  /// a stored value can never smuggle newlines or terminal escapes into a
+  /// list row, a backup file, or a log line.
+  static final controlCharacterPattern = RegExp(r'[\u0000-\u001F\u007F]');
+
   final String entryId;
   final String publicKeyHex;
   final KeychainManifestNostrKeyKind keyKind;
   final String purpose;
+
+  /// Optional free-form context for a user key. An empty or whitespace-only
+  /// value is absent, never a stored empty string, so "no description" has a
+  /// single representation in the database and in the backup file.
+  final String? description;
   final int createdAt;
   final int updatedAt;
 
@@ -169,10 +184,12 @@ class KeychainManifestNostrKeyMaterialization {
     required String publicKeyHex,
     required this.keyKind,
     required String purpose,
+    String? description,
     required this.createdAt,
     required this.updatedAt,
   }) : publicKeyHex = publicKeyHex.toLowerCase(),
-       purpose = purpose.trim() {
+       purpose = purpose.trim(),
+       description = normalizeDescription(description) {
     if (entryId.trim().isEmpty) {
       throw KeychainManifestInvalidEntryException('entry id is required');
     }
@@ -191,11 +208,34 @@ class KeychainManifestNostrKeyMaterialization {
         'Nostr key purpose contains a control character',
       );
     }
+    final normalizedDescription = this.description;
+    if (normalizedDescription != null) {
+      if (normalizedDescription.length > maxDescriptionLength) {
+        throw KeychainManifestInvalidEntryException(
+          'Nostr key description must contain at most '
+          '$maxDescriptionLength characters',
+        );
+      }
+      if (normalizedDescription.contains(controlCharacterPattern)) {
+        throw KeychainManifestInvalidEntryException(
+          'Nostr key description contains a control character',
+        );
+      }
+    }
     if (createdAt < 0 || updatedAt < 0) {
       throw KeychainManifestInvalidEntryException(
         'timestamps must be non-negative',
       );
     }
+  }
+
+  /// Trims a candidate description and collapses an empty result to null.
+  ///
+  /// Exposed so the persistence and file layers normalize identically before
+  /// comparing a stored value with an incoming one.
+  static String? normalizeDescription(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 
   bool sameIdentityAs(KeychainManifestNostrKeyMaterialization other) {

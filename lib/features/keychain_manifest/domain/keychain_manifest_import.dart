@@ -137,6 +137,7 @@ class KeychainManifestNostrKeyMaterializationIntent {
   final String publicKeyHex;
   final KeychainManifestNostrKeyKind keyKind;
   final String purpose;
+  final String? description;
   final int createdAt;
   final int updatedAt;
 
@@ -147,18 +148,24 @@ class KeychainManifestNostrKeyMaterializationIntent {
     required String publicKeyHex,
     required this.keyKind,
     required String purpose,
+    String? description,
     required this.createdAt,
     required this.updatedAt,
   }) : bip85DerivationPath = KeychainManifestBip85Path.normalize(
          bip85DerivationPath,
        ),
        publicKeyHex = publicKeyHex.toLowerCase(),
-       purpose = purpose.trim() {
+       purpose = purpose.trim(),
+       description =
+           KeychainManifestNostrKeyMaterialization.normalizeDescription(
+             description,
+           ) {
     final materialization = KeychainManifestNostrKeyMaterialization(
       entryId: entryId,
       publicKeyHex: publicKeyHex,
       keyKind: keyKind,
       purpose: purpose,
+      description: description,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -186,6 +193,7 @@ class KeychainManifestNostrKeyMaterializationIntent {
       publicKeyHex: materialization.publicKeyHex,
       keyKind: keyKind,
       purpose: materialization.purpose,
+      description: materialization.description,
       createdAt: materialization.createdAt,
       updatedAt: materialization.updatedAt,
     );

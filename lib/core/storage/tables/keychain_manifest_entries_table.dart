@@ -49,6 +49,9 @@ class KeychainManifestNostrKeys extends Table {
   TextColumn get publicKeyHex => text()();
   TextColumn get keyKind => text()();
   TextColumn get purpose => text()();
+  // Nullable: a key with no description stores NULL rather than an empty
+  // string, so "not set" has one representation here and in the backup file.
+  TextColumn get description => text().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

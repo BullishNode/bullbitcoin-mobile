@@ -8,6 +8,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychai
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/create_keychain_manifest_nostr_key_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_nostr_key_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/reveal_keychain_manifest_nostr_key_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/update_keychain_manifest_nostr_key_purpose_usecase.dart';
 import 'package:test/test.dart';
 
 const _xprv =
@@ -197,34 +198,222 @@ void main() {
   );
 
   test('does not export an app-reserved Nostr service key', () async {
-    final entry = KeychainManifestEntry(
-      parentFingerprint: _parentFingerprint,
-      bip85DerivationPath: "128002'/100'/1'",
-      reservationId: 'nostr_wallet_backup_key',
-      entryType: 'nonWalletNostrKey',
-      ownerFeature: 'nostr',
-      bip85Application: 128002,
-      bip85Index: 1,
-      createdAt: 1,
-      updatedAt: 1,
-    );
-    final record = KeychainManifestNostrKeyRecord(
-      entry: entry,
-      nostrKeyMaterialization: KeychainManifestNostrKeyMaterialization(
-        entryId: entry.entryId,
-        publicKeyHex: 'ab' * 32,
-        keyKind: KeychainManifestNostrKeyKind.reserved,
-        purpose: 'Wallet backup',
-        createdAt: 1,
-        updatedAt: 1,
-      ),
-    );
+    final record = _reservedRecord();
 
     await expectLater(
       const RevealKeychainManifestNostrKeyUsecase(
         wallet: _Wallet(),
       ).execute(record),
       throwsStateError,
+    );
+  });
+
+  test('does not edit an app-reserved Nostr key purpose', () async {
+    final repository = _MemoryRepository()..nostrRecords.add(_reservedRecord());
+    final record = repository.nostrRecords.single;
+    final usecase = UpdateKeychainManifestNostrKeyPurposeUsecase(
+      repository: repository,
+      registry: _registry,
+    );
+
+    await expectLater(
+      usecase.execute(
+        parentFingerprint: record.entry.parentFingerprint,
+        entryId: record.entryId,
+        purpose: 'renamed service key',
+      ),
+      throwsA(isA<KeychainManifestReservationMismatchException>()),
+    );
+    // The guard covers every editable field, not just the purpose: a
+    // description-only edit must be refused the same way.
+    await expectLater(
+      usecase.execute(
+        parentFingerprint: record.entry.parentFingerprint,
+        entryId: record.entryId,
+        description: 'annotated service key',
+      ),
+      throwsA(isA<KeychainManifestReservationMismatchException>()),
+    );
+    expect(
+      repository.nostrRecords.single.nostrKeyMaterialization.purpose,
+      'Wallet backup',
+    );
+    expect(
+      repository.nostrRecords.single.nostrKeyMaterialization.description,
+      isNull,
+    );
+  });
+
+  test('creates a user key with a description', () async {
+    final repository = _MemoryRepository();
+    final create = CreateKeychainManifestNostrKeyUsecase(
+      wallet: const _Wallet(),
+      repository: repository,
+      record: RecordKeychainManifestNostrKeyUsecase(
+        repository: repository,
+        registry: _registry,
+      ),
+      registry: _registry,
+    );
+
+    final created = await create.execute(
+      purpose: 'personal identity',
+      description: '  long-form notes and replies  ',
+    );
+
+    expect(created.description, 'long-form notes and replies');
+    expect(
+      repository.nostrRecords.single.nostrKeyMaterialization.description,
+      'long-form notes and replies',
+    );
+  });
+
+  test('creates a user key without a description', () async {
+    final repository = _MemoryRepository();
+    final create = CreateKeychainManifestNostrKeyUsecase(
+      wallet: const _Wallet(),
+      repository: repository,
+      record: RecordKeychainManifestNostrKeyUsecase(
+        repository: repository,
+        registry: _registry,
+      ),
+      registry: _registry,
+    );
+
+    final created = await create.execute(purpose: 'personal identity');
+
+    expect(created.description, isNull);
+    expect(
+      repository.nostrRecords.single.nostrKeyMaterialization.description,
+      isNull,
+    );
+  });
+
+  test('records app-reserved keys without a description', () async {
+    final repository = _MemoryRepository();
+    final usecase = RecordKeychainManifestNostrKeyUsecase(
+      repository: repository,
+      registry: _registry,
+    );
+
+    await usecase.execute(
+      KeychainManifestNostrKeyRequest(
+        reservationId: 'nostr_wallet_backup_key',
+        parentFingerprint: _parentFingerprint,
+        derivationPath: "128002'/100'/1'",
+        publicKeyHex: 'ab' * 32,
+        keyKind: KeychainManifestNostrKeyKind.reserved,
+        purpose: 'Nostr Wallet Backup',
+      ),
+    );
+
+    expect(
+      repository.nostrRecords.single.nostrKeyMaterialization.description,
+      isNull,
+    );
+  });
+
+  test('edits a user key purpose without touching its description', () async {
+    final repository = _MemoryRepository()
+      ..nostrRecords.add(_record(identity: 1, description: 'kept'));
+    final record = repository.nostrRecords.single;
+
+    await UpdateKeychainManifestNostrKeyPurposeUsecase(
+      repository: repository,
+      registry: _registry,
+    ).execute(
+      parentFingerprint: record.entry.parentFingerprint,
+      entryId: record.entryId,
+      purpose: 'renamed user key',
+      now: DateTime.fromMillisecondsSinceEpoch(2000, isUtc: true),
+    );
+
+    final updated = repository.nostrRecords.single.nostrKeyMaterialization;
+    expect(updated.purpose, 'renamed user key');
+    expect(updated.description, 'kept');
+  });
+
+  test('edits a user key description without touching its purpose', () async {
+    final repository = _MemoryRepository()
+      ..nostrRecords.add(_record(identity: 1, purpose: 'kept purpose'));
+    final record = repository.nostrRecords.single;
+
+    await UpdateKeychainManifestNostrKeyPurposeUsecase(
+      repository: repository,
+      registry: _registry,
+    ).execute(
+      parentFingerprint: record.entry.parentFingerprint,
+      entryId: record.entryId,
+      description: 'added later',
+      now: DateTime.fromMillisecondsSinceEpoch(2000, isUtc: true),
+    );
+
+    final updated = repository.nostrRecords.single.nostrKeyMaterialization;
+    expect(updated.purpose, 'kept purpose');
+    expect(updated.description, 'added later');
+  });
+
+  test('edits a user key purpose and description in one revision', () async {
+    final repository = _MemoryRepository()
+      ..nostrRecords.add(_record(identity: 1, description: 'old note'));
+    final record = repository.nostrRecords.single;
+
+    await UpdateKeychainManifestNostrKeyPurposeUsecase(
+      repository: repository,
+      registry: _registry,
+    ).execute(
+      parentFingerprint: record.entry.parentFingerprint,
+      entryId: record.entryId,
+      purpose: 'renamed user key',
+      description: 'new note',
+      now: DateTime.fromMillisecondsSinceEpoch(2000, isUtc: true),
+    );
+
+    final updated = repository.nostrRecords.single.nostrKeyMaterialization;
+    expect(updated.purpose, 'renamed user key');
+    expect(updated.description, 'new note');
+    expect(updated.updatedAt, 2);
+  });
+
+  test('clears a user key description with an empty value', () async {
+    final repository = _MemoryRepository()
+      ..nostrRecords.add(_record(identity: 1, description: 'to be cleared'));
+    final record = repository.nostrRecords.single;
+
+    await UpdateKeychainManifestNostrKeyPurposeUsecase(
+      repository: repository,
+      registry: _registry,
+    ).execute(
+      parentFingerprint: record.entry.parentFingerprint,
+      entryId: record.entryId,
+      description: '   ',
+      now: DateTime.fromMillisecondsSinceEpoch(2000, isUtc: true),
+    );
+
+    expect(
+      repository.nostrRecords.single.nostrKeyMaterialization.description,
+      isNull,
+    );
+  });
+
+  test('edits a purpose only inside the user Nostr namespace', () async {
+    final repository = _MemoryRepository()
+      ..nostrRecords.add(_record(identity: 1));
+    final record = repository.nostrRecords.single;
+
+    await UpdateKeychainManifestNostrKeyPurposeUsecase(
+      repository: repository,
+      registry: _registry,
+    ).execute(
+      parentFingerprint: record.entry.parentFingerprint,
+      entryId: record.entryId,
+      purpose: 'renamed user key',
+      now: DateTime.fromMillisecondsSinceEpoch(2000, isUtc: true),
+    );
+
+    expect(
+      repository.nostrRecords.single.nostrKeyMaterialization.purpose,
+      'renamed user key',
     );
   });
 
@@ -260,6 +449,7 @@ KeychainManifestNostrKeyRecord _record({
   required int identity,
   String? purpose,
   String? publicKeyHex,
+  String? description,
 }) {
   final path = _registry.nostrUserKeyPath(identity);
   final entry = KeychainManifestEntry(
@@ -280,6 +470,32 @@ KeychainManifestNostrKeyRecord _record({
       publicKeyHex: publicKeyHex ?? 'ab' * 32,
       keyKind: KeychainManifestNostrKeyKind.userGenerated,
       purpose: purpose ?? 'key $identity',
+      description: description,
+      createdAt: 1,
+      updatedAt: 1,
+    ),
+  );
+}
+
+KeychainManifestNostrKeyRecord _reservedRecord() {
+  final entry = KeychainManifestEntry(
+    parentFingerprint: _parentFingerprint,
+    bip85DerivationPath: "128002'/100'/1'",
+    reservationId: 'nostr_wallet_backup_key',
+    entryType: 'nonWalletNostrKey',
+    ownerFeature: 'nostr',
+    bip85Application: 128002,
+    bip85Index: 1,
+    createdAt: 1,
+    updatedAt: 1,
+  );
+  return KeychainManifestNostrKeyRecord(
+    entry: entry,
+    nostrKeyMaterialization: KeychainManifestNostrKeyMaterialization(
+      entryId: entry.entryId,
+      publicKeyHex: 'ab' * 32,
+      keyKind: KeychainManifestNostrKeyKind.reserved,
+      purpose: 'Wallet backup',
       createdAt: 1,
       updatedAt: 1,
     ),
@@ -317,10 +533,11 @@ final class _MemoryRepository implements KeychainManifestEntryRepository {
   }
 
   @override
-  Future<void> updateNostrKeyPurpose({
+  Future<void> updateNostrKeyMetadata({
     required String parentFingerprint,
     required String entryId,
     required String purpose,
+    required String? description,
     required int updatedAt,
   }) async {
     final index = nostrRecords.indexWhere(
@@ -337,6 +554,7 @@ final class _MemoryRepository implements KeychainManifestEntryRepository {
         publicKeyHex: materialization.publicKeyHex,
         keyKind: materialization.keyKind,
         purpose: purpose,
+        description: description,
         createdAt: materialization.createdAt,
         updatedAt: updatedAt,
       ),

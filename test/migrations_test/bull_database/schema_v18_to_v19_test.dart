@@ -51,6 +51,22 @@ void main() {
         .getSingle();
     expect(stored.entryId, entryId);
     expect(stored.purpose, 'Personal identity');
+    // The created table carries the optional description from v19 onward; a
+    // row inserted without one reads back as null rather than an empty string.
+    expect(stored.description, isNull);
+
+    await (database.update(
+      database.keychainManifestNostrKeys,
+    )..where((row) => row.entryId.equals(entryId))).write(
+      const KeychainManifestNostrKeysCompanion(
+        description: Value('Used for long-form notes'),
+      ),
+    );
+    final described = await database
+        .select(database.keychainManifestNostrKeys)
+        .getSingle();
+    expect(described.description, 'Used for long-form notes');
+    expect(described.purpose, 'Personal identity');
 
     await database.close();
   });

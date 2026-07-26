@@ -301,6 +301,7 @@ class _KeychainManifestFileMaterializationModel {
   final String? publicKeyHex;
   final String? keyKind;
   final String? purpose;
+  final String? description;
   final int createdAt;
   final int updatedAt;
 
@@ -313,6 +314,7 @@ class _KeychainManifestFileMaterializationModel {
     this.publicKeyHex,
     this.keyKind,
     this.purpose,
+    this.description,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -337,6 +339,7 @@ class _KeychainManifestFileMaterializationModel {
           publicKeyHex: materialization.publicKeyHex,
           keyKind: materialization.keyKind,
           purpose: materialization.purpose,
+          description: materialization.description,
           createdAt: materialization.createdAt,
           updatedAt: materialization.updatedAt,
         ),
@@ -364,6 +367,9 @@ class _KeychainManifestFileMaterializationModel {
           publicKeyHex: _string(json, 'publicKeyHex'),
           keyKind: _string(json, 'keyKind'),
           purpose: _string(json, 'purpose'),
+          // Absent in manifests written before the field existed: an old
+          // backup parses to a null description instead of failing.
+          description: _optionalString(json, 'description'),
           createdAt: _int(json, 'createdAt'),
           updatedAt: _int(json, 'updatedAt'),
         );
@@ -390,6 +396,11 @@ class _KeychainManifestFileMaterializationModel {
         'publicKeyHex': publicKeyHex,
         'keyKind': keyKind,
         'purpose': purpose,
+        // Omitted when absent rather than written as an explicit null: a
+        // manifest written before this field existed must re-encode to
+        // byte-identical JSON, or the wallet-backup envelope would reject it
+        // as non-canonical.
+        if (description != null) 'description': description,
         'createdAt': createdAt,
         'updatedAt': updatedAt,
       },
@@ -417,6 +428,7 @@ class _KeychainManifestFileMaterializationModel {
           publicKeyHex: publicKeyHex!,
           keyKind: keyKind!,
           purpose: purpose!,
+          description: description,
           createdAt: createdAt,
           updatedAt: updatedAt,
         ),
@@ -436,6 +448,13 @@ String _string(Map<String, Object?> json, String key) {
   throw KeychainManifestFileParseException(
     reason: KeychainManifestFileParseFailureReason.malformedFile,
   );
+}
+
+/// Reads an optional string field: absent or JSON null yields null, while a
+/// present value is held to the same length bound as a required field.
+String? _optionalString(Map<String, Object?> json, String key) {
+  if (!json.containsKey(key) || json[key] == null) return null;
+  return _string(json, key);
 }
 
 int _int(Map<String, Object?> json, String key) {

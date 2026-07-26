@@ -2162,6 +2162,16 @@
             "dsl_features": []
           },
           {
+            "name": "description",
+            "getter_name": "description",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
             "name": "created_at",
             "getter_name": "createdAt",
             "moor_type": "int",
@@ -2582,7 +2592,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"keychain_manifest_nostr_keys\" (\"entry_id\" TEXT NOT NULL, \"public_key_hex\" TEXT NOT NULL, \"key_kind\" TEXT NOT NULL, \"purpose\" TEXT NOT NULL, \"created_at\" INTEGER NOT NULL, \"updated_at\" INTEGER NOT NULL, PRIMARY KEY (\"entry_id\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"keychain_manifest_nostr_keys\" (\"entry_id\" TEXT NOT NULL, \"public_key_hex\" TEXT NOT NULL, \"key_kind\" TEXT NOT NULL, \"purpose\" TEXT NOT NULL, \"description\" TEXT NULL, \"created_at\" INTEGER NOT NULL, \"updated_at\" INTEGER NOT NULL, PRIMARY KEY (\"entry_id\"));"
         }
       ]
     },

@@ -8576,6 +8576,14 @@ class KeychainManifestNostrKeys extends Table
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL',
   );
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
   late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
     'created_at',
     aliasedName,
@@ -8598,6 +8606,7 @@ class KeychainManifestNostrKeys extends Table
     publicKeyHex,
     keyKind,
     purpose,
+    description,
     createdAt,
     updatedAt,
   ];
@@ -8631,6 +8640,10 @@ class KeychainManifestNostrKeys extends Table
         DriftSqlType.string,
         data['${effectivePrefix}purpose'],
       )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -8659,6 +8672,7 @@ class KeychainManifestNostrKeysData extends DataClass
   final String publicKeyHex;
   final String keyKind;
   final String purpose;
+  final String? description;
   final int createdAt;
   final int updatedAt;
   const KeychainManifestNostrKeysData({
@@ -8666,6 +8680,7 @@ class KeychainManifestNostrKeysData extends DataClass
     required this.publicKeyHex,
     required this.keyKind,
     required this.purpose,
+    this.description,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -8676,6 +8691,9 @@ class KeychainManifestNostrKeysData extends DataClass
     map['public_key_hex'] = Variable<String>(publicKeyHex);
     map['key_kind'] = Variable<String>(keyKind);
     map['purpose'] = Variable<String>(purpose);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -8687,6 +8705,9 @@ class KeychainManifestNostrKeysData extends DataClass
       publicKeyHex: Value(publicKeyHex),
       keyKind: Value(keyKind),
       purpose: Value(purpose),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -8702,6 +8723,7 @@ class KeychainManifestNostrKeysData extends DataClass
       publicKeyHex: serializer.fromJson<String>(json['publicKeyHex']),
       keyKind: serializer.fromJson<String>(json['keyKind']),
       purpose: serializer.fromJson<String>(json['purpose']),
+      description: serializer.fromJson<String?>(json['description']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -8714,6 +8736,7 @@ class KeychainManifestNostrKeysData extends DataClass
       'publicKeyHex': serializer.toJson<String>(publicKeyHex),
       'keyKind': serializer.toJson<String>(keyKind),
       'purpose': serializer.toJson<String>(purpose),
+      'description': serializer.toJson<String?>(description),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -8724,6 +8747,7 @@ class KeychainManifestNostrKeysData extends DataClass
     String? publicKeyHex,
     String? keyKind,
     String? purpose,
+    Value<String?> description = const Value.absent(),
     int? createdAt,
     int? updatedAt,
   }) => KeychainManifestNostrKeysData(
@@ -8731,6 +8755,7 @@ class KeychainManifestNostrKeysData extends DataClass
     publicKeyHex: publicKeyHex ?? this.publicKeyHex,
     keyKind: keyKind ?? this.keyKind,
     purpose: purpose ?? this.purpose,
+    description: description.present ? description.value : this.description,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -8744,6 +8769,9 @@ class KeychainManifestNostrKeysData extends DataClass
           : this.publicKeyHex,
       keyKind: data.keyKind.present ? data.keyKind.value : this.keyKind,
       purpose: data.purpose.present ? data.purpose.value : this.purpose,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -8756,6 +8784,7 @@ class KeychainManifestNostrKeysData extends DataClass
           ..write('publicKeyHex: $publicKeyHex, ')
           ..write('keyKind: $keyKind, ')
           ..write('purpose: $purpose, ')
+          ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -8768,6 +8797,7 @@ class KeychainManifestNostrKeysData extends DataClass
     publicKeyHex,
     keyKind,
     purpose,
+    description,
     createdAt,
     updatedAt,
   );
@@ -8779,6 +8809,7 @@ class KeychainManifestNostrKeysData extends DataClass
           other.publicKeyHex == this.publicKeyHex &&
           other.keyKind == this.keyKind &&
           other.purpose == this.purpose &&
+          other.description == this.description &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -8789,6 +8820,7 @@ class KeychainManifestNostrKeysCompanion
   final Value<String> publicKeyHex;
   final Value<String> keyKind;
   final Value<String> purpose;
+  final Value<String?> description;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int> rowid;
@@ -8797,6 +8829,7 @@ class KeychainManifestNostrKeysCompanion
     this.publicKeyHex = const Value.absent(),
     this.keyKind = const Value.absent(),
     this.purpose = const Value.absent(),
+    this.description = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -8806,6 +8839,7 @@ class KeychainManifestNostrKeysCompanion
     required String publicKeyHex,
     required String keyKind,
     required String purpose,
+    this.description = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.rowid = const Value.absent(),
@@ -8820,6 +8854,7 @@ class KeychainManifestNostrKeysCompanion
     Expression<String>? publicKeyHex,
     Expression<String>? keyKind,
     Expression<String>? purpose,
+    Expression<String>? description,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? rowid,
@@ -8829,6 +8864,7 @@ class KeychainManifestNostrKeysCompanion
       if (publicKeyHex != null) 'public_key_hex': publicKeyHex,
       if (keyKind != null) 'key_kind': keyKind,
       if (purpose != null) 'purpose': purpose,
+      if (description != null) 'description': description,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -8840,6 +8876,7 @@ class KeychainManifestNostrKeysCompanion
     Value<String>? publicKeyHex,
     Value<String>? keyKind,
     Value<String>? purpose,
+    Value<String?>? description,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int>? rowid,
@@ -8849,6 +8886,7 @@ class KeychainManifestNostrKeysCompanion
       publicKeyHex: publicKeyHex ?? this.publicKeyHex,
       keyKind: keyKind ?? this.keyKind,
       purpose: purpose ?? this.purpose,
+      description: description ?? this.description,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -8870,6 +8908,9 @@ class KeychainManifestNostrKeysCompanion
     if (purpose.present) {
       map['purpose'] = Variable<String>(purpose.value);
     }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -8889,6 +8930,7 @@ class KeychainManifestNostrKeysCompanion
           ..write('publicKeyHex: $publicKeyHex, ')
           ..write('keyKind: $keyKind, ')
           ..write('purpose: $purpose, ')
+          ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')

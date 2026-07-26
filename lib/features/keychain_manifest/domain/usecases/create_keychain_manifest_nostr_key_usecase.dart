@@ -15,12 +15,14 @@ final class CreatedKeychainManifestNostrKey {
   final String derivationPath;
   final String publicKeyHex;
   final String purpose;
+  final String? description;
 
   const CreatedKeychainManifestNostrKey({
     required this.parentFingerprint,
     required this.derivationPath,
     required this.publicKeyHex,
     required this.purpose,
+    this.description,
   });
 }
 
@@ -44,6 +46,7 @@ final class CreateKeychainManifestNostrKeyUsecase {
 
   Future<CreatedKeychainManifestNostrKey> execute({
     required String purpose,
+    String? description,
     DateTime? now,
   }) async {
     final source = await _wallet.deriveDefaultWallet();
@@ -88,6 +91,7 @@ final class CreateKeychainManifestNostrKeyUsecase {
             publicKeyHex: publicKeyHex,
             keyKind: KeychainManifestNostrKeyKind.userGenerated,
             purpose: purpose,
+            description: description,
           ),
           now: timestamp,
         );
@@ -97,6 +101,10 @@ final class CreateKeychainManifestNostrKeyUsecase {
           derivationPath: path,
           publicKeyHex: publicKeyHex,
           purpose: purpose.trim(),
+          description:
+              KeychainManifestNostrKeyMaterialization.normalizeDescription(
+                description,
+              ),
         );
       } on KeychainManifestEntryConflictException {
         // Another allocator committed this path after our high-water read.

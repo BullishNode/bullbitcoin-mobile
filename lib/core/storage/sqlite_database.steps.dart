@@ -9224,6 +9224,7 @@ final class Schema19 extends i0.VersionedSchema {
         _column_280,
         _column_281,
         _column_282,
+        _column_283,
         _column_165,
         _column_252,
       ],
@@ -9290,6 +9291,8 @@ class Shape46 extends i0.VersionedTable {
       columnsByName['key_kind']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<String> get purpose =>
       columnsByName['purpose']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get description =>
+      columnsByName['description']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<int> get createdAt =>
       columnsByName['created_at']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<int> get updatedAt =>
@@ -9319,6 +9322,14 @@ i1.GeneratedColumn<String> _column_282(String aliasedName) =>
       false,
       type: i1.DriftSqlType.string,
       $customConstraints: 'NOT NULL',
+    );
+i1.GeneratedColumn<String> _column_283(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'description',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
     );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,

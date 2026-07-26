@@ -78,6 +78,7 @@ class RecordKeychainManifestNostrKeyUsecase {
       publicKeyHex: request.publicKeyHex,
       keyKind: request.keyKind,
       purpose: request.purpose,
+      description: request.description,
       createdAt: timestamp,
       updatedAt: updatedTimestamp,
     );
@@ -93,13 +94,17 @@ class RecordKeychainManifestNostrKeyUsecase {
               materialization.publicKeyHex &&
           stored.nostrKeyMaterialization.keyKind == materialization.keyKind) {
         final storedMaterialization = stored.nostrKeyMaterialization;
-        if (storedMaterialization.purpose == materialization.purpose) {
+        // Purpose and description are one editable unit: a difference in
+        // either is the same kind of divergence and resolves by revision.
+        if (storedMaterialization.purpose == materialization.purpose &&
+            storedMaterialization.description == materialization.description) {
           if (updatedAt != null &&
               materialization.updatedAt > storedMaterialization.updatedAt) {
-            await _repository.updateNostrKeyPurpose(
+            await _repository.updateNostrKeyMetadata(
               parentFingerprint: entry.parentFingerprint,
               entryId: entry.entryId,
               purpose: materialization.purpose,
+              description: materialization.description,
               updatedAt: materialization.updatedAt,
             );
             return true;
@@ -119,10 +124,11 @@ class RecordKeychainManifestNostrKeyUsecase {
             'Nostr key purpose conflicts at the same revision',
           );
         }
-        await _repository.updateNostrKeyPurpose(
+        await _repository.updateNostrKeyMetadata(
           parentFingerprint: entry.parentFingerprint,
           entryId: entry.entryId,
           purpose: materialization.purpose,
+          description: materialization.description,
           updatedAt: materialization.updatedAt,
         );
         return true;
