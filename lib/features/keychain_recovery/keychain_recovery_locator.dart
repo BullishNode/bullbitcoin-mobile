@@ -24,6 +24,7 @@ class KeychainRecoveryLocator {
         applyWalletBehaviorDefaults:
             locator<ApplyWalletBehaviorDefaultsUsecase>(),
         bip85Registry: locator<Bip85RegistryFacade>(),
+        backupWallet: locator<KeychainManifestBackupWalletPort>(),
       ),
     );
     locator.registerFactory<KeychainRecoveryFacade>(

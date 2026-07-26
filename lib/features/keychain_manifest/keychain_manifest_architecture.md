@@ -4,9 +4,9 @@
 
 `keychain_manifest` records durable local metadata for app-created BIP85
 materializations. It records reserved BIP85 derivations and typed
-materializations of those derivations. Wallet materializations are the first
-supported materialization type, with BTCPay as the first writer. It never stores
-mnemonic words, seeds, private keys, or descriptors.
+materializations of those derivations. V1 supports wallet and Nostr-key
+materializations. It never stores mnemonic words, seeds, private keys,
+descriptors, or Nostr secret keys.
 
 Manifest entries are durable local inventory, not product/server state. Once a
 wallet materialization has been created and recorded, product failures such as
@@ -25,8 +25,9 @@ requested parent fingerprint. The local Drift records remain the source of
 truth; the file payload is a read-only projection and is not cached as product
 state. It can also validate an imported v1 payload into typed import intents for
 later consumer flows. Import parsing does not persist, delete, create wallets,
-publish, fetch, or restore product state, and non-wallet materialization types
-are out of scope for v1.
+publish, fetch, or restore product state. Nostr-key import intents contain only
+the derivation path, public key, key kind, purpose, and timestamps; recovery
+must re-derive and verify the public key from local seed material.
 
 V1 local recording accepts manifest-enabled registry-owned wallet-seed
 reservations, because manifest inventory is generic metadata for app-created
@@ -48,9 +49,9 @@ must not be presented as importable or recoverable.
   invalid entry when that path does not match the reservation's exact path.
 - Product features, such as BTCPay, record entries through
   `keychain_manifest/public` only.
-- The public boundary records wallet materializations only. Product features do
-  not receive inserted-row rollback tokens or a public delete API for
-  current-attempt rollback.
+- The public boundary records wallet and Nostr-key materializations. Product
+  features do not receive inserted-row rollback tokens or a public delete API
+  for current-attempt rollback.
 - New local materializations use `recordReservedDerivation`; authenticated
   recovery uses `recordRecoveredDerivation`. Both enforce the same registry and
   persistence invariants, while the semantic distinction prevents automatic
@@ -81,6 +82,11 @@ Wallet materializations attach wallet-specific metadata to a keychain entry and
 are identified by:
 
 - wallet id
+
+Nostr-key materializations attach the x-only public key, key kind, and editable
+purpose to the entry identified by its derivation path. The key kind and public
+key are immutable; only the purpose and its `updatedAt` timestamp may change.
+The private key is always re-derived on demand and is never a manifest field.
 
 The child seed fingerprint is stored on each wallet materialization, because it
 is wallet materialization metadata. Non-wallet BIP85 entries must not need a
@@ -167,11 +173,13 @@ Every v1 payload has exactly one byte representation:
   - entry: `entryId`, `bip85DerivationPath`, `reservationId`, `entryType`,
     `ownerFeature`, `bip85Application`, `bip85Index`, `createdAt`,
     `updatedAt`, `materializations`;
-  - materialization: `type`, `walletId`, `childSeedFingerprint`, `network`,
-    `scriptType`, `createdAt`, `updatedAt`.
+  - wallet materialization: `type`, `walletId`, `childSeedFingerprint`,
+    `network`, `scriptType`, `createdAt`, `updatedAt`;
+  - Nostr-key materialization: `type`, `publicKeyHex`, `keyKind`, `purpose`,
+    `createdAt`, `updatedAt`.
 - Entries are sorted by `bip85DerivationPath`, then by `entryId`.
-- Materializations within an entry are sorted by `network`, then by
-  `walletId`.
+- Materializations within an entry are sorted by `type`, then by wallet
+  `network`, then by `walletId` or Nostr `publicKeyHex`.
 - The payload contains no whitespace: no spaces after separators, no
   newlines, no indentation.
 - Unknown fields are ignored on read. This is a deliberate forward-compat
@@ -185,8 +193,9 @@ Rules:
 - Fingerprints must be normalized 8-character lowercase hex values.
 - `bip85DerivationPath` is the registry-relative hardened path.
 - `entryId` is derived from parent fingerprint and BIP85 path.
-- Entry ids must be unique across entries, and wallet ids must be unique
-  across all materializations in the file, mirroring local record uniqueness.
+- Entry ids must be unique across entries, and materialization identities
+  (wallet id or Nostr entry id) must be unique across the file, mirroring local
+  record uniqueness.
 - `entryCount` and `materializationCount` are integrity counts validated on
   build: `entryCount` must equal the number of entries, and
   `materializationCount` must equal the total number of materializations
@@ -199,7 +208,9 @@ Rules:
   so an empty manifest never outranks a populated one. `generatedAt` records
   when the payload was built and is informational only; it must not be used
   to rank manifests.
-- V1 supports only wallet materializations with `"type": "wallet"`.
+- V1 supports wallet materializations with `"type": "wallet"` and Nostr-key
+  materializations with `"type": "nostrKey"`. A Nostr-key materialization
+  contains `publicKeyHex`, `keyKind`, `purpose`, `createdAt`, and `updatedAt`.
 - Enumerated fields carry frozen wire vocabulary (see the table below).
 - Public callers must explicitly opt in before exporting an empty manifest.
 - V1 decode validates the payload wire shape in `data/`, then validates registry
@@ -210,8 +221,8 @@ Rules:
 - Import parsing refuses an empty plan unless the caller explicitly opts in,
   mirroring the empty-export gate: silently returning a plan with nothing to
   recover would be indistinguishable from a successful import.
-- V1 decode rejects duplicate entry ids and duplicate wallet materialization ids
-  before recovery can perform wallet side effects.
+- V1 decode rejects duplicate entry ids and duplicate materialization identities
+  before recovery can perform derivation or wallet side effects.
 
 ### Consumer obligations
 
@@ -228,6 +239,10 @@ file's claims are true for this device. Consumers of an import plan MUST:
 - Treat `walletId` as file-CLAIMED. The consumer MUST recompute the wallet id
   from the descriptor derived locally (child seed fingerprint, script type,
   network) and never trust or persist the claimed value.
+- Treat Nostr `publicKeyHex` as file-CLAIMED. The consumer MUST re-derive the
+  key at the registry-validated path and compare its x-only public key before
+  recording the materialization. Secret material must not be persisted while
+  doing so.
 - Treat every string field on intents as untrusted input when rendering UI:
   no markup interpretation, apply length truncation where layout requires it.
 - Require explicit user confirmation for empty plans (parsed with
@@ -246,14 +261,15 @@ not a refactor.
 
 | Field | Allowed values | Source |
 | --- | --- | --- |
-| `type` (materialization) | `wallet` | `KeychainManifestFileWalletMaterialization.type` constant |
-| `entryType` | `walletSeed` | `Bip85ReservationPurpose` (`bip85_registry`) |
-| `ownerFeature` | `btcpay` | `Bip85ReservationOwner` (`bip85_registry`) |
-| `reservationId` | `btcpay_wallet_seed` | `bip85_registry` reservation ids |
+| `type` (materialization) | `wallet`, `nostrKey` | keychain manifest materialization type constants |
+| `keyKind` (Nostr) | `reserved`, `userGenerated` | `KeychainManifestNostrKeyKind` |
+| `entryType` | registry purpose name, or `userGenerated` for dynamic user Nostr keys | `bip85_registry` and dynamic Nostr policy |
+| `ownerFeature` | registry owner name; dynamic user Nostr keys use `nostr` | `bip85_registry` |
+| `reservationId` | registry reservation id; dynamic user Nostr keys use `nostr_user_key` | `bip85_registry` |
 | `network` | `bitcoinMainnet`, `bitcoinTestnet`, `liquidMainnet`, `liquidTestnet` | `Network` (`core/wallet`) |
 | `scriptType` | `bip84`, `bip49`, `bip44` | `ScriptType` (`core/wallet`) |
 
 The payload is generated on demand through `keychain_manifest/public`.
 `wallet_backup` consumes that published payload and embeds it without changing
 its canonical representation. Transport, encryption, wallet creation, product
-restore, and UI are out of scope for this feature.
+restore, Nostr secret reveal, and UI are out of scope for this feature.

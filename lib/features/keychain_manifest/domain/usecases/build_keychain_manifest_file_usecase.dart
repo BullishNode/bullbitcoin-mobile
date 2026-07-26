@@ -14,8 +14,10 @@ class BuildKeychainManifestFileUsecase {
   const BuildKeychainManifestFileUsecase({
     required this.repository,
     required this.registry,
-    this._clock = const SystemClock(),
-  });
+    Clock clock = const SystemClock(),
+  }) : // Preserve the public named parameter while keeping the clock private.
+       // ignore: prefer_initializing_formals
+       _clock = clock;
 
   Future<KeychainManifestFile> execute(
     String parentFingerprint, {
@@ -25,11 +27,16 @@ class BuildKeychainManifestFileUsecase {
     final normalizedParentFingerprint = KeychainManifestFingerprint.normalize(
       parentFingerprint,
     );
-    final records = await repository
+    final walletRecords = await repository
         .fetchWalletMaterializationRecordsByParentFingerprint(
           normalizedParentFingerprint,
         );
-    final entries = _entriesFromRecords(_exportableRecords(records));
+    final nostrRecords = await repository
+        .fetchNostrKeyRecordsByParentFingerprint(normalizedParentFingerprint);
+    final entries = <KeychainManifestFileEntry>[
+      ..._entriesFromWalletRecords(_exportableRecords(walletRecords)),
+      ...nostrRecords.map(KeychainManifestFileEntry.fromNostrKeyRecord),
+    ]..sort(_compareEntries);
     return KeychainManifestFile(
       parentFingerprint: normalizedParentFingerprint,
       generatedAt: generatedAt,
@@ -37,7 +44,7 @@ class BuildKeychainManifestFileUsecase {
     );
   }
 
-  List<KeychainManifestFileEntry> _entriesFromRecords(
+  List<KeychainManifestFileEntry> _entriesFromWalletRecords(
     List<KeychainManifestWalletMaterializationRecord> records,
   ) {
     final grouped =
@@ -57,14 +64,18 @@ class BuildKeychainManifestFileUsecase {
           );
         })
         .toList(growable: false);
-    entries.sort((left, right) {
-      final pathCompare = left.bip85DerivationPath.compareTo(
-        right.bip85DerivationPath,
-      );
-      if (pathCompare != 0) return pathCompare;
-      return left.entryId.compareTo(right.entryId);
-    });
     return entries;
+  }
+
+  int _compareEntries(
+    KeychainManifestFileEntry left,
+    KeychainManifestFileEntry right,
+  ) {
+    final pathCompare = left.bip85DerivationPath.compareTo(
+      right.bip85DerivationPath,
+    );
+    if (pathCompare != 0) return pathCompare;
+    return left.entryId.compareTo(right.entryId);
   }
 
   List<KeychainManifestWalletMaterializationRecord> _exportableRecords(

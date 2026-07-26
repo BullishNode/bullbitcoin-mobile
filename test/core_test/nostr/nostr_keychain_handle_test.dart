@@ -100,6 +100,28 @@ void main() {
     expect(handle.toString(), isNot(contains(_secretKeyHex(xprv))));
   });
 
+  test(
+    'explicit secret materialization returns an Nsec without storing it',
+    () {
+      final xprv = _zeroMnemonicXprv();
+      final nsec = NostrKeychainSecretMaterializer.deriveNsec(
+        xprvBase58: xprv,
+        hardenedPath: _walletBackupPath,
+      );
+
+      expect(nsec, startsWith('nsec1'));
+      expect(nsec.length, greaterThan(60));
+      expect(nsec, isNot(contains(_secretKeyHex(xprv))));
+      expect(
+        NostrKeychainSecretMaterializer.deriveNsec(
+          xprvBase58: xprv,
+          hardenedPath: _walletBackupPath,
+        ),
+        nsec,
+      );
+    },
+  );
+
   test('signs an explicit hash with a signature bitcoin_base can verify', () {
     final xprv = _zeroMnemonicXprv();
     const facade = _facade;

@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 
 class KeychainManifestReservedDerivationRequest {
   final String reservationId;
@@ -29,5 +30,23 @@ class KeychainManifestWalletMaterializationRequest {
     required this.childSeedFingerprint,
     required this.network,
     required this.scriptType,
+  });
+}
+
+class KeychainManifestNostrKeyRequest {
+  final String reservationId;
+  final String parentFingerprint;
+  final String derivationPath;
+  final String publicKeyHex;
+  final KeychainManifestNostrKeyKind keyKind;
+  final String purpose;
+
+  const KeychainManifestNostrKeyRequest({
+    required this.reservationId,
+    required this.parentFingerprint,
+    required this.derivationPath,
+    required this.publicKeyHex,
+    required this.keyKind,
+    required this.purpose,
   });
 }

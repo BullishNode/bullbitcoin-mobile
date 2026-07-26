@@ -7,9 +7,12 @@ Its domain use case coordinates local wallet creation/reuse through deterministi
 
 It does not decode manifest files, own manifest persistence, publish or fetch remote manifests, submit product descriptors, mark product accounts connected, or expose UI.
 
-V1 recovery is limited to wallet materializations whose reservation is already manifest-enabled.
+V1 recovery supports wallet materializations whose reservation is already
+manifest-enabled and verified Nostr-key materializations.
 BTCPay and Lightning Address wallet materializations can be recovered locally.
-Payment Page and Nostr reservations are not recovered or activated by this feature until their owning flows explicitly add support.
+Nostr keys are recovered by re-deriving and verifying their public key, then
+recording the local materialization. No private key is persisted during this
+process.
 
 Which reserved seeds are exportable vs recoverable at this stack level is the
 `KeychainManifestReservationSupport` classification (`supportsV1Export` vs
@@ -35,6 +38,8 @@ Allowed dependencies:
 - `keychain_recovery -> bip85_registry/public`
 - `keychain_recovery -> deterministic_wallets/public`
 - `keychain_recovery -> core/settings`
+- `keychain_recovery -> core/nostr` (deterministic public-key re-derivation and
+  verification; no secret material crosses the recovery result boundary)
 - `keychain_recovery -> core/wallet` (re-applies the locked hidden + autosweep
   Get Paid posture to restored wallets via ApplyWalletBehaviorDefaultsUsecase -
   decision [1]/[C]/KC-6)
@@ -44,7 +49,6 @@ Forbidden dependencies:
 - `keychain_manifest -> keychain_recovery`
 - `keychain_recovery -> btcpay`
 - `keychain_recovery -> get_paid`
-- `keychain_recovery -> nostr`
 - `keychain_recovery -> UI features`
 
 ## Result Model

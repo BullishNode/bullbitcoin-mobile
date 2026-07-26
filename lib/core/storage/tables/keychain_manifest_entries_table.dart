@@ -41,3 +41,20 @@ class KeychainManifestWalletBindings extends Table {
   @override
   List<Set<Column>> get uniqueKeys => [];
 }
+
+@DataClassName('KeychainManifestNostrKeyRow')
+class KeychainManifestNostrKeys extends Table {
+  TextColumn get entryId =>
+      text().references(KeychainManifestEntries, #entryId)();
+  TextColumn get publicKeyHex => text()();
+  TextColumn get keyKind => text()();
+  TextColumn get purpose => text()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {entryId};
+
+  @override
+  List<Set<Column>> get uniqueKeys => [];
+}

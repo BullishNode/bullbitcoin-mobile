@@ -180,7 +180,7 @@ class _KeychainManifestFileEntryModel {
   final int bip85Index;
   final int createdAt;
   final int updatedAt;
-  final List<_KeychainManifestFileWalletMaterializationModel> materializations;
+  final List<_KeychainManifestFileMaterializationModel> materializations;
 
   const _KeychainManifestFileEntryModel({
     required this.entryId,
@@ -200,12 +200,18 @@ class _KeychainManifestFileEntryModel {
   ) {
     final materializations =
         entry.materializations
-            .map(_KeychainManifestFileWalletMaterializationModel.fromEntity)
+            .map(_KeychainManifestFileMaterializationModel.fromEntity)
             .toList()
           ..sort((left, right) {
-            final networkCompare = left.network.compareTo(right.network);
+            final typeCompare = left.type.compareTo(right.type);
+            if (typeCompare != 0) return typeCompare;
+            final networkCompare = (left.network ?? '').compareTo(
+              right.network ?? '',
+            );
             if (networkCompare != 0) return networkCompare;
-            return left.walletId.compareTo(right.walletId);
+            return (left.walletId ?? left.publicKeyHex ?? '').compareTo(
+              right.walletId ?? right.publicKeyHex ?? '',
+            );
           });
     return _KeychainManifestFileEntryModel(
       entryId: entry.entryId,
@@ -242,7 +248,7 @@ class _KeychainManifestFileEntryModel {
       materializations: materializations
           .map(
             (materialization) =>
-                _KeychainManifestFileWalletMaterializationModel.fromJson(
+                _KeychainManifestFileMaterializationModel.fromJson(
                   _map(materialization),
                 ),
           )
@@ -286,83 +292,138 @@ class _KeychainManifestFileEntryModel {
   }
 }
 
-class _KeychainManifestFileWalletMaterializationModel {
+class _KeychainManifestFileMaterializationModel {
   final String type;
-  final String walletId;
-  final String childSeedFingerprint;
-  final String network;
-  final String scriptType;
+  final String? walletId;
+  final String? childSeedFingerprint;
+  final String? network;
+  final String? scriptType;
+  final String? publicKeyHex;
+  final String? keyKind;
+  final String? purpose;
   final int createdAt;
   final int updatedAt;
 
-  const _KeychainManifestFileWalletMaterializationModel({
+  const _KeychainManifestFileMaterializationModel({
     required this.type,
-    required this.walletId,
-    required this.childSeedFingerprint,
-    required this.network,
-    required this.scriptType,
+    this.walletId,
+    this.childSeedFingerprint,
+    this.network,
+    this.scriptType,
+    this.publicKeyHex,
+    this.keyKind,
+    this.purpose,
     required this.createdAt,
     required this.updatedAt,
   });
 
-  factory _KeychainManifestFileWalletMaterializationModel.fromEntity(
-    KeychainManifestFileWalletMaterialization materialization,
+  factory _KeychainManifestFileMaterializationModel.fromEntity(
+    KeychainManifestFileMaterialization materialization,
   ) {
-    return _KeychainManifestFileWalletMaterializationModel(
-      type: KeychainManifestFileWalletMaterialization.type,
-      walletId: materialization.walletId,
-      childSeedFingerprint: materialization.childSeedFingerprint,
-      network: materialization.network,
-      scriptType: materialization.scriptType,
-      createdAt: materialization.createdAt,
-      updatedAt: materialization.updatedAt,
-    );
-  }
-
-  factory _KeychainManifestFileWalletMaterializationModel.fromJson(
-    Map<String, Object?> json,
-  ) {
-    final type = _string(json, 'type');
-    if (type != KeychainManifestFileWalletMaterialization.type) {
-      throw KeychainManifestFileParseException(
-        reason: KeychainManifestFileParseFailureReason.invalidMetadata,
-      );
-    }
-    return _KeychainManifestFileWalletMaterializationModel(
-      type: type,
-      walletId: _string(json, 'walletId'),
-      childSeedFingerprint: _string(json, 'childSeedFingerprint'),
-      network: _string(json, 'network'),
-      scriptType: _string(json, 'scriptType'),
-      createdAt: _int(json, 'createdAt'),
-      updatedAt: _int(json, 'updatedAt'),
-    );
-  }
-
-  Map<String, Object?> toJson() {
-    return {
-      'type': type,
-      'walletId': walletId,
-      'childSeedFingerprint': childSeedFingerprint,
-      'network': network,
-      'scriptType': scriptType,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
+    return switch (materialization) {
+      KeychainManifestFileWalletMaterialization materialization =>
+        _KeychainManifestFileMaterializationModel(
+          type: KeychainManifestFileWalletMaterialization.type,
+          walletId: materialization.walletId,
+          childSeedFingerprint: materialization.childSeedFingerprint,
+          network: materialization.network,
+          scriptType: materialization.scriptType,
+          createdAt: materialization.createdAt,
+          updatedAt: materialization.updatedAt,
+        ),
+      KeychainManifestFileNostrKeyMaterialization materialization =>
+        _KeychainManifestFileMaterializationModel(
+          type: KeychainManifestFileNostrKeyMaterialization.type,
+          publicKeyHex: materialization.publicKeyHex,
+          keyKind: materialization.keyKind,
+          purpose: materialization.purpose,
+          createdAt: materialization.createdAt,
+          updatedAt: materialization.updatedAt,
+        ),
     };
   }
 
-  KeychainManifestFileWalletMaterialization toEntity({
-    required String entryId,
-  }) {
-    return KeychainManifestFileWalletMaterialization(
-      walletId: walletId,
-      entryId: entryId,
-      childSeedFingerprint: childSeedFingerprint,
-      network: network,
-      scriptType: scriptType,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
+  factory _KeychainManifestFileMaterializationModel.fromJson(
+    Map<String, Object?> json,
+  ) {
+    final type = _string(json, 'type');
+    switch (type) {
+      case KeychainManifestFileWalletMaterialization.type:
+        return _KeychainManifestFileMaterializationModel(
+          type: type,
+          walletId: _string(json, 'walletId'),
+          childSeedFingerprint: _string(json, 'childSeedFingerprint'),
+          network: _string(json, 'network'),
+          scriptType: _string(json, 'scriptType'),
+          createdAt: _int(json, 'createdAt'),
+          updatedAt: _int(json, 'updatedAt'),
+        );
+      case KeychainManifestFileNostrKeyMaterialization.type:
+        return _KeychainManifestFileMaterializationModel(
+          type: type,
+          publicKeyHex: _string(json, 'publicKeyHex'),
+          keyKind: _string(json, 'keyKind'),
+          purpose: _string(json, 'purpose'),
+          createdAt: _int(json, 'createdAt'),
+          updatedAt: _int(json, 'updatedAt'),
+        );
+      default:
+        throw KeychainManifestFileParseException(
+          reason: KeychainManifestFileParseFailureReason.invalidMetadata,
+        );
+    }
+  }
+
+  Map<String, Object?> toJson() {
+    return switch (type) {
+      KeychainManifestFileWalletMaterialization.type => {
+        'type': type,
+        'walletId': walletId,
+        'childSeedFingerprint': childSeedFingerprint,
+        'network': network,
+        'scriptType': scriptType,
+        'createdAt': createdAt,
+        'updatedAt': updatedAt,
+      },
+      KeychainManifestFileNostrKeyMaterialization.type => {
+        'type': type,
+        'publicKeyHex': publicKeyHex,
+        'keyKind': keyKind,
+        'purpose': purpose,
+        'createdAt': createdAt,
+        'updatedAt': updatedAt,
+      },
+      _ => throw KeychainManifestFileParseException(
+        reason: KeychainManifestFileParseFailureReason.invalidMetadata,
+      ),
+    };
+  }
+
+  KeychainManifestFileMaterialization toEntity({required String entryId}) {
+    return switch (type) {
+      KeychainManifestFileWalletMaterialization.type =>
+        KeychainManifestFileWalletMaterialization(
+          walletId: walletId!,
+          entryId: entryId,
+          childSeedFingerprint: childSeedFingerprint!,
+          network: network!,
+          scriptType: scriptType!,
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+        ),
+      KeychainManifestFileNostrKeyMaterialization.type =>
+        KeychainManifestFileNostrKeyMaterialization(
+          entryId: entryId,
+          publicKeyHex: publicKeyHex!,
+          keyKind: keyKind!,
+          purpose: purpose!,
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+        ),
+      _ => throw KeychainManifestFileParseException(
+        reason: KeychainManifestFileParseFailureReason.invalidMetadata,
+      ),
+    };
   }
 }
 

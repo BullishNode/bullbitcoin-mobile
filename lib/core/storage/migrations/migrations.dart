@@ -7,6 +7,7 @@ export 'package:bb_mobile/core/storage/migrations/schema_14_to_15.dart';
 export 'package:bb_mobile/core/storage/migrations/schema_15_to_16.dart';
 export 'package:bb_mobile/core/storage/migrations/schema_16_to_17.dart';
 export 'package:bb_mobile/core/storage/migrations/schema_17_to_18.dart';
+export 'package:bb_mobile/core/storage/migrations/schema_18_to_19.dart';
 export 'package:bb_mobile/core/storage/migrations/schema_1_to_2.dart';
 export 'package:bb_mobile/core/storage/migrations/schema_2_to_3.dart';
 export 'package:bb_mobile/core/storage/migrations/schema_3_to_4.dart';

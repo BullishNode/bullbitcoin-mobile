@@ -1,3 +1,6 @@
+// ignore_for_file: prefer_initializing_formals
+
+import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
@@ -10,13 +13,19 @@ class RestoreKeychainManifestWalletsUsecase {
   final KeychainManifestFacade _keychainManifest;
   final ApplyWalletBehaviorDefaultsUsecase _applyWalletBehaviorDefaults;
   final Bip85RegistryFacade _registry;
+  final KeychainManifestBackupWalletPort? _backupWallet;
 
   const RestoreKeychainManifestWalletsUsecase({
-    required this._walletMaterializer,
-    required this._keychainManifest,
-    required this._applyWalletBehaviorDefaults,
+    required KeychainRecoveryWalletMaterializerPort walletMaterializer,
+    required KeychainManifestFacade keychainManifest,
+    required ApplyWalletBehaviorDefaultsUsecase applyWalletBehaviorDefaults,
     required Bip85RegistryFacade bip85Registry,
-  }) : _registry = bip85Registry;
+    KeychainManifestBackupWalletPort? backupWallet,
+  }) : _walletMaterializer = walletMaterializer,
+       _keychainManifest = keychainManifest,
+       _applyWalletBehaviorDefaults = applyWalletBehaviorDefaults,
+       _registry = bip85Registry,
+       _backupWallet = backupWallet;
 
   Future<KeychainRecoveryResult> execute(
     KeychainManifestImportPlan importPlan, {
@@ -56,8 +65,170 @@ class RestoreKeychainManifestWalletsUsecase {
         ),
       );
     }
-    return KeychainRecoveryResult(walletOutcomes: outcomes);
+    final nostrOutcomes = await _restoreNostrKeys(
+      importPlan,
+      deadline: deadline,
+    );
+    return KeychainRecoveryResult(
+      walletOutcomes: outcomes,
+      nostrKeyOutcomes: nostrOutcomes,
+    );
   }
+
+  Future<List<KeychainRecoveryNostrKeyRestoreOutcome>> _restoreNostrKeys(
+    KeychainManifestImportPlan importPlan, {
+    DateTime? deadline,
+  }) async {
+    final intents = importPlan.nostrKeyMaterializations;
+    if (intents.isEmpty) return const [];
+    final wallet = _backupWallet;
+    if (wallet == null) {
+      return intents
+          .map(
+            (intent) => _nostrOutcome(
+              intent,
+              KeychainRecoveryNostrKeyRestoreStatus.failedVerification,
+            ),
+          )
+          .toList(growable: false);
+    }
+    final source = await wallet.deriveDefaultWallet();
+    final existing = await _keychainManifest.getNostrKeys(
+      importPlan.parentFingerprint,
+    );
+    final outcomes = <KeychainRecoveryNostrKeyRestoreOutcome>[];
+    final seenEntryIds = <String>{};
+    for (final intent in intents) {
+      if (deadline != null && !DateTime.now().isBefore(deadline)) {
+        outcomes.add(
+          _nostrOutcome(
+            intent,
+            KeychainRecoveryNostrKeyRestoreStatus.skippedTimeBudgetExpired,
+          ),
+        );
+        continue;
+      }
+      if (!_validNostrIntent(importPlan, intent, seenEntryIds) ||
+          source.parentFingerprint.toLowerCase() !=
+              importPlan.parentFingerprint.toLowerCase()) {
+        outcomes.add(
+          _nostrOutcome(
+            intent,
+            KeychainRecoveryNostrKeyRestoreStatus.failedInvalidImportPlan,
+          ),
+        );
+        continue;
+      }
+      final handle = NostrKeychainHandle.deriveFromBip85Path(
+        xprvBase58: source.xprvBase58,
+        hardenedPath: intent.bip85DerivationPath,
+      );
+      if (handle.publicKeyHex != intent.publicKeyHex) {
+        outcomes.add(
+          _nostrOutcome(
+            intent,
+            KeychainRecoveryNostrKeyRestoreStatus.failedVerification,
+          ),
+        );
+        continue;
+      }
+      final existingRecord = existing.where(
+        (record) => record.entryId == intent.entryId,
+      );
+      var alreadyPresent = false;
+      if (existingRecord.isNotEmpty) {
+        final stored = existingRecord.single.nostrKeyMaterialization;
+        if (stored.publicKeyHex != intent.publicKeyHex ||
+            stored.keyKind != intent.keyKind) {
+          outcomes.add(
+            _nostrOutcome(
+              intent,
+              KeychainRecoveryNostrKeyRestoreStatus.failedVerification,
+            ),
+          );
+          continue;
+        }
+        alreadyPresent = true;
+      }
+      try {
+        await _keychainManifest.recordRecoveredNostrKey(
+          KeychainManifestNostrKeyRequest(
+            reservationId: intent.reservationId,
+            parentFingerprint: importPlan.parentFingerprint,
+            derivationPath: intent.bip85DerivationPath,
+            publicKeyHex: intent.publicKeyHex,
+            keyKind: intent.keyKind,
+            purpose: intent.purpose,
+          ),
+          now: DateTime.fromMillisecondsSinceEpoch(
+            intent.createdAt * 1000,
+            isUtc: true,
+          ),
+          updatedAt: DateTime.fromMillisecondsSinceEpoch(
+            intent.updatedAt * 1000,
+            isUtc: true,
+          ),
+        );
+        outcomes.add(
+          _nostrOutcome(
+            intent,
+            alreadyPresent
+                ? KeychainRecoveryNostrKeyRestoreStatus.alreadyPresent
+                : KeychainRecoveryNostrKeyRestoreStatus.created,
+          ),
+        );
+      } on KeychainManifestException {
+        outcomes.add(
+          _nostrOutcome(
+            intent,
+            KeychainRecoveryNostrKeyRestoreStatus.failedManifestRecord,
+          ),
+        );
+      }
+    }
+    return outcomes;
+  }
+
+  bool _validNostrIntent(
+    KeychainManifestImportPlan importPlan,
+    KeychainManifestNostrKeyMaterializationIntent intent,
+    Set<String> seenEntryIds,
+  ) {
+    if (!seenEntryIds.add(intent.entryId) ||
+        intent.entryId !=
+            _entryId(
+              importPlan.parentFingerprint,
+              intent.bip85DerivationPath,
+            )) {
+      return false;
+    }
+    final isDynamic =
+        intent.reservationId == _registry.nostrUserKeyReservationId;
+    final reservation = _registry.reservationById(intent.reservationId);
+    return isDynamic
+        ? intent.keyKind == KeychainManifestNostrKeyKind.userGenerated &&
+              _registry.isNostrUserKeyPath(intent.bip85DerivationPath)
+        : intent.keyKind == KeychainManifestNostrKeyKind.reserved &&
+              reservation is Bip85KeyReservation &&
+              reservation.scope.matchesExactPath(intent.bip85DerivationPath) &&
+              reservation.application.number ==
+                  _registry.nostrApplicationNumber;
+  }
+
+  KeychainRecoveryNostrKeyRestoreOutcome _nostrOutcome(
+    KeychainManifestNostrKeyMaterializationIntent intent,
+    KeychainRecoveryNostrKeyRestoreStatus status,
+  ) => KeychainRecoveryNostrKeyRestoreOutcome(
+    intent: KeychainRecoveryNostrKeyIntent(
+      entryId: intent.entryId,
+      reservationId: intent.reservationId,
+      bip85DerivationPath: intent.bip85DerivationPath,
+      publicKeyHex: intent.publicKeyHex,
+      keyKind: intent.keyKind,
+      purpose: intent.purpose,
+    ),
+    status: status,
+  );
 
   List<KeychainRecoveryWalletRestoreOutcome>? _validateEntry({
     required KeychainManifestImportPlan importPlan,
