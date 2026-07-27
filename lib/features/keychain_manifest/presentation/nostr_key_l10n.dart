@@ -26,6 +26,31 @@ extension KeychainManifestNostrKeyRecordL10n on KeychainManifestNostrKeyRecord {
       KeychainManifestNostrSystemKind.none => nostrKeyMaterialization.purpose,
     };
   }
+
+  /// What a key's description row should say, or null when there is nothing to
+  /// show.
+  ///
+  /// A user key shows what the user wrote. An app-owned key shows localized
+  /// copy chosen by its role: the stored description of a reserved key is
+  /// always null by design, and even if a row somehow carried one it must not
+  /// be what explains an app-owned key to the user.
+  String? descriptionText(BuildContext context) {
+    final display = KeychainManifestNostrKeyDisplay.of(this);
+    if (!display.isSystem) return nostrKeyMaterialization.description;
+    return switch (display.systemKind) {
+      KeychainManifestNostrSystemKind.metadataBackup =>
+        context.loc.settingsNostrKeysSystemMetadataBackupDescription,
+      KeychainManifestNostrSystemKind.bullnymAuth =>
+        context.loc.settingsNostrKeysSystemBullnymAuthDescription,
+      KeychainManifestNostrSystemKind.nip05Verification =>
+        context.loc.settingsNostrKeysSystemNip05VerificationDescription,
+      // No copy written for a role this build does not know, and none for the
+      // retired role the listing already excludes: omit the row rather than
+      // invent an explanation.
+      KeychainManifestNostrSystemKind.obsoleteWalletMetadataSigning ||
+      KeychainManifestNostrSystemKind.none => null,
+    };
+  }
 }
 
 extension NostrKeyFormErrorL10n on NostrKeyFormError {

@@ -118,6 +118,8 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
           final npub = NostrPublicKeyEncoding.npubFromPublicKeyHex(
             materialization.publicKeyHex,
           );
+          // A user key's own words; localized role copy for an app-owned one.
+          final descriptionText = record.descriptionText(context);
           return Scaffold(
             appBar: AppBar(
               title: Text(context.loc.settingsNostrKeysDetailTitle),
@@ -132,10 +134,10 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
                         label: context.loc.settingsNostrKeysName,
                         displayValue: record.displayName(context),
                       ),
-                      if (materialization.description != null)
+                      if (descriptionText != null)
                         DetailsTableItem(
                           label: context.loc.settingsNostrKeysDescription,
-                          displayValue: materialization.description,
+                          displayValue: descriptionText,
                         ),
                       DetailsTableItem(
                         label: context.loc.settingsNostrKeysDerivationPath,

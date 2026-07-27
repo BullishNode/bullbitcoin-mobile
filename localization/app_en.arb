@@ -17518,5 +17518,17 @@
   "settingsNostrKeysSystemNip05Verification": "Nostr NIP-05 Public Nym Verification",
   "@settingsNostrKeysSystemNip05Verification": {
     "description": "Display name of the app-owned Nostr NIP-05 verification key"
+  },
+  "settingsNostrKeysSystemMetadataBackupDescription": "Identifies and signs your encrypted metadata backup so the app can find and restore it. Managed automatically — you never need to use this key yourself.",
+  "@settingsNostrKeysSystemMetadataBackupDescription": {
+    "description": "Explanation of the app-owned Nostr metadata backup key"
+  },
+  "settingsNostrKeysSystemBullnymAuthDescription": "Authenticates this wallet to the Bull Bitcoin payment server for your Lightning address, invoices, Payment Page and Point of Sale. Managed automatically — you never need to use this key yourself.",
+  "@settingsNostrKeysSystemBullnymAuthDescription": {
+    "description": "Explanation of the app-owned Nostr Bullnym authentication key"
+  },
+  "settingsNostrKeysSystemNip05VerificationDescription": "Reserved for verifying your payment name publicly over Nostr. Not used by the app yet — it exists so a future version can enable verification without changing your keys.",
+  "@settingsNostrKeysSystemNip05VerificationDescription": {
+    "description": "Explanation of the app-owned Nostr NIP-05 verification key"
   }
 }

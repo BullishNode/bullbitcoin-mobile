@@ -46,6 +46,9 @@ KeychainManifestNostrKeyRecord systemKeyRecord({
   String reservationId = 'nostr_wallet_backup_key',
   String purpose = 'Nostr Wallet Backup',
   String publicKeyHex = systemPublicKeyHex,
+  // Reserved rows are recorded with a null description; this exists so a test
+  // can prove localized role copy wins even if one somehow carried text.
+  String? description,
 }) {
   final segments = path.split('/');
   final entry = KeychainManifestEntry(
@@ -68,6 +71,7 @@ KeychainManifestNostrKeyRecord systemKeyRecord({
       publicKeyHex: publicKeyHex,
       keyKind: KeychainManifestNostrKeyKind.reserved,
       purpose: purpose,
+      description: description,
       createdAt: 1,
       updatedAt: 1,
     ),
