@@ -1,7 +1,10 @@
+export 'package:bb_mobile/features/exchange/public/exchange_routes.dart';
+
 import 'dart:io';
 
 import 'package:bb_mobile/features/exchange/presentation/exchange_cubit.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_state.dart';
+import 'package:bb_mobile/features/exchange/public/exchange_routes.dart';
 import 'package:bb_mobile/features/exchange/ui/screens/exchange_auth_screen.dart';
 import 'package:bb_mobile/features/exchange/ui/screens/exchange_home_screen.dart';
 import 'package:bb_mobile/features/exchange/ui/screens/exchange_kyc_screen.dart';
@@ -10,22 +13,10 @@ import 'package:bb_mobile/features/exchange/ui/screens/exchange_landing_screen_v
 import 'package:bb_mobile/features/exchange/ui/screens/exchange_support_login_screen.dart';
 import 'package:bb_mobile/features/exchange_support_chat/ui/exchange_support_chat_router.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
-import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
+import 'package:bb_mobile/features/wallet/public/wallet_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-
-enum ExchangeRoute {
-  exchangeHome('/exchange'),
-  exchangeLanding('/exchange/landing'),
-  exchangeLoginForSupport('/exchange/login-support'),
-  exchangeAuth('/exchange/auth'),
-  exchangeKyc('kyc');
-
-  final String path;
-
-  const ExchangeRoute(this.path);
-}
 
 class ExchangeRouter {
   static final routes = [
@@ -92,51 +83,50 @@ class ExchangeRouter {
       },
     ),
     ExchangeSupportChatRouter.route,
-    GoRoute(
-      name: ExchangeRoute.exchangeAuth.name,
-      path: ExchangeRoute.exchangeAuth.path,
-      pageBuilder: (context, state) {
-        final fromSupport = state.uri.queryParameters['from'] == 'support';
-        final returnToCaller =
-            state.uri.queryParameters['returnToCaller'] == 'true';
-        return NoTransitionPage(
-          key: state.pageKey,
-          child: BlocListener<ExchangeCubit, ExchangeState>(
-            listenWhen: (previous, current) =>
-                previous.notLoggedIn && !current.notLoggedIn,
-            listener: (context, exchangeState) {
-              if (returnToCaller) {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.goNamed(WalletRoute.walletHome.name);
-                }
-                return;
-              }
-              if (fromSupport) {
-                final isIOSNonSuperuser =
-                    Platform.isIOS &&
-                    !(context.read<SettingsCubit>().state.isSuperuser ?? false);
-                context.goNamed(
-                  ExchangeSupportChatRoute.supportChat.name,
-                  queryParameters: isIOSNonSuperuser
-                      ? {}
-                      : {'from': 'exchange'},
-                );
-                return;
-              }
-              final isSuperuser =
-                  context.read<SettingsCubit>().state.isSuperuser ?? false;
-              if (Platform.isIOS && !isSuperuser) {
-                context.goNamed(WalletRoute.walletHome.name);
-                return;
-              }
-              context.goNamed(ExchangeRoute.exchangeHome.name);
-            },
-            child: ExchangeAuthScreen(returnToCaller: returnToCaller),
-          ),
-        );
-      },
-    ),
   ];
+
+  static final authRoute = GoRoute(
+    name: ExchangeRoute.exchangeAuth.name,
+    path: ExchangeRoute.exchangeAuth.path,
+    pageBuilder: (context, state) {
+      final fromSupport = state.uri.queryParameters['from'] == 'support';
+      final returnToCaller =
+          state.uri.queryParameters['returnToCaller'] == 'true';
+      return NoTransitionPage(
+        key: state.pageKey,
+        child: BlocListener<ExchangeCubit, ExchangeState>(
+          listenWhen: (previous, current) =>
+              previous.notLoggedIn && !current.notLoggedIn,
+          listener: (context, exchangeState) {
+            if (returnToCaller) {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.goNamed(WalletRoute.walletHome.name);
+              }
+              return;
+            }
+            if (fromSupport) {
+              final isIOSNonSuperuser =
+                  Platform.isIOS &&
+                  !(context.read<SettingsCubit>().state.isSuperuser ?? false);
+              context.goNamed(
+                ExchangeSupportChatRoute.supportChat.name,
+                queryParameters: isIOSNonSuperuser ? {} : {'from': 'exchange'},
+              );
+              return;
+            }
+            final isSuperuser =
+                context.read<SettingsCubit>().state.isSuperuser ?? false;
+            if (Platform.isIOS && !isSuperuser) {
+              context.goNamed(WalletRoute.walletHome.name);
+              return;
+            }
+            context.goNamed(ExchangeRoute.exchangeHome.name);
+          },
+          child: ExchangeAuthScreen(returnToCaller: returnToCaller),
+        ),
+      );
+    },
+  );
 }
