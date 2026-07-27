@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bb_mobile/core/mixins/privacy_screen.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/core/widgets/address_viewer.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/dialog/blurred_dialog.dart';
 import 'package:bb_mobile/core/widgets/text/text.dart';
@@ -122,14 +123,16 @@ class _NostrNsecRevealDialogState extends State<NostrNsecRevealDialog>
                 child: CircularProgressIndicator(),
               )
             else
+              // Same presentation as the npub row — truncated value, tap for
+              // the full value, and a QR — so a key's secret and public forms
+              // are read the same way. The difference is the warning gate in
+              // front of this dialog and the privacy/clear-on-exit rules above,
+              // not a different-looking widget.
               ExcludeSemantics(
-                child: SelectableText(
+                child: AddressViewer(
                   nsec,
-                  textAlign: TextAlign.center,
-                  style: context.font.bodyLarge?.copyWith(
-                    color: context.appColors.secondary,
-                    letterSpacing: 1.2,
-                  ),
+                  qrData: nsec,
+                  showExplorerActions: false,
                 ),
               ),
             const Gap(24),
