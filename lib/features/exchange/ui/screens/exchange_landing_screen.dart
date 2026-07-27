@@ -150,7 +150,7 @@ class ExchangeLandingScreen extends StatelessWidget {
                 child: BBButton.big(
                   label: context.loc.exchangeLoginButton,
                   onPressed: () {
-                    context.goNamed(ExchangeRoute.exchangeAuth.name);
+                    context.pushNamed(ExchangeRoute.exchangeAuth.name);
                   },
                   bgColor: context.appColors.primary,
                   textColor: context.appColors.onPrimary,
