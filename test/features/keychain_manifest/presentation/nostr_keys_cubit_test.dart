@@ -54,8 +54,8 @@ void main() {
     final cubit = NostrKeysCubit(facade);
     addTearDown(cubit.close);
 
-    final tooLong = 'n' *
-        (KeychainManifestNostrKeyMaterialization.maxPurposeLength + 1);
+    final tooLong =
+        'n' * (KeychainManifestNostrKeyMaterialization.maxPurposeLength + 1);
     expect(await cubit.create(tooLong), isFalse);
     expect(cubit.state.formError, NostrKeyFormError.nameTooLong);
     expect(facade.createCalls, isEmpty);
@@ -66,53 +66,54 @@ void main() {
     final cubit = NostrKeysCubit(facade);
     addTearDown(cubit.close);
 
-    final tooLong = 'd' *
+    final tooLong =
+        'd' *
         (KeychainManifestNostrKeyMaterialization.maxDescriptionLength + 1);
     expect(await cubit.create('valid name', description: tooLong), isFalse);
     expect(cubit.state.formError, NostrKeyFormError.descriptionTooLong);
     expect(facade.createCalls, isEmpty);
   });
 
-  test('submits a valid name and description and clears the form error',
-      () async {
-    final facade = FakeKeychainManifestFacade();
-    final cubit = NostrKeysCubit(facade);
-    addTearDown(cubit.close);
+  test(
+    'submits a valid name and description and clears the form error',
+    () async {
+      final facade = FakeKeychainManifestFacade();
+      final cubit = NostrKeysCubit(facade);
+      addTearDown(cubit.close);
 
-    expect(await cubit.create(''), isFalse);
-    expect(cubit.state.formError, isNotNull);
+      expect(await cubit.create(''), isFalse);
+      expect(cubit.state.formError, isNotNull);
 
-    expect(
-      await cubit.create('personal identity', description: 'long-form notes'),
-      isTrue,
-    );
+      expect(
+        await cubit.create('personal identity', description: 'long-form notes'),
+        isTrue,
+      );
 
-    expect(cubit.state.formError, isNull);
-    expect(facade.createCalls, [
-      ('personal identity', 'long-form notes'),
-    ]);
-  });
+      expect(cubit.state.formError, isNull);
+      expect(facade.createCalls, [('personal identity', 'long-form notes')]);
+    },
+  );
 
-  test('an edit passes the name and description through to the facade',
-      () async {
-    final record = userKeyRecord();
-    final facade = FakeKeychainManifestFacade(keys: [record]);
-    final cubit = NostrKeysCubit(facade);
-    addTearDown(cubit.close);
+  test(
+    'an edit passes the name and description through to the facade',
+    () async {
+      final record = userKeyRecord();
+      final facade = FakeKeychainManifestFacade(keys: [record]);
+      final cubit = NostrKeysCubit(facade);
+      addTearDown(cubit.close);
 
-    expect(
-      await cubit.updateKey(
-        key: record,
-        name: 'renamed',
-        description: 'new note',
-      ),
-      isTrue,
-    );
+      expect(
+        await cubit.updateKey(
+          key: record,
+          name: 'renamed',
+          description: 'new note',
+        ),
+        isTrue,
+      );
 
-    expect(facade.updateCalls, [
-      (record.entryId, 'renamed', 'new note'),
-    ]);
-  });
+      expect(facade.updateCalls, [(record.entryId, 'renamed', 'new note')]);
+    },
+  );
 
   test('a rejected edit never reaches the facade', () async {
     final record = userKeyRecord();
