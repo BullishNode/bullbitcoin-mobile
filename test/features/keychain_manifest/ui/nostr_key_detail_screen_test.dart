@@ -7,13 +7,27 @@ import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_ro
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'nostr_key_fixtures.dart';
 
+/// The reveal dialog turns the platform screenshot block on and off; stub the
+/// plugin channel so the widget under test runs unchanged.
+const _noScreenshotChannel = MethodChannel(
+  'com.flutterplaza.no_screenshot_methods',
+);
+
 void main() {
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_noScreenshotChannel, (_) async => true);
+  });
+
   tearDown(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_noScreenshotChannel, null);
     await locator.reset();
   });
 
@@ -148,6 +162,61 @@ void main() {
     expect(find.textContaining('DO NOT SHARE WITH ANYONE'), findsOneWidget);
   });
 
+  testWidgets('confirming the warning actually reveals the nsec', (
+    tester,
+  ) async {
+    final record = userKeyRecord();
+    final facade = FakeKeychainManifestFacade(
+      keys: [record],
+      nsec: 'nsec1revealedsecret',
+    );
+    await _pump(tester, facade, record);
+
+    await tester.tap(find.text('Show nsec'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('I understand'));
+    await tester.pumpAndSettle();
+
+    expect(facade.revealCalls, [record.entryId]);
+    expect(find.text('nsec1revealedsecret'), findsOneWidget);
+    expect(find.text('Copy nsec'), findsOneWidget);
+  });
+
+  testWidgets('a system key nsec reveal also reaches the dialog', (
+    tester,
+  ) async {
+    final record = systemKeyRecord();
+    final facade = FakeKeychainManifestFacade(
+      keys: [record],
+      nsec: 'nsec1systemsecret',
+    );
+    await _pump(tester, facade, record);
+
+    await tester.tap(find.text('Show nsec'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('I understand'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('nsec1systemsecret'), findsOneWidget);
+  });
+
+  testWidgets('dismissing the warning without confirming reveals nothing', (
+    tester,
+  ) async {
+    final record = userKeyRecord();
+    final facade = FakeKeychainManifestFacade(keys: [record]);
+    await _pump(tester, facade, record);
+
+    await tester.tap(find.text('Show nsec'));
+    await tester.pumpAndSettle();
+    // Tap the barrier to dismiss the sheet instead of confirming.
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    expect(facade.revealCalls, isEmpty);
+    expect(find.textContaining('nsec1'), findsNothing);
+  });
+
   testWidgets('the edit affordance opens the form prefilled', (tester) async {
     final record = userKeyRecord(description: 'long-form notes');
     await _pump(tester, FakeKeychainManifestFacade(keys: [record]), record);
@@ -204,9 +273,6 @@ Future<void> _pump(
     ),
   );
   await tester.pumpAndSettle();
-  router.pushNamed(
-    KeychainManifestRoutes.nostrKeyDetailName,
-    extra: record,
-  );
+  router.pushNamed(KeychainManifestRoutes.nostrKeyDetailName, extra: record);
   await tester.pumpAndSettle();
 }

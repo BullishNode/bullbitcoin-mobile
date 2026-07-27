@@ -17375,7 +17375,7 @@
   "@settingsNostrKeysEmpty": {
     "description": "Empty Nostr keys screen message"
   },
-  "settingsNostrKeysCreate": "Create Nostr key",
+  "settingsNostrKeysCreate": "Create nostr key",
   "@settingsNostrKeysCreate": {
     "description": "Button to create a user Nostr key"
   },

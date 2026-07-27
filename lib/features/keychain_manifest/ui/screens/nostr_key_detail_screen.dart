@@ -80,6 +80,11 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
     required bool isSystem,
   }) async {
     final cubit = context.read<NostrKeysCubit>();
+    // WarningBottomSheet runs onConfirm and THEN pops itself, so a route
+    // pushed from inside onConfirm becomes the top route and is what that pop
+    // closes — the dialog would vanish on the frame it appeared. Record the
+    // choice instead, let the sheet finish closing, then present.
+    var confirmed = false;
     await WarningBottomSheet.show(
       context,
       title: isSystem
@@ -89,9 +94,10 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
           ? context.loc.settingsNostrKeysSystemNsecWarningMessage
           : context.loc.settingsNostrKeysUserNsecWarningMessage,
       confirmLabel: context.loc.settingsNostrKeysWarningUnderstand,
-      onConfirm: () =>
-          NostrNsecRevealDialog.show(context, cubit: cubit, record: record),
+      onConfirm: () => confirmed = true,
     );
+    if (!confirmed || !mounted) return;
+    await NostrNsecRevealDialog.show(context, cubit: cubit, record: record);
   }
 
   void _showFailure() {
