@@ -13,6 +13,7 @@ import 'package:bb_mobile/features/keychain_manifest/presentation/nostr_keys_cub
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_routes.dart';
 import 'package:bb_mobile/features/keychain_manifest/ui/widgets/nostr_nsec_reveal_dialog.dart';
+import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -60,6 +61,8 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
       extra: record,
     );
     if (!mounted || updated != true) return;
+    await context.read<NostrKeysCubit>().load();
+    if (!mounted) return;
     SnackBarUtils.showSnackBar(context, context.loc.settingsNostrKeysUpdated);
   }
 
@@ -75,10 +78,7 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
     );
   }
 
-  Future<void> _revealNsec(
-    KeychainManifestNostrKeyRecord record, {
-    required bool isSystem,
-  }) async {
+  Future<void> _revealNsec(KeychainManifestNostrKeyRecord record) async {
     final cubit = context.read<NostrKeysCubit>();
     // WarningBottomSheet runs onConfirm and THEN pops itself, so a route
     // pushed from inside onConfirm becomes the top route and is what that pop
@@ -87,17 +87,17 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
     var confirmed = false;
     await WarningBottomSheet.show(
       context,
-      title: isSystem
-          ? context.loc.settingsNostrKeysSystemNsecWarningTitle
-          : context.loc.settingsNostrKeysUserNsecWarningTitle,
-      message: isSystem
-          ? context.loc.settingsNostrKeysSystemNsecWarningMessage
-          : context.loc.settingsNostrKeysUserNsecWarningMessage,
+      title: context.loc.settingsNostrKeysUserNsecWarningTitle,
+      message: context.loc.settingsNostrKeysUserNsecWarningMessage,
       confirmLabel: context.loc.settingsNostrKeysWarningUnderstand,
       onConfirm: () => confirmed = true,
     );
     if (!confirmed || !mounted) return;
-    await NostrNsecRevealDialog.show(context, cubit: cubit, record: record);
+    await locator<NostrNsecRevealPresenter>().show(
+      context,
+      cubit: cubit,
+      record: record,
+    );
   }
 
   void _showFailure() {
@@ -118,6 +118,8 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
           final npub = NostrPublicKeyEncoding.npubFromPublicKeyHex(
             materialization.publicKeyHex,
           );
+          // A user key's own words; localized role copy for an app-owned one.
+          final descriptionText = record.descriptionText(context);
           return Scaffold(
             appBar: AppBar(
               title: Text(context.loc.settingsNostrKeysDetailTitle),
@@ -132,10 +134,10 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
                         label: context.loc.settingsNostrKeysName,
                         displayValue: record.displayName(context),
                       ),
-                      if (materialization.description != null)
+                      if (descriptionText != null)
                         DetailsTableItem(
                           label: context.loc.settingsNostrKeysDescription,
-                          displayValue: materialization.description,
+                          displayValue: descriptionText,
                         ),
                       DetailsTableItem(
                         label: context.loc.settingsNostrKeysDerivationPath,
@@ -160,18 +162,19 @@ class _NostrKeyDetailScreenState extends State<NostrKeyDetailScreen> {
                       bgColor: context.appColors.secondary,
                       textColor: context.appColors.onSecondary,
                     ),
-                  const Gap(16),
-                  BBButton.big(
-                    label: context.loc.settingsNostrKeysShowPrivate,
-                    iconData: Icons.visibility,
-                    iconFirst: true,
-                    onPressed: () =>
-                        _revealNsec(record, isSystem: display.isSystem),
-                    outlined: true,
-                    bgColor: context.appColors.transparent,
-                    textColor: context.appColors.onSurface,
-                    borderColor: context.appColors.outline,
-                  ),
+                  if (!display.isSystem) ...[
+                    const Gap(16),
+                    BBButton.big(
+                      label: context.loc.settingsNostrKeysShowPrivate,
+                      iconData: Icons.visibility,
+                      iconFirst: true,
+                      onPressed: () => _revealNsec(record),
+                      outlined: true,
+                      bgColor: context.appColors.transparent,
+                      textColor: context.appColors.onSurface,
+                      borderColor: context.appColors.outline,
+                    ),
+                  ],
                 ],
               ),
             ),

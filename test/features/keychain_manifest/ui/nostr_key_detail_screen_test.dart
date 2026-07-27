@@ -43,6 +43,8 @@ void main() {
     expect(find.textContaining(userPublicKeyHex), findsNothing);
     expect(find.textContaining('ababab'), findsNothing);
     expect(find.text('personal identity'), findsOneWidget);
+    // A user key keeps showing what the user stored, not any generated copy.
+    expect(find.text('Description'), findsOneWidget);
     expect(find.text('long-form notes'), findsOneWidget);
     expect(find.text("128002'/1'/1'"), findsOneWidget);
   });
@@ -52,6 +54,66 @@ void main() {
     await _pump(tester, FakeKeychainManifestFacade(keys: [record]), record);
 
     expect(find.text('Description'), findsNothing);
+  });
+
+  testWidgets('each system role explains itself in the description row', (
+    tester,
+  ) async {
+    const expected = {
+      "128002'/100'/1'": (
+        'nostr_wallet_backup_key',
+        'Identifies and signs your encrypted metadata backup so the app can '
+            'find and restore it. Managed automatically — you never need to '
+            'use this key yourself.',
+      ),
+      "128002'/101'/1'": (
+        'nostr_bullnym_server_auth_key',
+        'Authenticates this wallet to the Bull Bitcoin payment server for '
+            'your Lightning address, invoices, Payment Page and Point of '
+            'Sale. Managed automatically — you never need to use this key '
+            'yourself.',
+      ),
+      "128002'/102'/1'": (
+        'nostr_nip05_public_nym_verification_key',
+        'Reserved for verifying your payment name publicly over Nostr. Not '
+            'used by the app yet — it exists so a future version can enable '
+            'verification without changing your keys.',
+      ),
+    };
+
+    for (final entry in expected.entries) {
+      final (reservationId, copy) = entry.value;
+      final record = systemKeyRecord(
+        path: entry.key,
+        reservationId: reservationId,
+      );
+      await _pump(tester, FakeKeychainManifestFacade(keys: [record]), record);
+
+      expect(find.text('Description'), findsOneWidget);
+      expect(find.text(copy), findsOneWidget, reason: 'for ${entry.key}');
+
+      await locator.reset();
+    }
+  });
+
+  testWidgets('localized system copy wins over a stored description', (
+    tester,
+  ) async {
+    // Reserved rows are written with a null description by design; if one ever
+    // carried stored text, the role copy must still be what the user reads.
+    final record = systemKeyRecord(
+      purpose: 'whatever was stored',
+      description: 'stored description that must not surface',
+    );
+    await _pump(tester, FakeKeychainManifestFacade(keys: [record]), record);
+
+    expect(find.text('Metadata backup'), findsOneWidget);
+    expect(find.text('whatever was stored'), findsNothing);
+    expect(find.text('stored description that must not surface'), findsNothing);
+    expect(
+      find.textContaining('Identifies and signs your encrypted metadata'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a user npub opens the shared address viewer with a QR', (

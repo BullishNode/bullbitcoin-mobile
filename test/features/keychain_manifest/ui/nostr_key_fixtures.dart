@@ -1,4 +1,5 @@
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
+import 'package:bb_mobile/features/keychain_manifest/presentation/nostr_keys_cubit.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 
 const parentFingerprint = '73c5da0a';
@@ -46,6 +47,9 @@ KeychainManifestNostrKeyRecord systemKeyRecord({
   String reservationId = 'nostr_wallet_backup_key',
   String purpose = 'Nostr Wallet Backup',
   String publicKeyHex = systemPublicKeyHex,
+  // Reserved rows are recorded with a null description; this exists so a test
+  // can prove localized role copy wins even if one somehow carried text.
+  String? description,
 }) {
   final segments = path.split('/');
   final entry = KeychainManifestEntry(
@@ -68,6 +72,7 @@ KeychainManifestNostrKeyRecord systemKeyRecord({
       publicKeyHex: publicKeyHex,
       keyKind: KeychainManifestNostrKeyKind.reserved,
       purpose: purpose,
+      description: description,
       createdAt: 1,
       updatedAt: 1,
     ),
@@ -80,11 +85,13 @@ final class FakeKeychainManifestFacade implements KeychainManifestFacade {
   FakeKeychainManifestFacade({
     List<KeychainManifestNostrKeyRecord> keys = const [],
     this.failing = false,
+    this.error,
     this.nsec = 'nsec1fake',
   }) : keys = List.of(keys);
 
   final List<KeychainManifestNostrKeyRecord> keys;
   final bool failing;
+  final Object? error;
   final String nsec;
 
   final createCalls = <(String, String?)>[];
@@ -94,7 +101,7 @@ final class FakeKeychainManifestFacade implements KeychainManifestFacade {
   @override
   Future<List<KeychainManifestNostrKeyRecord>>
   getDefaultWalletNostrKeys() async {
-    if (failing) throw StateError('listing failed');
+    _throwIfNeeded('listing failed');
     return List.unmodifiable(keys);
   }
 
@@ -105,7 +112,7 @@ final class FakeKeychainManifestFacade implements KeychainManifestFacade {
     DateTime? now,
   }) async {
     createCalls.add((purpose, description));
-    if (failing) throw StateError('create failed');
+    _throwIfNeeded('create failed');
     final created = userKeyRecord(
       purpose: purpose,
       description: description,
@@ -130,7 +137,7 @@ final class FakeKeychainManifestFacade implements KeychainManifestFacade {
     DateTime? now,
   }) async {
     updateCalls.add((entryId, purpose, description));
-    if (failing) throw StateError('update failed');
+    _throwIfNeeded('update failed');
     final index = keys.indexWhere((key) => key.entryId == entryId);
     if (index == -1) return;
     final stored = keys[index].nostrKeyMaterialization;
@@ -148,15 +155,27 @@ final class FakeKeychainManifestFacade implements KeychainManifestFacade {
     );
   }
 
-  @override
   Future<String> revealNostrKeyNsec(
     KeychainManifestNostrKeyRecord record,
   ) async {
     revealCalls.add(record.entryId);
-    if (failing) throw StateError('reveal failed');
+    _throwIfNeeded('reveal failed');
     return nsec;
+  }
+
+  void _throwIfNeeded(String message) {
+    final programmerError = error;
+    if (programmerError != null) throw programmerError;
+    if (failing) throw Exception(message);
   }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+NostrKeysCubit nostrKeysCubitForTest(FakeKeychainManifestFacade facade) =>
+    NostrKeysCubit(
+      loadKeys: facade.getDefaultWalletNostrKeys,
+      createKey: facade.createUserNostrKey,
+      updateKey: facade.updateNostrKey,
+    );
