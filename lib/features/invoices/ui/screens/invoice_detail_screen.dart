@@ -10,8 +10,8 @@ import 'package:bb_mobile/core/widgets/timers/countdown.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_detail_cubit.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_detail_state.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_failure_l10n.dart';
+import 'package:bb_mobile/features/invoices/public/invoice_copy.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
-import 'package:bb_mobile/features/invoices/ui/widgets/invoice_list_item.dart';
 import 'package:bb_mobile/features/invoices/ui/widgets/private_invoice_link_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -98,7 +98,7 @@ class InvoiceDetailScreen extends StatelessWidget {
           _row(
             context,
             context.loc.invoiceAmountLabel,
-            _faceAmountText(context, snapshot),
+            invoiceFaceAmountText(context, snapshot),
           ),
           // The R1 invoice-creation reference rate, shown only for a fiat-priced
           // invoice that carries it. Approximate (a reference index, not an
@@ -257,7 +257,7 @@ class InvoiceDetailScreen extends StatelessWidget {
           children: [
             for (final rail in rails)
               ChoiceChip(
-                label: Text(_paymentRailTitle(context, rail)),
+                label: Text(invoicePaymentRailTitle(context, rail)),
                 selected: selected == rail,
                 onSelected: state.quoteRefreshing
                     ? null
@@ -337,10 +337,10 @@ class InvoiceDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_paymentRailTitle(context, payment.rail)),
+          Text(invoicePaymentRailTitle(context, payment.rail)),
           const Gap(4),
           Text(
-            _paymentEventStateText(context, payment),
+            invoicePaymentEventStateText(context, payment),
             style: context.font.bodySmall?.copyWith(
               color: context.appColors.textMuted,
             ),
@@ -367,45 +367,6 @@ class InvoiceDetailScreen extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _paymentRailTitle(BuildContext context, PaymentMethod rail) {
-    return switch (rail) {
-      PaymentMethod.btc => context.loc.invoicePaymentEventBitcoinTitle,
-      PaymentMethod.lightning => context.loc.invoicePaymentEventLightningTitle,
-      PaymentMethod.liquid => context.loc.invoicePaymentEventLiquidTitle,
-    };
-  }
-
-  String _paymentEventStateText(
-    BuildContext context,
-    InvoicePaymentEvent payment,
-  ) {
-    if (payment.state == InvoicePaymentEventState.problem) {
-      return switch (payment.problem) {
-        InvoicePaymentProblem.evicted =>
-          context.loc.invoicePaymentProblemEvicted,
-        InvoicePaymentProblem.reorged =>
-          context.loc.invoicePaymentProblemReorged,
-        InvoicePaymentProblem.conflicted =>
-          context.loc.invoicePaymentProblemConflicted,
-        InvoicePaymentProblem.replaced =>
-          context.loc.invoicePaymentProblemReplaced,
-        InvoicePaymentProblem.unknown ||
-        null => context.loc.invoicePaymentProblemUnknown,
-      };
-    }
-    return switch (payment.state) {
-      InvoicePaymentEventState.pending =>
-        payment.rail == PaymentMethod.btc
-            ? context.loc.invoicePaymentSeenMempool
-            : context.loc.invoiceSettlementPending,
-      InvoicePaymentEventState.confirming =>
-        context.loc.invoicePaymentConfirmations(payment.confirmations),
-      InvoicePaymentEventState.settled => context.loc.invoiceSettlementComplete,
-      InvoicePaymentEventState.problem =>
-        context.loc.invoicePaymentProblemUnknown,
-    };
   }
 
   Widget _fallbackBlock(
@@ -478,24 +439,6 @@ class InvoiceDetailScreen extends StatelessWidget {
               ),
       ],
     );
-  }
-
-  /// The invoice face amount. Fiat-priced invoices headline their fiat face
-  /// value (the locked sat target is 0 on the row, so it must never render as
-  /// "0 sats"); sat-priced invoices headline the sat target.
-  String _faceAmountText(BuildContext context, InvoiceStatusSnapshot snapshot) {
-    if (snapshot.hasFiatFace) {
-      // Bull Bitcoin fiat currencies use 2-decimal minor units, matching the
-      // app's fixed 2-decimal fiat rendering.
-      return FormatAmount.fiat(
-        snapshot.fiatAmountMinor! / 100,
-        snapshot.fiatCurrency!,
-      );
-    }
-    if (snapshot.amountSat > 0) {
-      return context.loc.invoiceAmountSats(snapshot.amountSat);
-    }
-    return context.loc.invoiceAmountUnavailable;
   }
 
   Widget _row(BuildContext context, String label, String value) {

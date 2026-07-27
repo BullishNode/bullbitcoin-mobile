@@ -42,6 +42,7 @@ GetPaidFiatSettlementLeg _fiatLeg(BullnymFiatSettlementLeg leg) =>
 GetPaidBitcoinSettlementLeg _bitcoinLeg(BullnymBitcoinSettlementLeg leg) =>
     GetPaidBitcoinSettlementLeg(
       amountSat: leg.amountSat,
+      network: leg.network,
       status: _legStatus(leg.status),
     );
 
@@ -66,6 +67,8 @@ GetPaidFiatOverrideReason _overrideReason(
     GetPaidFiatOverrideReason.invalidSplit,
   BullnymFiatConversionOverrideReason.conversionUnavailable =>
     GetPaidFiatOverrideReason.conversionUnavailable,
+  BullnymFiatConversionOverrideReason.ambiguousCreate =>
+    GetPaidFiatOverrideReason.ambiguousCreate,
   BullnymFiatConversionOverrideReason.unknown =>
     GetPaidFiatOverrideReason.unknown,
 };

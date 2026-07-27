@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/tables/details_table.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
@@ -39,11 +40,16 @@ GetPaidSettlement _fiat({
       amountMinor: amountMinor,
       quotedAmountMinor: quotedAmountMinor,
       currency: 'CAD',
-      orderId: '40000000-0000-4000-8000-000000000009',
+      orderId: _orderId,
       status: status,
     ),
   ],
 );
+
+const _orderId = '40000000-0000-4000-8000-000000000009';
+
+/// The in-table rendering of a long identifier (truncated; copied in full).
+String _truncated(String value) => StringFormatting.truncateMiddle(value);
 
 Widget _app(Widget home) => MaterialApp(
   theme: AppTheme.themeData(AppThemeType.light),
@@ -65,18 +71,21 @@ Future<void> _pumpDetail(
 
 void main() {
   group('detail settlement section', () {
-    testWidgets('every field renders as a row of the single details table', (
+    testWidgets('every field renders as a row of a titled section table', (
       tester,
     ) async {
       await _pumpDetail(tester, _tx(settlement: _fiat()));
 
-      // One table holds everything — no second card, no loose boxed order-id
-      // field below it.
-      expect(find.byType(DetailsTable), findsOneWidget);
+      // Two titled sections here — the entry's core facts and the settlement
+      // breakdown — and still no loose boxed order-id field below them.
+      expect(find.byType(DetailsTable), findsNWidgets(2));
       expect(find.byType(CopyInput), findsNothing);
-      // Base rows and the fiat leg rows live in the same table.
+      expect(find.text('Details'), findsOneWidget);
+      expect(find.text('Settlement'), findsOneWidget);
+      // The fiat leg rows live in the settlement section's table; the long order
+      // id is truncated in place and copied in full.
       expect(find.text('Bull Bitcoin order ID'), findsOneWidget);
-      expect(find.text('40000000-0000-4000-8000-000000000009'), findsOneWidget);
+      expect(find.text(_truncated(_orderId)), findsOneWidget);
     });
 
     testWidgets('renders a settled fiat leg with amount, status and order id', (
@@ -85,7 +94,7 @@ void main() {
       await _pumpDetail(tester, _tx(settlement: _fiat()));
       expect(find.text('123.45 CAD'), findsOneWidget);
       expect(find.text('Settled'), findsWidgets);
-      expect(find.text('40000000-0000-4000-8000-000000000009'), findsOneWidget);
+      expect(find.text(_truncated(_orderId)), findsOneWidget);
     });
 
     testWidgets(
@@ -100,6 +109,7 @@ void main() {
               bitcoin: const [
                 GetPaidBitcoinSettlementLeg(
                   amountSat: 60000,
+                  network: 'liquid',
                   status: GetPaidSettlementLegStatus.problem,
                 ),
               ],
@@ -178,6 +188,12 @@ void main() {
         findsOneWidget,
       );
 
+      await pumpOverride(GetPaidFiatOverrideReason.ambiguousCreate);
+      expect(
+        find.textContaining('conversion attempt could not be confirmed'),
+        findsOneWidget,
+      );
+
       await pumpOverride(GetPaidFiatOverrideReason.unknown);
       expect(find.textContaining('could not be applied'), findsOneWidget);
     });
@@ -194,7 +210,7 @@ void main() {
       expect(find.text('Settlement details unavailable'), findsOneWidget);
     });
 
-    testWidgets('plain bitcoin with no override shows no settlement rows', (
+    testWidgets('plain bitcoin states the kind and explains nothing more', (
       tester,
     ) async {
       await _pumpDetail(
@@ -205,6 +221,10 @@ void main() {
           ),
         ),
       );
+      // The server's classification is stated instead of being conveyed by an
+      // absent section.
+      expect(find.text('Settled as'), findsOneWidget);
+      expect(find.text('Bitcoin'), findsOneWidget);
       // The "Fiat conversion" row is only rendered when there is something to
       // explain.
       expect(find.text('Fiat conversion'), findsNothing);
@@ -260,6 +280,7 @@ void main() {
             bitcoin: const [
               GetPaidBitcoinSettlementLeg(
                 amountSat: 60000,
+                network: 'liquid',
                 status: GetPaidSettlementLegStatus.settled,
               ),
             ],
@@ -297,7 +318,10 @@ void main() {
         ),
       );
       expect(find.text('Invoice ID'), findsOneWidget);
-      expect(find.text('50000000-0000-4000-8000-000000000005'), findsOneWidget);
+      expect(
+        find.text(_truncated('50000000-0000-4000-8000-000000000005')),
+        findsOneWidget,
+      );
       // The row carries the copy affordance (same idiom as the order-id row).
       expect(find.byIcon(Icons.copy_outlined), findsWidgets);
     });
@@ -326,6 +350,7 @@ void main() {
         bitcoin: const [
           GetPaidBitcoinSettlementLeg(
             amountSat: 60000,
+            network: 'liquid',
             status: GetPaidSettlementLegStatus.settled,
           ),
         ],
@@ -335,7 +360,7 @@ void main() {
             quotedAmountMinor: 12345,
             executionRateMinorPerBtc: executionRateMinorPerBtc,
             currency: 'CAD',
-            orderId: '40000000-0000-4000-8000-000000000009',
+            orderId: _orderId,
             status: GetPaidSettlementLegStatus.settled,
           ),
         ],
@@ -406,7 +431,7 @@ void main() {
                   // A pending leg never carries R2, even if the payload had one.
                   executionRateMinorPerBtc: null,
                   currency: 'CAD',
-                  orderId: '40000000-0000-4000-8000-000000000009',
+                  orderId: _orderId,
                   status: GetPaidSettlementLegStatus.pending,
                 ),
               ],
