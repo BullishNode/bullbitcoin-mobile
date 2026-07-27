@@ -10,7 +10,6 @@ import 'package:bb_mobile/core/widgets/text/text.dart';
 import 'package:bb_mobile/features/keychain_manifest/presentation/nostr_keys_cubit.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 
@@ -81,13 +80,6 @@ class _NostrNsecRevealDialogState extends State<NostrNsecRevealDialog>
     setState(() => _nsec = nsec);
   }
 
-  Future<void> _copy() async {
-    final nsec = _nsec;
-    if (nsec == null) return;
-    _clearAndDismiss();
-    await Clipboard.setData(ClipboardData(text: nsec));
-  }
-
   void _clearAndDismiss() {
     if (!mounted || _dismissQueued) return;
     _dismissQueued = true;
@@ -136,17 +128,9 @@ class _NostrNsecRevealDialogState extends State<NostrNsecRevealDialog>
                 ),
               ),
             const Gap(24),
-            if (nsec != null) ...[
-              BBButton.big(
-                label: context.loc.settingsNostrKeysCopy,
-                iconData: Icons.copy,
-                iconFirst: true,
-                onPressed: _copy,
-                bgColor: context.appColors.primary,
-                textColor: context.appColors.onPrimary,
-              ),
-              const Gap(12),
-            ],
+            // No separate copy action: tapping the value above opens the same
+            // full-value/QR view the npub uses, which carries its own copy
+            // control. A second button would duplicate it.
             BBButton.big(
               label: MaterialLocalizations.of(context).closeButtonLabel,
               onPressed: _clearAndDismiss,

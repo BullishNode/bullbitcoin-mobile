@@ -1,9 +1,11 @@
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/widgets/address_viewer.dart';
 import 'package:bb_mobile/core/widgets/qr_display_widget.dart';
 import 'package:bb_mobile/features/keychain_manifest/presentation/nostr_keys_cubit.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_routes.dart';
+import 'package:bb_mobile/features/keychain_manifest/ui/widgets/nostr_nsec_reveal_dialog.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
@@ -241,7 +243,18 @@ void main() {
 
     expect(facade.revealCalls, [record.entryId]);
     expect(find.text('nsec1revealedsecret'), findsOneWidget);
-    expect(find.text('Copy nsec'), findsOneWidget);
+    // The nsec uses the SAME presentation as the npub — an AddressViewer whose
+    // own full-value/QR view carries the copy control — so the dialog must not
+    // add a second, duplicate copy button of its own. (Two viewers are in the
+    // tree: the npub row behind the dialog, and the nsec inside it.)
+    expect(
+      find.descendant(
+        of: find.byType(NostrNsecRevealDialog),
+        matching: find.byType(AddressViewer),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Copy nsec'), findsNothing);
   });
 
   testWidgets('a system key nsec reveal also reaches the dialog', (
