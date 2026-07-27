@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
@@ -218,7 +219,7 @@ void main() {
     },
   );
 
-  testWidgets('row opens detail, where comment and invoice link are explicit', (
+  testWidgets('row opens detail, where the comment and both ids are explicit', (
     tester,
   ) async {
     final transaction = _transaction(
@@ -284,15 +285,21 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('private payer note'), findsOneWidget);
-    expect(find.text(transaction.transactionId), findsNothing);
-    // Batch 2: an invoice-sourced payment now surfaces its invoice id as a
-    // copyable detail row (the internal transaction id remains hidden above).
-    expect(find.text(transaction.invoiceId!), findsOneWidget);
-    await tester.tap(find.text('View invoice'));
-    await tester.pumpAndSettle();
-    expect(find.text('invoice-${transaction.invoiceId}'), findsOneWidget);
-    // The route carries only the invoice id (a UUID), never the private-link
-    // fragment — nothing resembling a #v1. link string reaches the router.
+    // Both server ids are copyable rows of the card: the entry's receipt id and
+    // the invoice it belongs to. Long identifiers are truncated in place.
+    expect(
+      find.text(StringFormatting.truncateMiddle(transaction.transactionId)),
+      findsOneWidget,
+    );
+    expect(
+      find.text(StringFormatting.truncateMiddle(transaction.invoiceId!)),
+      findsOneWidget,
+    );
+    // The card IS the invoice: there is no action linking out to a second
+    // invoice screen, and that route is never reached.
+    expect(find.text('View invoice'), findsNothing);
+    expect(find.text('invoice-${transaction.invoiceId}'), findsNothing);
+    // Nothing resembling a private-link fragment is rendered.
     expect(find.textContaining('#v1.'), findsNothing);
   });
 
@@ -419,8 +426,8 @@ void main() {
 
       // Incoming Lightning Address payments have no funding wallet (report #12).
       expect(find.textContaining('From wallet'), findsNothing);
-      // Nothing fabricated: no fees, sender, explorer links, txid, hashes, or
-      // confirmations — the entity carries none of these.
+      // Nothing fabricated: no fees, sender, explorer links, chain txid, hashes,
+      // or confirmations — the entity carries none of these.
       for (final forbidden in const [
         'Fee',
         'Sender',
@@ -432,8 +439,14 @@ void main() {
       ]) {
         expect(find.textContaining(forbidden), findsNothing);
       }
-      // The receipt UUID is never surfaced as a chain txid.
-      expect(find.textContaining(transaction.transactionId), findsNothing);
+      // The server's own id for the entry IS shown — labelled as the Bull
+      // Bitcoin receipt id, never as a chain transaction id (the forbidden
+      // 'Transaction ID' label above still finds nothing).
+      expect(find.text('Receipt ID'), findsOneWidget);
+      expect(
+        find.text(StringFormatting.truncateMiddle(transaction.transactionId)),
+        findsOneWidget,
+      );
     },
   );
 
@@ -446,5 +459,6 @@ void main() {
     await tester.pump();
 
     expect(find.text('View invoice'), findsNothing);
+    expect(find.byIcon(Icons.receipt_long), findsNothing);
   });
 }

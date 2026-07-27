@@ -6,6 +6,7 @@ import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_list_cubit.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_list_state.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_failure_l10n.dart';
+import 'package:bb_mobile/features/invoices/public/invoice_copy.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
 import 'package:bb_mobile/features/invoices/ui/widgets/invoice_list_item.dart';

@@ -21,6 +21,10 @@ enum GetPaidFiatOverrideReason {
   belowMinimum,
   invalidSplit,
   conversionUnavailable,
+
+  /// A conversion attempt whose outcome the server could not confirm, so the
+  /// funds stayed in Bitcoin.
+  ambiguousCreate,
   unknown,
 }
 
@@ -52,10 +56,16 @@ class GetPaidFiatSettlementLeg {
 /// The Bitcoin-wallet portion of a mixed settlement.
 class GetPaidBitcoinSettlementLeg {
   final int amountSat;
+
+  /// The server-named network this leg settles on (version one settles Bitcoin
+  /// legs on Liquid only; the strict parser rejects any other value, so an
+  /// unrecognized network never reaches here as a definite leg).
+  final String network;
   final GetPaidSettlementLegStatus status;
 
   const GetPaidBitcoinSettlementLeg({
     required this.amountSat,
+    required this.network,
     required this.status,
   });
 }

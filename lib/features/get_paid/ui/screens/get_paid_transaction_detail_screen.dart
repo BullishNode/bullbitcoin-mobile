@@ -1,23 +1,73 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/core/widgets/tables/details_table.dart';
 import 'package:bb_mobile/core/widgets/tables/details_table_item.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_creation_rate.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_history_screen.dart';
-import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
+import 'package:bb_mobile/features/invoices/public/invoice_copy.dart';
+import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
+import 'package:bb_mobile/locator.dart';
 import 'package:bull_ui/bull_ui.dart';
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class GetPaidTransactionDetailScreen extends StatelessWidget {
+/// The one detail screen for a Get Paid entry. There is no such thing as a
+/// separate "payment": an entry IS its invoice, so everything the server knows
+/// about it lives here — the entry's own facts, the private settlement
+/// breakdown, the invoice's state and history, and the payer instructions it
+/// carried. The screen never links out to a second invoice screen.
+///
+/// Organised, not redundant: each fact appears exactly ONCE, in the section it
+/// belongs to, and bulky payer payloads stay collapsed behind the details
+/// table's expand affordance so the card remains scannable while withholding
+/// nothing.
+class GetPaidTransactionDetailScreen extends StatefulWidget {
   final GetPaidTransaction transaction;
 
   const GetPaidTransactionDetailScreen({super.key, required this.transaction});
 
   @override
+  State<GetPaidTransactionDetailScreen> createState() =>
+      _GetPaidTransactionDetailScreenState();
+}
+
+class _GetPaidTransactionDetailScreenState
+    extends State<GetPaidTransactionDetailScreen> {
+  /// The entry's own invoice state, once read. Null means there are no invoice
+  /// facts to show: no invoice id, the invoices feature is not registered
+  /// (isolated widget tests), or the read failed. The card then renders exactly
+  /// as it did before the invoice sections existed — no placeholders, no error.
+  InvoiceStatusSnapshot? _invoice;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInvoice();
+  }
+
+  Future<void> _loadInvoice() async {
+    final invoiceId = widget.transaction.invoiceId;
+    if (invoiceId == null) return;
+    // Locator-guarded like FiatSettlementEntryTile: the screen depends only on
+    // the service locator and stays inert where it is not registered.
+    if (!locator.isRegistered<InvoicesFacade>()) return;
+    try {
+      final result = await locator<InvoicesFacade>().status(
+        InvoiceId(invoiceId),
+      );
+      if (!mounted) return;
+      if (result case Ok(:final value)) setState(() => _invoice = value);
+    } catch (_) {
+      // A read that throws leaves the card invoice-less; never an error dump.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final colors = context.bull;
+    final transaction = widget.transaction;
+    final invoice = _invoice;
     return BullScaffold(
       body: SafeArea(
         bottom: false,
@@ -39,88 +89,53 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: context.bullText.headlineLarge,
                   ),
-                  const Gap(24),
-                  DetailsTable(
-                    items: [
-                      DetailsTableItem(
-                        label: context.loc.getPaidTransactionsSourceLabel,
-                        displayValue: getPaidTransactionSourceText(
-                          context,
-                          transaction.source,
-                        ),
-                      ),
-                      DetailsTableItem(
-                        label: context.loc.getPaidTransactionsReceivedLabel,
-                        displayValue: getPaidTransactionDateText(
-                          context,
-                          transaction.receivedAt,
-                        ),
-                      ),
-                      DetailsTableItem(
-                        label: context.loc.getPaidTransactionsRailLabel,
-                        displayValue: getPaidTransactionRailText(
-                          context,
-                          transaction.rail,
-                        ),
-                      ),
-                      DetailsTableItem(
-                        label: context.loc.getPaidTransactionsStatusLabel,
-                        displayValue: getPaidSettlementStateText(
-                          context,
-                          transaction.settlementState,
-                        ),
-                      ),
-                      if (transaction.late)
-                        DetailsTableItem(
-                          label: context.loc.getPaidTransactionsTimingLabel,
-                          displayWidget: Text(
-                            context.loc.getPaidTransactionsLate,
-                            textAlign: TextAlign.end,
-                            style: context.bullText.bodyLarge?.copyWith(
-                              color: colors.warning,
-                            ),
-                          ),
-                        ),
-                      // Invoice-sourced payments expose a copyable invoice id
-                      // (same copy idiom as the order-id row); Lightning Address
-                      // payments have none and show no row.
-                      if (transaction.invoiceId case final invoiceId?)
-                        DetailsTableItem(
-                          key: const ValueKey(
-                            'get-paid-transaction-invoice-id',
-                          ),
-                          label: context.loc.getPaidTransactionsInvoiceIdLabel,
-                          displayValue: invoiceId,
-                          copyValue: invoiceId,
-                        ),
-                      // The private, merchant-only fiat settlement breakdown
-                      // shares the same table: no rows for a plain Bitcoin
-                      // payment, the override explanation when kept in Bitcoin,
-                      // and an explicit "unavailable" row for anything
-                      // uninterpretable — never a misleading Bitcoin-only view.
-                      ..._settlementRows(context, transaction.settlement),
-                      if (transaction.comment case final comment?)
-                        DetailsTableItem(
-                          key: const ValueKey('get-paid-transaction-comment'),
-                          label: context.loc.getPaidTransactionsCommentLabel,
-                          displayValue: comment,
-                        ),
-                    ],
+                  // The entry's own facts.
+                  ..._section(
+                    context,
+                    title: context.loc.getPaidCardDetailsSectionTitle,
+                    sectionKey: const ValueKey('get-paid-core-facts-section'),
+                    rows: _coreFactRows(context, transaction),
                   ),
-                  if (transaction.invoiceId case final invoiceId?) ...[
-                    const Gap(32),
-                    BullButton.big(
-                      label: context.loc.getPaidTransactionsViewInvoice,
-                      iconData: Icons.receipt_long,
-                      iconFirst: true,
-                      onPressed: () => context.pushNamed(
-                        InvoicesRoute.detail.name,
-                        pathParameters: {'id': invoiceId},
-                      ),
-                      bgColor: colors.primary,
-                      textColor: colors.onPrimary,
+                  // The private, merchant-only settlement breakdown.
+                  ..._section(
+                    context,
+                    title: context.loc.getPaidCardSettlementSectionTitle,
+                    sectionKey: const ValueKey('get-paid-settlement-section'),
+                    rows: _settlementRows(context, transaction.settlement),
+                  ),
+                  // The invoice's own state, merged into this card rather than
+                  // hidden behind a second screen.
+                  ..._section(
+                    context,
+                    title: context.loc.invoiceDetailTitle,
+                    sectionKey: const ValueKey('get-paid-invoice-section'),
+                    rows: invoice == null
+                        ? const []
+                        : _invoiceRows(context, invoice, transaction),
+                  ),
+                  // Everything that happened, one compact row per observation.
+                  ..._section(
+                    context,
+                    title: context.loc.invoicePaymentHistoryTitle,
+                    sectionKey: const ValueKey(
+                      'get-paid-invoice-payment-events',
                     ),
-                  ],
+                    rows: invoice == null
+                        ? const []
+                        : _paymentEventRows(context, invoice.paymentEvents),
+                  ),
+                  // Last, and collapsed: the payer-facing instructions the
+                  // invoice carried. Kept for completeness, not for scanning.
+                  ..._section(
+                    context,
+                    title: context.loc.getPaidCardPayerInstructionsSectionTitle,
+                    sectionKey: const ValueKey(
+                      'get-paid-payer-instructions-section',
+                    ),
+                    rows: invoice == null
+                        ? const []
+                        : _payerInstructionRows(context, invoice),
+                  ),
                 ],
               ),
             ),
@@ -131,21 +146,571 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
   }
 }
 
-/// Settlement rows for the single details table. Empty for a no-data row or an
-/// ordinary Bitcoin settlement with no override to explain.
+/// A titled section of the card: a muted title above its own details table.
+/// A section with no rows renders nothing at all — never a header over nothing.
+List<Widget> _section(
+  BuildContext context, {
+  required String title,
+  required Key sectionKey,
+  required List<DetailsTableItem> rows,
+}) {
+  if (rows.isEmpty) return const [];
+  return [
+    const Gap(24),
+    Text(
+      title,
+      style: context.bullText.titleMedium?.copyWith(
+        color: context.bull.textMuted,
+      ),
+    ),
+    const Gap(8),
+    DetailsTable(key: sectionKey, items: rows),
+  ];
+}
+
+/// The entry's own facts, in merchant-reading order. The two long identifiers
+/// are truncated in place and copied in full.
+List<DetailsTableItem> _coreFactRows(
+  BuildContext context,
+  GetPaidTransaction transaction,
+) {
+  final colors = context.bull;
+  return [
+    DetailsTableItem(
+      label: context.loc.getPaidTransactionsSourceLabel,
+      displayValue: getPaidTransactionSourceText(context, transaction.source),
+    ),
+    DetailsTableItem(
+      label: context.loc.getPaidTransactionsReceivedLabel,
+      displayValue: getPaidTransactionDateText(context, transaction.receivedAt),
+    ),
+    DetailsTableItem(
+      label: context.loc.getPaidTransactionsRailLabel,
+      displayValue: getPaidTransactionRailText(context, transaction.rail),
+    ),
+    DetailsTableItem(
+      label: context.loc.getPaidTransactionsStatusLabel,
+      displayValue: getPaidSettlementStateText(
+        context,
+        transaction.settlementState,
+      ),
+    ),
+    if (transaction.late)
+      DetailsTableItem(
+        label: context.loc.getPaidTransactionsTimingLabel,
+        displayWidget: Text(
+          context.loc.getPaidTransactionsLate,
+          textAlign: TextAlign.end,
+          style: context.bullText.bodyLarge?.copyWith(color: colors.warning),
+        ),
+      ),
+    // The server's own identifier for this entry — the Bull Bitcoin receipt id,
+    // labelled as such because it is never a chain transaction id.
+    DetailsTableItem(
+      key: const ValueKey('get-paid-transaction-id'),
+      label: context.loc.getPaidTransactionsReceiptIdLabel,
+      displayValue: StringFormatting.truncateMiddle(transaction.transactionId),
+      copyValue: transaction.transactionId,
+    ),
+    // Invoice-sourced entries expose a copyable invoice id; Lightning Address
+    // receipts have none and show no row.
+    if (transaction.invoiceId case final invoiceId?)
+      DetailsTableItem(
+        key: const ValueKey('get-paid-transaction-invoice-id'),
+        label: context.loc.getPaidTransactionsInvoiceIdLabel,
+        displayValue: StringFormatting.truncateMiddle(invoiceId),
+        copyValue: invoiceId,
+      ),
+    if (transaction.comment case final comment?)
+      DetailsTableItem(
+        key: const ValueKey('get-paid-transaction-comment'),
+        label: context.loc.getPaidTransactionsCommentLabel,
+        displayValue: comment,
+      ),
+  ];
+}
+
+/// The invoice's own merchant-facing state, reusing the invoice screen's wording
+/// and formatters. Nothing here repeats a fact the sections above already
+/// carry: the invoice id stays in the core facts, R1 stays in the settlement
+/// section when that section prints it, the face amount is omitted when it is
+/// the same sat number as the headline, and the paid amount only appears when it
+/// differs from the headline (a partial or over payment).
+List<DetailsTableItem> _invoiceRows(
+  BuildContext context,
+  InvoiceStatusSnapshot invoice,
+  GetPaidTransaction transaction,
+) {
+  final rows = <DetailsTableItem>[];
+  // The settlement supervision state is already the core "Status" row; the
+  // invoice's own settlement line is shown only when it DISAGREES with it (then
+  // it adds information). Same rule for the late marker.
+  final settlementText =
+      _settlementStateMatches(invoice.settlementState, transaction)
+      ? null
+      : invoiceSettlementSupportingText(context, invoice.settlementState);
+  rows.add(
+    _row(
+      context,
+      key: const ValueKey('get-paid-invoice-status'),
+      label: context.loc.invoiceStatusLabel,
+      value: invoiceStatusText(context, invoice.status),
+      subLines: [
+        if (invoice.isAwaitingConfirmation)
+          context.loc.invoiceAwaitingConfirmation,
+        ?settlementText,
+        if (invoice.hasLatePayment && !transaction.late)
+          context.loc.invoiceLatePayment,
+      ],
+    ),
+  );
+  // The face value in the invoice screen's own wording, except that a sat face
+  // uses this card's separator-formatted sats. A sat face equal to the headline
+  // is the same number twice, so it is omitted.
+  final satFace = !invoice.hasFiatFace && invoice.hasSatTarget;
+  if (!satFace || invoice.amountSat != transaction.amountSat) {
+    rows.add(
+      _row(
+        context,
+        label: context.loc.invoiceAmountLabel,
+        value: satFace
+            ? getPaidTransactionAmountText(context, invoice.amountSat)
+            : invoiceFaceAmountText(context, invoice),
+      ),
+    );
+  }
+  rows.add(
+    _row(
+      context,
+      label: context.loc.getPaidInvoicePricingLabel,
+      value: _pricingText(context, invoice.pricingMode),
+    ),
+  );
+  // The headline already states what was received; a paid amount that equals it
+  // adds nothing. A differing one is the partial/over payment fact.
+  if (invoice.paidAmountSat case final paidAmountSat?) {
+    if (paidAmountSat != transaction.amountSat) {
+      rows.add(
+        _row(
+          context,
+          // NOT the invoice screen's "Received": the core facts already use that
+          // label for WHEN the payment arrived, so this states the amount.
+          label: context.loc.getPaidInvoicePaidAmountLabel,
+          value: getPaidTransactionAmountText(context, paidAmountSat),
+        ),
+      );
+    }
+  }
+  if (invoice.hasPaymentEvidence && invoice.remainingAmountSat > 0) {
+    rows.add(
+      _row(
+        context,
+        label: context.loc.invoicePaymentRemainingLabel,
+        value: getPaidTransactionAmountText(
+          context,
+          invoice.remainingAmountSat,
+        ),
+      ),
+    );
+  }
+  if (invoice.overpaidAmountSat case final overpaidAmountSat?) {
+    rows.add(
+      _row(
+        context,
+        label: context.loc.invoicePaymentOverpaidByLabel,
+        value: getPaidTransactionAmountText(context, overpaidAmountSat),
+      ),
+    );
+  }
+  // A zero tolerance is "no tolerance": there is nothing to state.
+  if (invoice.paymentToleranceSat > 0) {
+    rows.add(
+      _row(
+        context,
+        label: context.loc.getPaidInvoiceToleranceLabel,
+        value: getPaidTransactionAmountText(
+          context,
+          invoice.paymentToleranceSat,
+        ),
+      ),
+    );
+  }
+  // R1 belongs to the settlement section. It appears here only when that
+  // section did not print it at all, so the rate is on the card exactly once.
+  if (invoice.creationRateMinorPerBtc case final creationRate?) {
+    if (invoice.hasFiatFace &&
+        !_settlementShowsCreationRate(transaction.settlement)) {
+      rows.add(
+        _row(
+          context,
+          key: const ValueKey('get-paid-invoice-rate-at-creation'),
+          label: context.loc.getPaidSettlementRateAtCreationLabel,
+          value: context.loc.getPaidSettlementRateAtCreationValue(
+            context.loc.getPaidSettlementFiatAmount(
+              _formatMinor(creationRate),
+              invoice.fiatCurrency!,
+            ),
+          ),
+        ),
+      );
+    }
+  }
+  // A rate lock exists only for a fiat-priced invoice; a sat-priced invoice has
+  // no rate to lock, so the row would be meaningless.
+  if (invoice.isFiatFixed) {
+    rows.add(
+      _row(
+        context,
+        label: context.loc.getPaidInvoiceRateLockedUntilLabel,
+        value: getPaidTransactionDateText(context, invoice.rateLocksUntil),
+      ),
+    );
+  }
+  rows.add(
+    _row(
+      context,
+      label: context.loc.getPaidInvoiceExpiresAtLabel,
+      value: getPaidTransactionDateText(context, invoice.expiresAt),
+    ),
+  );
+  if (invoice.paidVia case final paidVia?) {
+    rows.add(
+      _row(
+        context,
+        label: context.loc.getPaidInvoicePaidViaLabel,
+        value: invoiceRailName(context, paidVia),
+      ),
+    );
+  }
+  if (invoice.paidAt case final paidAt?) {
+    rows.add(
+      _row(
+        context,
+        label: context.loc.getPaidInvoicePaidAtLabel,
+        value: getPaidTransactionDateText(context, paidAt),
+      ),
+    );
+  }
+  final accepted = <String>[
+    if (invoice.acceptLn) context.loc.invoiceAcceptLn,
+    if (invoice.acceptLiquid) context.loc.invoiceAcceptLiquid,
+    if (invoice.acceptBtc) context.loc.invoiceAcceptBtc,
+  ];
+  if (accepted.isNotEmpty) {
+    rows.add(
+      _row(
+        context,
+        label: context.loc.invoiceRailsLabel,
+        value: accepted.join(' · '),
+      ),
+    );
+  }
+  return rows;
+}
+
+/// One compact row per durable payment observation: the amount, its state as a
+/// muted sub-line, and every remaining per-event fact behind the row's expand
+/// affordance. Per-event rows carry no [ValueKey] — several observations share
+/// one table and duplicate sibling keys are illegal.
+List<DetailsTableItem> _paymentEventRows(
+  BuildContext context,
+  List<InvoicePaymentEvent> events,
+) {
+  final rows = <DetailsTableItem>[];
+  for (final event in events) {
+    final transactionId = event.transactionId;
+    rows.add(
+      _row(
+        context,
+        label: invoicePaymentRailTitle(context, event.rail),
+        value: getPaidTransactionAmountText(context, event.amountSat),
+        subLines: [invoicePaymentEventStateText(context, event)],
+        copyValue: transactionId,
+        expandableChild: _facts(context, [
+          (
+            label: context.loc.getPaidInvoiceEventFirstSeenLabel,
+            value: getPaidTransactionDateText(context, event.firstSeenAt),
+          ),
+          (
+            label: context.loc.getPaidInvoiceEventLastSeenLabel,
+            value: getPaidTransactionDateText(context, event.lastSeenAt),
+          ),
+          if (transactionId != null)
+            (
+              label: context.loc.invoicePaymentTransactionLabel,
+              value: StringFormatting.truncateMiddle(transactionId),
+            ),
+          if (event.outputIndex case final outputIndex?)
+            (
+              label: context.loc.getPaidInvoiceEventOutputIndexLabel,
+              value: '$outputIndex',
+            ),
+          if (event.isLate)
+            (
+              label: context.loc.getPaidTransactionsTimingLabel,
+              value: context.loc.invoiceLatePayment,
+            ),
+        ]),
+      ),
+    );
+  }
+  return rows;
+}
+
+/// The payer-facing instructions the invoice carried. They are not what a
+/// merchant reviews a receipt for, so every bulky payload is truncated in place,
+/// copyable in full, and expandable — present, but never in the way.
+List<DetailsTableItem> _payerInstructionRows(
+  BuildContext context,
+  InvoiceStatusSnapshot invoice,
+) {
+  final rows = <DetailsTableItem>[];
+  void addPayload(String label, String? payload) {
+    if (payload == null || payload.isEmpty) return;
+    rows.add(
+      _row(
+        context,
+        label: label,
+        value: StringFormatting.truncateMiddle(payload),
+        copyValue: payload,
+        expandableChild: Text(
+          payload,
+          style: context.bullText.bodySmall?.copyWith(
+            color: context.bull.textMuted,
+          ),
+          maxLines: 8,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  addPayload(context.loc.invoicePaymentLightningLabel, invoice.lightningPr);
+  addPayload(context.loc.invoicePaymentLiquidLabel, invoice.liquidAddress);
+  addPayload(context.loc.invoicePaymentBitcoinLabel, invoice.bitcoinAddress);
+  addPayload(
+    context.loc.getPaidCardBitcoinChainAddressLabel,
+    invoice.bitcoinChainAddress,
+  );
+  addPayload(
+    context.loc.getPaidCardBitcoinChainBip21Label,
+    invoice.bitcoinChainBip21,
+  );
+  // One row per payable rail: what the payer sends, with the merchant target and
+  // the checkout cost behind the expand affordance.
+  for (final amount in invoice.payerAmounts) {
+    rows.add(
+      _row(
+        context,
+        label: invoiceRailName(context, amount.rail),
+        value: getPaidTransactionAmountText(context, amount.payerAmountSat),
+        subLines: [context.loc.invoiceQuotePayerAmountLabel],
+        expandableChild: _facts(context, [
+          (
+            label: context.loc.invoiceQuoteMerchantAmountLabel,
+            value: getPaidTransactionAmountText(
+              context,
+              amount.merchantTargetAmountSat,
+            ),
+          ),
+          (
+            label: context.loc.invoiceQuoteCheckoutCostLabel,
+            value: getPaidTransactionAmountText(
+              context,
+              amount.checkoutCostSat,
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+  // The LIVE payer quote rate — not R1. It is labelled as the payer quote rate
+  // and carries a muted qualifier saying it was the quote at fetch time, so the
+  // two can never be read as the same number. It needs the invoice's fiat
+  // currency to have a denomination at all: no currency, no row.
+  if (invoice.rateMinorPerBtc case final quoteRate?) {
+    if (invoice.fiatCurrency case final currency?) {
+      rows.add(
+        _row(
+          context,
+          key: const ValueKey('get-paid-invoice-payer-quote-rate'),
+          label: context.loc.getPaidCardPayerQuoteRateLabel,
+          // A plain rate value: this is neither the ≈ reference index (R1) nor an
+          // executed rate (R2), so it wears neither marker.
+          value: context.loc.getPaidCardRatePerBtcValue(
+            context.loc.getPaidSettlementFiatAmount(
+              _formatMinor(quoteRate),
+              currency,
+            ),
+          ),
+          subLines: [context.loc.getPaidCardPayerQuoteRateSubline],
+        ),
+      );
+    }
+  }
+  // Which rails a payer quote was available on. All-false is a real state, so it
+  // says so in the invoice screen's own words rather than showing an empty row.
+  if (invoice.quoteRailAvailability case final availability?) {
+    final rails = <String>[
+      if (availability.lightning) context.loc.invoiceAcceptLn,
+      if (availability.liquid) context.loc.invoiceAcceptLiquid,
+      if (availability.bitcoin) context.loc.invoiceAcceptBtc,
+    ];
+    rows.add(
+      _row(
+        context,
+        key: const ValueKey('get-paid-invoice-quote-rails'),
+        label: context.loc.getPaidCardQuoteRailsLabel,
+        value: rails.isEmpty
+            ? context.loc.invoiceQuoteUnavailable
+            : rails.join(' · '),
+      ),
+    );
+  }
+  return rows;
+}
+
+/// The muted label/value lines shown inside a row's expand affordance.
+Widget _facts(
+  BuildContext context,
+  List<({String label, String value})> facts,
+) {
+  final colors = context.bull;
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (final fact in facts)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  fact.label,
+                  style: context.bullText.bodySmall?.copyWith(
+                    color: colors.textMuted,
+                  ),
+                ),
+              ),
+              Text(
+                fact.value,
+                textAlign: TextAlign.end,
+                style: context.bullText.bodySmall?.copyWith(
+                  color: colors.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+    ],
+  );
+}
+
+/// True when the invoice's settlement supervision says the same thing as the
+/// entry's own Status row, in which case repeating it adds nothing.
+bool _settlementStateMatches(
+  InvoiceSettlementState state,
+  GetPaidTransaction transaction,
+) {
+  return switch (state) {
+    InvoiceSettlementState.none => true,
+    InvoiceSettlementState.pending =>
+      transaction.settlementState == GetPaidSettlementState.pending,
+    InvoiceSettlementState.settled =>
+      transaction.settlementState == GetPaidSettlementState.settled,
+    InvoiceSettlementState.problem =>
+      transaction.settlementState == GetPaidSettlementState.problem,
+  };
+}
+
+/// True when the settlement section prints a rate-at-creation row of its own, so
+/// the invoice section must not print one too.
+bool _settlementShowsCreationRate(GetPaidSettlement? settlement) {
+  final s = settlement;
+  if (s == null) return false;
+  // Only the fiat and mixed sections render a rate-at-creation row at all.
+  if (s.kind != GetPaidSettlementKind.fiat &&
+      s.kind != GetPaidSettlementKind.mixed) {
+    return false;
+  }
+  return s.creationRateMinorPerBtc != null && s.creationRateCurrency != null;
+}
+
+/// The invoice pricing mode in the wording the invoice form already uses. An
+/// unknown mode (outside the two contract values) is shown verbatim rather than
+/// mislabelled as one of the known ones.
+String _pricingText(BuildContext context, String pricingMode) {
+  return switch (pricingMode) {
+    'fiat_fixed' => context.loc.invoiceAmountModeFiat,
+    'sat_fixed' => context.loc.invoiceAmountModeSats,
+    _ => pricingMode,
+  };
+}
+
+/// A details row whose value optionally carries muted sub-lines beneath it (the
+/// sub-line idiom the settlement rows already use) and optionally hides its
+/// remaining facts behind the table's expand affordance.
+DetailsTableItem _row(
+  BuildContext context, {
+  required String label,
+  required String value,
+  Key? key,
+  String? copyValue,
+  List<String> subLines = const [],
+  Widget? expandableChild,
+}) {
+  if (subLines.isEmpty) {
+    return DetailsTableItem(
+      key: key,
+      label: label,
+      displayValue: value,
+      copyValue: copyValue,
+      expandableChild: expandableChild,
+    );
+  }
+  final colors = context.bull;
+  return DetailsTableItem(
+    key: key,
+    label: label,
+    displayValue: value,
+    copyValue: copyValue,
+    expandableChild: expandableChild,
+    displayWidget: Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          value,
+          textAlign: TextAlign.end,
+          style: context.bullText.bodyLarge,
+        ),
+        for (final subLine in subLines) ...[
+          const Gap(4),
+          Text(
+            subLine,
+            textAlign: TextAlign.end,
+            style: context.bullText.bodySmall?.copyWith(
+              color: colors.textMuted,
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+/// The settlement section's rows. Empty only for a no-data row (no server
+/// classification at all) — absence is never presented as Bitcoin.
 List<DetailsTableItem> _settlementRows(
   BuildContext context,
   GetPaidSettlement? settlement,
 ) {
   final s = settlement;
-  if (s == null ||
-      (s.kind == GetPaidSettlementKind.bitcoin && s.overrideReason == null)) {
-    return const [];
-  }
+  if (s == null) return const [];
   final colors = context.bull;
   final rows = <DetailsTableItem>[];
   switch (s.kind) {
     case GetPaidSettlementKind.unavailable:
+      // Uninterpretable evidence states exactly that; it claims no kind.
       rows.add(
         DetailsTableItem(
           label: context.loc.getPaidFiatSettlementSectionTitle,
@@ -153,21 +718,29 @@ List<DetailsTableItem> _settlementRows(
         ),
       );
     case GetPaidSettlementKind.bitcoin:
-      rows.add(
-        DetailsTableItem(
-          label: context.loc.getPaidFiatSettlementSectionTitle,
-          displayWidget: Text(
-            _overrideText(context, s.overrideReason),
-            textAlign: TextAlign.end,
-            style: context.bullText.bodyMedium?.copyWith(color: colors.warning),
+      _addKindRow(context, rows, s.kind);
+      // A Bitcoin settlement that overrode a configured fiat conversion explains
+      // itself; an ordinary one has nothing to explain.
+      if (s.overrideReason != null) {
+        rows.add(
+          DetailsTableItem(
+            label: context.loc.getPaidFiatSettlementSectionTitle,
+            displayWidget: Text(
+              _overrideText(context, s.overrideReason),
+              textAlign: TextAlign.end,
+              style: context.bullText.bodyMedium?.copyWith(
+                color: colors.warning,
+              ),
+            ),
           ),
-        ),
-      );
+        );
+      }
     case GetPaidSettlementKind.mixed:
-      // A mixed settlement is shown per-leg in the one table: the captured
-      // split (when present), the invoice-creation reference rate (R1, when
-      // present), then the bitcoin (L-BTC) leg's amount and its own status,
-      // then the fiat leg's amount and status.
+      // A mixed settlement is shown per-leg: the kind, the captured split (when
+      // present), the invoice-creation reference rate (R1, when present), then
+      // the bitcoin (L-BTC) leg's amount, network and its own status, then the
+      // fiat leg's amount and status.
+      _addKindRow(context, rows, s.kind);
       _addSplitRow(context, rows, s.fiatPercentage);
       _addRateAtCreationRow(context, rows, s);
       rows.addAll(
@@ -180,11 +753,34 @@ List<DetailsTableItem> _settlementRows(
       );
       rows.addAll(_fiatLegRows(context, s.fiat));
     case GetPaidSettlementKind.fiat:
+      _addKindRow(context, rows, s.kind);
       _addSplitRow(context, rows, s.fiatPercentage);
       _addRateAtCreationRow(context, rows, s);
       rows.addAll(_fiatLegRows(context, s.fiat));
   }
   return rows;
+}
+
+/// The server's own settlement classification, stated once at the top of the
+/// section. It reuses the history list's kind labels, so an ordinary Bitcoin
+/// settlement now says so instead of being conveyed by an absent section.
+void _addKindRow(
+  BuildContext context,
+  List<DetailsTableItem> rows,
+  GetPaidSettlementKind kind,
+) {
+  rows.add(
+    DetailsTableItem(
+      key: const ValueKey('get-paid-settlement-kind'),
+      label: context.loc.getPaidCardSettlementKindLabel,
+      displayValue: switch (kind) {
+        GetPaidSettlementKind.mixed => context.loc.getPaidSettlementKindMixed,
+        GetPaidSettlementKind.fiat => context.loc.getPaidSettlementLabelFiat,
+        GetPaidSettlementKind.bitcoin || GetPaidSettlementKind.unavailable =>
+          context.loc.getPaidSettlementLabelBitcoin,
+      },
+    ),
+  );
 }
 
 /// The R1 "Rate at creation" row, rendered directly after the Split row for a
@@ -296,6 +892,13 @@ List<DetailsTableItem> _bitcoinLegRows(
         ),
       );
     }
+    // The network the server settled this leg on, named as the server names it.
+    rows.add(
+      DetailsTableItem(
+        label: context.loc.getPaidSettlementNetworkLabel,
+        displayValue: _networkText(context, leg.network),
+      ),
+    );
     rows.add(
       DetailsTableItem(
         label: context.loc.getPaidSettlementLbtcStatusLabel,
@@ -304,6 +907,16 @@ List<DetailsTableItem> _bitcoinLegRows(
     );
   }
   return rows;
+}
+
+/// The settlement network of a bitcoin leg. Version one settles Bitcoin legs on
+/// Liquid only, so `liquid` reuses the existing Liquid rail label; any other
+/// server value (which the strict parser does not currently admit as a definite
+/// leg) is shown verbatim rather than guessed at.
+String _networkText(BuildContext context, String network) {
+  return network == 'liquid'
+      ? context.loc.getPaidTransactionsRailLiquid
+      : network;
 }
 
 List<DetailsTableItem> _fiatLegRows(
@@ -420,7 +1033,7 @@ List<DetailsTableItem> _fiatLegRows(
       rows.add(
         DetailsTableItem(
           label: context.loc.getPaidSettlementOrderId,
-          displayValue: leg.orderId,
+          displayValue: StringFormatting.truncateMiddle(leg.orderId),
           copyValue: leg.orderId,
         ),
       );
@@ -439,6 +1052,8 @@ String _overrideText(BuildContext context, GetPaidFiatOverrideReason? reason) {
       return context.loc.getPaidSettlementOverriddenInvalidSplit;
     case GetPaidFiatOverrideReason.conversionUnavailable:
       return context.loc.getPaidSettlementOverriddenConversionUnavailable;
+    case GetPaidFiatOverrideReason.ambiguousCreate:
+      return context.loc.getPaidSettlementOverriddenAmbiguousCreate;
     case GetPaidFiatOverrideReason.unknown:
     case null:
       return context.loc.getPaidSettlementOverridden;
