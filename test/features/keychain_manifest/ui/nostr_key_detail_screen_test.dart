@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/widgets/qr_display_widget.dart';
 import 'package:bb_mobile/features/keychain_manifest/presentation/nostr_keys_cubit.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_routes.dart';
+import 'package:bb_mobile/features/keychain_manifest/ui/widgets/nostr_nsec_reveal_dialog.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
@@ -20,14 +23,32 @@ const _noScreenshotChannel = MethodChannel(
 );
 
 void main() {
+  String? clipboardText;
+
   setUp(() {
+    clipboardText = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_noScreenshotChannel, (_) async => true);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          switch (call.method) {
+            case 'Clipboard.setData':
+              clipboardText =
+                  (call.arguments as Map<Object?, Object?>)['text'] as String?;
+              return null;
+            case 'Clipboard.getData':
+              return <String, Object?>{'text': clipboardText};
+            default:
+              return null;
+          }
+        });
   });
 
   tearDown(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_noScreenshotChannel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
     await locator.reset();
   });
 
@@ -177,8 +198,7 @@ void main() {
     await _pump(tester, FakeKeychainManifestFacade(keys: [record]), record);
 
     expect(find.text('Edit'), findsNothing);
-    // The reveal action is still available for recovery/troubleshooting.
-    expect(find.text('Show nsec'), findsOneWidget);
+    expect(find.text('Show nsec'), findsNothing);
   });
 
   testWidgets('a system key is named from its role, and never deletable', (
@@ -191,25 +211,6 @@ void main() {
     expect(find.text('whatever was stored'), findsNothing);
     expect(find.textContaining('Delete'), findsNothing);
     expect(find.textContaining('Revoke'), findsNothing);
-  });
-
-  testWidgets('a system nsec reveal is gated by the exact warning', (
-    tester,
-  ) async {
-    final record = systemKeyRecord();
-    await _pump(tester, FakeKeychainManifestFacade(keys: [record]), record);
-
-    await tester.tap(find.text('Show nsec'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text(
-        'Do not use this nsec for any other purpose. Do not share this nsec '
-        'with anyone. Showing this nsec is only for emergency recovery or '
-        'troubleshooting.',
-      ),
-      findsOneWidget,
-    );
   });
 
   testWidgets('a user nsec reveal uses the standard sensitive warning', (
@@ -240,17 +241,58 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(facade.revealCalls, [record.entryId]);
-    expect(find.text('nsec1revealedsecret'), findsOneWidget);
-    expect(find.text('Copy nsec'), findsOneWidget);
+    expect(find.text('nsec 1rev eale dsec ret'), findsOneWidget);
+    expect(find.byType(QrDisplayWidget), findsOneWidget);
+    expect(find.text('Tap to copy'), findsOneWidget);
+    expect(find.text('Copy nsec'), findsNothing);
+
+    final semantics = tester.ensureSemantics();
+    expect(find.bySemanticsLabel('Tap to copy'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('revealedsecret')), findsNothing);
+    semantics.dispose();
   });
 
-  testWidgets('a system key nsec reveal also reaches the dialog', (
+  testWidgets(
+    'nsec copy and close actions remain reachable on a compact large-text view',
+    (tester) async {
+      final record = userKeyRecord();
+      final facade = FakeKeychainManifestFacade(
+        keys: [record],
+        nsec: 'nsec1revealedsecret',
+      );
+      await _pump(tester, facade, record);
+
+      await tester.tap(find.text('Show nsec'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('I understand'));
+      await tester.pumpAndSettle();
+
+      tester.view.physicalSize = const Size(320, 480);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('nostr_nsec_copy_action')), findsOneWidget);
+      final close = find.text('Close');
+      expect(close, findsOneWidget);
+      await tester.ensureVisible(close);
+      await tester.tap(close);
+      await tester.pumpAndSettle();
+      expect(find.byType(NostrNsecRevealDialog), findsNothing);
+    },
+  );
+
+  testWidgets('copy clears the nsec and closes its reveal dialog', (
     tester,
   ) async {
-    final record = systemKeyRecord();
+    final record = userKeyRecord();
     final facade = FakeKeychainManifestFacade(
       keys: [record],
-      nsec: 'nsec1systemsecret',
+      nsec: 'nsec1revealedsecret',
     );
     await _pump(tester, facade, record);
 
@@ -258,9 +300,94 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('I understand'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nostr_nsec_copy_action')));
+    await tester.pumpAndSettle();
 
-    expect(find.text('nsec1systemsecret'), findsOneWidget);
+    expect(clipboardText, 'nsec1revealedsecret');
+    expect(find.byType(NostrNsecRevealDialog), findsNothing);
+    expect(find.text('nsec 1rev eale dsec ret'), findsNothing);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
   });
+
+  testWidgets(
+    'closing while screenshot protection is pending never derives the nsec',
+    (tester) async {
+      final protectionEnabled = Completer<Object?>();
+      var protectionDisableCalls = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_noScreenshotChannel, (call) {
+            switch (call.method) {
+              case 'screenshotOff':
+                return protectionEnabled.future;
+              case 'screenshotOn':
+                protectionDisableCalls++;
+                return Future<Object?>.value(true);
+              default:
+                return Future<Object?>.value(true);
+            }
+          });
+
+      final record = userKeyRecord();
+      final facade = FakeKeychainManifestFacade(
+        keys: [record],
+        nsec: 'nsec1mustneverbederived',
+      );
+      await _pump(tester, facade, record);
+
+      await tester.tap(find.text('Show nsec'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('I understand'));
+      await tester.pump();
+
+      expect(facade.revealCalls, isEmpty);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NostrNsecRevealDialog), findsNothing);
+      expect(facade.revealCalls, isEmpty);
+      expect(protectionDisableCalls, 1);
+
+      protectionEnabled.complete(true);
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(facade.revealCalls, isEmpty);
+      expect(protectionDisableCalls, 2);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    },
+  );
+
+  testWidgets(
+    'failed screenshot protection never derives or displays the nsec',
+    (tester) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_noScreenshotChannel, (call) {
+            if (call.method == 'screenshotOff') {
+              return Future<Object?>.value(false);
+            }
+            return Future<Object?>.value(true);
+          });
+
+      final record = userKeyRecord();
+      final facade = FakeKeychainManifestFacade(
+        keys: [record],
+        nsec: 'nsec1mustneverbederived',
+      );
+      await _pump(tester, facade, record);
+
+      await tester.tap(find.text('Show nsec'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('I understand'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NostrNsecRevealDialog), findsNothing);
+      expect(facade.revealCalls, isEmpty);
+      expect(find.textContaining('mustneverbederived'), findsNothing);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('dismissing the warning without confirming reveals nothing', (
     tester,
@@ -306,6 +433,32 @@ void main() {
       ),
     );
   });
+
+  testWidgets('a completed edit refreshes the open detail screen', (
+    tester,
+  ) async {
+    final record = userKeyRecord(description: 'old description');
+    await _pump(tester, FakeKeychainManifestFacade(keys: [record]), record);
+
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('nostr_key_name_field')),
+      'renamed identity',
+    );
+    await tester.enterText(
+      find.byKey(const Key('nostr_key_description_field')),
+      'new description',
+    );
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('renamed identity'), findsOneWidget);
+    expect(find.text('new description'), findsOneWidget);
+    expect(find.text('old description'), findsNothing);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
 }
 
 Future<void> _pump(
@@ -313,7 +466,12 @@ Future<void> _pump(
   FakeKeychainManifestFacade facade,
   KeychainManifestNostrKeyRecord record,
 ) async {
-  locator.registerFactory<NostrKeysCubit>(() => NostrKeysCubit(facade));
+  locator.registerFactory<NostrNsecRevealPresenter>(
+    () => NostrNsecRevealPresenter.forTesting(
+      materialize: facade.revealNostrKeyNsec,
+    ),
+  );
+  locator.registerFactory<NostrKeysCubit>(() => nostrKeysCubitForTest(facade));
   final router = GoRouter(
     initialLocation: '/settings/nostr-keys',
     routes: [
