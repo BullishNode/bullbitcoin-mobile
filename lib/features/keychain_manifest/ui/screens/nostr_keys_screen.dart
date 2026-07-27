@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/settings_entry_item.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/core/widgets/text/text.dart';
@@ -79,20 +80,23 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> {
       listener: (_, _) => _showFailure(),
       child: BlocBuilder<NostrKeysCubit, NostrKeysState>(
         builder: (context, state) => Scaffold(
-          appBar: AppBar(
-            title: Text(context.loc.settingsNostrKeysTitle),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: context.loc.settingsNostrKeysCreate,
-                onPressed: state.loading || state.busy ? null : _openCreate,
-              ),
-            ],
-          ),
+          appBar: AppBar(title: Text(context.loc.settingsNostrKeysTitle)),
           body: SafeArea(
             child: state.loading
                 ? const Center(child: CircularProgressIndicator())
                 : _body(context, state),
+          ),
+          bottomNavigationBar: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: BBButton.big(
+                label: context.loc.settingsNostrKeysCreate,
+                onPressed: _openCreate,
+                disabled: state.loading || state.busy,
+                bgColor: context.appColors.primary,
+                textColor: context.appColors.onPrimary,
+              ),
+            ),
           ),
         ),
       ),
@@ -149,26 +153,21 @@ class _NostrKeysScreenState extends State<NostrKeysScreen> {
     );
   }
 
-  /// Low-prominence footer affordance, styled after the all-settings footer
-  /// rather than a settings row so it never reads as a key.
+  /// The app's Advanced-Settings affordance, verbatim: a centered [TextButton]
+  /// labelled in [AppColors.error]. Get Paid repeats this construction in
+  /// payment_page, pos, and lightning_address (each as a private
+  /// `_AdvancedSettingsButton`); only the sheet it opens was ever extracted, so
+  /// this matches the style rather than importing a widget that does not exist.
   Widget _systemKeysToggle(BuildContext context, NostrKeysState state) {
     final label = state.showSystemKeys
         ? context.loc.settingsNostrKeysHideSystemKeys
         : context.loc.settingsNostrKeysShowSystemKeys;
-    return Padding(
-      padding: const EdgeInsets.only(top: 32, bottom: 24),
-      child: Center(
-        child: InkWell(
-          onTap: () => _toggleSystemKeys(state.showSystemKeys),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: BBText(
-              label,
-              style: context.font.labelMedium,
-              color: context.appColors.textMuted,
-            ),
-          ),
-        ),
+    return Align(
+      alignment: Alignment.center,
+      child: TextButton(
+        key: const Key('nostr_keys_system_keys_button'),
+        onPressed: () => _toggleSystemKeys(state.showSystemKeys),
+        child: Text(label, style: TextStyle(color: context.appColors.error)),
       ),
     );
   }

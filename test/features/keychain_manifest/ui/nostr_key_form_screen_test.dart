@@ -106,7 +106,7 @@ void main() {
     final facade = FakeKeychainManifestFacade();
     await _pumpList(tester, facade);
 
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('Create nostr key'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('nostr_key_name_field')),
@@ -134,10 +134,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Enter a name for this key.'), findsOneWidget);
 
-    await tester.enterText(
-      find.byKey(const Key('nostr_key_name_field')),
-      'p',
-    );
+    await tester.enterText(find.byKey(const Key('nostr_key_name_field')), 'p');
     await tester.pumpAndSettle();
 
     expect(find.text('Enter a name for this key.'), findsNothing);
@@ -188,7 +185,7 @@ Future<void> _pump(
   String? routeName,
   KeychainManifestNostrKeyRecord? record,
 ) async {
-  locator.registerFactory<NostrKeysCubit>(() => NostrKeysCubit(facade));
+  locator.registerFactory<NostrKeysCubit>(() => nostrKeysCubitForTest(facade));
   final router = GoRouter(
     initialLocation: '/settings/nostr-keys',
     routes: [
