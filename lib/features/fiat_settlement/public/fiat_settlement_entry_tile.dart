@@ -7,6 +7,7 @@ import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_routes
 import 'package:bb_mobile/features/fiat_settlement/ui/fiat_settlement_copy.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:bull_ui/bull_ui.dart';
+import 'package:flutter/foundation.dart' show Listenable;
 import 'package:flutter/material.dart' show Icons;
 import 'package:go_router/go_router.dart';
 
@@ -39,11 +40,21 @@ class _FiatSettlementEntryTileState extends State<FiatSettlementEntryTile> {
   // than fabricating a Bitcoin-only summary that was never confirmed.
   bool _unavailable = false;
   bool _visible = false;
+  // The shared configuration revision, subscribed while visible so a mutation
+  // made OUTSIDE this tile's own tap round-trip (the activation-time chooser)
+  // still refreshes the summary instead of leaving the mount-time snapshot.
+  Listenable? _revision;
 
   @override
   void initState() {
     super.initState();
     _init();
+  }
+
+  @override
+  void dispose() {
+    _revision?.removeListener(_onConfigurationRevision);
+    super.dispose();
   }
 
   Future<void> _init() async {
@@ -54,8 +65,15 @@ class _FiatSettlementEntryTileState extends State<FiatSettlementEntryTile> {
     final settings = await locator<GetSettingsUsecase>().execute();
     // Mainnet-only surface: fiat settlement is not offered on testnet.
     if (settings.environment != Environment.mainnet) return;
+    _revision = locator<FiatSettlementFacade>().configurationRevision
+      ..addListener(_onConfigurationRevision);
     await _load();
     if (mounted) setState(() => _visible = true);
+  }
+
+  Future<void> _onConfigurationRevision() async {
+    await _load();
+    if (mounted) setState(() {});
   }
 
   Future<void> _load() async {

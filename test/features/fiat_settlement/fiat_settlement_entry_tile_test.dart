@@ -44,6 +44,9 @@ void main() {
   ) async {
     final facade = _MockFacade();
     when(
+      () => facade.configurationRevision,
+    ).thenReturn(FiatSettlementConfigurationRevision());
+    when(
       () => facade.configuration(),
     ).thenAnswer((_) async => const Err(FiatSettlementFailure.unexpected()));
     locator
@@ -63,6 +66,9 @@ void main() {
     tester,
   ) async {
     final facade = _MockFacade();
+    when(
+      () => facade.configurationRevision,
+    ).thenReturn(FiatSettlementConfigurationRevision());
     when(() => facade.configuration()).thenAnswer(
       (_) async => const Ok(
         FiatSettlementConfigurationView(products: [], credentialActive: false),
@@ -79,4 +85,45 @@ void main() {
     expect(find.text('Bitcoin only'), findsOneWidget);
     expect(find.text('Fiat settlement — status unavailable'), findsNothing);
   });
+
+  testWidgets(
+    're-reads when the configuration revision bumps after an outside mutation',
+    (tester) async {
+      // Regression: the activation-time chooser saves fiat settlement WITHOUT
+      // passing through the tile's own tap round-trip. The tile used to keep
+      // its mount-time snapshot ("Bitcoin only") until the screen was
+      // revisited; it must re-read when the shared revision notifies.
+      final facade = _MockFacade();
+      final revision = FiatSettlementConfigurationRevision();
+      var config = const FiatSettlementConfigurationView(
+        products: [],
+        credentialActive: false,
+      );
+      when(() => facade.configurationRevision).thenReturn(revision);
+      when(() => facade.configuration()).thenAnswer((_) async => Ok(config));
+      locator
+        ..registerSingleton<GetSettingsUsecase>(_FakeGetSettings())
+        ..registerSingleton<FiatSettlementFacade>(facade);
+
+      await _pumpTile(tester);
+      expect(find.text('Bitcoin only'), findsOneWidget);
+
+      // The chooser saves 100% fiat EUR elsewhere; the facade bumps.
+      config = const FiatSettlementConfigurationView(
+        products: [
+          FiatSettlementProductConfig(
+            product: FiatSettlementProduct.invoice,
+            fiatPercentage: 100,
+            currency: FiatCurrency.eur,
+          ),
+        ],
+        credentialActive: true,
+      );
+      revision.bump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bitcoin only'), findsNothing);
+      expect(find.textContaining('100%'), findsOneWidget);
+    },
+  );
 }

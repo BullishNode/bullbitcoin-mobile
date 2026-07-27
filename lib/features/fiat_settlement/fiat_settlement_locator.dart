@@ -51,11 +51,17 @@ class FiatSettlementLocator {
         nostrIdentity: locator<NostrIdentityFacade>(),
       ),
     );
+    // Singleton: every factory-built facade must bump the SAME revision, or
+    // the editor's save and a summary tile's listener would see different ones.
+    locator.registerLazySingleton<FiatSettlementConfigurationRevision>(
+      FiatSettlementConfigurationRevision.new,
+    );
     locator.registerFactory<FiatSettlementFacade>(
       () => FiatSettlementFacade(
         getConfiguration: locator<GetFiatSettlementConfigurationUsecase>(),
         set: locator<SetFiatSettlementUsecase>(),
         disable: locator<DisableFiatSettlementUsecase>(),
+        revision: locator<FiatSettlementConfigurationRevision>(),
       ),
     );
   }
