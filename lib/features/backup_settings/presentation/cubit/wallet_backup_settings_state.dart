@@ -30,6 +30,40 @@ final class WalletBackupSettingsState {
   bool get busy => operation != WalletBackupSettingsOperation.idle;
   bool get canRetryRecovery => !busy && (backup?.recoveryBlocked ?? false);
 
+  /// True once a write has been ATTEMPTED since the last success and the
+  /// backup is still dirty: the write was rejected, not queued. A backup that
+  /// is merely waiting for its first attempt is not this — reporting it as
+  /// pending forever is exactly the dishonesty this separates out.
+  bool get metadataWriteRejected {
+    final state = backup;
+    if (state == null || !state.dirty) return false;
+    final attemptedAt = state.lastAttemptedAt;
+    if (attemptedAt == null) return false;
+    return attemptedAt > (state.lastSucceededAt ?? 0);
+  }
+
+  /// The one condition worth surfacing on the Backup Settings status row: the
+  /// backup cannot make progress until the user does something (update the
+  /// app, retry recovery) or a rejected write is retried.
+  bool get metadataAttentionNeeded {
+    final state = backup;
+    if (state == null) return false;
+    return state.unsupportedVersion != null ||
+        state.recoveryBlocked ||
+        metadataWriteRejected;
+  }
+
+  /// When the last write actually landed, or null when none ever has. Never
+  /// derived from an attempt — only from an observed success.
+  DateTime? get metadataLastBackedUpAt {
+    final succeededAt = backup?.lastSucceededAt;
+    if (succeededAt == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(
+      succeededAt * 1000,
+      isUtc: true,
+    ).toLocal();
+  }
+
   WalletBackupSettingsState copyWith({
     WalletBackupState? backup,
     bool preserveBackup = true,

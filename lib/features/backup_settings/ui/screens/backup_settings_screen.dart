@@ -11,7 +11,6 @@ import 'package:bb_mobile/features/backup_settings/presentation/cubit/wallet_bac
 import 'package:bb_mobile/features/backup_settings/presentation/cubit/wallet_backup_settings_state.dart';
 import 'package:bb_mobile/features/backup_settings/ui/backup_settings_router.dart';
 import 'package:bb_mobile/features/backup_settings/ui/widgets/view_vault_key_warning_bottom_sheet.dart';
-import 'package:bb_mobile/features/backup_settings/ui/widgets/wallet_backup_controls.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/test_wallet_backup/public/test_wallet_backup_routes.dart';
 import 'package:bb_mobile/features/transactions/ui/transactions_router.dart';
@@ -107,8 +106,6 @@ class _Screen extends StatelessWidget {
                           children: _statusRows(context, state),
                         ),
                       ),
-                      const Gap(32),
-                      const WalletBackupControls(),
                       if (hero != null) ...[const Gap(32), hero],
                       // The create-backup action sits between the hero and the
                       // settings list: it is an action, not a setting, and it
@@ -131,8 +128,8 @@ class _Screen extends StatelessWidget {
     );
   }
 
-  /// The glanceable facts. Insertion point for the fork's metadata backup
-  /// status row: append one [_StatusRow] here.
+  /// The glanceable facts, one line per thing that could bring the wallet
+  /// back.
   List<Widget> _statusRows(BuildContext context, BackupSettingsState state) => [
     _StatusRow(
       label: context.loc.backupSettingsPhysicalBackup,
@@ -144,6 +141,8 @@ class _Screen extends StatelessWidget {
       label: context.loc.backupSettingsEncryptedVault,
       isTested: state.isDefaultEncryptedBackupTested,
     ),
+    const Gap(15),
+    const _MetadataStatusRow(),
   ];
 
   /// The single most important action right now, or nothing at all when the
@@ -174,8 +173,7 @@ class _Screen extends StatelessWidget {
     }
   }
 
-  /// The settings rows. Insertion point for the fork's metadata backup menu
-  /// row: add one [SettingsEntryItem] to this list.
+  /// The settings rows.
   List<Widget> _menuRows(BackupSettingsState state) => [
     // Start-backup is NOT here: it is an action, rendered as a button above
     // this list (see the body), not a settings row.
@@ -183,6 +181,7 @@ class _Screen extends StatelessWidget {
     if (state.lastEncryptedBackup != null || state.lastPhysicalBackup != null)
       const _TestBackupButton(),
     const _EncryptedVaultSettingsButton(),
+    const _MetadataBackupButton(),
     const _Bip329LabelsButton(),
     const _TransactionHistoryButton(),
   ];
@@ -236,6 +235,97 @@ class _StatusRow extends StatelessWidget {
         if (isTested && testedAt != null)
           Text(
             context.loc.backupHealthLastTested(timeago.format(testedAt)),
+            style: context.font.bodySmall?.copyWith(
+              color: context.appColors.textMuted,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The Get Paid metadata backup, stated in one line. Deliberately says less
+/// than the options screen behind it: whether it is on, and the single fact
+/// that changes what the user should do next.
+///
+/// A rejected write reads "Attention needed", never "pending" — a write the
+/// server refused is not a write that is still coming.
+class _MetadataStatusRow extends StatelessWidget {
+  const _MetadataStatusRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<WalletBackupSettingsCubit, WalletBackupSettingsState>(
+      builder: (context, state) {
+        final backup = state.backup;
+        // Nothing is claimed until the first read resolves: an unread backup
+        // is neither on nor off.
+        if (backup == null) {
+          return _MetadataRowBody(
+            value: state.loading
+                ? null
+                : context.loc.metadataBackupStateUnavailable,
+            valueColor: context.appColors.textMuted,
+          );
+        }
+        final isOn = backup.enabled;
+        final lastBackedUpAt = state.metadataLastBackedUpAt;
+        return _MetadataRowBody(
+          value: isOn
+              ? context.loc.backupSettingsMetadataTurnedOn
+              : context.loc.backupSettingsMetadataTurnedOff,
+          valueColor: isOn
+              ? context.appColors.success
+              : context.appColors.error,
+          subLine: switch (state) {
+            _ when state.metadataAttentionNeeded =>
+              context.loc.backupSettingsMetadataAttentionNeeded,
+            _ when lastBackedUpAt != null =>
+              context.loc.backupSettingsMetadataLastBackedUp(
+                timeago.format(lastBackedUpAt),
+              ),
+            _ => context.loc.walletBackupSettingsNeverBackedUp,
+          },
+        );
+      },
+    );
+  }
+}
+
+class _MetadataRowBody extends StatelessWidget {
+  final String? value;
+  final Color valueColor;
+  final String? subLine;
+
+  const _MetadataRowBody({
+    required this.value,
+    required this.valueColor,
+    this.subLine,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final detail = subLine;
+    return Column(
+      crossAxisAlignment: .start,
+      children: [
+        Row(
+          children: [
+            Text(
+              context.loc.backupSettingsMetadataBackup,
+              style: context.font.bodyMedium,
+            ),
+            const Spacer(),
+            if (value != null)
+              Text(
+                value!,
+                style: context.font.bodyMedium?.copyWith(color: valueColor),
+              ),
+          ],
+        ),
+        if (detail != null)
+          Text(
+            detail,
             style: context.font.bodySmall?.copyWith(
               color: context.appColors.textMuted,
             ),
@@ -448,6 +538,20 @@ class _TransactionHistoryButton extends StatelessWidget {
       icon: Icons.file_download,
       title: context.loc.transactionHistoryTitle,
       onTap: () => context.pushNamed(TransactionsRoute.exportTransactions.name),
+    );
+  }
+}
+
+class _MetadataBackupButton extends StatelessWidget {
+  const _MetadataBackupButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsEntryItem(
+      icon: Icons.backup,
+      title: context.loc.backupSettingsMetadataBackup,
+      onTap: () =>
+          context.pushNamed(BackupSettingsSubroute.metadataBackupOptions.name),
     );
   }
 }

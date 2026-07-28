@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/core/widgets/settings_entry_item.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/backup_wallet_now_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/delete_wallet_backup_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/set_wallet_backup_enabled_usecase.dart';
@@ -238,81 +239,141 @@ void main() {
     expect(find.text(loc.backupSettingsEncryptedVaultSettings), findsOneWidget);
   });
 
-  group('the fork metadata backup controls', () {
-    testWidgets('show one unified Bull backup lifecycle', (tester) async {
-      await pumpScreen(tester, physicalTested: false, vaultTested: false);
+  group('the metadata backup status row', () {
+    Future<void> pumpMetadata(
+      WidgetTester tester,
+      WalletBackupState backup,
+    ) async => pumpScreen(
+      tester,
+      physicalTested: false,
+      vaultTested: false,
+      walletBackup: _FakeWalletBackupFacade(backup),
+    );
 
-      expect(find.text('Bull backup'), findsOneWidget);
-      expect(find.text('Automatic Bull backup'), findsOneWidget);
-      expect(find.text('Wallet metadata backup'), findsNothing);
-      expect(find.text('Delete wallet metadata backup'), findsNothing);
+    testWidgets('reads Off, and says nothing was ever backed up', (
+      tester,
+    ) async {
+      await pumpMetadata(tester, _offState);
+
+      expect(find.text(loc.backupSettingsMetadataBackup), findsNWidgets(2));
+      expect(find.text(loc.backupSettingsMetadataTurnedOff), findsOneWidget);
+      expect(find.text(loc.walletBackupSettingsNeverBackedUp), findsOneWidget);
     });
 
-    testWidgets('keep manual backup disabled while automatic backup is off', (
+    testWidgets('reads Turned on, and states when the last write landed', (
+      tester,
+    ) async {
+      await pumpMetadata(tester, _succeededState());
+
+      expect(find.text(loc.backupSettingsMetadataTurnedOn), findsOneWidget);
+      expect(find.textContaining('Last backed up'), findsOneWidget);
+      expect(
+        find.text(loc.backupSettingsMetadataAttentionNeeded),
+        findsNothing,
+      );
+    });
+
+    // The dishonesty this replaces: a write the server rejected used to sit
+    // under "pending" forever, as if it were still on its way.
+    testWidgets('calls a rejected write attention, never pending', (
+      tester,
+    ) async {
+      await pumpMetadata(
+        tester,
+        _succeededState(dirty: true, lastAttemptedAt: 2000),
+      );
+
+      expect(
+        find.text(loc.backupSettingsMetadataAttentionNeeded),
+        findsOneWidget,
+      );
+      expect(find.text(loc.walletBackupSettingsPending), findsNothing);
+      expect(find.textContaining('Last backed up'), findsNothing);
+    });
+
+    // A queued write has not failed, so it must not be escalated either.
+    testWidgets('leaves a write that has not been attempted alone', (
+      tester,
+    ) async {
+      await pumpMetadata(tester, _succeededState(dirty: true));
+
+      expect(
+        find.text(loc.backupSettingsMetadataAttentionNeeded),
+        findsNothing,
+      );
+      expect(find.textContaining('Last backed up'), findsOneWidget);
+    });
+
+    testWidgets('calls blocked recovery attention', (tester) async {
+      await pumpMetadata(tester, _succeededState(recoveryBlocked: true));
+
+      expect(
+        find.text(loc.backupSettingsMetadataAttentionNeeded),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('calls a backup from a newer app version attention', (
+      tester,
+    ) async {
+      await pumpMetadata(tester, _succeededState(unsupportedVersion: 2));
+
+      expect(
+        find.text(loc.backupSettingsMetadataAttentionNeeded),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('claims neither on nor off before the first read resolves', (
       tester,
     ) async {
       await pumpScreen(
         tester,
         physicalTested: false,
         vaultTested: false,
-        walletBackup: _FakeWalletBackupFacade(
-          WalletBackupState(
-            enabled: false,
-            dirty: true,
-            dirtyRevision: 1,
-            lastAttemptedAt: null,
-            lastSucceededAt: null,
-            remoteGeneration: 0,
-            remoteEtag: null,
-            contentHash: null,
-            unsupportedVersion: null,
-          ),
-        ),
+        walletBackup: _FakeWalletBackupFacade(null),
       );
 
-      expect(find.text('Automatic backup is off'), findsOneWidget);
-      final button = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Back up now'),
-      );
-      expect(button.onPressed, isNull);
+      expect(find.text(loc.backupSettingsMetadataTurnedOn), findsNothing);
+      expect(find.text(loc.backupSettingsMetadataTurnedOff), findsNothing);
     });
 
-    testWidgets('confirm deletion through the unified backup control', (
-      tester,
-    ) async {
-      final facade = _FakeWalletBackupFacade(
-        WalletBackupState(
-          enabled: false,
-          dirty: false,
-          dirtyRevision: 0,
-          lastAttemptedAt: null,
-          lastSucceededAt: 100,
-          remoteGeneration: 1,
-          remoteEtag:
-              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          contentHash:
-              'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-          unsupportedVersion: null,
+    testWidgets('opens its options screen from the menu row', (tester) async {
+      await pumpMetadata(tester, _offState);
+
+      // Row plus status line share the label; the menu row is the tappable
+      // SettingsEntryItem.
+      expect(
+        find.widgetWithText(
+          SettingsEntryItem,
+          loc.backupSettingsMetadataBackup,
         ),
+        findsOneWidget,
       );
-      await pumpScreen(
-        tester,
-        physicalTested: false,
-        vaultTested: false,
-        walletBackup: facade,
-      );
-
-      await tester.tap(find.text('Delete backup'));
-      await tester.pumpAndSettle();
-      expect(find.text('Delete Bull backup?'), findsOneWidget);
-      expect(facade.deleteCalls, 0);
-
-      await tester.tap(find.text('Delete').last);
-      await tester.pumpAndSettle();
-      expect(facade.deleteCalls, 1);
     });
   });
 }
+
+WalletBackupState _succeededState({
+  bool enabled = true,
+  bool dirty = false,
+  int? lastAttemptedAt,
+  bool recoveryBlocked = false,
+  int? unsupportedVersion,
+}) => WalletBackupState(
+  enabled: enabled,
+  dirty: dirty,
+  dirtyRevision: dirty ? 1 : 0,
+  lastAttemptedAt: lastAttemptedAt,
+  lastSucceededAt: 1000,
+  remoteGeneration: 1,
+  remoteEtag:
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  contentHash:
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  unsupportedVersion: unsupportedVersion,
+  recoveryBlocked: recoveryBlocked,
+);
 
 final WalletBackupState _offState = WalletBackupState(
   enabled: false,
@@ -329,16 +390,25 @@ final WalletBackupState _offState = WalletBackupState(
 final class _FakeWalletBackupFacade implements WalletBackupFacade {
   _FakeWalletBackupFacade(this._state);
 
-  final WalletBackupState _state;
+  /// null stands for a read that has not resolved: the stream stays silent, so
+  /// the cubit keeps `loading` and never claims a posture it has not observed.
+  final WalletBackupState? _state;
   int deleteCalls = 0;
 
   @override
   Future<Result<WalletBackupState, WalletBackupFailure>> getState() async =>
-      Ok(_state);
+      Ok(_state!);
 
   @override
-  Stream<Result<WalletBackupState, WalletBackupFailure>> watchState() =>
-      Stream.value(Ok(_state));
+  Stream<Result<WalletBackupState, WalletBackupFailure>> watchState() {
+    final state = _state;
+    if (state == null) {
+      return const Stream<
+        Result<WalletBackupState, WalletBackupFailure>
+      >.empty();
+    }
+    return Stream.value(Ok(state));
+  }
 
   @override
   Future<Result<void, WalletBackupFailure>> setEnabled(bool enabled) async =>
