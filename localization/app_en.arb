@@ -15699,20 +15699,12 @@
   "@lightningAddressLoadingStatus": {
     "description": "Accessibility announcement while Lightning Address capability and status load."
   },
-  "lightningAddressPermanentFirstClaimTitle": "Claim your nym",
-  "@lightningAddressPermanentFirstClaimTitle": {
-    "description": "Title shown before the wallet owner has claimed a permanent Bullnym nym."
-  },
-  "lightningAddressPermanentFirstClaimBody": "A pseudonym tied to your BULL wallet. It allows anyone to send you Bitcoin payments anonymously just by typing your nym in their wallet, and you will receive it in your instant payments wallet. Choose wisely: you can't change it without creating an entirely new Bitcoin wallet.",
-  "@lightningAddressPermanentFirstClaimBody": {
-    "description": "Permanent-name disclosure shown above the first-claim field."
-  },
-  "lightningAddressPermanentNymHelper": "Use 1–32 lowercase letters, numbers, or internal hyphens.",
-  "@lightningAddressPermanentNymHelper": {
+  "getPaidNymClaimHelper": "Use 1–32 lowercase letters, numbers, or internal hyphens.",
+  "@getPaidNymClaimHelper": {
     "description": "Exact local syntax guidance for a permanent Bullnym nym."
   },
-  "lightningAddressClaimButton": "Claim your nym",
-  "@lightningAddressClaimButton": {
+  "getPaidNymClaimSubmit": "Claim your nym",
+  "@getPaidNymClaimSubmit": {
     "description": "Button that starts the permanent nym claim confirmation."
   },
   "lightningAddressPermanentNamesUnavailableTitle": "Permanent names unavailable",
@@ -15743,12 +15735,12 @@
   "@lightningAddressAlreadyAssigned": {
     "description": "Snackbar for an NymAlreadyAssigned conflict."
   },
-  "lightningAddressNameTaken": "That name is already owned. Choose another available name.",
-  "@lightningAddressNameTaken": {
+  "getPaidNymTaken": "That name is already owned. Choose another available name.",
+  "@getPaidNymTaken": {
     "description": "Safe message for the stable NameTaken code."
   },
-  "lightningAddressReservedNym": "That name is reserved. Choose another name.",
-  "@lightningAddressReservedNym": {
+  "getPaidNymReserved": "That name is reserved. Choose another name.",
+  "@getPaidNymReserved": {
     "description": "Safe message for local or server NymReserved validation."
   },
   "lightningAddressOnlineToggleActive": "Active",
@@ -15779,12 +15771,12 @@
   "@lightningAddressInactiveKnownTitle": {
     "description": "Heading shown when Bullnym reports a known but inactive Lightning Address nym."
   },
-  "lightningAddressNymLabel": "Name",
-  "@lightningAddressNymLabel": {
+  "getPaidNymLabel": "Name",
+  "@getPaidNymLabel": {
     "description": "Label for the Lightning Address nym field."
   },
-  "lightningAddressSubmitting": "Registering...",
-  "@lightningAddressSubmitting": {
+  "getPaidNymClaimSubmitting": "Registering...",
+  "@getPaidNymClaimSubmitting": {
     "description": "Button label while Lightning Address registration is submitting."
   },
   "lightningAddressOperationInProgress": "Lightning Address registration is still in progress.",
@@ -15843,8 +15835,8 @@
   "@lightningAddressLookupFailedBody": {
     "description": "Body shown when Lightning Address status lookup fails."
   },
-  "lightningAddressInvalidNym": "Use a valid name.",
-  "@lightningAddressInvalidNym": {
+  "getPaidNymInvalid": "Use a valid name.",
+  "@getPaidNymInvalid": {
     "description": "Failure message shown when the Lightning Address nym is invalid."
   },
   "lightningAddressSetupFailed": "Setup failed before anything was submitted. Please try again.",
@@ -17729,5 +17721,13 @@
   "lightningAddressTurnOffConfirmSubmit": "Turn off",
   "@lightningAddressTurnOffConfirmSubmit": {
     "description": "Confirm action for turning off the Lightning Address"
+  },
+  "getPaidNymClaimTitle": "Claim your Bull Nym",
+  "@getPaidNymClaimTitle": {
+    "description": "Title of the minimal Bull Nym claim step shown by every Get Paid activation flow when no nym is claimed yet."
+  },
+  "getPaidNymClaimBody": "This is a permanent anonymous identity linked to your Bitcoin wallet and will become your public Lightning Address.",
+  "@getPaidNymClaimBody": {
+    "description": "Owner-approved disclosure shown above the single nym field in the shared claim step."
   }
 }
