@@ -6,6 +6,9 @@ enum PosErrorKind {
   invalidInput,
   aliasTaken,
   aliasAlreadyAssigned,
+  nymTaken,
+  nymReserved,
+  nymInvalid,
   noNym,
   noDefaultBitcoinWallet,
   localPreparationFailed,
@@ -41,6 +44,12 @@ sealed class PosException implements Exception {
   const factory PosException.aliasAlreadyAssigned({
     required String ownedAlias,
   }) = PosAliasAlreadyAssignedException;
+
+  const factory PosException.nymTaken() = PosNymTakenException;
+
+  const factory PosException.nymReserved() = PosNymReservedException;
+
+  const factory PosException.nymInvalid() = PosNymInvalidException;
 
   const factory PosException.noNym() = PosNoNymException;
 
@@ -113,6 +122,9 @@ sealed class PosException implements Exception {
     PosErrorKind.invalidInput => context.loc.posErrorInvalidInput,
     PosErrorKind.aliasTaken => context.loc.posAliasTaken,
     PosErrorKind.aliasAlreadyAssigned => context.loc.posAliasAlreadyAssigned,
+    PosErrorKind.nymTaken => context.loc.getPaidNymTaken,
+    PosErrorKind.nymReserved => context.loc.getPaidNymReserved,
+    PosErrorKind.nymInvalid => context.loc.getPaidNymInvalid,
     PosErrorKind.noNym => context.loc.posErrorNoNym,
     PosErrorKind.noDefaultBitcoinWallet => context.loc.posErrorNoDefaultWallet,
     PosErrorKind.localPreparationFailed => context.loc.posErrorSetupFailed,
@@ -150,6 +162,29 @@ final class PosAliasAlreadyAssignedException extends PosException {
     : super._(
         kind: PosErrorKind.aliasAlreadyAssigned,
         code: 'AliasAlreadyAssigned',
+        retryable: false,
+      );
+}
+
+final class PosNymTakenException extends PosException {
+  const PosNymTakenException()
+    : super._(kind: PosErrorKind.nymTaken, code: 'NameTaken', retryable: false);
+}
+
+final class PosNymReservedException extends PosException {
+  const PosNymReservedException()
+    : super._(
+        kind: PosErrorKind.nymReserved,
+        code: 'NymReserved',
+        retryable: false,
+      );
+}
+
+final class PosNymInvalidException extends PosException {
+  const PosNymInvalidException()
+    : super._(
+        kind: PosErrorKind.nymInvalid,
+        code: 'NymInvalid',
         retryable: false,
       );
 }
@@ -259,6 +294,9 @@ bool _isPosSubmissionUncertain(PosException cause) {
     PosErrorKind.invalidInput ||
     PosErrorKind.aliasTaken ||
     PosErrorKind.aliasAlreadyAssigned ||
+    PosErrorKind.nymTaken ||
+    PosErrorKind.nymReserved ||
+    PosErrorKind.nymInvalid ||
     PosErrorKind.noNym ||
     PosErrorKind.noDefaultBitcoinWallet ||
     PosErrorKind.localPreparationFailed ||

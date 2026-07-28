@@ -27,7 +27,7 @@ void main() {
       expect(find.byKey(const Key('payment_page_online_switch')), findsNothing);
     });
 
-    testWidgets('optional first alias claim requires permanence confirmation', (
+    testWidgets('a first alias claim states permanence without a dialog', (
       tester,
     ) async {
       await _pumpPage(
@@ -42,7 +42,14 @@ void main() {
         ),
       );
 
+      // A draft alias means the alias branch was already taken, so the field is
+      // shown directly with its one permanence line.
       expect(find.byKey(const Key('payment_page_alias_field')), findsOneWidget);
+      expect(
+        find.textContaining('it cannot be changed, cleared, or replaced'),
+        findsOneWidget,
+      );
+
       await tester.scrollUntilVisible(
         find.text('Create Donation Page'),
         500,
@@ -51,12 +58,7 @@ void main() {
       await tester.tap(find.text('Create Donation Page'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Claim this alias permanently?'), findsOneWidget);
-      expect(
-        find.textContaining('shared by your Donation Page and Point of Sale'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('cannot be renamed, cleared'), findsOneWidget);
+      expect(find.byType(AlertDialog), findsNothing);
     });
 
     testWidgets('claimed alias is read-only and Page switch is kind-scoped', (
@@ -116,7 +118,7 @@ void main() {
       expect(find.byKey(const Key('pos_online_switch')), findsNothing);
     });
 
-    testWidgets('optional first alias claim requires permanence confirmation', (
+    testWidgets('a first alias claim states permanence without a dialog', (
       tester,
     ) async {
       await _pumpPos(
@@ -131,16 +133,16 @@ void main() {
       );
 
       expect(find.byKey(const Key('pos_alias_field')), findsOneWidget);
+      expect(
+        find.textContaining('it cannot be changed, cleared, or replaced'),
+        findsOneWidget,
+      );
+
       await tester.ensureVisible(find.text('Create Point of Sale'));
       await tester.tap(find.text('Create Point of Sale'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Claim this alias permanently?'), findsOneWidget);
-      expect(
-        find.textContaining('shared by your Donation Page and Point of Sale'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('cannot be renamed, cleared'), findsOneWidget);
+      expect(find.byType(AlertDialog), findsNothing);
     });
 
     testWidgets('claimed alias is read-only and POS switch is kind-scoped', (
@@ -277,6 +279,9 @@ class _StubPaymentPageCubit extends Cubit<PaymentPageState>
   Future<void> load() async {}
 
   @override
+  Future<void> save() async {}
+
+  @override
   Future<void> setOnline(bool online) async => setOnlineCalls.add(online);
 
   @override
@@ -290,6 +295,9 @@ class _StubPosCubit extends Cubit<PosState> implements PosCubit {
 
   @override
   Future<void> load() async {}
+
+  @override
+  Future<void> provision() async {}
 
   @override
   Future<void> setOnline(bool online) async => setOnlineCalls.add(online);

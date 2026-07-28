@@ -6,6 +6,9 @@ enum PaymentPageErrorKind {
   invalidInput,
   aliasTaken,
   aliasAlreadyAssigned,
+  nymTaken,
+  nymReserved,
+  nymInvalid,
   noNym,
   noDefaultBitcoinWallet,
   localPreparationFailed,
@@ -42,6 +45,14 @@ sealed class PaymentPageException implements Exception {
   const factory PaymentPageException.aliasAlreadyAssigned({
     required String ownedAlias,
   }) = PaymentPageAliasAlreadyAssignedException;
+
+  const factory PaymentPageException.nymTaken() = PaymentPageNymTakenException;
+
+  const factory PaymentPageException.nymReserved() =
+      PaymentPageNymReservedException;
+
+  const factory PaymentPageException.nymInvalid() =
+      PaymentPageNymInvalidException;
 
   const factory PaymentPageException.noNym() = PaymentPageNoNymException;
 
@@ -119,6 +130,9 @@ sealed class PaymentPageException implements Exception {
     PaymentPageErrorKind.aliasTaken => context.loc.paymentPageAliasTaken,
     PaymentPageErrorKind.aliasAlreadyAssigned =>
       context.loc.paymentPageAliasAlreadyAssigned,
+    PaymentPageErrorKind.nymTaken => context.loc.getPaidNymTaken,
+    PaymentPageErrorKind.nymReserved => context.loc.getPaidNymReserved,
+    PaymentPageErrorKind.nymInvalid => context.loc.getPaidNymInvalid,
     PaymentPageErrorKind.noNym => context.loc.paymentPageErrorNoNym,
     PaymentPageErrorKind.noDefaultBitcoinWallet =>
       context.loc.paymentPageErrorNoDefaultWallet,
@@ -159,6 +173,33 @@ final class PaymentPageAliasAlreadyAssignedException
     : super._(
         kind: PaymentPageErrorKind.aliasAlreadyAssigned,
         code: 'AliasAlreadyAssigned',
+        retryable: false,
+      );
+}
+
+final class PaymentPageNymTakenException extends PaymentPageException {
+  const PaymentPageNymTakenException()
+    : super._(
+        kind: PaymentPageErrorKind.nymTaken,
+        code: 'NameTaken',
+        retryable: false,
+      );
+}
+
+final class PaymentPageNymReservedException extends PaymentPageException {
+  const PaymentPageNymReservedException()
+    : super._(
+        kind: PaymentPageErrorKind.nymReserved,
+        code: 'NymReserved',
+        retryable: false,
+      );
+}
+
+final class PaymentPageNymInvalidException extends PaymentPageException {
+  const PaymentPageNymInvalidException()
+    : super._(
+        kind: PaymentPageErrorKind.nymInvalid,
+        code: 'NymInvalid',
         retryable: false,
       );
 }
@@ -279,6 +320,9 @@ bool _isPaymentPageSubmissionUncertain(PaymentPageException cause) {
     PaymentPageErrorKind.invalidInput ||
     PaymentPageErrorKind.aliasTaken ||
     PaymentPageErrorKind.aliasAlreadyAssigned ||
+    PaymentPageErrorKind.nymTaken ||
+    PaymentPageErrorKind.nymReserved ||
+    PaymentPageErrorKind.nymInvalid ||
     PaymentPageErrorKind.noNym ||
     PaymentPageErrorKind.noDefaultBitcoinWallet ||
     PaymentPageErrorKind.localPreparationFailed ||
