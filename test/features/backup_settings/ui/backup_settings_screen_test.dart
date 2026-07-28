@@ -14,117 +14,304 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _StubBackupSettingsCubit extends Cubit<BackupSettingsState>
+/// Stands in for the real cubit so each posture can be pumped directly. The
+/// screen resolves it from the locator, so registering the fake is enough.
+class _FakeBackupSettingsCubit extends Cubit<BackupSettingsState>
     implements BackupSettingsCubit {
-  _StubBackupSettingsCubit(super.initialState);
+  _FakeBackupSettingsCubit(super.initialState);
 
   @override
   Future<void> checkBackupStatus() async {}
 }
 
 void main() {
+  late AppLocalizations loc;
+
+  setUpAll(
+    () async => loc = await AppLocalizations.delegate.load(const Locale('en')),
+  );
+
   tearDown(() async {
     await locator.reset();
   });
 
-  testWidgets('shows one unified Bull backup lifecycle', (tester) async {
-    await _pump(tester, _StubBackupSettingsCubit(BackupSettingsState()));
-
-    expect(find.text('Bull backup'), findsOneWidget);
-    expect(find.text('Automatic Bull backup'), findsOneWidget);
-    expect(find.text('Wallet metadata backup'), findsNothing);
-    expect(find.text('Delete wallet metadata backup'), findsNothing);
-  });
-
-  testWidgets('shows pending state and keeps manual backup disabled when off', (
-    tester,
-  ) async {
-    final facade = _FakeWalletBackupFacade(
-      WalletBackupState(
-        enabled: false,
-        dirty: true,
-        dirtyRevision: 1,
-        lastAttemptedAt: null,
-        lastSucceededAt: null,
-        remoteGeneration: 0,
-        remoteEtag: null,
-        contentHash: null,
-        unsupportedVersion: null,
+  Future<void> pumpScreen(
+    WidgetTester tester, {
+    required bool physicalTested,
+    required bool vaultTested,
+    DateTime? lastPhysicalBackup,
+    DateTime? lastEncryptedBackup,
+    BackupSettingsStatus status = BackupSettingsStatus.success,
+    _FakeWalletBackupFacade? walletBackup,
+  }) async {
+    final state = BackupSettingsState(
+      isDefaultPhysicalBackupTested: physicalTested,
+      isDefaultEncryptedBackupTested: vaultTested,
+      lastPhysicalBackup: lastPhysicalBackup,
+      lastEncryptedBackup: lastEncryptedBackup,
+      status: status,
+    );
+    locator.registerFactory<BackupSettingsCubit>(
+      () => _FakeBackupSettingsCubit(state),
+    );
+    final facade = walletBackup ?? _FakeWalletBackupFacade(_offState);
+    locator.registerFactory<WalletBackupSettingsCubit>(
+      () => WalletBackupSettingsCubit(
+        WatchWalletBackupUsecase(facade),
+        SetWalletBackupEnabledUsecase(facade),
+        BackupWalletNowUsecase(facade),
+        DeleteWalletBackupUsecase(facade),
       ),
     );
-    await _pump(
-      tester,
-      _StubBackupSettingsCubit(BackupSettingsState()),
-      facade: facade,
-    );
 
-    expect(find.text('Automatic backup is off'), findsOneWidget);
-    final button = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Back up now'),
-    );
-    expect(button.onPressed, isNull);
-  });
-
-  testWidgets('confirms deletion through the unified backup control', (
-    tester,
-  ) async {
-    final facade = _FakeWalletBackupFacade(
-      WalletBackupState(
-        enabled: false,
-        dirty: false,
-        dirtyRevision: 0,
-        lastAttemptedAt: null,
-        lastSucceededAt: 100,
-        remoteGeneration: 1,
-        remoteEtag:
-            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        contentHash:
-            'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-        unsupportedVersion: null,
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.themeData(AppThemeType.light),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: const BackupSettingsScreen(),
       ),
     );
-    await _pump(
+    await tester.pump();
+  }
+
+  testWidgets('urges a backup, and only that, when nothing is backed up', (
+    tester,
+  ) async {
+    await pumpScreen(tester, physicalTested: false, vaultTested: false);
+
+    expect(find.text(loc.backupSettingsHeroBackUpTitle), findsOneWidget);
+    expect(find.text(loc.backupSettingsStartBackupAction), findsOneWidget);
+    expect(find.text(loc.backupHealthReminderTitle), findsNothing);
+    // Nothing to test yet, so no test-backup row.
+    expect(find.text(loc.backupSettingsTestBackup), findsNothing);
+  });
+
+  testWidgets('asks a vault-only wallet for a physical backup', (tester) async {
+    await pumpScreen(
       tester,
-      _StubBackupSettingsCubit(BackupSettingsState()),
-      facade: facade,
+      physicalTested: false,
+      vaultTested: true,
+      lastEncryptedBackup: DateTime.now(),
     );
 
-    await tester.tap(find.text('Delete backup'));
-    await tester.pumpAndSettle();
-    expect(find.text('Delete Bull backup?'), findsOneWidget);
-    expect(facade.deleteCalls, 0);
-
-    await tester.tap(find.text('Delete').last);
-    await tester.pumpAndSettle();
-    expect(facade.deleteCalls, 1);
+    expect(find.text(loc.backupHealthReminderTitle), findsOneWidget);
+    expect(find.text(loc.backupHealthAddPhysicalBackupAction), findsOneWidget);
+    expect(find.text(loc.backupSettingsHeroBackUpTitle), findsNothing);
   });
-}
 
-Future<void> _pump(
-  WidgetTester tester,
-  _StubBackupSettingsCubit cubit, {
-  _FakeWalletBackupFacade? facade,
-}) async {
-  locator.registerFactory<BackupSettingsCubit>(() => cubit);
-  final walletBackup = facade ?? _FakeWalletBackupFacade(_offState);
-  locator.registerFactory<WalletBackupSettingsCubit>(
-    () => WalletBackupSettingsCubit(
-      WatchWalletBackupUsecase(walletBackup),
-      SetWalletBackupEnabledUsecase(walletBackup),
-      BackupWalletNowUsecase(walletBackup),
-      DeleteWalletBackupUsecase(walletBackup),
-    ),
+  testWidgets('says nothing extra when the physical backup is fresh', (
+    tester,
+  ) async {
+    final testedAt = DateTime.now().subtract(const Duration(days: 30));
+    await pumpScreen(
+      tester,
+      physicalTested: true,
+      vaultTested: true,
+      lastPhysicalBackup: testedAt,
+      lastEncryptedBackup: testedAt,
+    );
+
+    expect(find.text(loc.backupHealthReminderTitle), findsNothing);
+    expect(find.text(loc.backupSettingsHeroBackUpTitle), findsNothing);
+    expect(find.text(loc.backupHealthTestBackupAction), findsNothing);
+    // The rows still carry the facts.
+    expect(find.text(loc.backupSettingsTested), findsNWidgets(2));
+  });
+
+  testWidgets('asks for a test when the physical backup has gone stale', (
+    tester,
+  ) async {
+    final testedAt = DateTime.now().subtract(const Duration(days: 400));
+    await pumpScreen(
+      tester,
+      physicalTested: true,
+      vaultTested: true,
+      lastPhysicalBackup: testedAt,
+      lastEncryptedBackup: DateTime.now(),
+    );
+
+    expect(find.text(loc.backupHealthReminderTitle), findsOneWidget);
+    expect(find.text(loc.backupHealthTestBackupAction), findsOneWidget);
+  });
+
+  testWidgets('a fresh vault does not excuse a stale physical backup', (
+    tester,
+  ) async {
+    await pumpScreen(
+      tester,
+      physicalTested: true,
+      vaultTested: true,
+      lastPhysicalBackup: DateTime.now().subtract(const Duration(days: 730)),
+      lastEncryptedBackup: DateTime.now(),
+    );
+
+    expect(find.text(loc.backupHealthTestBackupAction), findsOneWidget);
+  });
+
+  testWidgets('states when the physical backup was last tested', (
+    tester,
+  ) async {
+    await pumpScreen(
+      tester,
+      physicalTested: true,
+      vaultTested: false,
+      lastPhysicalBackup: DateTime.now().subtract(const Duration(days: 60)),
+    );
+
+    expect(find.textContaining('Last tested'), findsWidgets);
+  });
+
+  testWidgets('renders no hero before the first load resolves', (tester) async {
+    await pumpScreen(
+      tester,
+      physicalTested: false,
+      vaultTested: false,
+      status: BackupSettingsStatus.loading,
+    );
+
+    expect(find.text(loc.backupSettingsHeroBackUpTitle), findsNothing);
+    expect(find.text(loc.backupSettingsStartBackupAction), findsNothing);
+  });
+
+  // Availability is not encouragement: the hero goes quiet once a physical
+  // backup is fresh, but adding another backup must never stop being possible.
+  group('the backup action is always available', () {
+    final now = DateTime.now();
+    // The zero-backup state is deliberately absent: there the hero itself
+    // renders START BACKUP, so the menu row would be a second identical entry
+    // a few pixels below it. Covered by its own test after this group.
+    final postures = <String, Map<String, Object?>>{
+      'vault only': {'physical': false, 'vault': true, 'vaultAt': now},
+      'physical fresh': {
+        'physical': true,
+        'vault': false,
+        'physicalAt': now.subtract(const Duration(days: 30)),
+      },
+      'physical stale': {
+        'physical': true,
+        'vault': false,
+        'physicalAt': now.subtract(const Duration(days: 400)),
+      },
+      'both': {
+        'physical': true,
+        'vault': true,
+        'physicalAt': now.subtract(const Duration(days: 30)),
+        'vaultAt': now,
+      },
+    };
+
+    for (final entry in postures.entries) {
+      testWidgets(entry.key, (tester) async {
+        final p = entry.value;
+        await pumpScreen(
+          tester,
+          physicalTested: p['physical']! as bool,
+          vaultTested: p['vault']! as bool,
+          lastPhysicalBackup: p['physicalAt'] as DateTime?,
+          lastEncryptedBackup: p['vaultAt'] as DateTime?,
+        );
+
+        expect(find.text(loc.backupSettingsStartBackup), findsOneWidget);
+      });
+    }
+  });
+
+  testWidgets(
+    'the zero-backup hero offers START BACKUP without a duplicate menu row',
+    (tester) async {
+      await pumpScreen(tester, physicalTested: false, vaultTested: false);
+
+      // The hero's own CTA is present…
+      expect(find.text(loc.backupSettingsStartBackupAction), findsOneWidget);
+      // …and the menu row offering the same action is suppressed here only.
+      expect(find.text(loc.backupSettingsStartBackup), findsNothing);
+    },
   );
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.themeData(AppThemeType.light),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      locale: const Locale('en'),
-      home: const BackupSettingsScreen(),
-    ),
-  );
-  await tester.pump();
+
+  testWidgets('names the encrypted vault menu row after the status row', (
+    tester,
+  ) async {
+    await pumpScreen(tester, physicalTested: false, vaultTested: false);
+
+    expect(find.text(loc.backupSettingsEncryptedVaultSettings), findsOneWidget);
+  });
+
+  group('the fork metadata backup controls', () {
+    testWidgets('show one unified Bull backup lifecycle', (tester) async {
+      await pumpScreen(tester, physicalTested: false, vaultTested: false);
+
+      expect(find.text('Bull backup'), findsOneWidget);
+      expect(find.text('Automatic Bull backup'), findsOneWidget);
+      expect(find.text('Wallet metadata backup'), findsNothing);
+      expect(find.text('Delete wallet metadata backup'), findsNothing);
+    });
+
+    testWidgets('keep manual backup disabled while automatic backup is off', (
+      tester,
+    ) async {
+      await pumpScreen(
+        tester,
+        physicalTested: false,
+        vaultTested: false,
+        walletBackup: _FakeWalletBackupFacade(
+          WalletBackupState(
+            enabled: false,
+            dirty: true,
+            dirtyRevision: 1,
+            lastAttemptedAt: null,
+            lastSucceededAt: null,
+            remoteGeneration: 0,
+            remoteEtag: null,
+            contentHash: null,
+            unsupportedVersion: null,
+          ),
+        ),
+      );
+
+      expect(find.text('Automatic backup is off'), findsOneWidget);
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Back up now'),
+      );
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('confirm deletion through the unified backup control', (
+      tester,
+    ) async {
+      final facade = _FakeWalletBackupFacade(
+        WalletBackupState(
+          enabled: false,
+          dirty: false,
+          dirtyRevision: 0,
+          lastAttemptedAt: null,
+          lastSucceededAt: 100,
+          remoteGeneration: 1,
+          remoteEtag:
+              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          contentHash:
+              'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          unsupportedVersion: null,
+        ),
+      );
+      await pumpScreen(
+        tester,
+        physicalTested: false,
+        vaultTested: false,
+        walletBackup: facade,
+      );
+
+      await tester.tap(find.text('Delete backup'));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete Bull backup?'), findsOneWidget);
+      expect(facade.deleteCalls, 0);
+
+      await tester.tap(find.text('Delete').last);
+      await tester.pumpAndSettle();
+      expect(facade.deleteCalls, 1);
+    });
+  });
 }
 
 final WalletBackupState _offState = WalletBackupState(

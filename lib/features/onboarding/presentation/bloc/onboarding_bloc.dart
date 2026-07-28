@@ -1,8 +1,9 @@
 import 'dart:async';
 
-import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
-import 'package:bb_mobile/features/onboarding/complete_physical_backup_verification_usecase.dart';
+import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/onboarding/domain/onboarding_failure.dart';
+import 'package:bb_mobile/features/onboarding/domain/usecases/complete_physical_backup_verification_usecase.dart';
+import 'package:bb_mobile/features/onboarding/domain/usecases/create_onboarding_wallets_usecase.dart';
 import 'package:bb_mobile/features/onboarding/recover_remote_keychain_usecase.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,7 +15,7 @@ part 'onboarding_state.dart';
 
 class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
   OnboardingBloc({
-    required this._createDefaultWalletsUsecase,
+    required this._createOnboardingWalletsUsecase,
     required this._completePhysicalBackupVerificationUsecase,
     required this._recoverRemoteKeychainUsecase,
   }) : super(const OnboardingState()) {
@@ -26,18 +27,18 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
     });
   }
 
-  final CreateDefaultWalletsUsecase _createDefaultWalletsUsecase;
+  final CreateOnboardingWalletsUsecase _createOnboardingWalletsUsecase;
 
   final CompletePhysicalBackupVerificationUsecase
   _completePhysicalBackupVerificationUsecase;
   final RecoverRemoteKeychainUsecase _recoverRemoteKeychainUsecase;
-  Future<void> _handleError(Object error, Emitter<OnboardingState> emit) async {
-    log.severe(error: error, trace: StackTrace.current);
+
+  void _emitFailure(OnboardingFailure failure, Emitter<OnboardingState> emit) {
     emit(
       state.copyWith(
         onboardingStepStatus: OnboardingStepStatus.none,
         step: OnboardingStep.splash,
-        statusError: error.toString(),
+        failure: failure,
       ),
     );
   }
@@ -50,18 +51,20 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
     // dequeues, the 1st emit has already flipped the status to loading,
     // so this guard drops the duplicate (#2015).
     if (state.onboardingStepStatus == OnboardingStepStatus.loading) return;
-    try {
-      emit(
-        state.copyWith(
-          onboardingStepStatus: OnboardingStepStatus.loading,
-          step: OnboardingStep.create,
-          statusError: '',
-        ),
-      );
-      await _createDefaultWalletsUsecase.execute();
-      emit(state.copyWith(onboardingStepStatus: OnboardingStepStatus.success));
-    } catch (e) {
-      await _handleError(e, emit);
+    emit(
+      state.copyWith(
+        onboardingStepStatus: OnboardingStepStatus.loading,
+        step: OnboardingStep.create,
+        failure: null,
+      ),
+    );
+    switch (await _createOnboardingWalletsUsecase.execute()) {
+      case Ok():
+        emit(
+          state.copyWith(onboardingStepStatus: OnboardingStepStatus.success),
+        );
+      case Err(:final failure):
+        _emitFailure(failure, emit);
     }
   }
 
@@ -71,31 +74,44 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
   ) async {
     // Same serialized-event guard as `_onCreateNewWallet` (#2015).
     if (state.onboardingStepStatus == OnboardingStepStatus.loading) return;
-    try {
-      emit(
-        state.copyWith(
-          onboardingStepStatus: OnboardingStepStatus.loading,
-          step: OnboardingStep.recover,
-          statusError: '',
-        ),
-      );
-      final defaultWallets = await _createDefaultWalletsUsecase.execute(
-        mnemonicWords: event.mnemonic.words,
-      );
-      await _completePhysicalBackupVerificationUsecase.execute();
-      // Await manifest recovery (bounded by its own time budget) BEFORE
-      // signalling success. Success drives WalletStarted, so awaiting here
-      // guarantees restored manifest wallets (e.g. Donation Page 102 and POS
-      // 103) exist before the wallet inventory first loads. The usecase never
-      // throws, so a recovery failure lets onboarding continue silently.
-      await _recoverRemoteKeychainUsecase.execute(
-        defaultCreatedWalletIds: defaultWallets
-            .map((wallet) => wallet.id)
-            .toSet(),
-      );
-      emit(state.copyWith(onboardingStepStatus: OnboardingStepStatus.success));
-    } catch (e) {
-      await _handleError(e, emit);
+    emit(
+      state.copyWith(
+        onboardingStepStatus: OnboardingStepStatus.loading,
+        step: OnboardingStep.recover,
+        failure: null,
+      ),
+    );
+    switch (await _createOnboardingWalletsUsecase.execute(
+      mnemonicWords: event.mnemonic.words,
+    )) {
+      case Err(:final failure):
+        _emitFailure(failure, emit);
+      case Ok(:final value):
+        final completed = await _completePhysicalBackupVerificationUsecase
+            .execute(masterFingerprint: value.first.masterFingerprint);
+        // Await manifest recovery (bounded by its own time budget) BEFORE
+        // signalling success. Success drives WalletStarted, so awaiting here
+        // guarantees restored manifest wallets (e.g. Donation Page 102 and POS
+        // 103) exist before the wallet inventory first loads. The usecase never
+        // throws, so a recovery failure lets onboarding continue silently.
+        await _recoverRemoteKeychainUsecase.execute(
+          defaultCreatedWalletIds: value.map((wallet) => wallet.id).toSet(),
+        );
+        switch (completed) {
+          case Ok():
+            emit(
+              state.copyWith(
+                onboardingStepStatus: OnboardingStepStatus.success,
+              ),
+            );
+          case Err(:final failure):
+            emit(
+              state.copyWith(
+                onboardingStepStatus: OnboardingStepStatus.success,
+                failure: failure,
+              ),
+            );
+        }
     }
   }
 }

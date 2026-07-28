@@ -15,6 +15,7 @@ import 'package:bb_mobile/core/tor/data/usecases/init_tor_usecase.dart';
 import 'package:bb_mobile/core/tor/data/usecases/tor_status_usecase.dart';
 import 'package:bb_mobile/core/tor/domain/ports/tor_config_port.dart';
 import 'package:bb_mobile/features/recoverbull/flow.dart';
+import 'package:bb_mobile/features/recoverbull/domain/complete_encrypted_vault_backup_usecase.dart';
 import 'package:bb_mobile/features/recoverbull/presentation/bloc.dart';
 import 'package:bb_mobile/features/recoverbull/recover_remote_keychain_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
@@ -51,6 +52,8 @@ class RecoverBullRouter {
           pickVaultUsecase: locator<PickVaultUsecase>(),
           saveFileToSystemUsecase: locator<SaveFileToSystemUsecase>(),
           createEncryptedVaultUsecase: locator<CreateEncryptedVaultUsecase>(),
+          completeEncryptedVaultBackupUsecase:
+              locator<CompleteEncryptedVaultBackupUsecase>(),
           storeVaultKeyIntoServerUsecase:
               locator<StoreVaultKeyIntoServerUsecase>(),
           checkKeyServerConnectionUsecase:

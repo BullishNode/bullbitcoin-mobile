@@ -10,5 +10,6 @@ extension BackupSettingsFailureL10n on BackupSettingsFailure {
     BackupSettingsUpdateRequiredFailure() =>
       context.loc.walletBackupSettingsUpdateRequired,
     BackupSettingsUnexpectedFailure() => context.loc.oopsSomethingWentWrong,
+    BackupSettingsPersistenceFailure() => context.loc.backupHealthSaveFailed,
   };
 }
