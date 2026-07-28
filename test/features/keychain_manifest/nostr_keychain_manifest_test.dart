@@ -90,4 +90,52 @@ void main() {
       "128002'/7'/1'",
     );
   });
+
+  test('carries a Nostr key description from the record into the file', () {
+    final entry = KeychainManifestEntry(
+      parentFingerprint: '01234567',
+      bip85DerivationPath: "128002'/1'/1'",
+      reservationId: 'nostr_user_key',
+      entryType: 'userGenerated',
+      ownerFeature: 'nostr',
+      bip85Application: 128002,
+      bip85Index: 1,
+      createdAt: 100,
+      updatedAt: 100,
+    );
+    final record = KeychainManifestNostrKeyRecord(
+      entry: entry,
+      nostrKeyMaterialization: KeychainManifestNostrKeyMaterialization(
+        entryId: entry.entryId,
+        publicKeyHex: 'ab' * 32,
+        keyKind: KeychainManifestNostrKeyKind.userGenerated,
+        purpose: 'personal identity',
+        description: 'long-form notes and replies',
+        createdAt: 100,
+        updatedAt: 100,
+      ),
+    );
+    final file = KeychainManifestFile(
+      parentFingerprint: entry.parentFingerprint,
+      generatedAt: 100,
+      entries: [KeychainManifestFileEntry.fromNostrKeyRecord(record)],
+    );
+
+    const codec = KeychainManifestFileCodec();
+    final decoded = codec.decode(codec.encode(file));
+    final materialization =
+        decoded.entries.single.materializations.single
+            as KeychainManifestFileNostrKeyMaterialization;
+    expect(materialization.description, 'long-form notes and replies');
+
+    final plan = ParseKeychainManifestFileUsecase(
+      codec: codec,
+      bip85Registry: const Bip85RegistryFacade(),
+    ).executeFile(decoded, expectedParentFingerprint: '01234567');
+
+    expect(
+      plan.nostrKeyMaterializations.single.description,
+      'long-form notes and replies',
+    );
+  });
 }

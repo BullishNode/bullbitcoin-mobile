@@ -141,10 +141,11 @@ void main() {
     final record = _nostrRecord(updatedAt: 100);
     await store.insertNostrKeyRecords([record]);
 
-    await store.updateNostrKeyPurpose(
+    await store.updateNostrKeyMetadata(
       parentFingerprint: record.entry.parentFingerprint,
       entryId: record.entryId,
       purpose: 'edited immediately',
+      description: null,
       updatedAt: 100,
     );
 
@@ -162,10 +163,11 @@ void main() {
       final record = _nostrRecord(updatedAt: 100);
       await store.insertNostrKeyRecords([record]);
 
-      await store.updateNostrKeyPurpose(
+      await store.updateNostrKeyMetadata(
         parentFingerprint: record.entry.parentFingerprint,
         entryId: record.entryId,
         purpose: record.nostrKeyMaterialization.purpose,
+        description: record.nostrKeyMaterialization.description,
         updatedAt: 150,
       );
 
@@ -176,6 +178,54 @@ void main() {
       expect(updated.entry.updatedAt, 150);
     },
   );
+
+  test(
+    'round-trips a Nostr key description and clears it back to null',
+    () async {
+      await store.insertNostrKeyRecords([
+        _nostrRecord(updatedAt: 100, description: '  work identity  '),
+      ]);
+
+      final stored = (await store.fetchNostrKeyRecordsByParentFingerprint(
+        'fedcba98',
+      )).single;
+      expect(stored.nostrKeyMaterialization.description, 'work identity');
+
+      await store.updateNostrKeyMetadata(
+        parentFingerprint: stored.entry.parentFingerprint,
+        entryId: stored.entryId,
+        purpose: stored.nostrKeyMaterialization.purpose,
+        description: '   ',
+        updatedAt: 200,
+      );
+
+      final cleared = (await store.fetchNostrKeyRecordsByParentFingerprint(
+        'fedcba98',
+      )).single;
+      expect(cleared.nostrKeyMaterialization.description, isNull);
+      expect(cleared.nostrKeyMaterialization.purpose, 'personal identity');
+      expect(cleared.nostrKeyMaterialization.updatedAt, 200);
+    },
+  );
+
+  test('advances the revision when only the description changes', () async {
+    await store.insertNostrKeyRecords([_nostrRecord(updatedAt: 100)]);
+
+    await store.updateNostrKeyMetadata(
+      parentFingerprint: 'fedcba98',
+      entryId: "fedcba98:128002'/1'/1'",
+      purpose: 'personal identity',
+      description: 'added later',
+      updatedAt: 100,
+    );
+
+    final updated = (await store.fetchNostrKeyRecordsByParentFingerprint(
+      'fedcba98',
+    )).single;
+    expect(updated.nostrKeyMaterialization.description, 'added later');
+    expect(updated.nostrKeyMaterialization.updatedAt, 101);
+    expect(updated.entry.updatedAt, 101);
+  });
 }
 
 KeychainManifestWalletMaterializationRecord _record({
@@ -216,7 +266,10 @@ KeychainManifestWalletMaterializationRecord _record({
   );
 }
 
-KeychainManifestNostrKeyRecord _nostrRecord({int updatedAt = 1}) {
+KeychainManifestNostrKeyRecord _nostrRecord({
+  int updatedAt = 1,
+  String? description,
+}) {
   final entry = KeychainManifestEntry(
     parentFingerprint: 'fedcba98',
     bip85DerivationPath: "128002'/1'/1'",
@@ -235,6 +288,7 @@ KeychainManifestNostrKeyRecord _nostrRecord({int updatedAt = 1}) {
       publicKeyHex: '11' * 32,
       keyKind: KeychainManifestNostrKeyKind.userGenerated,
       purpose: 'personal identity',
+      description: description,
       createdAt: 1,
       updatedAt: updatedAt,
     ),

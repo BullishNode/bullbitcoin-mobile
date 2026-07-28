@@ -71,11 +71,13 @@ class KeychainManifestLocator {
       () => GetDefaultWalletNostrKeysUsecase(
         wallet: locator<KeychainManifestBackupWalletPort>(),
         getKeys: locator<GetKeychainManifestNostrKeysUsecase>(),
+        registry: locator<Bip85RegistryFacade>(),
       ),
     );
     locator.registerFactory<UpdateKeychainManifestNostrKeyPurposeUsecase>(
       () => UpdateKeychainManifestNostrKeyPurposeUsecase(
         repository: locator<KeychainManifestEntryRepository>(),
+        registry: locator<Bip85RegistryFacade>(),
         clock: locator<Clock>(),
       ),
     );

@@ -203,10 +203,11 @@ class _InMemoryKeychainManifestStore
   }
 
   @override
-  Future<void> updateNostrKeyPurpose({
+  Future<void> updateNostrKeyMetadata({
     required String parentFingerprint,
     required String entryId,
     required String purpose,
+    required String? description,
     required int updatedAt,
   }) async {}
 }

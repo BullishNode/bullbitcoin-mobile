@@ -22,15 +22,20 @@ export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_im
         KeychainManifestNostrKeyMaterializationIntent;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_reservation_support.dart'
     show KeychainManifestReservationSupport;
+export 'package:bb_mobile/features/keychain_manifest/domain/nostr_key_display.dart'
+    show KeychainManifestNostrKeyDisplay, KeychainManifestNostrSystemKind;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart'
     show
         KeychainManifestReservedDerivationRequest,
         KeychainManifestWalletMaterializationRequest,
         KeychainManifestNostrKeyRequest;
 export 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart'
-    show KeychainManifestNostrKeyKind, KeychainManifestNostrKeyRecord;
+    show
+        KeychainManifestNostrKeyKind,
+        KeychainManifestNostrKeyMaterialization,
+        KeychainManifestNostrKeyRecord;
 export 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_backup_wallet.dart'
-    show KeychainManifestBackupWalletPort;
+    show KeychainManifestBackupWallet, KeychainManifestBackupWalletPort;
 export 'package:bb_mobile/features/keychain_manifest/domain/usecases/create_keychain_manifest_nostr_key_usecase.dart'
     show CreatedKeychainManifestNostrKey;
 
@@ -124,13 +129,18 @@ class KeychainManifestFacade {
 
   Future<CreatedKeychainManifestNostrKey> createUserNostrKey({
     required String purpose,
+    String? description,
     DateTime? now,
   }) async {
     final usecase = _createNostrKey;
     if (usecase == null) {
       throw StateError('User Nostr key creation is not configured');
     }
-    final created = await usecase.execute(purpose: purpose, now: now);
+    final created = await usecase.execute(
+      purpose: purpose,
+      description: description,
+      now: now,
+    );
     _committedChanges.add(null);
     return created;
   }
@@ -148,10 +158,15 @@ class KeychainManifestFacade {
     await _recordNostrKeyInternal(request, now: now, publishChange: true);
   }
 
-  Future<void> updateNostrKeyPurpose({
+  /// Updates a user key's name and/or description in one revision.
+  ///
+  /// A null [purpose] or [description] leaves that field unchanged; an empty
+  /// [description] clears it. App-reserved keys are rejected.
+  Future<void> updateNostrKey({
     required String parentFingerprint,
     required String entryId,
-    required String purpose,
+    String? purpose,
+    String? description,
     DateTime? now,
   }) async {
     final usecase = _updateNostrKeyPurpose;
@@ -163,6 +178,7 @@ class KeychainManifestFacade {
         parentFingerprint: parentFingerprint,
         entryId: entryId,
         purpose: purpose,
+        description: description,
         now: now,
       );
       _committedChanges.add(null);

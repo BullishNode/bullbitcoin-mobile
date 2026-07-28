@@ -170,7 +170,8 @@ final class MergeKeychainManifestFilePayloadsUsecase {
       );
     }
     if (remote.updatedAt == local.updatedAt &&
-        remote.purpose != local.purpose) {
+        (remote.purpose != local.purpose ||
+            remote.description != local.description)) {
       throw KeychainManifestEntryConflictException(
         'remote Nostr key purpose conflicts with local inventory',
       );
@@ -191,7 +192,10 @@ final class MergeKeychainManifestFilePayloadsUsecase {
           entryId: remote.entryId,
           publicKeyHex: remote.publicKeyHex,
           keyKind: remote.keyKind,
+          // Editable metadata moves together: the newer revision's purpose and
+          // description win as a pair, never a mix of two revisions.
           purpose: latest.purpose,
+          description: latest.description,
           createdAt: _earlier(remote.createdAt, local.createdAt),
           updatedAt: _later(remote.updatedAt, local.updatedAt),
         ),
@@ -263,6 +267,7 @@ final class MergeKeychainManifestFilePayloadsUsecase {
             first.publicKeyHex == second.publicKeyHex &&
             first.keyKind == second.keyKind &&
             first.purpose == second.purpose &&
+            first.description == second.description &&
             first.createdAt == second.createdAt &&
             first.updatedAt == second.updatedAt,
       _ => false,
