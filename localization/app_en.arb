@@ -17953,5 +17953,30 @@
   "recoverbullSettingsTitle": "Encrypted vault settings",
   "@recoverbullSettingsTitle": {
     "description": "AppBar title on the encrypted vault settings page; matches the menu row that opens it"
+  },
+  "backupSettingsMetadataBackup": "Metadata backup",
+  "@backupSettingsMetadataBackup": {
+    "description": "Backup Settings status row and menu row for the Get Paid metadata backup; also titles the options screen it opens"
+  },
+  "backupSettingsMetadataTurnedOn": "Turned on",
+  "@backupSettingsMetadataTurnedOn": {
+    "description": "Metadata backup status row value when automatic backup is enabled"
+  },
+  "backupSettingsMetadataTurnedOff": "Off",
+  "@backupSettingsMetadataTurnedOff": {
+    "description": "Metadata backup status row value when automatic backup is disabled"
+  },
+  "backupSettingsMetadataLastBackedUp": "Last backed up {when}.",
+  "@backupSettingsMetadataLastBackedUp": {
+    "description": "Muted line under the metadata backup status row stating when the last write succeeded",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "backupSettingsMetadataAttentionNeeded": "Attention needed",
+  "@backupSettingsMetadataAttentionNeeded": {
+    "description": "Muted line under the metadata backup status row when a write was rejected or recovery is blocked; never shown for a write that is merely queued"
   }
 }
