@@ -1,8 +1,9 @@
 import 'dart:async';
 
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
-import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
-import 'package:bb_mobile/features/onboarding/complete_physical_backup_verification_usecase.dart';
+import 'package:bb_mobile/features/onboarding/domain/usecases/complete_physical_backup_verification_usecase.dart';
+import 'package:bb_mobile/features/onboarding/domain/usecases/create_onboarding_wallets_usecase.dart';
 import 'package:bb_mobile/features/onboarding/presentation/bloc/onboarding_bloc.dart';
 import 'package:bb_mobile/features/onboarding/recover_remote_keychain_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
@@ -10,8 +11,8 @@ import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockCreateDefaultWallets extends Mock
-    implements CreateDefaultWalletsUsecase {}
+class _MockCreateOnboardingWallets extends Mock
+    implements CreateOnboardingWalletsUsecase {}
 
 class _MockRecoveryFacade extends Mock
     implements RemoteKeychainRecoveryFacade {}
@@ -25,7 +26,7 @@ class _MockRecoverRemoteKeychain extends Mock
 class _MockWallet extends Mock implements Wallet {}
 
 void main() {
-  late _MockCreateDefaultWallets createDefaultWallets;
+  late _MockCreateOnboardingWallets createOnboardingWallets;
   late _MockCompletePhysicalBackup completePhysicalBackup;
   late _MockRecoverRemoteKeychain recoverRemoteKeychain;
 
@@ -42,8 +43,15 @@ void main() {
     language: bip39.Language.english,
   );
 
+  _MockWallet walletStub() {
+    final wallet = _MockWallet();
+    when(() => wallet.id).thenReturn('default-btc');
+    when(() => wallet.masterFingerprint).thenReturn('f00dbabe');
+    return wallet;
+  }
+
   OnboardingBloc buildBloc() => OnboardingBloc(
-    createDefaultWalletsUsecase: createDefaultWallets,
+    createOnboardingWalletsUsecase: createOnboardingWallets,
     completePhysicalBackupVerificationUsecase: completePhysicalBackup,
     recoverRemoteKeychainUsecase: recoverRemoteKeychain,
   );
@@ -53,18 +61,20 @@ void main() {
   });
 
   setUp(() {
-    createDefaultWallets = _MockCreateDefaultWallets();
+    createOnboardingWallets = _MockCreateOnboardingWallets();
     completePhysicalBackup = _MockCompletePhysicalBackup();
     recoverRemoteKeychain = _MockRecoverRemoteKeychain();
 
-    final wallet = _MockWallet();
-    when(() => wallet.id).thenReturn('default-btc');
     when(
-      () => createDefaultWallets.execute(
+      () => createOnboardingWallets.execute(
         mnemonicWords: any(named: 'mnemonicWords'),
       ),
-    ).thenAnswer((_) async => [wallet]);
-    when(completePhysicalBackup.execute).thenAnswer((_) async {});
+    ).thenAnswer((_) async => Ok([walletStub()]));
+    when(
+      () => completePhysicalBackup.execute(
+        masterFingerprint: any(named: 'masterFingerprint'),
+      ),
+    ).thenAnswer((_) async => const Ok(null));
     when(
       () => recoverRemoteKeychain.execute(
         defaultCreatedWalletIds: any(named: 'defaultCreatedWalletIds'),
@@ -105,17 +115,20 @@ void main() {
       'succeeds', () async {
     final order = <String>[];
     when(
-      () => createDefaultWallets.execute(
+      () => createOnboardingWallets.execute(
         mnemonicWords: any(named: 'mnemonicWords'),
       ),
     ).thenAnswer((_) async {
       order.add('create');
-      final wallet = _MockWallet();
-      when(() => wallet.id).thenReturn('default-btc');
-      return [wallet];
+      return Ok([walletStub()]);
     });
-    when(completePhysicalBackup.execute).thenAnswer((_) async {
+    when(
+      () => completePhysicalBackup.execute(
+        masterFingerprint: any(named: 'masterFingerprint'),
+      ),
+    ).thenAnswer((_) async {
       order.add('verify');
+      return const Ok(null);
     });
     when(
       () => recoverRemoteKeychain.execute(
@@ -136,7 +149,7 @@ void main() {
     // Defaults are created regardless of the recovery outcome, so a silent
     // recovery failure still leaves the restored defaults in place.
     verify(
-      () => createDefaultWallets.execute(
+      () => createOnboardingWallets.execute(
         mnemonicWords: any(named: 'mnemonicWords'),
       ),
     ).called(1);
@@ -154,7 +167,7 @@ void main() {
     ).thenThrow(StateError('bug in recovery graph'));
 
     final bloc = OnboardingBloc(
-      createDefaultWalletsUsecase: createDefaultWallets,
+      createOnboardingWalletsUsecase: createOnboardingWallets,
       completePhysicalBackupVerificationUsecase: completePhysicalBackup,
       recoverRemoteKeychainUsecase: RecoverRemoteKeychainUsecase(facade),
     );
@@ -164,6 +177,6 @@ void main() {
     await pumpEventQueue();
 
     expect(bloc.state.onboardingStepStatus, OnboardingStepStatus.success);
-    expect(bloc.state.statusError, isEmpty);
+    expect(bloc.state.failure, isNull);
   });
 }

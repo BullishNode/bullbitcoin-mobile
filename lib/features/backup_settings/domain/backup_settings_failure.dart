@@ -19,3 +19,7 @@ final class BackupSettingsUpdateRequiredFailure extends BackupSettingsFailure {
 final class BackupSettingsUnexpectedFailure extends BackupSettingsFailure {
   const BackupSettingsUnexpectedFailure([super.logMessage]);
 }
+
+final class BackupSettingsPersistenceFailure extends BackupSettingsFailure {
+  const BackupSettingsPersistenceFailure([super.logMessage]);
+}
