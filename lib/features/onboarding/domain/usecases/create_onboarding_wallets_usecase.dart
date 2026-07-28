@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/inconsistent_wallet_state_exception.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/features/onboarding/domain/onboarding_failure.dart';
 import 'package:meta/meta.dart';
@@ -32,6 +33,17 @@ class CreateOnboardingWalletsUsecase {
         return const Err(failure);
       }
       return Ok(wallets);
+    } on InconsistentWalletStateException catch (error, trace) {
+      log.severe(
+        message: 'createOnboardingWallets found wallet records without a seed',
+        error: error,
+        trace: trace,
+      );
+      return Err(
+        OnboardingInconsistentWalletStateFailure(
+          'wallet records without a seed for ${error.fingerprint}',
+        ),
+      );
     } on CreateDefaultWalletsException catch (error, trace) {
       log.severe(
         message: 'createOnboardingWallets failed',

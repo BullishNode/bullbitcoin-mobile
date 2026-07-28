@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/utils/constants.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/share_logs_widget.dart';
+import 'package:bb_mobile/core/wallet/domain/inconsistent_wallet_state_exception.dart';
 import 'package:bb_mobile/features/app_startup/presentation/bloc/app_startup_bloc.dart';
 import 'package:bb_mobile/features/app_unlock/ui/app_unlock_router.dart';
 import 'package:bb_mobile/features/onboarding/ui/onboarding_router.dart';
@@ -93,6 +94,17 @@ class AppStartupFailureScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Wallet records without their seed have one remedy — restore from backup
+    // — so they get their own copy instead of the generic "restart the app"
+    // advice, which can never resolve them (#137).
+    final isInconsistentWalletState = e is InconsistentWalletStateException;
+    final title = isInconsistentWalletState
+        ? context.loc.walletDataIncompleteTitle
+        : context.loc.appStartupErrorTitle;
+    final message = isInconsistentWalletState
+        ? context.loc.walletDataIncompleteRestoreMessage
+        : context.loc.appStartupErrorMessage;
+
     return Scaffold(
       body: Center(
         child: Padding(
@@ -115,7 +127,7 @@ class AppStartupFailureScreen extends StatelessWidget {
                     Icon(Icons.error_outline, color: context.appColors.error),
                     const Gap(8),
                     Text(
-                      context.loc.appStartupErrorTitle,
+                      title,
                       style: context.font.headlineLarge?.copyWith(
                         color: context.appColors.error,
                       ),
@@ -125,7 +137,7 @@ class AppStartupFailureScreen extends StatelessWidget {
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
-                    context.loc.appStartupErrorMessage,
+                    message,
                     style: context.font.bodyMedium?.copyWith(
                       color: context.appColors.secondary.withValues(alpha: 0.7),
                     ),
