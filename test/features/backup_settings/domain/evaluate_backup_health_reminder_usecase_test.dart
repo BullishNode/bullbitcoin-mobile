@@ -426,6 +426,114 @@ void main() {
 
       expect(decision?.trigger, BackupHealthTrigger.balanceMilestone);
     });
+
+    // A Get Paid product wallet is BIP85
+    // derived from the same phone seed, so it is not default, it sits on
+    // Liquid, and it carries its OWN master fingerprint. None of that changes
+    // where the keys are: lose the phone, lose the money. It counts.
+    group('BIP85-derived Get Paid wallets', () {
+      Wallet derived({
+        String origin = 'lightning-address-100',
+        String masterFingerprint = 'deadbeef',
+        int balanceSat = 0,
+      }) => wallet(
+        origin: origin,
+        network: Network.liquidMainnet,
+        isDefault: false,
+        masterFingerprint: masterFingerprint,
+        balanceSat: balanceSat,
+      );
+
+      test(
+        'a derived wallet alone crossing the milestone interrupts',
+        () async {
+          final decision = await evaluateDecision(
+            wallets: [
+              wallet(physical: true, physicalAt: now),
+              derived(balanceSat: 10000000),
+            ],
+            arkBalanceSat: 0,
+          );
+
+          expect(decision?.trigger, BackupHealthTrigger.balanceMilestone);
+          // The decision still belongs to the device seed, not to the derived
+          // wallet's own fingerprint: one milestone per phone, not per product.
+          expect(decision?.masterFingerprint, fingerprint);
+        },
+      );
+
+      test('several derived wallets add up to the milestone', () async {
+        final decision = await evaluateDecision(
+          wallets: [
+            wallet(physical: true, physicalAt: now),
+            derived(
+              origin: 'lightning-address-100',
+              masterFingerprint: 'deadbeef',
+              balanceSat: 4000000,
+            ),
+            derived(
+              origin: 'payment-page-101',
+              masterFingerprint: 'cafebabe',
+              balanceSat: 3000000,
+            ),
+            derived(
+              origin: 'pos-103',
+              masterFingerprint: 'ba5eba11',
+              balanceSat: 3000000,
+            ),
+          ],
+          arkBalanceSat: 0,
+        );
+
+        expect(decision?.trigger, BackupHealthTrigger.balanceMilestone);
+      });
+
+      test('derived balances below the milestone still say nothing', () async {
+        final decision = await evaluateDecision(
+          wallets: [
+            wallet(physical: true, physicalAt: now),
+            derived(balanceSat: 9999999),
+          ],
+          arkBalanceSat: 0,
+        );
+
+        expect(decision, isNull);
+      });
+
+      // Derived wallets carry balance, never posture: a product wallet is
+      // never physically backed up on its own, and must not be read as one.
+      test(
+        'a derived wallet cannot make an unbacked-up phone eligible',
+        () async {
+          final decision = await evaluateDecision(
+            wallets: [wallet(), derived(balanceSat: 10000001)],
+            arkBalanceSat: 0,
+          );
+
+          expect(decision, isNull);
+        },
+      );
+
+      test('the derived milestone fires once per phone', () async {
+        final wallets = [
+          wallet(physical: true, physicalAt: now),
+          derived(balanceSat: 10000001),
+        ];
+        final first = await evaluateDecision(
+          wallets: wallets,
+          arkBalanceSat: 0,
+        );
+        expect(first?.trigger, BackupHealthTrigger.balanceMilestone);
+        expect(await acknowledgeAt(now).execute(first!), isA<Ok>());
+
+        // The physical backup was tested today, so nothing else is due and the
+        // milestone is spent: the derived balance must not re-open it.
+        expect(
+          await evaluateDecision(wallets: wallets, arkBalanceSat: 0),
+          isNull,
+        );
+      });
+    });
   });
 
   group('acknowledgement', () {
