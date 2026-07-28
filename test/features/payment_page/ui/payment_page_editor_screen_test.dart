@@ -43,11 +43,12 @@ PaymentPageState _editState({
 PaymentPageState _createState({
   PaymentPageField? invalidField,
   PaymentPageException? failure,
+  String aliasDraft = 'taken-alias',
 }) {
   return PaymentPageState(
     status: PaymentPageStatus.create,
     nym: 'alice',
-    aliasDraft: 'taken-alias',
+    aliasDraft: aliasDraft,
     displayCurrency: 'CAD',
     invalidField: invalidField,
     failure: failure,
@@ -103,6 +104,132 @@ void main() {
     expect(
       find.text('That alias is already claimed. Choose another.'),
       findsNothing,
+    );
+  });
+
+  testWidgets('no nym yet shows the shared claim step in the Page flow', (
+    tester,
+  ) async {
+    final cubit = await _pump(
+      tester,
+      const PaymentPageState(status: PaymentPageStatus.needsNym),
+    );
+
+    expect(find.text('Claim your Bull Nym'), findsOneWidget);
+    expect(
+      find.text(
+        'This is a permanent anonymous identity linked to your Bitcoin wallet '
+        'and will become your public Lightning Address.',
+      ),
+      findsOneWidget,
+    );
+    // One field, and no instruction to go claim it in Lightning Address.
+    expect(find.byKey(const Key('get_paid_nym_claim_field')), findsOneWidget);
+    expect(
+      find.textContaining('Claim your permanent name in Lightning Address'),
+      findsNothing,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('get_paid_nym_claim_field')),
+      'alice',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('get_paid_nym_claim_submit')));
+    await tester.pumpAndSettle();
+
+    expect(cubit.claimNymCalls, 1);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('a rejected nym is stated on the claim step, not swallowed', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const PaymentPageState(
+        status: PaymentPageStatus.needsNym,
+        nymDraft: 'alice',
+        invalidField: PaymentPageField.nym,
+        failure: PaymentPageException.nymTaken(),
+      ),
+    );
+
+    expect(
+      find.text('That name is already owned. Choose another available name.'),
+      findsOneWidget,
+    );
+    // Drain the failure snackbar's timer.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('no alias claimed offers the explicit nym-or-alias choice', (
+    tester,
+  ) async {
+    await _pump(tester, _createState(aliasDraft: ''));
+
+    expect(find.text('Your nym is alice'), findsOneWidget);
+    expect(
+      find.text(
+        'You can reuse this nym for your Donation Page and it will be publicly '
+        'visible. You can optionally choose another Alias, separate from your '
+        'Lightning Address, for the Point of Sale and Donation Page.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('get_paid_use_my_nym')), findsOneWidget);
+    expect(find.byKey(const Key('get_paid_choose_an_alias')), findsOneWidget);
+    // The alias field stays hidden until the alias branch is chosen.
+    expect(find.byKey(const Key('payment_page_alias_field')), findsNothing);
+  });
+
+  testWidgets('Use my nym keeps the alias omitted from the save', (
+    tester,
+  ) async {
+    final cubit = await _pump(tester, _createState(aliasDraft: ''));
+
+    await tester.tap(find.byKey(const Key('get_paid_use_my_nym')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('payment_page_alias_field')), findsNothing);
+    await tester.tap(find.text('Create Donation Page'));
+    await tester.pumpAndSettle();
+
+    expect(cubit.saveCalls, 1);
+    expect(cubit.state.command.aliasClaim, isNull);
+  });
+
+  testWidgets('Choose an alias reveals the field with one permanence line', (
+    tester,
+  ) async {
+    await _pump(tester, _createState(aliasDraft: ''));
+
+    await tester.tap(find.byKey(const Key('get_paid_choose_an_alias')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('payment_page_alias_field')), findsOneWidget);
+    expect(
+      find.text(
+        'One shared alias for Donation Page and Point of Sale. Once claimed, '
+        'it cannot be changed, cleared, or replaced.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('a claimed alias keeps its read-only summary and no choice', (
+    tester,
+  ) async {
+    await _pump(tester, _editState(behavior: _behavior()));
+
+    expect(find.byKey(const Key('get_paid_use_my_nym')), findsNothing);
+    expect(find.byKey(const Key('get_paid_choose_an_alias')), findsNothing);
+    expect(find.byKey(const Key('payment_page_alias_field')), findsNothing);
+    expect(
+      find.textContaining('Permanent alias shared with Point of Sale'),
+      findsOneWidget,
     );
   });
 
@@ -273,6 +400,7 @@ class _StubPageCubit extends Cubit<PaymentPageState>
 
   int loadCalls = 0;
   int saveCalls = 0;
+  int claimNymCalls = 0;
   bool failOnSave = false;
   final List<({String walletId, bool? hideOnHome, bool? autoSweepEnabled})>
   behaviorWrites = [];
@@ -302,6 +430,14 @@ class _StubPageCubit extends Cubit<PaymentPageState>
   @override
   void aliasDraftChanged(String value) =>
       emit(state.copyWith(aliasDraft: value));
+
+  @override
+  void nymDraftChanged(String value) => emit(state.copyWith(nymDraft: value));
+
+  @override
+  Future<void> claimNym() async {
+    claimNymCalls += 1;
+  }
 
   @override
   void headerChanged(String value) => emit(state.copyWith(header: value));

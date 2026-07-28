@@ -79,8 +79,9 @@ void main() {
       expect(command.firstInvalidField(), PosField.alias);
     });
 
-    test('has only alias + label + currency: no page-content rules', () {
+    test('has only nym + alias + label + currency: no page-content rules', () {
       expect(PosField.values, [
+        PosField.nym,
         PosField.alias,
         PosField.label,
         PosField.displayCurrency,

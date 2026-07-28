@@ -7,10 +7,13 @@ import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/core/widgets/bottom_sheet/x.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_name_choice.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_activation_offer.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_tile.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/payment_page/domain/payment_page_error.dart';
 import 'package:bb_mobile/features/payment_page/domain/payment_page_validation.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
@@ -27,6 +30,11 @@ class PaymentPageEditorScreen extends StatefulWidget {
       _PaymentPageEditorScreenState();
 }
 
+/// Which name this surface should advertise while no alias is claimed yet.
+/// Null until the user picks one; `nym` reuses the claimed nym (no alias is
+/// claimed at all), `alias` reveals the one-time permanent alias field.
+enum _NameChoice { nym, alias }
+
 class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
   final _header = TextEditingController();
   final _description = TextEditingController();
@@ -34,10 +42,14 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
   final _twitter = TextEditingController();
   final _instagram = TextEditingController();
   final _alias = TextEditingController();
+  final _nym = TextEditingController();
+  final _nymFormKey = GlobalKey<FormState>();
 
   /// The edit form is collapsed behind an Edit button on an existing (live or
   /// archived) page; creation stays form-first. A failed save keeps it open.
   bool _editing = false;
+
+  _NameChoice? _nameChoice;
 
   /// Snapshot of the editable fields captured when Edit is opened, so a cancel
   /// can detect unsaved changes and confirm before discarding them.
@@ -57,6 +69,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     _twitter.dispose();
     _instagram.dispose();
     _alias.dispose();
+    _nym.dispose();
     super.dispose();
   }
 
@@ -69,6 +82,12 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     if (_twitter.text != state.twitter) _twitter.text = state.twitter;
     if (_instagram.text != state.instagram) _instagram.text = state.instagram;
     if (_alias.text != state.aliasDraft) _alias.text = state.aliasDraft;
+    if (_nym.text != state.nymDraft) _nym.text = state.nymDraft;
+    // A draft alias carried in state (a failed claim, a restored form) means the
+    // alias branch was already taken — don't hide it behind the choice again.
+    if (_nameChoice == null && state.aliasDraft.isNotEmpty) {
+      _nameChoice = _NameChoice.alias;
+    }
   }
 
   @override
@@ -128,7 +147,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
         ),
       ),
       PaymentPageStatus.unsupported => _unsupportedView(context, state),
-      PaymentPageStatus.needsNym => _needsNymView(context, state),
+      PaymentPageStatus.needsNym => _needsNymView(context, state, cubit),
       PaymentPageStatus.loadFailed => _loadFailedView(context, state, cubit),
       PaymentPageStatus.archived => _archivedView(context, state, cubit),
       PaymentPageStatus.create ||
@@ -154,14 +173,25 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     );
   }
 
-  Widget _needsNymView(BuildContext context, PaymentPageState state) {
+  /// No nym yet: the shared minimal claim step, in-flow. A successful claim
+  /// reloads into the create form, so the user continues into the Donation Page
+  /// without being sent to Lightning Address settings.
+  Widget _needsNymView(
+    BuildContext context,
+    PaymentPageState state,
+    PaymentPageCubit cubit,
+  ) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _StatusNotice(
-          icon: Icons.badge_outlined,
-          title: context.loc.paymentPageNeedsPermanentNymTitle,
-          body: context.loc.paymentPageNeedsPermanentNymBody,
+        GetPaidNymClaimStep(
+          formKey: _nymFormKey,
+          controller: _nym,
+          submitting: state.claimingNym,
+          errorText: _nymClaimFailureMessage(context, state),
+          onChanged: cubit.nymDraftChanged,
+          onSubmit: () => _claimNym(cubit),
+          validator: (value) => _nymValidationMessage(context, value ?? ''),
         ),
         if (state.walletBehavior != null)
           _WalletBehaviorControls(
@@ -170,6 +200,38 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           ),
       ],
     );
+  }
+
+  Future<void> _claimNym(PaymentPageCubit cubit) async {
+    if (!_nymFormKey.currentState!.validate()) return;
+    await cubit.claimNym();
+  }
+
+  /// The local syntax + reserved-name prefilter, as the field's own validator.
+  String? _nymValidationMessage(BuildContext context, String value) {
+    try {
+      validatePaymentPageNymClaim(value);
+      return null;
+    } on PaymentPageException catch (e) {
+      return e.kind == PaymentPageErrorKind.nymReserved
+          ? context.loc.getPaidNymReserved
+          : context.loc.getPaidNymInvalid;
+    }
+  }
+
+  /// A claim rejection stated above the field. Everything else stays on the
+  /// screen's failure snackbar.
+  String? _nymClaimFailureMessage(
+    BuildContext context,
+    PaymentPageState state,
+  ) {
+    if (state.invalidField != PaymentPageField.nym) return null;
+    return switch (state.failure?.kind) {
+      PaymentPageErrorKind.nymTaken => context.loc.getPaidNymTaken,
+      PaymentPageErrorKind.nymReserved => context.loc.getPaidNymReserved,
+      PaymentPageErrorKind.nymInvalid => context.loc.getPaidNymInvalid,
+      _ => null,
+    };
   }
 
   Widget _loadFailedView(
@@ -412,29 +474,57 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     PaymentPageCubit cubit,
   ) {
     final alias = state.permanentAlias;
+    // An alias already claimed stays a read-only summary. Offering "use my nym
+    // instead" for this state needs the server's per-surface advertised-name
+    // preference (BullishNode/bullnym#277) and is out of scope until then.
     if (alias != null) {
       return _PermanentAliasSummary(alias: alias);
     }
-    return TextField(
-      key: const Key('payment_page_alias_field'),
-      controller: _alias,
-      enabled: !state.submitting,
-      autocorrect: false,
-      enableSuggestions: false,
-      maxLength: 32,
-      onChanged: cubit.aliasDraftChanged,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        labelText: context.loc.paymentPageAliasLabel,
-        helperText: context.loc.paymentPageAliasHelper,
-        errorText: state.invalidField == PaymentPageField.alias
-            ? (state.aliasTakenFailure
-                  ? context.loc.paymentPageAliasTaken
-                  : context.loc.paymentPageAliasInvalid)
-            : null,
-        errorMaxLines: 2,
-      ),
+    if (_nameChoice != _NameChoice.alias) {
+      return GetPaidNameChoice(
+        nym: state.nym,
+        body: context.loc.paymentPageNameChoiceBody,
+        onUseNym: () => _useNym(cubit),
+        onChooseAlias: () => setState(() => _nameChoice = _NameChoice.alias),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const Key('payment_page_alias_field'),
+          controller: _alias,
+          enabled: !state.submitting,
+          autocorrect: false,
+          enableSuggestions: false,
+          maxLength: 32,
+          onChanged: cubit.aliasDraftChanged,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            labelText: context.loc.paymentPageAliasLabel,
+            helperText: context.loc.paymentPageAliasHelper,
+            errorText: state.invalidField == PaymentPageField.alias
+                ? (state.aliasTakenFailure
+                      ? context.loc.paymentPageAliasTaken
+                      : context.loc.paymentPageAliasInvalid)
+                : null,
+            errorMaxLines: 2,
+          ),
+        ),
+        TextButton(
+          key: const Key('payment_page_use_nym_instead'),
+          onPressed: state.submitting ? null : () => _useNym(cubit),
+          child: Text(context.loc.getPaidNameChoiceUseNym),
+        ),
+      ],
     );
+  }
+
+  /// Reuse the nym: no alias is claimed, so the surface keeps advertising the
+  /// server-returned nym URLs. Any typed draft is dropped so the save omits it.
+  void _useNym(PaymentPageCubit cubit) {
+    cubit.aliasDraftChanged('');
+    setState(() => _nameChoice = _NameChoice.nym);
   }
 
   Widget _byteCountedField({
@@ -527,43 +617,16 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     );
   }
 
-  /// Runs the save (confirming a first alias claim first). Returns true when a
-  /// save was actually attempted, false when the user backed out of the alias
-  /// confirmation — so the caller can tell a declined confirm from a failure.
-  Future<bool> _save(PaymentPageCubit cubit) async {
-    final state = cubit.state;
-    if (state.permanentAlias == null && state.aliasDraft.isNotEmpty) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(dialogContext.loc.paymentPageAliasConfirmTitle),
-          content: Text(
-            dialogContext.loc.paymentPageAliasConfirmBody(state.aliasDraft),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(dialogContext.loc.paymentPageAliasConfirmCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(dialogContext.loc.paymentPageAliasConfirmSubmit),
-            ),
-          ],
-        ),
-      );
-      if (!mounted || confirmed != true) return false;
-    }
-    await cubit.save();
-    return true;
-  }
+  /// Runs the save. A first alias claim is NOT confirmed by a dialog: the alias
+  /// branch of the naming choice states the permanence on the field itself.
+  Future<void> _save(PaymentPageCubit cubit) => cubit.save();
 
   /// Save initiated from the revealed editor: on success the form collapses
   /// back to the summary; a failed save keeps the editor open so the user can
   /// correct and retry.
   Future<void> _saveFromEditor(PaymentPageCubit cubit) async {
-    final attempted = await _save(cubit);
-    if (!mounted || !attempted) return;
+    await _save(cubit);
+    if (!mounted) return;
     final after = cubit.state;
     if (after.failure == null && !after.submitting) {
       setState(() {

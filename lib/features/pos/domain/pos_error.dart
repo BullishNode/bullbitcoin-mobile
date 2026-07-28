@@ -1,11 +1,12 @@
-import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
-import 'package:flutter/widgets.dart';
 
 enum PosErrorKind {
   invalidInput,
   aliasTaken,
   aliasAlreadyAssigned,
+  nymTaken,
+  nymReserved,
+  nymInvalid,
   noNym,
   noDefaultBitcoinWallet,
   localPreparationFailed,
@@ -41,6 +42,12 @@ sealed class PosException implements Exception {
   const factory PosException.aliasAlreadyAssigned({
     required String ownedAlias,
   }) = PosAliasAlreadyAssignedException;
+
+  const factory PosException.nymTaken() = PosNymTakenException;
+
+  const factory PosException.nymReserved() = PosNymReservedException;
+
+  const factory PosException.nymInvalid() = PosNymInvalidException;
 
   const factory PosException.noNym() = PosNoNymException;
 
@@ -109,24 +116,6 @@ sealed class PosException implements Exception {
     };
   }
 
-  String toTranslated(BuildContext context) => switch (kind) {
-    PosErrorKind.invalidInput => context.loc.posErrorInvalidInput,
-    PosErrorKind.aliasTaken => context.loc.posAliasTaken,
-    PosErrorKind.aliasAlreadyAssigned => context.loc.posAliasAlreadyAssigned,
-    PosErrorKind.noNym => context.loc.posErrorNoNym,
-    PosErrorKind.noDefaultBitcoinWallet => context.loc.posErrorNoDefaultWallet,
-    PosErrorKind.localPreparationFailed => context.loc.posErrorSetupFailed,
-    PosErrorKind.network => context.loc.posErrorConnection,
-    PosErrorKind.timeout => context.loc.posErrorConnection,
-    PosErrorKind.notFound => context.loc.posErrorNotFound,
-    PosErrorKind.rejected => context.loc.posErrorRejected,
-    PosErrorKind.authError => context.loc.posErrorAuth,
-    PosErrorKind.server => context.loc.posErrorServer,
-    PosErrorKind.invalidServerResponse ||
-    PosErrorKind.signingFailed ||
-    PosErrorKind.unexpected => context.loc.posErrorUnexpected,
-  };
-
   @override
   String toString() => 'PosException($code)';
 }
@@ -150,6 +139,29 @@ final class PosAliasAlreadyAssignedException extends PosException {
     : super._(
         kind: PosErrorKind.aliasAlreadyAssigned,
         code: 'AliasAlreadyAssigned',
+        retryable: false,
+      );
+}
+
+final class PosNymTakenException extends PosException {
+  const PosNymTakenException()
+    : super._(kind: PosErrorKind.nymTaken, code: 'NameTaken', retryable: false);
+}
+
+final class PosNymReservedException extends PosException {
+  const PosNymReservedException()
+    : super._(
+        kind: PosErrorKind.nymReserved,
+        code: 'NymReserved',
+        retryable: false,
+      );
+}
+
+final class PosNymInvalidException extends PosException {
+  const PosNymInvalidException()
+    : super._(
+        kind: PosErrorKind.nymInvalid,
+        code: 'NymInvalid',
         retryable: false,
       );
 }
@@ -259,6 +271,9 @@ bool _isPosSubmissionUncertain(PosException cause) {
     PosErrorKind.invalidInput ||
     PosErrorKind.aliasTaken ||
     PosErrorKind.aliasAlreadyAssigned ||
+    PosErrorKind.nymTaken ||
+    PosErrorKind.nymReserved ||
+    PosErrorKind.nymInvalid ||
     PosErrorKind.noNym ||
     PosErrorKind.noDefaultBitcoinWallet ||
     PosErrorKind.localPreparationFailed ||
@@ -297,9 +312,6 @@ final class PosProvisionException extends PosException {
         retryable: cause.retryable,
         ownedAlias: cause.ownedAlias,
       );
-
-  @override
-  String toTranslated(BuildContext context) => cause.toTranslated(context);
 
   @override
   String toString() => 'PosProvisionException(phase: $phase, cause: $cause)';

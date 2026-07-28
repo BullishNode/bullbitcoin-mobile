@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.d
 import 'package:bb_mobile/features/payment_page/data/payment_page_default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/payment_page/domain/payment_page_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/archive_payment_page_usecase.dart';
+import 'package:bb_mobile/features/payment_page/domain/usecases/claim_payment_page_nym_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/ensure_payment_page_live_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_usecase.dart';
@@ -53,6 +54,11 @@ class PaymentPageLocator {
     locator.registerFactory<GetPaymentPagePermanentNameUsecase>(
       () => GetPaymentPagePermanentNameUsecase(
         bullnym: locator<BullnymFacade>(),
+        lightningAddress: locator<LightningAddressFacade>(),
+      ),
+    );
+    locator.registerFactory<ClaimPaymentPageNymUsecase>(
+      () => ClaimPaymentPageNymUsecase(
         lightningAddress: locator<LightningAddressFacade>(),
       ),
     );
@@ -112,6 +118,7 @@ class PaymentPageLocator {
       () => PaymentPageCubit(
         facade: locator<PaymentPageFacade>(),
         getPermanentName: locator<GetPaymentPagePermanentNameUsecase>(),
+        claimNym: locator<ClaimPaymentPageNymUsecase>(),
         getPaidSettings: locator<GetPaidSettingsFacade>(),
       ),
     );

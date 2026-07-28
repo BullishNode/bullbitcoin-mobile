@@ -233,6 +233,10 @@ class _PageCubit extends Cubit<PaymentPageState> implements PaymentPageCubit {
   @override
   void aliasDraftChanged(String value) {}
   @override
+  void nymDraftChanged(String value) {}
+  @override
+  Future<void> claimNym() async {}
+  @override
   void headerChanged(String value) {}
   @override
   void descriptionChanged(String value) {}
@@ -270,6 +274,10 @@ class _PosCubit extends Cubit<PosState> implements PosCubit {
   Future<void> retryCurrencies() async {}
   @override
   void aliasDraftChanged(String value) {}
+  @override
+  void nymDraftChanged(String value) {}
+  @override
+  Future<void> claimNym() async {}
   @override
   void labelChanged(String value) {}
   @override

@@ -12,7 +12,8 @@ enum PaymentPageStatus {
   /// alias or availability action is exposed.
   unsupported,
 
-  /// No permanent nym yet — direct the user to Lightning Address settings.
+  /// No permanent nym yet — the in-flow claim step is shown, and a successful
+  /// claim reloads straight into the create form.
   needsNym,
 
   /// A nym exists but no page row — the create form is shown.
@@ -40,6 +41,13 @@ class PaymentPageState {
   final bool submissionUncertain;
 
   final String nym;
+
+  /// The nym being typed into the in-flow claim step, before it is claimed.
+  final String nymDraft;
+
+  /// True while the nym claim is in flight.
+  final bool claimingNym;
+
   final PaymentPage? page;
 
   /// Owner-level alias reconstructed from Bullnym. Never persisted locally.
@@ -81,6 +89,8 @@ class PaymentPageState {
     this.failure,
     this.submissionUncertain = false,
     this.nym = '',
+    this.nymDraft = '',
+    this.claimingNym = false,
     this.page,
     this.permanentAlias,
     this.aliasDraft = '',
@@ -130,6 +140,8 @@ class PaymentPageState {
     PaymentPageException? failure,
     bool? submissionUncertain,
     String? nym,
+    String? nymDraft,
+    bool? claimingNym,
     PaymentPage? page,
     String? permanentAlias,
     String? aliasDraft,
@@ -156,6 +168,8 @@ class PaymentPageState {
       failure: clearFailure ? null : failure ?? this.failure,
       submissionUncertain: submissionUncertain ?? this.submissionUncertain,
       nym: nym ?? this.nym,
+      nymDraft: nymDraft ?? this.nymDraft,
+      claimingNym: claimingNym ?? this.claimingNym,
       page: clearPage ? null : page ?? this.page,
       permanentAlias: clearPermanentAlias
           ? null

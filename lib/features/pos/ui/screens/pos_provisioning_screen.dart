@@ -10,6 +10,9 @@ import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_name_choice.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
+import 'package:bb_mobile/features/pos/domain/pos_error.dart';
 import 'package:bb_mobile/features/pos/domain/pos_validation.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
@@ -30,9 +33,18 @@ class PosProvisioningScreen extends StatefulWidget {
   State<PosProvisioningScreen> createState() => _PosProvisioningScreenState();
 }
 
+/// Which name this surface should advertise while no alias is claimed yet.
+/// Null until the user picks one; `nym` reuses the claimed nym (no alias is
+/// claimed at all), `alias` reveals the one-time permanent alias field.
+enum _NameChoice { nym, alias }
+
 class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
   final _label = TextEditingController();
   final _alias = TextEditingController();
+  final _nym = TextEditingController();
+  final _nymFormKey = GlobalKey<FormState>();
+
+  _NameChoice? _nameChoice;
 
   /// The edit form is collapsed behind an Edit button on an existing (live or
   /// archived) POS; creation stays form-first. A failed save keeps it open.
@@ -52,12 +64,19 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
   void dispose() {
     _label.dispose();
     _alias.dispose();
+    _nym.dispose();
     super.dispose();
   }
 
   void _syncControllers(PosState state) {
     if (_label.text != state.label) _label.text = state.label;
     if (_alias.text != state.aliasDraft) _alias.text = state.aliasDraft;
+    if (_nym.text != state.nymDraft) _nym.text = state.nymDraft;
+    // A draft alias carried in state (a failed provision, a restored form) means
+    // the alias branch was already taken - don't hide it behind the choice again.
+    if (_nameChoice == null && state.aliasDraft.isNotEmpty) {
+      _nameChoice = _NameChoice.alias;
+    }
   }
 
   @override
@@ -117,7 +136,7 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
         ),
       ),
       PosStatus.unsupported => _unsupportedView(context, state),
-      PosStatus.needsNym => _needsNymView(context, state),
+      PosStatus.needsNym => _needsNymView(context, state, cubit),
       PosStatus.loadFailed => _loadFailedView(context, state, cubit),
       PosStatus.archived => _archivedView(context, state, cubit),
       PosStatus.create || PosStatus.edit => _form(context, state, cubit),
@@ -142,14 +161,21 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     );
   }
 
-  Widget _needsNymView(BuildContext context, PosState state) {
+  /// No nym yet: the shared minimal claim step, in-flow. A successful claim
+  /// reloads into the create form, so the user continues into the Point of Sale
+  /// without being sent to Lightning Address settings.
+  Widget _needsNymView(BuildContext context, PosState state, PosCubit cubit) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _StatusNotice(
-          icon: Icons.badge_outlined,
-          title: context.loc.posNeedsPermanentNymTitle,
-          body: context.loc.posNeedsPermanentNymBody,
+        GetPaidNymClaimStep(
+          formKey: _nymFormKey,
+          controller: _nym,
+          submitting: state.claimingNym,
+          errorText: _nymClaimFailureMessage(context, state),
+          onChanged: cubit.nymDraftChanged,
+          onSubmit: () => _claimNym(cubit),
+          validator: (value) => _nymValidationMessage(context, value ?? ''),
         ),
         if (state.walletBehavior != null)
           _WalletBehaviorControls(
@@ -158,6 +184,35 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           ),
       ],
     );
+  }
+
+  Future<void> _claimNym(PosCubit cubit) async {
+    if (!_nymFormKey.currentState!.validate()) return;
+    await cubit.claimNym();
+  }
+
+  /// The local syntax + reserved-name prefilter, as the field's own validator.
+  String? _nymValidationMessage(BuildContext context, String value) {
+    try {
+      validatePosNymClaim(value);
+      return null;
+    } on PosException catch (e) {
+      return e.kind == PosErrorKind.nymReserved
+          ? context.loc.getPaidNymReserved
+          : context.loc.getPaidNymInvalid;
+    }
+  }
+
+  /// A claim rejection stated above the field. Everything else stays on the
+  /// screen's failure snackbar.
+  String? _nymClaimFailureMessage(BuildContext context, PosState state) {
+    if (state.invalidField != PosField.nym) return null;
+    return switch (state.failure?.kind) {
+      PosErrorKind.nymTaken => context.loc.getPaidNymTaken,
+      PosErrorKind.nymReserved => context.loc.getPaidNymReserved,
+      PosErrorKind.nymInvalid => context.loc.getPaidNymInvalid,
+      _ => null,
+    };
   }
 
   Widget _loadFailedView(BuildContext context, PosState state, PosCubit cubit) {
@@ -346,25 +401,53 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     PosCubit cubit,
   ) {
     final alias = state.permanentAlias;
+    // An alias already claimed stays a read-only summary. Offering "use my nym
+    // instead" for this state needs the server's per-surface advertised-name
+    // preference (BullishNode/bullnym#277) and is out of scope until then.
     if (alias != null) return _PermanentAliasSummary(alias: alias);
-    return TextField(
-      key: const Key('pos_alias_field'),
-      controller: _alias,
-      enabled: !state.submitting,
-      autocorrect: false,
-      enableSuggestions: false,
-      maxLength: 32,
-      onChanged: cubit.aliasDraftChanged,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        labelText: context.loc.posAliasLabel,
-        helperText: context.loc.posAliasHelper,
-        errorText: state.invalidField == PosField.alias
-            ? context.loc.posAliasInvalid
-            : null,
-        errorMaxLines: 2,
-      ),
+    if (_nameChoice != _NameChoice.alias) {
+      return GetPaidNameChoice(
+        nym: state.nym,
+        body: context.loc.posNameChoiceBody,
+        onUseNym: () => _useNym(cubit),
+        onChooseAlias: () => setState(() => _nameChoice = _NameChoice.alias),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const Key('pos_alias_field'),
+          controller: _alias,
+          enabled: !state.submitting,
+          autocorrect: false,
+          enableSuggestions: false,
+          maxLength: 32,
+          onChanged: cubit.aliasDraftChanged,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            labelText: context.loc.posAliasLabel,
+            helperText: context.loc.posAliasHelper,
+            errorText: state.invalidField == PosField.alias
+                ? context.loc.posAliasInvalid
+                : null,
+            errorMaxLines: 2,
+          ),
+        ),
+        TextButton(
+          key: const Key('pos_use_nym_instead'),
+          onPressed: state.submitting ? null : () => _useNym(cubit),
+          child: Text(context.loc.getPaidNameChoiceUseNym),
+        ),
+      ],
     );
+  }
+
+  /// Reuse the nym: no alias is claimed, so the surface keeps advertising the
+  /// server-returned nym URLs. Any typed draft is dropped so the save omits it.
+  void _useNym(PosCubit cubit) {
+    cubit.aliasDraftChanged('');
+    setState(() => _nameChoice = _NameChoice.nym);
   }
 
   Widget _currencyField(BuildContext context, PosState state, PosCubit cubit) {
@@ -416,44 +499,16 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     );
   }
 
-  /// Runs the provision (confirming a first alias claim first). Returns true
-  /// when a provision was actually attempted, false when the user backed out of
-  /// the alias confirmation — so the caller can tell a declined confirm from a
-  /// failure.
-  Future<bool> _provision(PosCubit cubit) async {
-    final state = cubit.state;
-    if (state.permanentAlias == null && state.aliasDraft.isNotEmpty) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(dialogContext.loc.posAliasConfirmTitle),
-          content: Text(
-            dialogContext.loc.posAliasConfirmBody(state.aliasDraft),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(dialogContext.loc.posAliasConfirmCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(dialogContext.loc.posAliasConfirmSubmit),
-            ),
-          ],
-        ),
-      );
-      if (!mounted || confirmed != true) return false;
-    }
-    await cubit.provision();
-    return true;
-  }
+  /// Runs the provision. A first alias claim is NOT confirmed by a dialog: the
+  /// alias branch of the naming choice states the permanence on the field.
+  Future<void> _provision(PosCubit cubit) => cubit.provision();
 
   /// Provision initiated from the revealed editor: on success the form
   /// collapses back to the summary; a failed provision keeps the editor open so
   /// the user can correct and retry.
   Future<void> _provisionFromEditor(PosCubit cubit) async {
-    final attempted = await _provision(cubit);
-    if (!mounted || !attempted) return;
+    await _provision(cubit);
+    if (!mounted) return;
     final after = cubit.state;
     if (after.failure == null && !after.submitting) {
       setState(() {
