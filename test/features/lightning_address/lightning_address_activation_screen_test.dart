@@ -189,21 +189,48 @@ void main() {
     expect(cubit.loadCalls, 2);
   });
 
-  testWidgets('turning off uses the same direct progress flow as turning on', (
+  testWidgets('turning off confirms first and says the other products stay', (
     tester,
   ) async {
     final cubit = await _pump(tester, _ownedState(online: true));
 
-    await tester.tap(find.text('Advanced settings'));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(
-      find.byKey(const Key('lightning_address_online_switch')),
+    await _tapOnlineSwitch(tester);
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Turn off Lightning Address?'), findsOneWidget);
+    expect(
+      find.text(
+        'People will no longer be able to send funds to your Lightning '
+        'Address. Your permanent names remain claimed, and your Donation Page '
+        'and Point of Sale stay online and keep accepting payments.',
+      ),
+      findsOneWidget,
     );
-    await tester.tap(find.byKey(const Key('lightning_address_online_switch')));
+    // Nothing is deactivated until the merchant confirms.
+    expect(cubit.deactivateCalls, 0);
+
+    await tester.tap(find.text('Turn off'));
     await tester.pumpAndSettle();
 
-    expect(cubit.deactivateCalls, 1);
     expect(find.byType(AlertDialog), findsNothing);
+    expect(cubit.deactivateCalls, 1);
+  });
+
+  testWidgets('cancelling the turn-off confirmation leaves it on', (
+    tester,
+  ) async {
+    final cubit = await _pump(tester, _ownedState(online: true));
+
+    await _tapOnlineSwitch(tester);
+    await tester.tap(find.text('Keep online'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(cubit.deactivateCalls, 0);
+    final switchTile = tester.widget<SwitchListTile>(
+      find.byKey(const Key('lightning_address_online_switch')),
+    );
+    expect(switchTile.value, isTrue);
   });
 
   testWidgets('turning on reuses the owned nym without another confirmation', (
@@ -211,17 +238,22 @@ void main() {
   ) async {
     final cubit = await _pump(tester, _ownedState(online: false));
 
-    await tester.tap(find.text('Advanced settings'));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(
-      find.byKey(const Key('lightning_address_online_switch')),
-    );
-    await tester.tap(find.byKey(const Key('lightning_address_online_switch')));
-    await tester.pumpAndSettle();
+    await _tapOnlineSwitch(tester);
 
     expect(find.byType(AlertDialog), findsNothing);
     expect(cubit.activateExistingCalls, 1);
   });
+}
+
+/// Opens Advanced Settings and flips the availability switch inside it.
+Future<void> _tapOnlineSwitch(WidgetTester tester) async {
+  await tester.tap(find.text('Advanced settings'));
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(
+    find.byKey(const Key('lightning_address_online_switch')),
+  );
+  await tester.tap(find.byKey(const Key('lightning_address_online_switch')));
+  await tester.pumpAndSettle();
 }
 
 LightningAddressActivationState _ownedState({required bool online}) {
