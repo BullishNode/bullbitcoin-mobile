@@ -314,8 +314,18 @@ Future<bool> _prepareWitnessWallet({
     return true;
   }
 
-  final (mnemonicWords, passphrase) =
-      await locator<GetMnemonicFromFingerprintUsecase>().execute(fingerprint);
+  final (
+    mnemonicWords,
+    passphrase,
+  ) = switch (await locator<GetMnemonicFromFingerprintUsecase>().execute(
+    fingerprint,
+  )) {
+    Ok(:final value) => value,
+    // The witness run cannot capture a seed it could not read.
+    Err(:final failure) => fail(
+      'could not read the witness seed: ${failure.logMessage}',
+    ),
+  };
   final seedPath = await config.writeSeedCapture({
     'schema': 'fiat-witness-seed-capture/v1',
     'run_id': config.runId,

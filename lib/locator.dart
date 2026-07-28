@@ -46,6 +46,7 @@ import 'package:bb_mobile/features/pos/pos_locator.dart';
 import 'package:bb_mobile/features/pin_code/pin_code_locator.dart';
 import 'package:bb_mobile/features/receive/receive_locator.dart';
 import 'package:bb_mobile/features/recipients/recipients_locator.dart';
+import 'package:bb_mobile/features/recoverbull/recoverbull_locator.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/remote_keychain_recovery_locator.dart';
 import 'package:bb_mobile/features/replace_by_fee/locator.dart';
 import 'package:bb_mobile/features/sell/sell_locator.dart';
@@ -93,6 +94,7 @@ class AppLocator {
     WizardLocator.setup(locator);
     AppStartupLocator.setup(locator);
     AppUnlockLocator.setup(locator);
+    TestWalletBackupLocator.setup(locator);
     OnboardingLocator.setup(locator);
     LegacySeedViewLocator.setup(locator);
     AllSeedViewLocator.setup(locator);
@@ -121,10 +123,10 @@ class AppLocator {
     TransactionsLocator.registerUsecases(locator);
     TransactionsLocator.registerBlocs(locator);
     ReceiveLocator.setup(locator);
+    RecoverBullLocator.setup(locator);
     SendLocator.setup(locator);
     CoinsLocator.setup(locator);
     BackupSettingsLocator.setup(locator);
-    TestWalletBackupLocator.setup(locator);
     ImportWatchOnlyLocator.setup(locator);
     BroadcastSignedTxLocator.setup(locator);
     SwapLocator.setup(locator);
