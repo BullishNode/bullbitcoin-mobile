@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/inconsistent_wallet_state_exception.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/create_default_wallets_usecase.dart';
 import 'package:bb_mobile/features/onboarding/domain/onboarding_failure.dart';
 import 'package:bb_mobile/features/onboarding/domain/usecases/create_onboarding_wallets_usecase.dart';
@@ -44,6 +45,24 @@ void main() {
         (result) => result.failure,
         'failure',
         isA<OnboardingUnexpectedFailure>(),
+      ),
+    );
+  });
+
+  test('maps wallet records without a seed to the inconsistent-state '
+      'failure, not the generic one', () async {
+    when(
+      () => createDefaultWallets.execute(),
+    ).thenThrow(InconsistentWalletStateException(fingerprint: 'f00dbabe'));
+
+    final result = await usecase.execute();
+
+    expect(
+      result,
+      isA<Err<List<Wallet>, OnboardingFailure>>().having(
+        (result) => result.failure,
+        'failure',
+        isA<OnboardingInconsistentWalletStateFailure>(),
       ),
     );
   });

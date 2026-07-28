@@ -17978,5 +17978,13 @@
   "backupSettingsMetadataAttentionNeeded": "Attention needed",
   "@backupSettingsMetadataAttentionNeeded": {
     "description": "Muted line under the metadata backup status row when a write was rejected or recovery is blocked; never shown for a write that is merely queued"
+  },
+  "walletDataIncompleteTitle": "Wallet data incomplete",
+  "@walletDataIncompleteTitle": {
+    "description": "Title shown when wallet records exist on this device but their seed is missing, so the wallet must be restored from a backup."
+  },
+  "walletDataIncompleteRestoreMessage": "This device still has your wallet records, but the seed that unlocks them is gone. Restore your wallet from your backup on this device to use it again.",
+  "@walletDataIncompleteRestoreMessage": {
+    "description": "Body copy shown when wallet records survive without their seed: the only remedy is restoring the wallet from a backup."
   }
 }
