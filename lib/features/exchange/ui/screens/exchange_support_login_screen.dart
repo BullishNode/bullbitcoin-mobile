@@ -115,7 +115,7 @@ class ExchangeSupportLoginScreen extends StatelessWidget {
                               child: BBButton.big(
                                 label: context.loc.exchangeLoginButton,
                                 onPressed: () {
-                                  context.goNamed(
+                                  context.pushNamed(
                                     ExchangeRoute.exchangeAuth.name,
                                     queryParameters: {'from': 'support'},
                                   );
