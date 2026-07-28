@@ -41,10 +41,12 @@ const Set<String> bullnymReservedNyms = {
 };
 
 /// Alias-only reservations in addition to [bullnymReservedNyms].
+///
+/// Mirrors the server's `RESERVED_ALIASES` layered over `RESERVED_NYMS`; both
+/// sets are pinned against a fixture extracted from the server in
+/// `test/features/bullnym/bullnym_reserved_names_parity_test.dart`.
 const Set<String> bullnymReservedAliases = {
   ...bullnymReservedNyms,
-  '0',
-  '1',
   'bullbitcoin',
   'bull-bitcoin',
   'bullpay',
