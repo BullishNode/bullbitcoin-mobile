@@ -17713,5 +17713,21 @@
   "walletDataIncompleteRestoreMessage": "This device still has your wallet records, but the seed that unlocks them is gone. Restore your wallet from your backup on this device to use it again.",
   "@walletDataIncompleteRestoreMessage": {
     "description": "Body copy shown when wallet records survive without their seed: the only remedy is restoring the wallet from a backup."
+  },
+  "lightningAddressTurnOffConfirmTitle": "Turn off Lightning Address?",
+  "@lightningAddressTurnOffConfirmTitle": {
+    "description": "Title of the Lightning Address-specific turn-off confirmation"
+  },
+  "lightningAddressTurnOffConfirmBody": "People will no longer be able to send funds to your Lightning Address. Your permanent names remain claimed, and your Donation Page and Point of Sale stay online and keep accepting payments.",
+  "@lightningAddressTurnOffConfirmBody": {
+    "description": "Explains effects and non-effects of turning off the Lightning Address"
+  },
+  "lightningAddressTurnOffConfirmCancel": "Keep online",
+  "@lightningAddressTurnOffConfirmCancel": {
+    "description": "Cancel action for turning off the Lightning Address"
+  },
+  "lightningAddressTurnOffConfirmSubmit": "Turn off",
+  "@lightningAddressTurnOffConfirmSubmit": {
+    "description": "Confirm action for turning off the Lightning Address"
   }
 }

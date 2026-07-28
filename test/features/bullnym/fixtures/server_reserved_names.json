@@ -1,0 +1,53 @@
+{
+  "_provenance": {
+    "source_repo": "BullishNode/bullnym-bull-bitcoin-settlement",
+    "source_file": "src/reserved_nyms.rs",
+    "source_commit": "7828e7c",
+    "source_tag": "0.4",
+    "extracted": "verbatim from the two `pub const` arrays; comment lines stripped",
+    "note": "Do not hand-edit. Re-extract from the server at the commit named above when the server's lists change, and update source_commit/source_tag in the same edit."
+  },
+  "reserved_nyms": [
+    "register",
+    "health",
+    "ready",
+    "version",
+    "webhook",
+    "lnurlp",
+    "api",
+    "img",
+    "donation-page",
+    "well-known",
+    "admin",
+    "static",
+    "assets",
+    "favicon",
+    "robots",
+    "sitemap",
+    "about",
+    "terms",
+    "privacy",
+    "support",
+    "help",
+    "login",
+    "logout",
+    "signup",
+    "settings",
+    "account",
+    "dashboard",
+    "test",
+    "i",
+    "invoice",
+    "invoices",
+    "pos",
+    "a"
+  ],
+  "reserved_aliases": [
+    "bullbitcoin",
+    "bull-bitcoin",
+    "bullpay",
+    "bullnym",
+    "bull",
+    "bitcoin"
+  ]
+}

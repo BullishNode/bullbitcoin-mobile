@@ -239,9 +239,29 @@ class _LightningAddressActivationScreenState
     final cubit = context.read<LightningAddressActivationCubit>();
     if (online) {
       await cubit.activateExisting();
-    } else {
-      await cubit.deactivate();
+      return;
     }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.loc.lightningAddressTurnOffConfirmTitle),
+        content: Text(dialogContext.loc.lightningAddressTurnOffConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(dialogContext.loc.lightningAddressTurnOffConfirmCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(dialogContext.loc.lightningAddressTurnOffConfirmSubmit),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    // The cubit re-checks the live status, so a deactivation that raced with
+    // this dialog is dropped there rather than re-issued here.
+    await cubit.deactivate();
   }
 
   String _failureMessage(
