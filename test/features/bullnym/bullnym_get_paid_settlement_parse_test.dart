@@ -80,6 +80,19 @@ void main() {
       );
     });
 
+    test('bitcoin with the 0.3 ambiguous_create override reason', () {
+      // A real contract reason: it must map to its own value, never funnel into
+      // `unknown` (which exists only for reasons this version does not know).
+      final s = BullnymGetPaidSettlement.tryParse(
+        _tx(override: {'status': 'overridden', 'reason': 'ambiguous_create'}),
+      )!;
+      expect(s.kind, BullnymSettlementKind.bitcoin);
+      expect(
+        s.overrideReason,
+        BullnymFiatConversionOverrideReason.ambiguousCreate,
+      );
+    });
+
     test(
       'bitcoin with an unknown override reason stays a bitcoin override',
       () {
