@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_state.dart';
 import 'package:flutter/material.dart';
@@ -270,11 +271,11 @@ class _LightningAddressActivationScreenState
   ) {
     return switch (failure) {
       LightningAddressActivationFailure.invalidNym =>
-        context.loc.lightningAddressInvalidNym,
+        context.loc.getPaidNymInvalid,
       LightningAddressActivationFailure.reservedNym =>
-        context.loc.lightningAddressReservedNym,
+        context.loc.getPaidNymReserved,
       LightningAddressActivationFailure.nameTaken =>
-        context.loc.lightningAddressNameTaken,
+        context.loc.getPaidNymTaken,
       LightningAddressActivationFailure.alreadyAssigned =>
         context.loc.lightningAddressAlreadyAssigned,
       LightningAddressActivationFailure.capabilityUnavailable =>
@@ -320,81 +321,24 @@ class _RegistrationForm extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Form(
-        key: formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              context.loc.lightningAddressPermanentFirstClaimTitle,
-              style: context.font.titleLarge,
-            ),
-            const Gap(8),
-            Text(
-              context.loc.lightningAddressPermanentFirstClaimBody,
-              style: context.font.bodyMedium?.copyWith(
-                color: context.appColors.textMuted,
-              ),
-            ),
-            const Gap(24),
-            if (_nameClaimFailureMessage(context, state.failure)
-                case final message?) ...[
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  message,
-                  style: context.font.bodyMedium?.copyWith(
-                    color: context.appColors.error,
-                  ),
-                ),
-              ),
-              const Gap(12),
-            ],
-            TextFormField(
-              controller: nymController,
-              enabled: !state.isSubmitting,
-              keyboardType: TextInputType.name,
-              textInputAction: TextInputAction.done,
-              autocorrect: false,
-              enableSuggestions: false,
-              maxLength: 32,
-              onChanged: onChanged,
-              onFieldSubmitted: (_) => state.isSubmitting ? null : onSubmit(),
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                labelText: context.loc.lightningAddressNymLabel,
-                helperText: context.loc.lightningAddressPermanentNymHelper,
-              ),
-              validator: (value) {
-                final failure = context
-                    .read<LightningAddressActivationCubit>()
-                    .validateNym(value ?? '');
-                return switch (failure) {
-                  LightningAddressActivationFailure.reservedNym =>
-                    context.loc.lightningAddressReservedNym,
-                  null => null,
-                  _ => context.loc.lightningAddressInvalidNym,
-                };
-              },
-            ),
-            const Gap(24),
-            Semantics(
-              liveRegion: state.isSubmitting,
-              label: state.isSubmitting
-                  ? context.loc.lightningAddressSubmitting
-                  : null,
-              child: BBButton.big(
-                label: state.isSubmitting
-                    ? context.loc.lightningAddressSubmitting
-                    : context.loc.lightningAddressClaimButton,
-                onPressed: onSubmit,
-                disabled: state.isSubmitting,
-                bgColor: context.appColors.primary,
-                textColor: context.appColors.onPrimary,
-              ),
-            ),
-          ],
-        ),
+      child: GetPaidNymClaimStep(
+        formKey: formKey,
+        controller: nymController,
+        submitting: state.isSubmitting,
+        errorText: _nameClaimFailureMessage(context, state.failure),
+        onChanged: onChanged,
+        onSubmit: onSubmit,
+        validator: (value) {
+          final failure = context
+              .read<LightningAddressActivationCubit>()
+              .validateNym(value ?? '');
+          return switch (failure) {
+            LightningAddressActivationFailure.reservedNym =>
+              context.loc.getPaidNymReserved,
+            null => null,
+            _ => context.loc.getPaidNymInvalid,
+          };
+        },
       ),
     );
   }
@@ -490,7 +434,7 @@ class _OwnershipConflictView extends StatelessWidget {
         ),
         if (nym.isNotEmpty) ...[
           const Gap(24),
-          _InfoRow(label: context.loc.lightningAddressNymLabel, value: nym),
+          _InfoRow(label: context.loc.getPaidNymLabel, value: nym),
         ],
         const Gap(24),
         BBButton.big(
@@ -940,11 +884,10 @@ String? _nameClaimFailureMessage(
 ) {
   return switch (failure) {
     LightningAddressActivationFailure.invalidNym =>
-      context.loc.lightningAddressInvalidNym,
+      context.loc.getPaidNymInvalid,
     LightningAddressActivationFailure.reservedNym =>
-      context.loc.lightningAddressReservedNym,
-    LightningAddressActivationFailure.nameTaken =>
-      context.loc.lightningAddressNameTaken,
+      context.loc.getPaidNymReserved,
+    LightningAddressActivationFailure.nameTaken => context.loc.getPaidNymTaken,
     _ => null,
   };
 }
