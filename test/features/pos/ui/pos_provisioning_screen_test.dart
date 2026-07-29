@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/widgets/qr_display_widget.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
@@ -124,7 +125,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('no alias claimed offers the explicit nym-or-alias choice', (
+  testWidgets('the nym is the default: stated, with only the alias opt-out', (
     tester,
   ) async {
     await _pump(tester, _createState());
@@ -138,20 +139,17 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('get_paid_use_my_nym')), findsOneWidget);
+    // Keeping the nym takes no action, so there is nothing to press for it.
+    expect(find.text('Use my nym'), findsNothing);
     expect(find.byKey(const Key('get_paid_choose_an_alias')), findsOneWidget);
     expect(find.byKey(const Key('pos_alias_field')), findsNothing);
   });
 
-  testWidgets('Use my nym keeps the alias omitted from the provision', (
+  testWidgets('provisioning without choosing an alias uses the nym', (
     tester,
   ) async {
     final cubit = await _pump(tester, _createState());
 
-    await tester.tap(find.byKey(const Key('get_paid_use_my_nym')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('pos_alias_field')), findsNothing);
     await tester.tap(find.text('Create Point of Sale'));
     await tester.pumpAndSettle();
 
@@ -178,18 +176,30 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
   });
 
-  testWidgets('a claimed alias keeps its read-only summary and no choice', (
+  testWidgets('a provisioned POS shows no naming UI at all', (tester) async {
+    await _pump(tester, _editState(behavior: _behavior()));
+
+    expect(find.byKey(const Key('get_paid_choose_an_alias')), findsNothing);
+    expect(find.byKey(const Key('pos_alias_field')), findsNothing);
+    expect(find.textContaining('Your nym is'), findsNothing);
+    expect(find.textContaining('Permanent alias shared'), findsNothing);
+  });
+
+  testWidgets('a provisioned POS leads with its terminal link and QR', (
     tester,
   ) async {
     await _pump(tester, _editState(behavior: _behavior()));
 
-    expect(find.byKey(const Key('get_paid_use_my_nym')), findsNothing);
-    expect(find.byKey(const Key('get_paid_choose_an_alias')), findsNothing);
-    expect(find.byKey(const Key('pos_alias_field')), findsNothing);
-    expect(
-      find.textContaining('Permanent alias shared with Donation Page'),
-      findsOneWidget,
-    );
+    expect(find.byType(GetPaidLinkQr), findsOneWidget);
+    // The link block is the first thing laid out, above Fiat conversion and the
+    // routing notice.
+    final linkY = tester
+        .getTopLeft(find.text('Your Point of Sale terminal link'))
+        .dy;
+    final noticeY = tester
+        .getTopLeft(find.textContaining('has its own till link'))
+        .dy;
+    expect(linkY, lessThan(noticeY));
   });
 
   testWidgets('tapping Edit reveals the form and Cancel collapses it', (

@@ -33,18 +33,15 @@ class PosProvisioningScreen extends StatefulWidget {
   State<PosProvisioningScreen> createState() => _PosProvisioningScreenState();
 }
 
-/// Which name this surface should advertise while no alias is claimed yet.
-/// Null until the user picks one; `nym` reuses the claimed nym (no alias is
-/// claimed at all), `alias` reveals the one-time permanent alias field.
-enum _NameChoice { nym, alias }
-
 class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
   final _label = TextEditingController();
   final _alias = TextEditingController();
   final _nym = TextEditingController();
   final _nymFormKey = GlobalKey<FormState>();
 
-  _NameChoice? _nameChoice;
+  /// True once the user opts out of the default (the claimed nym) and reveals
+  /// the one-time permanent alias field.
+  bool _claimingAlias = false;
 
   /// The edit form is collapsed behind an Edit button on an existing (live or
   /// archived) POS; creation stays form-first. A failed save keeps it open.
@@ -74,9 +71,7 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     if (_nym.text != state.nymDraft) _nym.text = state.nymDraft;
     // A draft alias carried in state (a failed provision, a restored form) means
     // the alias branch was already taken - don't hide it behind the choice again.
-    if (_nameChoice == null && state.aliasDraft.isNotEmpty) {
-      _nameChoice = _NameChoice.alias;
-    }
+    if (state.aliasDraft.isNotEmpty) _claimingAlias = true;
   }
 
   @override
@@ -252,10 +247,10 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     return _managedView(context, state, cubit);
   }
 
-  /// The create / edit / archived management surface. Order (ROUTE reorg):
-  /// product section -> status + link (terminal QR) -> Fiat conversion ->
-  /// Instructions for staff -> Edit (collapsed form) -> Advanced Settings.
-  /// Creation stays form-first; an existing POS keeps the form collapsed.
+  /// The create / edit / archived management surface. A provisioned terminal
+  /// leads with the thing the owner came for — its link, as a scannable QR —
+  /// then Fiat conversion, Instructions for staff, Edit (collapsed form) and
+  /// Advanced Settings. Creation stays form-first.
   Widget _managedView(
     BuildContext context,
     PosState state,
@@ -264,24 +259,28 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
   }) {
     final isCreate = state.status == PosStatus.create;
     final showForm = isCreate || _editing;
+    final naming = _namingStep(context, state, cubit);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Product section.
-        if (isArchived)
+        // An archived POS leads with why it is off; a live one leads with its
+        // terminal link.
+        if (isArchived) ...[
           _StatusNotice(
             icon: Icons.pause_circle_outline,
             title: context.loc.posArchivedTitle,
             body: context.loc.posArchivedBody,
-          )
-        else
+          ),
+          const Gap(20),
+        ] else if (isCreate) ...[
           Text(
             context.loc.posRoutingNotice,
             style: context.font.bodySmall?.copyWith(
               color: context.appColors.textMuted,
             ),
           ),
-        const Gap(20),
+          const Gap(20),
+        ],
         if (state.submissionUncertain) ...[
           _Banner(
             icon: Icons.help_outline,
@@ -289,10 +288,9 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           ),
           const Gap(16),
         ],
-        _permanentAliasSection(context, state, cubit),
+        if (naming != null) ...[naming, const Gap(24)],
         // Status + link — the shareable terminal, presented as a scannable QR.
         if (!isCreate && state.terminalUrl != null) ...[
-          const Gap(24),
           Text(
             context.loc.posShareLabel,
             style: context.font.bodySmall?.copyWith(
@@ -305,10 +303,21 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
             openLabel: context.loc.posOpenLink,
             downloadFileName: 'pos-terminal-qr.png',
           ),
+          const Gap(24),
+        ],
+        // The routing notice explains where the money lands, so on a live
+        // terminal it belongs with the wallet story, under the link.
+        if (!isCreate && !isArchived) ...[
+          Text(
+            context.loc.posRoutingNotice,
+            style: context.font.bodySmall?.copyWith(
+              color: context.appColors.textMuted,
+            ),
+          ),
+          const Gap(24),
         ],
         // Fiat conversion.
         if (!isCreate) ...[
-          const Gap(24),
           const FiatSettlementEntryTile(product: FiatSettlementProduct.pos),
         ],
         // Instructions for staff — POS only, between Fiat and Edit.
@@ -399,22 +408,19 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     ];
   }
 
-  Widget _permanentAliasSection(
-    BuildContext context,
-    PosState state,
-    PosCubit cubit,
-  ) {
-    final alias = state.permanentAlias;
-    // An alias already claimed stays a read-only summary. Offering "use my nym
-    // instead" for this state needs the server's per-surface advertised-name
-    // preference (BullishNode/bullnym#277) and is out of scope until then.
-    if (alias != null) return _PermanentAliasSummary(alias: alias);
-    if (_nameChoice != _NameChoice.alias) {
+  /// The naming step, shown only while creating and only while the name is
+  /// still open — the nym is claimed but no alias is. With both already claimed
+  /// there is nothing to choose, so nothing is asked: offering "use my nym
+  /// instead" needs the server's per-surface advertised-name preference
+  /// (BullishNode/bullnym#277) and is out of scope until then.
+  Widget? _namingStep(BuildContext context, PosState state, PosCubit cubit) {
+    if (state.status != PosStatus.create) return null;
+    if (state.permanentAlias != null) return null;
+    if (!_claimingAlias) {
       return GetPaidNameChoice(
         nym: state.nym,
         body: context.loc.posNameChoiceBody,
-        onUseNym: () => _useNym(cubit),
-        onChooseAlias: () => setState(() => _nameChoice = _NameChoice.alias),
+        onChooseAlias: () => setState(() => _claimingAlias = true),
       );
     }
     return Column(
@@ -447,11 +453,12 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     );
   }
 
-  /// Reuse the nym: no alias is claimed, so the surface keeps advertising the
-  /// server-returned nym URLs. Any typed draft is dropped so the save omits it.
+  /// Back out of the alias branch to the default: no alias is claimed, so the
+  /// surface keeps advertising the server-returned nym URLs. Any typed draft is
+  /// dropped so the save omits it.
   void _useNym(PosCubit cubit) {
     cubit.aliasDraftChanged('');
-    setState(() => _nameChoice = _NameChoice.nym);
+    setState(() => _claimingAlias = false);
   }
 
   Widget _currencyField(BuildContext context, PosState state, PosCubit cubit) {
@@ -588,32 +595,6 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     if (!mounted || confirmed != true) return;
     if (!state.isOnline) return;
     await cubit.setOnline(false);
-  }
-}
-
-class _PermanentAliasSummary extends StatelessWidget {
-  final String alias;
-
-  const _PermanentAliasSummary({required this.alias});
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoRow(label: context.loc.posAliasLabel, value: alias),
-          const Gap(8),
-          Text(
-            context.loc.posAliasReadOnly,
-            style: context.font.bodySmall?.copyWith(
-              color: context.appColors.textMuted,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
