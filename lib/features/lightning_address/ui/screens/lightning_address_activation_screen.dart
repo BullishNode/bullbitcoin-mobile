@@ -667,8 +667,6 @@ class _InactiveKnownView extends StatelessWidget {
           online: false,
           onlineSaving: onlineSaving,
           onOnlineChanged: onOnlineChanged,
-          walletBehavior: walletBehavior,
-          walletBehaviorSaving: walletBehaviorSaving,
         ),
       ],
     );
@@ -736,8 +734,6 @@ class _ActiveView extends StatelessWidget {
             online: true,
             onlineSaving: onlineSaving,
             onOnlineChanged: onOnlineChanged,
-            walletBehavior: walletBehavior,
-            walletBehaviorSaving: walletBehaviorSaving,
           ),
         ],
       ],
@@ -816,43 +812,52 @@ class _AdvancedSettingsButton extends StatelessWidget {
   final bool online;
   final bool onlineSaving;
   final ValueChanged<bool> onOnlineChanged;
-  final GetPaidWalletBehavior? walletBehavior;
-  final bool walletBehaviorSaving;
 
   const _AdvancedSettingsButton({
     required this.online,
     required this.onlineSaving,
     required this.onOnlineChanged,
-    required this.walletBehavior,
-    required this.walletBehaviorSaving,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Read the cubit here (it is in scope) and bind the behavior callbacks, so
-    // the sheet — shown in a modal whose context has no provider — stays
-    // presentational.
+    // The sheet lives in a modal route whose context has no provider, so the
+    // cubit is carried into it explicitly and its contents are rebuilt from
+    // state: a wallet-behavior write made from inside the sheet has to be
+    // visible in the sheet that made it.
     final cubit = context.read<LightningAddressActivationCubit>();
-    final behavior = walletBehavior;
     return Align(
       alignment: Alignment.center,
       child: TextButton(
         onPressed: () => BlurredBottomSheet.show(
           context: context,
-          child: _LightningAddressAdvancedSettingsSheet(
-            online: online,
-            onlineSaving: onlineSaving,
-            onOnlineChanged: onOnlineChanged,
-            walletBehavior: behavior,
-            walletBehaviorSaving: walletBehaviorSaving,
-            onAutoSweepChanged: (value) => cubit.updateWalletBehavior(
-              walletId: behavior!.walletId,
-              autoSweepEnabled: value,
-            ),
-            onHideOnHomeChanged: (value) => cubit.updateWalletBehavior(
-              walletId: behavior!.walletId,
-              hideOnHome: value,
-            ),
+          child: BlocProvider<LightningAddressActivationCubit>.value(
+            value: cubit,
+            child:
+                BlocBuilder<
+                  LightningAddressActivationCubit,
+                  LightningAddressActivationState
+                >(
+                  builder: (context, state) {
+                    final behavior = state.walletBehavior;
+                    return _LightningAddressAdvancedSettingsSheet(
+                      online: online,
+                      onlineSaving: onlineSaving,
+                      onOnlineChanged: onOnlineChanged,
+                      walletBehavior: behavior,
+                      walletBehaviorSaving: state.walletBehaviorSaving,
+                      onAutoSweepChanged: (value) => cubit.updateWalletBehavior(
+                        walletId: behavior!.walletId,
+                        autoSweepEnabled: value,
+                      ),
+                      onHideOnHomeChanged: (value) =>
+                          cubit.updateWalletBehavior(
+                            walletId: behavior!.walletId,
+                            hideOnHome: value,
+                          ),
+                    );
+                  },
+                ),
           ),
         ),
         child: Text(
@@ -922,8 +927,6 @@ class _ActiveLocalSetupFailedView extends StatelessWidget {
           online: true,
           onlineSaving: onlineSaving,
           onOnlineChanged: onOnlineChanged,
-          walletBehavior: walletBehavior,
-          walletBehaviorSaving: walletBehaviorSaving,
         ),
       ],
     );

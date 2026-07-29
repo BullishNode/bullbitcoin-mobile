@@ -13,7 +13,6 @@ import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_activation_offer.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_tile.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
-import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/payment_page/domain/payment_page_error.dart';
 import 'package:bb_mobile/features/payment_page/domain/payment_page_validation.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
@@ -384,8 +383,6 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
             onlineSaving: state.submitting,
             onOnlineChanged: (online) =>
                 _setOnline(cubit: cubit, state: state, online: online),
-            walletBehavior: state.walletBehavior,
-            walletBehaviorSaving: state.walletBehaviorSaving,
           ),
         ],
       ],
@@ -789,52 +786,55 @@ class _EditSnapshot {
       aliasDraft == state.aliasDraft;
 }
 
-/// Opens the shared Advanced Settings sheet for the Donation Page. The cubit is
-/// read here (in the screen's context) and the wallet-behavior writes are bound
-/// as callbacks, so the sheet — shown in a modal whose context has no provider
-/// — stays presentational.
+/// Opens the shared Advanced Settings sheet for the Donation Page. The sheet
+/// lives in a modal route whose context has no provider, so the cubit is carried
+/// into it explicitly and its contents are rebuilt from state: a wallet-behavior
+/// write made from inside the sheet has to be visible in the sheet that made it.
 class _AdvancedSettingsButton extends StatelessWidget {
   final bool online;
   final bool onlineSaving;
   final ValueChanged<bool> onOnlineChanged;
-  final GetPaidWalletBehavior? walletBehavior;
-  final bool walletBehaviorSaving;
 
   const _AdvancedSettingsButton({
     required this.online,
     required this.onlineSaving,
     required this.onOnlineChanged,
-    required this.walletBehavior,
-    required this.walletBehaviorSaving,
   });
 
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<PaymentPageCubit>();
-    final behavior = walletBehavior;
     return Align(
       alignment: Alignment.center,
       child: TextButton(
         key: const Key('payment_page_advanced_settings_button'),
         onPressed: () => BlurredBottomSheet.show(
           context: context,
-          child: GetPaidAdvancedSettingsSheet(
-            onlineSwitchKey: const Key('payment_page_online_switch'),
-            onlineTitle: context.loc.paymentPageOnlineToggleLabel,
-            onlineSubtitle: context.loc.paymentPageOnlineToggleBody,
-            online: online,
-            onlineSaving: onlineSaving,
-            onlineSavingLabel: context.loc.paymentPageSubmitting,
-            onOnlineChanged: onOnlineChanged,
-            walletBehavior: behavior,
-            walletBehaviorSaving: walletBehaviorSaving,
-            onAutoSweepChanged: (value) => cubit.updateWalletBehavior(
-              walletId: behavior!.walletId,
-              autoSweepEnabled: value,
-            ),
-            onHideOnHomeChanged: (value) => cubit.updateWalletBehavior(
-              walletId: behavior!.walletId,
-              hideOnHome: value,
+          child: BlocProvider<PaymentPageCubit>.value(
+            value: cubit,
+            child: BlocBuilder<PaymentPageCubit, PaymentPageState>(
+              builder: (context, state) {
+                final behavior = state.walletBehavior;
+                return GetPaidAdvancedSettingsSheet(
+                  onlineSwitchKey: const Key('payment_page_online_switch'),
+                  onlineTitle: context.loc.paymentPageOnlineToggleLabel,
+                  onlineSubtitle: context.loc.paymentPageOnlineToggleBody,
+                  online: online,
+                  onlineSaving: onlineSaving,
+                  onlineSavingLabel: context.loc.paymentPageSubmitting,
+                  onOnlineChanged: onOnlineChanged,
+                  walletBehavior: behavior,
+                  walletBehaviorSaving: state.walletBehaviorSaving,
+                  onAutoSweepChanged: (value) => cubit.updateWalletBehavior(
+                    walletId: behavior!.walletId,
+                    autoSweepEnabled: value,
+                  ),
+                  onHideOnHomeChanged: (value) => cubit.updateWalletBehavior(
+                    walletId: behavior!.walletId,
+                    hideOnHome: value,
+                  ),
+                );
+              },
             ),
           ),
         ),
