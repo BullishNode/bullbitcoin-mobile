@@ -17684,5 +17684,9 @@
   "posAliasLabel": "Alias",
   "@posAliasLabel": {
     "description": "Label for the permanent Point of Sale alias field and its claimed-alias summary row."
+  },
+  "getPaidWalletHideOnHomeNeedsAutoSweep": "Available only while auto-sweep is on: a wallet keeping its funds stays on your home list.",
+  "@getPaidWalletHideOnHomeNeedsAutoSweep": {
+    "description": "Explains why Hide on home is unavailable: the wallet must be swept for hiding to be safe."
   }
 }
