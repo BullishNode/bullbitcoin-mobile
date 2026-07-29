@@ -89,12 +89,12 @@ void main() {
     expect(find.text('A mix of Bitcoin and fiat'), findsOneWidget);
     // Save is offered directly; the old pre-gate reconnect/login panel is gone.
     expect(_button('Save'), findsOneWidget);
-    expect(_button('Reconnect Bull Bitcoin'), findsNothing);
+    expect(_button('Connect Bull Bitcoin'), findsNothing);
     expect(_button('Log in to Bull Bitcoin'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a server credential-required outcome surfaces the Reconnect '
+  testWidgets('a server credential-required outcome surfaces the Connect '
       'action (the only path that needs the exchange login)', (tester) async {
     when(() => facade.configuration()).thenAnswer(
       (_) async => Ok(_view(product, 50, currency: FiatCurrency.cad)),
@@ -114,8 +114,11 @@ void main() {
     await tester.tap(_button('Save'));
     await tester.pumpAndSettle();
 
-    // Reconnect appears ONLY now, as the outcome of the server's answer.
-    expect(_button('Reconnect Bull Bitcoin'), findsOneWidget);
+    // Connect appears ONLY now, as the outcome of the server's answer, and it
+    // is stated as a first connection rather than a repair.
+    expect(_button('Connect Bull Bitcoin'), findsOneWidget);
+    expect(find.text('Connect your Bull Bitcoin account'), findsOneWidget);
+    expect(find.textContaining('Reconnect'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

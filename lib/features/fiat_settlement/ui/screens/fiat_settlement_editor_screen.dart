@@ -587,6 +587,10 @@ class _UnderstandRow extends StatelessWidget {
 
 /// Renders the validated outcome action-sets. "Continue with Bitcoin only" is
 /// offered only on a first activation; edits show corrective actions only.
+///
+/// Presented like the rest of the editor: an optional heading, the explanation,
+/// then full-width stacked actions — one primary, the rest outlined — instead of
+/// a row of small buttons of competing weights.
 class _OutcomePanel extends StatelessWidget {
   const _OutcomePanel({required this.state});
   final FiatSettlementEditorState state;
@@ -598,8 +602,13 @@ class _OutcomePanel extends StatelessWidget {
     final failure = state.failure!;
     final showContinueBitcoin = state.isFirstActivation;
 
-    final (String message, List<Widget> actions) = switch (failure.kind) {
+    final (
+      String? title,
+      String message,
+      List<Widget> actions,
+    ) = switch (failure.kind) {
       FiatSettlementFailureKind.kycRequired => (
+        null,
         context.loc.getPaidFiatSettlementKycRequired,
         [
           _action(
@@ -611,19 +620,23 @@ class _OutcomePanel extends StatelessWidget {
           if (showContinueBitcoin) _continueBitcoin(context, cubit),
         ],
       ),
+      // Nothing was ever connected from the merchant's side, so this is a first
+      // connection, not a repair.
       FiatSettlementFailureKind.credentialProblem => (
+        context.loc.getPaidFiatSettlementConnectTitle,
         context.loc.getPaidFiatSettlementCredentialProblem,
         [
           _action(
             context,
-            context.loc.getPaidFiatSettlementReconnect,
-            () => _reconnect(context, cubit),
+            context.loc.getPaidFiatSettlementConnect,
+            () => _connect(context, cubit),
           ),
           _support(context),
           if (showContinueBitcoin) _continueBitcoin(context, cubit),
         ],
       ),
       FiatSettlementFailureKind.dependencyUnavailable => (
+        null,
         context.loc.getPaidFiatSettlementDependencyUnavailable,
         [
           _action(context, context.loc.getPaidFiatSettlementRetry, cubit.save),
@@ -632,6 +645,7 @@ class _OutcomePanel extends StatelessWidget {
         ],
       ),
       FiatSettlementFailureKind.bullnymUnreachable => (
+        null,
         context.loc.getPaidFiatSettlementUnreachable,
         [
           _action(context, context.loc.getPaidFiatSettlementRetry, cubit.save),
@@ -640,6 +654,7 @@ class _OutcomePanel extends StatelessWidget {
       ),
       FiatSettlementFailureKind.invalidInput ||
       FiatSettlementFailureKind.unexpected => (
+        null,
         context.loc.getPaidFiatSettlementGenericError,
         [_action(context, context.loc.getPaidFiatSettlementRetry, cubit.save)],
       ),
@@ -652,11 +667,18 @@ class _OutcomePanel extends StatelessWidget {
         borderRadius: const BorderRadius.all(Radius.circular(12)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (title case final heading?) ...[
+            Text(heading, style: context.bullText.titleSmall),
+            const Gap(8),
+          ],
           Text(message, style: context.bullText.bodyMedium),
-          const Gap(12),
-          Wrap(spacing: 8, runSpacing: 8, children: actions),
+          const Gap(16),
+          for (final (index, action) in actions.indexed) ...[
+            if (index > 0) const Gap(12),
+            action,
+          ],
         ],
       ),
     );
@@ -664,7 +686,7 @@ class _OutcomePanel extends StatelessWidget {
 
   Widget _action(BuildContext context, String label, VoidCallback onTap) {
     final colors = context.bull;
-    return BullButton.small(
+    return BullButton.big(
       label: label,
       onPressed: onTap,
       bgColor: colors.primary,
@@ -672,12 +694,11 @@ class _OutcomePanel extends StatelessWidget {
     );
   }
 
-  Widget _support(BuildContext context) {
+  Widget _secondary(BuildContext context, String label, VoidCallback onTap) {
     final colors = context.bull;
-    return BullButton.small(
-      label: context.loc.getPaidFiatSettlementContactSupport,
-      onPressed: () =>
-          context.pushNamed(ExchangeSupportChatRoute.supportChat.name),
+    return BullButton.big(
+      label: label,
+      onPressed: onTap,
       bgColor: colors.surface,
       textColor: colors.onSurface,
       outlined: true,
@@ -685,14 +706,22 @@ class _OutcomePanel extends StatelessWidget {
     );
   }
 
+  Widget _support(BuildContext context) {
+    return _secondary(
+      context,
+      context.loc.getPaidFiatSettlementContactSupport,
+      () => context.pushNamed(ExchangeSupportChatRoute.supportChat.name),
+    );
+  }
+
   Widget _continueBitcoin(
     BuildContext context,
     FiatSettlementEditorCubit cubit,
   ) {
-    final colors = context.bull;
-    return BullButton.small(
-      label: context.loc.getPaidFiatSettlementContinueBitcoinOnly,
-      onPressed: () {
+    return _secondary(
+      context,
+      context.loc.getPaidFiatSettlementContinueBitcoinOnly,
+      () {
         // When the saved config is already Bitcoin-only there is nothing to
         // change server-side — just close the editor instead of a redundant
         // disable call.
@@ -702,14 +731,10 @@ class _OutcomePanel extends StatelessWidget {
           cubit.disable();
         }
       },
-      bgColor: colors.surface,
-      textColor: colors.onSurface,
-      outlined: true,
-      borderColor: colors.onSurfaceVariant,
     );
   }
 
-  Future<void> _reconnect(
+  Future<void> _connect(
     BuildContext context,
     FiatSettlementEditorCubit cubit,
   ) async {
