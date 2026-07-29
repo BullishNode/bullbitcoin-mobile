@@ -47,6 +47,12 @@ void main() {
     expect(find.text('Hide on home'), findsOneWidget);
   }
 
+  bool autoSweepIsOn(WidgetTester tester) => tester
+      .widget<SwitchListTile>(
+        find.byKey(const Key('get_paid_auto_sweep_switch')),
+      )
+      .value;
+
   testWidgets('Lightning Address surfaces the shared sheet for wallet 101', (
     tester,
   ) async {
@@ -66,10 +72,14 @@ void main() {
     await tester.pumpAndSettle();
     expectIdenticalSheet();
 
+    expect(autoSweepIsOn(tester), isFalse);
     await tester.ensureVisible(find.text('Auto-sweep'));
     await tester.tap(find.text('Auto-sweep'));
     await tester.pumpAndSettle();
     expect(cubit.behaviorWrites, ['w-101']);
+    // The sheet that made the write shows it: it is rebuilt from state, not a
+    // snapshot captured when it was opened.
+    expect(autoSweepIsOn(tester), isTrue);
   });
 
   testWidgets('Donation Page surfaces the shared sheet for wallet 102', (
@@ -93,10 +103,14 @@ void main() {
     await tester.pumpAndSettle();
     expectIdenticalSheet();
 
+    expect(autoSweepIsOn(tester), isFalse);
     await tester.ensureVisible(find.text('Auto-sweep'));
     await tester.tap(find.text('Auto-sweep'));
     await tester.pumpAndSettle();
     expect(cubit.behaviorWrites, ['w-102']);
+    // The sheet that made the write shows it: it is rebuilt from state, not a
+    // snapshot captured when it was opened.
+    expect(autoSweepIsOn(tester), isTrue);
   });
 
   testWidgets('Point of Sale surfaces the shared sheet for wallet 103', (
@@ -116,10 +130,14 @@ void main() {
     await tester.pumpAndSettle();
     expectIdenticalSheet();
 
+    expect(autoSweepIsOn(tester), isFalse);
     await tester.ensureVisible(find.text('Auto-sweep'));
     await tester.tap(find.text('Auto-sweep'));
     await tester.pumpAndSettle();
     expect(cubit.behaviorWrites, ['w-103']);
+    // The sheet that made the write shows it: it is rebuilt from state, not a
+    // snapshot captured when it was opened.
+    expect(autoSweepIsOn(tester), isTrue);
   });
 }
 
@@ -213,6 +231,14 @@ class _LaCubit extends Cubit<LightningAddressActivationState>
     bool? autoSweepEnabled,
   }) async {
     behaviorWrites.add(walletId);
+    emit(
+      state.copyWith(
+        walletBehavior: state.walletBehavior!.withRequestedChange(
+          hideOnHome: hideOnHome,
+          autoSweepEnabled: autoSweepEnabled,
+        ),
+      ),
+    );
   }
 }
 
@@ -255,6 +281,14 @@ class _PageCubit extends Cubit<PaymentPageState> implements PaymentPageCubit {
     bool? autoSweepEnabled,
   }) async {
     behaviorWrites.add(walletId);
+    emit(
+      state.copyWith(
+        walletBehavior: state.walletBehavior!.withRequestedChange(
+          hideOnHome: hideOnHome,
+          autoSweepEnabled: autoSweepEnabled,
+        ),
+      ),
+    );
   }
 }
 
@@ -289,5 +323,13 @@ class _PosCubit extends Cubit<PosState> implements PosCubit {
     bool? autoSweepEnabled,
   }) async {
     behaviorWrites.add(walletId);
+    emit(
+      state.copyWith(
+        walletBehavior: state.walletBehavior!.withRequestedChange(
+          hideOnHome: hideOnHome,
+          autoSweepEnabled: autoSweepEnabled,
+        ),
+      ),
+    );
   }
 }
