@@ -1,4 +1,6 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
+import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/features/exchange/ui/exchange_router.dart';
 import 'package:bb_mobile/features/exchange_support_chat/ui/exchange_support_chat_router.dart';
@@ -13,7 +15,6 @@ import 'package:flutter/material.dart'
         AlertDialog,
         BorderRadius,
         BoxDecoration,
-        CircularProgressIndicator,
         Container,
         Icons,
         Navigator,
@@ -110,7 +111,7 @@ class _FiatSettlementEditorView extends StatelessWidget {
   Widget _body(FiatSettlementEditorState state) {
     switch (state.status) {
       case FiatSettlementEditorStatus.loading:
-        return const Center(child: CircularProgressIndicator());
+        return const _LoadingConfiguration();
       case FiatSettlementEditorStatus.loadError:
         return const _LoadError();
       case FiatSettlementEditorStatus.ready:
@@ -118,6 +119,42 @@ class _FiatSettlementEditorView extends StatelessWidget {
       case FiatSettlementEditorStatus.success:
         return _EditorForm(state: state, activated: activated);
     }
+  }
+}
+
+/// The editor cannot be drawn before the server answers with this product's
+/// current payout configuration, and that read is the whole wait between the
+/// activation success and the chooser. State what is being waited on, in the
+/// app's own loading treatment rather than a bare spinner.
+class _LoadingConfiguration extends StatelessWidget {
+  const _LoadingConfiguration();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      label: context.loc.getPaidFiatSettlementLoadingStatus,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                context.loc.getPaidFiatSettlementLoadingStatus,
+                textAlign: TextAlign.center,
+                style: context.bullText.bodyMedium,
+              ),
+            ),
+            const Gap(24),
+            const LoadingBoxContent(height: 72),
+            const LoadingLineContent(),
+            const LoadingLineContent(width: 220),
+          ],
+        ),
+      ),
+    );
   }
 }
 
