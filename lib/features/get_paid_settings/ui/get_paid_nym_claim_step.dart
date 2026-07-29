@@ -86,6 +86,12 @@ class GetPaidNymClaimStep extends StatelessWidget {
               border: const OutlineInputBorder(),
               labelText: context.loc.getPaidNymLabel,
               helperText: context.loc.getPaidNymClaimHelper,
+              // The syntax rule is the only thing worth reading under this
+              // field, so it gets the full width (the counter used to squeeze
+              // it into an ellipsis) and as many lines as it needs. The 32-char
+              // ceiling is already enforced by maxLength and stated in the rule.
+              helperMaxLines: 3,
+              counterText: '',
             ),
             validator: validator,
           ),

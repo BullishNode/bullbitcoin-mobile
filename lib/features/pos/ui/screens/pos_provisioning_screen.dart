@@ -438,6 +438,10 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
             border: const OutlineInputBorder(),
             labelText: context.loc.posAliasLabel,
             helperText: context.loc.posAliasHelper,
+            // Permanence is the point of this field: state it in full rather
+            // than letting the character counter ellipsize it.
+            helperMaxLines: 3,
+            counterText: '',
             errorText: state.invalidField == PosField.alias
                 ? context.loc.posAliasInvalid
                 : null,

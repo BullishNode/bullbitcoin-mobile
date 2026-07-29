@@ -510,6 +510,10 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
             border: const OutlineInputBorder(),
             labelText: context.loc.paymentPageAliasLabel,
             helperText: context.loc.paymentPageAliasHelper,
+            // Permanence is the point of this field: state it in full rather
+            // than letting the character counter ellipsize it.
+            helperMaxLines: 3,
+            counterText: '',
             errorText: state.invalidField == PaymentPageField.alias
                 ? (state.aliasTakenFailure
                       ? context.loc.paymentPageAliasTaken
