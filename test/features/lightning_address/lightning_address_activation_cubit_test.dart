@@ -27,7 +27,7 @@ void main() {
       deactivate = _FakeDeactivate();
       lookup = _FakeLookupReadiness();
       walletBehaviors = _FakeWalletBehaviors();
-      updateWalletBehavior = _FakeUpdateWalletBehavior();
+      updateWalletBehavior = _FakeUpdateWalletBehavior(walletBehaviors);
       cubit = LightningAddressActivationCubit(
         capability,
         activate,
@@ -414,6 +414,63 @@ void main() {
       expect(cubit.state.status, LightningAddressActivationStatus.unsupported);
       expect(cubit.state.walletBehavior?.walletId, 'wallet-101');
     });
+
+    /// A wallet that keeps its funds must stay countable on the home list, so
+    /// hide-on-home only holds while auto-sweep empties the wallet.
+    Future<void> loadWithBehavior({
+      required bool hideOnHome,
+      required bool autoSweepEnabled,
+    }) async {
+      capability.supported = false;
+      lookup.error = const LightningAddressServerRejectedRequestException(
+        code: 'NymNotFound',
+        retryable: false,
+      );
+      walletBehaviors.behaviors = [
+        GetPaidWalletBehavior(
+          product: GetPaidWalletProduct.lightningAddress,
+          walletId: 'wallet-101',
+          hideOnHome: hideOnHome,
+          autoSweepEnabled: autoSweepEnabled,
+        ),
+      ];
+      await cubit.load();
+    }
+
+    test('turning auto-sweep off unhides the wallet', () async {
+      await loadWithBehavior(hideOnHome: true, autoSweepEnabled: true);
+
+      await cubit.updateWalletBehavior(
+        walletId: 'wallet-101',
+        autoSweepEnabled: false,
+      );
+
+      expect(updateWalletBehavior.calls.single.autoSweepEnabled, isFalse);
+      expect(cubit.state.walletBehavior?.autoSweepEnabled, isFalse);
+      expect(cubit.state.walletBehavior?.hideOnHome, isFalse);
+    });
+
+    test('hide on home cannot be turned on while auto-sweep is off', () async {
+      await loadWithBehavior(hideOnHome: false, autoSweepEnabled: false);
+
+      await cubit.updateWalletBehavior(
+        walletId: 'wallet-101',
+        hideOnHome: true,
+      );
+
+      expect(cubit.state.walletBehavior?.hideOnHome, isFalse);
+    });
+
+    test('unhiding is allowed even with auto-sweep off', () async {
+      await loadWithBehavior(hideOnHome: true, autoSweepEnabled: false);
+
+      await cubit.updateWalletBehavior(
+        walletId: 'wallet-101',
+        hideOnHome: false,
+      );
+
+      expect(cubit.state.walletBehavior?.hideOnHome, isFalse);
+    });
   });
 }
 
@@ -543,13 +600,37 @@ class _FakeWalletBehaviors implements GetGetPaidWalletBehaviorsUsecase {
   }
 }
 
+/// Stands in for the store, applying the same auto-sweep / hide-on-home rule
+/// `WalletRepository.updateWalletBehavior` applies, so what the cubit reads back
+/// after a write is what the device would have persisted.
 class _FakeUpdateWalletBehavior implements UpdateWalletBehaviorUsecase {
+  _FakeUpdateWalletBehavior(this._store);
+  final _FakeWalletBehaviors _store;
+  final List<({String walletId, bool? hideOnHome, bool? autoSweepEnabled})>
+  calls = [];
+
   @override
   Future<void> execute({
     required String walletId,
     bool? hideOnHome,
     bool? autoSweepEnabled,
-  }) async {}
+  }) async {
+    calls.add((
+      walletId: walletId,
+      hideOnHome: hideOnHome,
+      autoSweepEnabled: autoSweepEnabled,
+    ));
+    _store.behaviors = _store.behaviors
+        .map(
+          (behavior) => behavior.walletId == walletId
+              ? behavior.withRequestedChange(
+                  hideOnHome: hideOnHome,
+                  autoSweepEnabled: autoSweepEnabled,
+                )
+              : behavior,
+        )
+        .toList();
+  }
 }
 
 /// Thin fake of the public facade the cubit now depends on, delegating the two

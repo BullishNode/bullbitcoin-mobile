@@ -44,9 +44,18 @@ class GetPaidWalletBehaviorCard extends StatelessWidget {
           SwitchListTile(
             key: const Key('get_paid_hide_on_home_switch'),
             value: behavior.hideOnHome,
-            onChanged: saving ? null : onHideOnHomeChanged,
+            // Hiding needs auto-sweep on; unhiding is always allowed, so a
+            // wallet left hidden by older data can still be brought back.
+            onChanged:
+                saving || !(behavior.canHideOnHome || behavior.hideOnHome)
+                ? null
+                : onHideOnHomeChanged,
             title: Text(loc.getPaidWalletHideOnHomeLabel),
-            subtitle: Text(loc.getPaidWalletHideOnHomeInfo),
+            subtitle: Text(
+              behavior.canHideOnHome
+                  ? loc.getPaidWalletHideOnHomeInfo
+                  : loc.getPaidWalletHideOnHomeNeedsAutoSweep,
+            ),
           ),
         ],
       ),
