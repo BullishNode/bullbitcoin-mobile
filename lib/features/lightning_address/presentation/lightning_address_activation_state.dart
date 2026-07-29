@@ -22,6 +22,11 @@ enum LightningAddressActivationFailure {
   lookupFailed,
   noDefaultBitcoinWallet,
   setupFailed,
+
+  /// The claim reached no answer at all — a timeout or an unreachable server.
+  /// Distinct from [submissionUncertain]: the server said nothing, so there is
+  /// no half-known outcome to check, only a claim to retry.
+  noServerResponse,
   submissionUncertain,
   rejected,
   serverTemporary,

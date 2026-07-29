@@ -241,6 +241,38 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
     expect(cubit.activateExistingCalls, 1);
   });
+
+  testWidgets(
+    'a claim the server never answered says so and retries the claim',
+    (tester) async {
+      final cubit = await _pump(
+        tester,
+        const LightningAddressActivationState(
+          status: LightningAddressActivationStatus.failure,
+          failure: LightningAddressActivationFailure.noServerResponse,
+          nym: 'alice',
+          permanentNamesSupported: true,
+        ),
+      );
+
+      expect(find.text('The server did not respond'), findsOneWidget);
+      expect(
+        find.textContaining('nothing was claimed and nothing changed'),
+        findsOneWidget,
+      );
+      // Not the half-known outcome story, and not a status re-read: a retry.
+      expect(find.text('Status Unknown'), findsNothing);
+      expect(find.text('Check Status'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const Key('lightning_address_server_outcome_action')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(cubit.submitCalls, 1);
+      expect(cubit.loadCalls, 1); // only the initial load on mount
+    },
+  );
 }
 
 /// Opens Advanced Settings and flips the availability switch inside it.
@@ -300,6 +332,7 @@ class _StubCubit extends Cubit<LightningAddressActivationState>
   int activateExistingCalls = 0;
   int deactivateCalls = 0;
   int loadCalls = 0;
+  int submitCalls = 0;
 
   @override
   Future<void> load() async {
@@ -316,7 +349,9 @@ class _StubCubit extends Cubit<LightningAddressActivationState>
   LightningAddressActivationFailure? validateNym(String value) => null;
 
   @override
-  Future<void> submit() async {}
+  Future<void> submit() async {
+    submitCalls += 1;
+  }
 
   @override
   Future<void> activateExisting() async {
