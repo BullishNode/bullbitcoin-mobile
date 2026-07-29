@@ -17,6 +17,7 @@ import 'package:bb_mobile/core/wallet/data/models/wallet_metadata_model.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_model.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet_balances.dart';
+import 'package:bb_mobile/core/wallet/domain/wallet_behavior_rule.dart';
 import 'package:bb_mobile/core/wallet/domain/wallet_error.dart';
 import 'package:bb_mobile/core/wallet/wallet_metadata_service.dart';
 import 'package:bb_mobile/features/import_watch_only_wallet/watch_only_wallet_entity.dart';
@@ -393,10 +394,19 @@ class WalletRepository {
       throw WalletError.notFound(walletId);
     }
 
+    // Every behavior write passes through the auto-sweep / hide-on-home rule, so
+    // a wallet left accumulating funds can never end up hidden from home.
+    final resolved = resolveWalletBehaviorChange(
+      hideOnHome: metadata.hideOnHome ?? false,
+      autoSweepEnabled: metadata.autoSweepEnabled ?? false,
+      requestedHideOnHome: hideOnHome,
+      requestedAutoSweepEnabled: autoSweepEnabled,
+    );
+
     await _walletMetadataDatasource.store(
       metadata.copyWith(
-        hideOnHome: hideOnHome ?? metadata.hideOnHome,
-        autoSweepEnabled: autoSweepEnabled ?? metadata.autoSweepEnabled,
+        hideOnHome: resolved.hideOnHome,
+        autoSweepEnabled: resolved.autoSweepEnabled,
       ),
     );
   }

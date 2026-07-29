@@ -10,6 +10,7 @@ import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_wallet_behavior_card.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_name_choice.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
@@ -148,9 +149,19 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           body: context.loc.posPermanentNamesUnavailableBody,
         ),
         if (state.walletBehavior != null)
-          _WalletBehaviorControls(
+          GetPaidWalletBehaviorCard(
             behavior: state.walletBehavior!,
             saving: state.walletBehaviorSaving,
+            onAutoSweepChanged: (value) =>
+                context.read<PosCubit>().updateWalletBehavior(
+                  walletId: state.walletBehavior!.walletId,
+                  autoSweepEnabled: value,
+                ),
+            onHideOnHomeChanged: (value) =>
+                context.read<PosCubit>().updateWalletBehavior(
+                  walletId: state.walletBehavior!.walletId,
+                  hideOnHome: value,
+                ),
           ),
       ],
     );
@@ -173,9 +184,19 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           validator: (value) => _nymValidationMessage(context, value ?? ''),
         ),
         if (state.walletBehavior != null)
-          _WalletBehaviorControls(
+          GetPaidWalletBehaviorCard(
             behavior: state.walletBehavior!,
             saving: state.walletBehaviorSaving,
+            onAutoSweepChanged: (value) =>
+                context.read<PosCubit>().updateWalletBehavior(
+                  walletId: state.walletBehavior!.walletId,
+                  autoSweepEnabled: value,
+                ),
+            onHideOnHomeChanged: (value) =>
+                context.read<PosCubit>().updateWalletBehavior(
+                  walletId: state.walletBehavior!.walletId,
+                  hideOnHome: value,
+                ),
           ),
       ],
     );
@@ -231,9 +252,19 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
         // The behavior controls only need the local wallet, so they stay
         // reachable even while the server-backed POS load is failing.
         if (state.walletBehavior != null)
-          _WalletBehaviorControls(
+          GetPaidWalletBehaviorCard(
             behavior: state.walletBehavior!,
             saving: state.walletBehaviorSaving,
+            onAutoSweepChanged: (value) =>
+                context.read<PosCubit>().updateWalletBehavior(
+                  walletId: state.walletBehavior!.walletId,
+                  autoSweepEnabled: value,
+                ),
+            onHideOnHomeChanged: (value) =>
+                context.read<PosCubit>().updateWalletBehavior(
+                  walletId: state.walletBehavior!.walletId,
+                  hideOnHome: value,
+                ),
           ),
       ],
     );
@@ -680,50 +711,6 @@ class _AdvancedSettingsButton extends StatelessWidget {
           context.loc.getPaidAdvancedSettingsButton,
           style: TextStyle(color: context.appColors.error),
         ),
-      ),
-    );
-  }
-}
-
-/// Reserved-wallet behavior controls shown when the online product is
-/// unavailable but its deterministic wallet still exists.
-class _WalletBehaviorControls extends StatelessWidget {
-  final GetPaidWalletBehavior behavior;
-  final bool saving;
-
-  const _WalletBehaviorControls({required this.behavior, required this.saving});
-
-  @override
-  Widget build(BuildContext context) {
-    final cubit = context.read<PosCubit>();
-    return Card(
-      margin: const EdgeInsets.only(top: 24),
-      child: Column(
-        children: [
-          ListTile(title: Text(context.loc.getPaidWalletSettingsSectionTitle)),
-          SwitchListTile(
-            value: behavior.autoSweepEnabled,
-            onChanged: saving
-                ? null
-                : (value) => cubit.updateWalletBehavior(
-                    walletId: behavior.walletId,
-                    autoSweepEnabled: value,
-                  ),
-            title: Text(context.loc.getPaidWalletAutoSweepLabel),
-            subtitle: Text(context.loc.getPaidWalletAutoSweepInfo),
-          ),
-          SwitchListTile(
-            value: behavior.hideOnHome,
-            onChanged: saving
-                ? null
-                : (value) => cubit.updateWalletBehavior(
-                    walletId: behavior.walletId,
-                    hideOnHome: value,
-                  ),
-            title: Text(context.loc.getPaidWalletHideOnHomeLabel),
-            subtitle: Text(context.loc.getPaidWalletHideOnHomeInfo),
-          ),
-        ],
       ),
     );
   }
