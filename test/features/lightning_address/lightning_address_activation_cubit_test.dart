@@ -346,6 +346,79 @@ void main() {
       },
     );
 
+    test('a claim the server never answered is not called uncertain', () async {
+      await _loadFirstClaim(cubit, lookup);
+      cubit.nymChanged('alice');
+      activate
+          .error = WalletOwnedLightningAddressActivationException.fromRegistration(
+        WalletOwnedLightningAddressRegistrationException.registrationSubmission(
+          cause: const LightningAddressTimeoutException(
+            code: 'Timeout',
+            retryable: true,
+          ),
+          walletId: 'wallet-101',
+          walletCreated: false,
+        ),
+      );
+
+      await cubit.submit();
+
+      // Nothing came back, so there is no half-known outcome to check — the nym
+      // is unclaimed and the nym typed stays available to retry with.
+      expect(
+        cubit.state.failure,
+        LightningAddressActivationFailure.noServerResponse,
+      );
+      expect(cubit.state.hasPermanentNym, isFalse);
+      expect(cubit.state.nym, 'alice');
+    });
+
+    test('an unreachable server reads the same as a timeout', () async {
+      await _loadFirstClaim(cubit, lookup);
+      cubit.nymChanged('alice');
+      activate
+          .error = WalletOwnedLightningAddressActivationException.fromRegistration(
+        WalletOwnedLightningAddressRegistrationException.registrationSubmission(
+          cause: const LightningAddressNetworkException(
+            code: 'Network',
+            retryable: true,
+          ),
+          walletId: 'wallet-101',
+          walletCreated: false,
+        ),
+      );
+
+      await cubit.submit();
+
+      expect(
+        cubit.state.failure,
+        LightningAddressActivationFailure.noServerResponse,
+      );
+    });
+
+    test('a garbled server answer stays genuinely uncertain', () async {
+      await _loadFirstClaim(cubit, lookup);
+      cubit.nymChanged('alice');
+      activate
+          .error = WalletOwnedLightningAddressActivationException.fromRegistration(
+        WalletOwnedLightningAddressRegistrationException.registrationSubmission(
+          cause: const LightningAddressInvalidServerResponseException(
+            code: 'InvalidServerResponse',
+            retryable: true,
+          ),
+          walletId: 'wallet-101',
+          walletCreated: false,
+        ),
+      );
+
+      await cubit.submit();
+
+      expect(
+        cubit.state.failure,
+        LightningAddressActivationFailure.submissionUncertain,
+      );
+    });
+
     test(
       'active local setup failure preserves online ownership state',
       () async {
