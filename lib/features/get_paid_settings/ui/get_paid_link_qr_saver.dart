@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:meta/meta.dart';
 
-/// Outcome of a POS terminal QR PNG download.
+/// Outcome of a Get Paid link QR PNG download.
 enum QrImageSaveOutcome {
   /// The user chose a destination and the file was written.
   saved,
@@ -18,7 +18,7 @@ enum QrImageSaveOutcome {
 /// Saves a rendered QR PNG through the system Files save dialog. No gallery or
 /// broad-storage permission is requested (the picker owns the destination), and
 /// the URL / QR contents / chosen path are never logged.
-abstract interface class PosTerminalQrSaver {
+abstract interface class GetPaidLinkQrSaver {
   Future<QrImageSaveOutcome> save({
     required Uint8List pngBytes,
     required String fileName,
@@ -28,8 +28,8 @@ abstract interface class PosTerminalQrSaver {
 /// `file_picker`-backed saver (the same `saveFile(bytes:)` idiom the CSV export
 /// uses). A null result means the user cancelled; a throw means the write
 /// failed. Nothing here is logged.
-class FilePickerPosTerminalQrSaver implements PosTerminalQrSaver {
-  const FilePickerPosTerminalQrSaver();
+class FilePickerGetPaidLinkQrSaver implements GetPaidLinkQrSaver {
+  const FilePickerGetPaidLinkQrSaver();
 
   @override
   Future<QrImageSaveOutcome> save({

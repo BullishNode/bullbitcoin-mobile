@@ -10,6 +10,7 @@ import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_name_choice.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
 import 'package:bb_mobile/features/pos/domain/pos_error.dart';
@@ -17,7 +18,6 @@ import 'package:bb_mobile/features/pos/domain/pos_validation.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
 import 'package:bb_mobile/features/pos/ui/widgets/pos_staff_instructions.dart';
-import 'package:bb_mobile/features/pos/ui/widgets/pos_terminal_qr.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -300,7 +300,11 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
             ),
           ),
           const Gap(8),
-          PosTerminalQr(terminalUrl: state.terminalUrl!),
+          GetPaidLinkQr(
+            url: state.terminalUrl!,
+            openLabel: context.loc.posOpenLink,
+            downloadFileName: 'pos-terminal-qr.png',
+          ),
         ],
         // Fiat conversion.
         if (!isCreate) ...[

@@ -1,12 +1,12 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
-import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/core/widgets/bottom_sheet/x.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_name_choice.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_activation_offer.dart';
@@ -20,7 +20,6 @@ import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class PaymentPageEditorScreen extends StatefulWidget {
   const PaymentPageEditorScreen({super.key});
@@ -314,7 +313,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
         // Status + link.
         if (!isCreate && state.publicUrl != null) ...[
           const Gap(24),
-          _shareRow(context, state.publicUrl!),
+          _shareSection(context, state.publicUrl!),
         ],
         // Fiat conversion.
         if (!isCreate) ...[
@@ -592,9 +591,11 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     );
   }
 
-  Widget _shareRow(BuildContext context, String url) {
+  /// The page's public link, presented exactly as the POS terminal link is: QR
+  /// first, then copy, open and download.
+  Widget _shareSection(BuildContext context, String url) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           context.loc.paymentPageShareLabel,
@@ -603,15 +604,10 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           ),
         ),
         const Gap(8),
-        CopyInput(text: url, maxLines: 1, overflow: TextOverflow.ellipsis),
-        const Gap(8),
-        BBButton.big(
-          label: context.loc.paymentPageOpenLink,
-          iconData: Icons.open_in_new,
-          iconFirst: true,
-          onPressed: () => _openLink(url),
-          bgColor: context.appColors.secondary,
-          textColor: context.appColors.onSecondary,
+        GetPaidLinkQr(
+          url: url,
+          openLabel: context.loc.paymentPageOpenLink,
+          downloadFileName: 'donation-page-qr.png',
         ),
       ],
     );
@@ -705,12 +701,6 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     if (!mounted || confirmed != true) return;
     if (!state.isOnline) return;
     await cubit.setOnline(false);
-  }
-
-  Future<void> _openLink(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 
