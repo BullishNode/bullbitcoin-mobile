@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -164,7 +165,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('no alias claimed offers the explicit nym-or-alias choice', (
+  testWidgets('the nym is the default: stated, with only the alias opt-out', (
     tester,
   ) async {
     await _pump(tester, _createState(aliasDraft: ''));
@@ -178,21 +179,18 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('get_paid_use_my_nym')), findsOneWidget);
+    // Keeping the nym takes no action, so there is nothing to press for it.
+    expect(find.text('Use my nym'), findsNothing);
     expect(find.byKey(const Key('get_paid_choose_an_alias')), findsOneWidget);
     // The alias field stays hidden until the alias branch is chosen.
     expect(find.byKey(const Key('payment_page_alias_field')), findsNothing);
   });
 
-  testWidgets('Use my nym keeps the alias omitted from the save', (
+  testWidgets('creating without choosing an alias uses the nym', (
     tester,
   ) async {
     final cubit = await _pump(tester, _createState(aliasDraft: ''));
 
-    await tester.tap(find.byKey(const Key('get_paid_use_my_nym')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('payment_page_alias_field')), findsNothing);
     await tester.tap(find.text('Create Donation Page'));
     await tester.pumpAndSettle();
 
@@ -219,18 +217,26 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
   });
 
-  testWidgets('a claimed alias keeps its read-only summary and no choice', (
-    tester,
-  ) async {
+  testWidgets('a created page shows no naming UI at all', (tester) async {
     await _pump(tester, _editState(behavior: _behavior()));
 
-    expect(find.byKey(const Key('get_paid_use_my_nym')), findsNothing);
     expect(find.byKey(const Key('get_paid_choose_an_alias')), findsNothing);
     expect(find.byKey(const Key('payment_page_alias_field')), findsNothing);
-    expect(
-      find.textContaining('Permanent alias shared with Point of Sale'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Your nym is'), findsNothing);
+    expect(find.textContaining('Permanent alias shared'), findsNothing);
+  });
+
+  testWidgets('a created page leads with its link and a QR', (tester) async {
+    await _pump(tester, _editState(behavior: _behavior()));
+
+    // Presented exactly like the POS terminal link: the shared QR block.
+    expect(find.byType(GetPaidLinkQr), findsOneWidget);
+    expect(find.text('https://pay2.bull-wallet.com/alice'), findsOneWidget);
+    final linkY = tester.getTopLeft(find.text('Your Donation Page link')).dy;
+    final noticeY = tester
+        .getTopLeft(find.textContaining('has its own link and its own wallet'))
+        .dy;
+    expect(linkY, lessThan(noticeY));
   });
 
   testWidgets('an existing page keeps the edit form collapsed behind Edit', (

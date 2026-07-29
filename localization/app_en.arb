@@ -1374,10 +1374,6 @@
   "@paymentPageAliasInvalid": {
     "description": "Validation error for a first Donation Page alias claim"
   },
-  "paymentPageAliasReadOnly": "Permanent alias shared with Point of Sale. It cannot be changed, cleared, or replaced.",
-  "@paymentPageAliasReadOnly": {
-    "description": "Read-only explanation shown after the shared alias is claimed"
-  },
   "paymentPageAliasTaken": "That alias is already claimed. Choose another.",
   "@paymentPageAliasTaken": {
     "description": "Structured shared-namespace conflict shown when a requested alias is unavailable"
@@ -1520,10 +1516,6 @@
   "posAliasInvalid": "Use 1–32 lowercase letters, numbers, or internal hyphens",
   "@posAliasInvalid": {
     "description": "Validation error for a first Point of Sale alias claim"
-  },
-  "posAliasReadOnly": "Permanent alias shared with Donation Page. It cannot be changed, cleared, or replaced.",
-  "@posAliasReadOnly": {
-    "description": "Read-only explanation shown after the shared alias is claimed"
   },
   "posAliasTaken": "That alias is already claimed. Choose another.",
   "@posAliasTaken": {

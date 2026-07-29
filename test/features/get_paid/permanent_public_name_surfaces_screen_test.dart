@@ -61,17 +61,17 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
     });
 
-    testWidgets('claimed alias is read-only and Page switch is kind-scoped', (
-      tester,
-    ) async {
+    testWidgets('a created Page asks nothing about naming, and its switch is '
+        'kind-scoped', (tester) async {
       final cubit = await _pumpPage(tester, _pageEditState());
 
+      // Both names are settled, so the created page neither restates them nor
+      // re-asks: no field, no choice, no read-only alias summary.
       expect(find.byKey(const Key('payment_page_alias_field')), findsNothing);
-      expect(find.text('shop'), findsOneWidget);
-      expect(
-        find.textContaining('Permanent alias shared with Point of Sale'),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('get_paid_choose_an_alias')), findsNothing);
+      expect(find.text('shop'), findsNothing);
+      expect(find.textContaining('Your nym is'), findsNothing);
+      expect(find.textContaining('Permanent alias shared'), findsNothing);
 
       // The turn on/off control (and its kind-scoped explanation) now lives in
       // the shared Advanced Settings sheet.
@@ -145,17 +145,15 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
     });
 
-    testWidgets('claimed alias is read-only and POS switch is kind-scoped', (
-      tester,
-    ) async {
+    testWidgets('a created POS asks nothing about naming, and its switch is '
+        'kind-scoped', (tester) async {
       final cubit = await _pumpPos(tester, _posEditState());
 
       expect(find.byKey(const Key('pos_alias_field')), findsNothing);
-      expect(find.text('shop'), findsOneWidget);
-      expect(
-        find.textContaining('Permanent alias shared with Donation Page'),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('get_paid_choose_an_alias')), findsNothing);
+      expect(find.text('shop'), findsNothing);
+      expect(find.textContaining('Your nym is'), findsNothing);
+      expect(find.textContaining('Permanent alias shared'), findsNothing);
 
       // The turn on/off control (and its kind-scoped explanation) now lives in
       // the shared Advanced Settings sheet.

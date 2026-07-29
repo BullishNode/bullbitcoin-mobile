@@ -4,22 +4,23 @@ import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 
-/// The explicit nym-versus-alias choice a surface offers while no alias has been
-/// claimed: reuse the already-claimed nym, or claim one permanent alias.
+/// States the name a surface will advertise while no alias has been claimed.
+///
+/// The claimed nym is the default — no action is needed to keep it, and simply
+/// completing the create form advertises it. The single action offered here is
+/// the opt-in departure from that default: claim one permanent alias.
 ///
 /// Shared by the Donation Page and Point of Sale so the wording, ordering, and
 /// affordances stay identical; only [body] differs, because it names the product.
 class GetPaidNameChoice extends StatelessWidget {
   final String nym;
   final String body;
-  final VoidCallback onUseNym;
   final VoidCallback onChooseAlias;
 
   const GetPaidNameChoice({
     super.key,
     required this.nym,
     required this.body,
-    required this.onUseNym,
     required this.onChooseAlias,
   });
 
@@ -43,17 +44,11 @@ class GetPaidNameChoice extends StatelessWidget {
           ),
           const Gap(16),
           BBButton.big(
-            key: const Key('get_paid_use_my_nym'),
-            label: context.loc.getPaidNameChoiceUseNym,
-            onPressed: onUseNym,
+            key: const Key('get_paid_choose_an_alias'),
+            label: context.loc.getPaidNameChoiceChooseAlias,
+            onPressed: onChooseAlias,
             bgColor: context.appColors.secondary,
             textColor: context.appColors.onSecondary,
-          ),
-          const Gap(8),
-          TextButton(
-            key: const Key('get_paid_choose_an_alias'),
-            onPressed: onChooseAlias,
-            child: Text(context.loc.getPaidNameChoiceChooseAlias),
           ),
         ],
       ),
