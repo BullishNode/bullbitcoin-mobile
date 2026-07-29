@@ -605,6 +605,19 @@ class LightningAddressActivationCubit
             .localPreparation,
       ) =>
         LightningAddressActivationFailure.setupFailed,
+      // A timeout or an unreachable server produced no answer to interpret:
+      // report that plainly and offer a retry, rather than telling the user the
+      // outcome is unknown. If the claim did land, the retry reconciles it
+      // through the NymAlreadyAssigned path.
+      WalletOwnedLightningAddressActivationException(
+        phase: WalletOwnedLightningAddressActivationFailurePhase
+            .registrationSubmission,
+        cause: LightningAddressException(
+          kind: LightningAddressErrorKind.timeout ||
+              LightningAddressErrorKind.network,
+        ),
+      ) =>
+        LightningAddressActivationFailure.noServerResponse,
       WalletOwnedLightningAddressActivationException(
         phase: WalletOwnedLightningAddressActivationFailurePhase
             .registrationSubmission,
