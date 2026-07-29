@@ -17320,17 +17320,17 @@
   "@getPaidDashboardWalletWarning": {
     "description": "Get Paid dashboard product card notice: the product wallet could not be re-derived."
   },
-  "posTerminalQrDownloadButton": "Download QR",
-  "@posTerminalQrDownloadButton": {
-    "description": "POS terminal QR: label for the button that saves the QR code as a PNG image."
+  "getPaidLinkQrDownloadButton": "Download QR",
+  "@getPaidLinkQrDownloadButton": {
+    "description": "Get Paid link QR: label for the button that saves the QR code as a PNG image."
   },
-  "posTerminalQrDownloadSaved": "QR code saved",
-  "@posTerminalQrDownloadSaved": {
-    "description": "POS terminal QR: confirmation shown after the QR PNG is saved via the system Files dialog."
+  "getPaidLinkQrDownloadSaved": "QR code saved",
+  "@getPaidLinkQrDownloadSaved": {
+    "description": "Get Paid link QR: confirmation shown after the QR PNG is saved via the system Files dialog."
   },
-  "posTerminalQrDownloadFailed": "Could not save the QR code. Please try again.",
-  "@posTerminalQrDownloadFailed": {
-    "description": "POS terminal QR: shown when saving the QR PNG failed."
+  "getPaidLinkQrDownloadFailed": "Could not save the QR code. Please try again.",
+  "@getPaidLinkQrDownloadFailed": {
+    "description": "Get Paid link QR: shown when saving the QR PNG failed."
   },
   "posStaffInstructionsButton": "Instructions for staff",
   "@posStaffInstructionsButton": {
