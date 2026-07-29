@@ -9,6 +9,7 @@ import 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_defaul
 import 'package:bb_mobile/features/fiat_settlement/domain/scoped_settlement_key_port.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/usecases/disable_fiat_settlement_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_configuration_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_connection_status_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/usecases/set_fiat_settlement_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
@@ -36,6 +37,11 @@ class FiatSettlementLocator {
         nostrIdentity: locator<NostrIdentityFacade>(),
       ),
     );
+    locator.registerFactory<GetFiatSettlementConnectionStatusUsecase>(
+      () => GetFiatSettlementConnectionStatusUsecase(
+        scopedKey: locator<ScopedSettlementKeyPort>(),
+      ),
+    );
     locator.registerFactory<SetFiatSettlementUsecase>(
       () => SetFiatSettlementUsecase(
         bullnym: locator<BullnymFacade>(),
@@ -59,6 +65,8 @@ class FiatSettlementLocator {
     locator.registerFactory<FiatSettlementFacade>(
       () => FiatSettlementFacade(
         getConfiguration: locator<GetFiatSettlementConfigurationUsecase>(),
+        getConnectionStatus:
+            locator<GetFiatSettlementConnectionStatusUsecase>(),
         set: locator<SetFiatSettlementUsecase>(),
         disable: locator<DisableFiatSettlementUsecase>(),
         revision: locator<FiatSettlementConfigurationRevision>(),
