@@ -16617,10 +16617,6 @@
   "@wizardMetadataBackupEnable": {
     "description": "Affirmative onboarding wallet metadata backup action."
   },
-  "wizardMetadataBackupNotNow": "Not now (enable later in Backup settings)",
-  "@wizardMetadataBackupNotNow": {
-    "description": "Negative onboarding wallet metadata backup action."
-  },
   "wizardMetadataBackupRequired": "Choose whether to enable Bull backup before continuing.",
   "@wizardMetadataBackupRequired": {
     "description": "Shown when onboarding is completed without a metadata backup preference."
@@ -17724,5 +17720,9 @@
   "getPaidFiatSettlementLoginUnfinishedBody": "The login was not completed, so nothing was connected and nothing changed. Your selection is still here when you are ready.",
   "@getPaidFiatSettlementLoginUnfinishedBody": {
     "description": "Body shown when the merchant returned from the Bull Bitcoin login without logging in."
+  },
+  "wizardMetadataBackupNotNow": "Not now",
+  "@wizardMetadataBackupNotNow": {
+    "description": "Declines the metadata backup offer in the wizard."
   }
 }
