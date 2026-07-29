@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.d
 import 'package:bb_mobile/features/pos/data/pos_default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/pos/domain/pos_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/archive_pos_usecase.dart';
+import 'package:bb_mobile/features/pos/domain/usecases/claim_pos_nym_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/ensure_pos_live_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/find_pos_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_pos_usecase.dart';
@@ -53,6 +54,11 @@ class PosLocator {
     locator.registerFactory<GetPosPermanentNameUsecase>(
       () => GetPosPermanentNameUsecase(
         bullnym: locator<BullnymFacade>(),
+        lightningAddress: locator<LightningAddressFacade>(),
+      ),
+    );
+    locator.registerFactory<ClaimPosNymUsecase>(
+      () => ClaimPosNymUsecase(
         lightningAddress: locator<LightningAddressFacade>(),
       ),
     );
@@ -108,6 +114,7 @@ class PosLocator {
       () => PosCubit(
         facade: locator<PosFacade>(),
         getPermanentName: locator<GetPosPermanentNameUsecase>(),
+        claimNym: locator<ClaimPosNymUsecase>(),
         getPaidSettings: locator<GetPaidSettingsFacade>(),
       ),
     );

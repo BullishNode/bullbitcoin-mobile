@@ -19,6 +19,24 @@ bool isValidPosLabel(String value) {
   return bytes >= 1 && bytes <= posLabelMaxBytes;
 }
 
+String normalizePosNym(String value) => value.trim().toLowerCase();
+
+/// Returns the exact normalized nym that is safe to send to Bullnym, or throws
+/// the specific rejection the claim field renders. The shared Bullnym value
+/// object stays the protocol authority for syntax and reservations; this is only
+/// the local prefilter, mirroring `validateLightningAddressNym`.
+String validatePosNymClaim(String value) {
+  final normalized = normalizePosNym(value);
+  if (bullnymReservedNyms.contains(normalized)) {
+    throw const PosException.nymReserved();
+  }
+  try {
+    return BullnymPublicName.nymClaim(normalized).value;
+  } on ArgumentError {
+    throw const PosException.nymInvalid();
+  }
+}
+
 String normalizePosAlias(String value) => value.trim().toLowerCase();
 
 bool isValidPosAliasClaim(String? value) {
@@ -33,7 +51,13 @@ bool isValidPosAliasClaim(String? value) {
 
 /// The fields the POS provisioning form collects, in the order it presents them;
 /// used to point per-field validation at the failing input.
-enum PosField { alias, label, displayCurrency }
+enum PosField {
+  /// The nym claim collected by the in-flow claim step, not by the POS form.
+  nym,
+  alias,
+  label,
+  displayCurrency,
+}
 
 /// A validating value object for a POS provision/edit. Local validation is a UX
 /// pre-filter - the server remains the authority - but it mirrors the server

@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/widgets/qr_display_widget.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
@@ -38,6 +39,13 @@ PosState _editState({bool archived = false, GetPaidWalletBehavior? behavior}) {
   );
 }
 
+PosState _createState() => const PosState(
+  status: PosStatus.create,
+  nym: 'alice',
+  label: 'Shop One',
+  displayCurrency: 'CAD',
+);
+
 void main() {
   testWidgets(
     'an existing POS collapses the form, shows the exact-URL QR and staff '
@@ -61,6 +69,138 @@ void main() {
       );
     },
   );
+
+  testWidgets('no nym yet shows the shared claim step in the POS flow', (
+    tester,
+  ) async {
+    final cubit = await _pump(
+      tester,
+      const PosState(status: PosStatus.needsNym),
+    );
+
+    expect(find.text('Claim your Bull Nym'), findsOneWidget);
+    expect(
+      find.text(
+        'This is a permanent anonymous identity linked to your Bitcoin wallet '
+        'and will become your public Lightning Address.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('get_paid_nym_claim_field')), findsOneWidget);
+    expect(
+      find.textContaining('Claim your permanent name in Lightning Address'),
+      findsNothing,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('get_paid_nym_claim_field')),
+      'alice',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('get_paid_nym_claim_submit')));
+    await tester.pumpAndSettle();
+
+    expect(cubit.claimNymCalls, 1);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('a rejected nym is stated on the claim step, not swallowed', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const PosState(
+        status: PosStatus.needsNym,
+        nymDraft: 'alice',
+        invalidField: PosField.nym,
+        failure: PosException.nymReserved(),
+      ),
+    );
+
+    expect(
+      find.text('That name is reserved. Choose another name.'),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('the nym is the default: stated, with only the alias opt-out', (
+    tester,
+  ) async {
+    await _pump(tester, _createState());
+
+    expect(find.text('Your nym is alice'), findsOneWidget);
+    expect(
+      find.text(
+        'You can reuse this nym for your Point of Sale and it will be publicly '
+        'visible. You can optionally choose another Alias, separate from your '
+        'Lightning Address, for the Point of Sale and Donation Page.',
+      ),
+      findsOneWidget,
+    );
+    // Keeping the nym takes no action, so there is nothing to press for it.
+    expect(find.text('Use my nym'), findsNothing);
+    expect(find.byKey(const Key('get_paid_choose_an_alias')), findsOneWidget);
+    expect(find.byKey(const Key('pos_alias_field')), findsNothing);
+  });
+
+  testWidgets('provisioning without choosing an alias uses the nym', (
+    tester,
+  ) async {
+    final cubit = await _pump(tester, _createState());
+
+    await tester.tap(find.text('Create Point of Sale'));
+    await tester.pumpAndSettle();
+
+    expect(cubit.provisionCalls, 1);
+    expect(cubit.state.command.aliasClaim, isNull);
+  });
+
+  testWidgets('Choose an alias reveals the field with one permanence line', (
+    tester,
+  ) async {
+    await _pump(tester, _createState());
+
+    await tester.tap(find.byKey(const Key('get_paid_choose_an_alias')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('pos_alias_field')), findsOneWidget);
+    expect(
+      find.text(
+        'One shared alias for Donation Page and Point of Sale. Once claimed, '
+        'it cannot be changed, cleared, or replaced.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('a provisioned POS shows no naming UI at all', (tester) async {
+    await _pump(tester, _editState(behavior: _behavior()));
+
+    expect(find.byKey(const Key('get_paid_choose_an_alias')), findsNothing);
+    expect(find.byKey(const Key('pos_alias_field')), findsNothing);
+    expect(find.textContaining('Your nym is'), findsNothing);
+    expect(find.textContaining('Permanent alias shared'), findsNothing);
+  });
+
+  testWidgets('a provisioned POS leads with its terminal link and QR', (
+    tester,
+  ) async {
+    await _pump(tester, _editState(behavior: _behavior()));
+
+    expect(find.byType(GetPaidLinkQr), findsOneWidget);
+    // The link block is the first thing laid out, above Fiat conversion and the
+    // routing notice.
+    final linkY = tester
+        .getTopLeft(find.text('Your Point of Sale terminal link'))
+        .dy;
+    final noticeY = tester
+        .getTopLeft(find.textContaining('has its own till link'))
+        .dy;
+    expect(linkY, lessThan(noticeY));
+  });
 
   testWidgets('tapping Edit reveals the form and Cancel collapses it', (
     tester,
@@ -205,6 +345,7 @@ class _StubPosCubit extends Cubit<PosState> implements PosCubit {
 
   int loadCalls = 0;
   int provisionCalls = 0;
+  int claimNymCalls = 0;
   bool failOnProvision = false;
   final List<({String walletId, bool? hideOnHome, bool? autoSweepEnabled})>
   behaviorWrites = [];
@@ -234,6 +375,14 @@ class _StubPosCubit extends Cubit<PosState> implements PosCubit {
   @override
   void aliasDraftChanged(String value) =>
       emit(state.copyWith(aliasDraft: value));
+
+  @override
+  void nymDraftChanged(String value) => emit(state.copyWith(nymDraft: value));
+
+  @override
+  Future<void> claimNym() async {
+    claimNymCalls += 1;
+  }
 
   @override
   void labelChanged(String value) => emit(state.copyWith(label: value));

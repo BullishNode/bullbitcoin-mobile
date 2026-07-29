@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/payment_page/domain/usecases/claim_payment_page_nym_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
@@ -14,10 +15,12 @@ void main() {
   late _FakePaymentPageFacade facade;
   late _FakeGetGetPaidWalletBehaviorsUsecase walletBehaviors;
   late _FakeUpdateWalletBehaviorUsecase updateWalletBehavior;
+  late _FakeClaimPaymentPageNymUsecase claimNym;
 
   PaymentPageCubit build() => PaymentPageCubit(
     facade: facade,
     getPermanentName: permanentName,
+    claimNym: claimNym,
     getPaidSettings: _FakeGetPaidSettings(
       walletBehaviors,
       updateWalletBehavior,
@@ -46,6 +49,7 @@ void main() {
     facade = _FakePaymentPageFacade();
     walletBehaviors = _FakeGetGetPaidWalletBehaviorsUsecase();
     updateWalletBehavior = _FakeUpdateWalletBehaviorUsecase();
+    claimNym = _FakeClaimPaymentPageNymUsecase();
     facade.currencies = const [
       DisplayCurrency(code: 'CAD', precision: 2),
       DisplayCurrency(code: 'USD', precision: 2),
@@ -61,7 +65,77 @@ void main() {
 
       expect(cubit.state.status, PaymentPageStatus.needsNym);
     });
+  });
 
+  group('claimNym', () {
+    test(
+      'claims in-flow, then reloads straight into the create form',
+      () async {
+        permanentName.value = const PaymentPagePermanentName.unclaimed();
+        facade.page = null;
+        final cubit = build();
+        await cubit.load();
+        expect(cubit.state.status, PaymentPageStatus.needsNym);
+
+        cubit.nymDraftChanged('  Alice  ');
+        // The nym the server sees is the normalized one the field displayed.
+        expect(cubit.state.nymDraft, 'alice');
+
+        permanentName.value = const PaymentPagePermanentName.claimed(
+          nym: 'alice',
+        );
+        await cubit.claimNym();
+
+        expect(claimNym.calls, ['alice']);
+        expect(cubit.state.status, PaymentPageStatus.create);
+        expect(cubit.state.nym, 'alice');
+        expect(cubit.state.claimingNym, isFalse);
+        expect(cubit.state.nymDraft, '');
+      },
+    );
+
+    test('a locally invalid nym never reaches the server', () async {
+      permanentName.value = const PaymentPagePermanentName.unclaimed();
+      final cubit = build();
+      await cubit.load();
+
+      cubit.nymDraftChanged('-alice');
+      await cubit.claimNym();
+
+      expect(claimNym.calls, isEmpty);
+      expect(cubit.state.status, PaymentPageStatus.needsNym);
+      expect(cubit.state.invalidField, PaymentPageField.nym);
+      expect(cubit.state.failure?.kind, PaymentPageErrorKind.nymInvalid);
+    });
+
+    test('a taken nym flags the claim field and stays on the step', () async {
+      permanentName.value = const PaymentPagePermanentName.unclaimed();
+      final cubit = build();
+      await cubit.load();
+      cubit.nymDraftChanged('alice');
+      claimNym.error = const PaymentPageException.nymTaken();
+
+      await cubit.claimNym();
+
+      expect(cubit.state.status, PaymentPageStatus.needsNym);
+      expect(cubit.state.invalidField, PaymentPageField.nym);
+      expect(cubit.state.failure?.kind, PaymentPageErrorKind.nymTaken);
+      expect(cubit.state.claimingNym, isFalse);
+    });
+
+    test('is inert once a nym exists', () async {
+      final cubit = build();
+      await cubit.load();
+      expect(cubit.state.status, isNot(PaymentPageStatus.needsNym));
+
+      cubit.nymDraftChanged('bob');
+      await cubit.claimNym();
+
+      expect(claimNym.calls, isEmpty);
+    });
+  });
+
+  group('load (continued)', () {
     test('nym but no page -> create with the fallback currency', () async {
       facade.page = null;
       final cubit = build();
@@ -487,4 +561,17 @@ class _FakePaymentPageFacade implements PaymentPageFacade {
   @override
   Future<PreparedPaymentPageWallet> prepareWallet() async =>
       throw UnimplementedError();
+}
+
+class _FakeClaimPaymentPageNymUsecase implements ClaimPaymentPageNymUsecase {
+  final List<String> calls = [];
+  Object? error;
+
+  @override
+  Future<String> execute({required String nym}) async {
+    calls.add(nym);
+    final failure = error;
+    if (failure != null) throw failure;
+    return nym;
+  }
 }

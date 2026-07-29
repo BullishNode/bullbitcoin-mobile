@@ -74,6 +74,24 @@ String stripHandleAt(String value) {
   return trimmed;
 }
 
+String normalizePaymentPageNym(String value) => value.trim().toLowerCase();
+
+/// Returns the exact normalized nym that is safe to send to Bullnym, or throws
+/// the specific rejection the claim field renders. The shared Bullnym value
+/// object stays the protocol authority for syntax and reservations; this is only
+/// the local prefilter, mirroring `validateLightningAddressNym`.
+String validatePaymentPageNymClaim(String value) {
+  final normalized = normalizePaymentPageNym(value);
+  if (bullnymReservedNyms.contains(normalized)) {
+    throw const PaymentPageException.nymReserved();
+  }
+  try {
+    return BullnymPublicName.nymClaim(normalized).value;
+  } on ArgumentError {
+    throw const PaymentPageException.nymInvalid();
+  }
+}
+
 String normalizePaymentPageAlias(String value) => value.trim().toLowerCase();
 
 bool isValidPaymentPageAliasClaim(String? value) {
@@ -89,6 +107,8 @@ bool isValidPaymentPageAliasClaim(String? value) {
 /// The fields the editor collects, in the order the form presents them; used to
 /// point per-field validation at the failing input.
 enum PaymentPageField {
+  /// The nym claim collected by the in-flow claim step, not by the editor form.
+  nym,
   alias,
   header,
   description,

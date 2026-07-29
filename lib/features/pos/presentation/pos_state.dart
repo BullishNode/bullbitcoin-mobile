@@ -12,7 +12,8 @@ enum PosStatus {
   /// actions stay hidden.
   unsupported,
 
-  /// No permanent nym yet - direct the user to Lightning Address settings.
+  /// No permanent nym yet - the in-flow claim step is shown, and a successful
+  /// claim reloads straight into the create form.
   needsNym,
 
   /// A nym exists but no pos row - the create form is shown.
@@ -40,6 +41,13 @@ class PosState {
   final bool submissionUncertain;
 
   final String nym;
+
+  /// The nym being typed into the in-flow claim step, before it is claimed.
+  final String nymDraft;
+
+  /// True while the nym claim is in flight.
+  final bool claimingNym;
+
   final PosTerminal? terminal;
   final String? permanentAlias;
   final String aliasDraft;
@@ -72,6 +80,8 @@ class PosState {
     this.failure,
     this.submissionUncertain = false,
     this.nym = '',
+    this.nymDraft = '',
+    this.claimingNym = false,
     this.terminal,
     this.permanentAlias,
     this.aliasDraft = '',
@@ -106,6 +116,8 @@ class PosState {
     PosException? failure,
     bool? submissionUncertain,
     String? nym,
+    String? nymDraft,
+    bool? claimingNym,
     PosTerminal? terminal,
     String? permanentAlias,
     String? aliasDraft,
@@ -128,6 +140,8 @@ class PosState {
       failure: clearFailure ? null : failure ?? this.failure,
       submissionUncertain: submissionUncertain ?? this.submissionUncertain,
       nym: nym ?? this.nym,
+      nymDraft: nymDraft ?? this.nymDraft,
+      claimingNym: claimingNym ?? this.claimingNym,
       terminal: clearTerminal ? null : terminal ?? this.terminal,
       permanentAlias: clearPermanentAlias
           ? null

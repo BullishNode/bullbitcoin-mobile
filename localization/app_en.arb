@@ -1350,10 +1350,6 @@
   "@paymentPageNeedsNymBody": {
     "description": "Body explaining the nym prerequisite for the Donation Page"
   },
-  "paymentPageNymLabel": "Name",
-  "@paymentPageNymLabel": {
-    "description": "Label for the Donation Page nym input"
-  },
   "paymentPageNymHelper": "Letters and numbers only",
   "@paymentPageNymHelper": {
     "description": "Helper for the Donation Page nym input"
@@ -1370,18 +1366,6 @@
   "@paymentPagePermanentNamesUnavailableBody": {
     "description": "Fail-closed explanation shown when exact permanent-name capability support is absent"
   },
-  "paymentPageNeedsPermanentNymTitle": "Claim your permanent name first",
-  "@paymentPageNeedsPermanentNymTitle": {
-    "description": "Title shown when Donation Page requires an existing permanent nym"
-  },
-  "paymentPageNeedsPermanentNymBody": "Claim your permanent name in Lightning Address settings, then return here. Donation Page cannot claim or change it.",
-  "@paymentPageNeedsPermanentNymBody": {
-    "description": "Explains that nym ownership is established only through Lightning Address settings"
-  },
-  "paymentPageAliasLabel": "Optional public alias",
-  "@paymentPageAliasLabel": {
-    "description": "Label for the optional first permanent alias claim on Donation Page"
-  },
   "paymentPageAliasHelper": "One shared alias for Donation Page and Point of Sale. Once claimed, it cannot be changed, cleared, or replaced.",
   "@paymentPageAliasHelper": {
     "description": "Explains alias sharing and permanence before the first claim"
@@ -1390,10 +1374,6 @@
   "@paymentPageAliasInvalid": {
     "description": "Validation error for a first Donation Page alias claim"
   },
-  "paymentPageAliasReadOnly": "Permanent alias shared with Point of Sale. It cannot be changed, cleared, or replaced.",
-  "@paymentPageAliasReadOnly": {
-    "description": "Read-only explanation shown after the shared alias is claimed"
-  },
   "paymentPageAliasTaken": "That alias is already claimed. Choose another.",
   "@paymentPageAliasTaken": {
     "description": "Structured shared-namespace conflict shown when a requested alias is unavailable"
@@ -1401,25 +1381,6 @@
   "paymentPageAliasAlreadyAssigned": "Your account already owns a permanent alias. Reloading the server-owned alias.",
   "@paymentPageAliasAlreadyAssigned": {
     "description": "Structured conflict shown when the account already has a different permanent alias"
-  },
-  "paymentPageAliasConfirmTitle": "Claim this alias permanently?",
-  "@paymentPageAliasConfirmTitle": {
-    "description": "Title of the first permanent Donation Page alias confirmation dialog"
-  },
-  "paymentPageAliasConfirmBody": "{alias} will be shared by your Donation Page and Point of Sale. This lifetime claim cannot be renamed, cleared, replaced, or reassigned. It does not change your Lightning Address.",
-  "@paymentPageAliasConfirmBody": {
-    "description": "Explains the irreversible shared alias claim",
-    "placeholders": {
-      "alias": {"type": "String"}
-    }
-  },
-  "paymentPageAliasConfirmCancel": "Review",
-  "@paymentPageAliasConfirmCancel": {
-    "description": "Cancel action for the first permanent alias confirmation"
-  },
-  "paymentPageAliasConfirmSubmit": "Claim permanently",
-  "@paymentPageAliasConfirmSubmit": {
-    "description": "Confirm action for the first permanent alias claim"
   },
   "paymentPageOnlineToggleLabel": "Donation Page online",
   "@paymentPageOnlineToggleLabel": {
@@ -1532,10 +1493,6 @@
   "@posNeedsNymBody": {
     "description": "Body explaining the nym prerequisite for the Point of Sale"
   },
-  "posNymLabel": "Name",
-  "@posNymLabel": {
-    "description": "Label for the Point of Sale nym input"
-  },
   "posNymHelper": "Letters and numbers only",
   "@posNymHelper": {
     "description": "Helper for the Point of Sale nym input"
@@ -1552,18 +1509,6 @@
   "@posPermanentNamesUnavailableBody": {
     "description": "Fail-closed explanation shown when exact permanent-name capability support is absent"
   },
-  "posNeedsPermanentNymTitle": "Claim your permanent name first",
-  "@posNeedsPermanentNymTitle": {
-    "description": "Title shown when Point of Sale requires an existing permanent nym"
-  },
-  "posNeedsPermanentNymBody": "Claim your permanent name in Lightning Address settings, then return here. Point of Sale cannot claim or change it.",
-  "@posNeedsPermanentNymBody": {
-    "description": "Explains that nym ownership is established only through Lightning Address settings"
-  },
-  "posAliasLabel": "Optional public alias",
-  "@posAliasLabel": {
-    "description": "Label for the optional first permanent alias claim on Point of Sale"
-  },
   "posAliasHelper": "One shared alias for Donation Page and Point of Sale. Once claimed, it cannot be changed, cleared, or replaced.",
   "@posAliasHelper": {
     "description": "Explains alias sharing and permanence before the first claim"
@@ -1572,10 +1517,6 @@
   "@posAliasInvalid": {
     "description": "Validation error for a first Point of Sale alias claim"
   },
-  "posAliasReadOnly": "Permanent alias shared with Donation Page. It cannot be changed, cleared, or replaced.",
-  "@posAliasReadOnly": {
-    "description": "Read-only explanation shown after the shared alias is claimed"
-  },
   "posAliasTaken": "That alias is already claimed. Choose another.",
   "@posAliasTaken": {
     "description": "Structured shared-namespace conflict shown when a requested alias is unavailable"
@@ -1583,25 +1524,6 @@
   "posAliasAlreadyAssigned": "Your account already owns a permanent alias. Reloading the server-owned alias.",
   "@posAliasAlreadyAssigned": {
     "description": "Structured conflict shown when the account already has a different permanent alias"
-  },
-  "posAliasConfirmTitle": "Claim this alias permanently?",
-  "@posAliasConfirmTitle": {
-    "description": "Title of the first permanent Point of Sale alias confirmation dialog"
-  },
-  "posAliasConfirmBody": "{alias} will be shared by your Donation Page and Point of Sale. This lifetime claim cannot be renamed, cleared, replaced, or reassigned. It does not change your Lightning Address.",
-  "@posAliasConfirmBody": {
-    "description": "Explains the irreversible shared alias claim",
-    "placeholders": {
-      "alias": {"type": "String"}
-    }
-  },
-  "posAliasConfirmCancel": "Review",
-  "@posAliasConfirmCancel": {
-    "description": "Cancel action for the first permanent alias confirmation"
-  },
-  "posAliasConfirmSubmit": "Claim permanently",
-  "@posAliasConfirmSubmit": {
-    "description": "Confirm action for the first permanent alias claim"
   },
   "posOnlineToggleLabel": "Point of Sale online",
   "@posOnlineToggleLabel": {
@@ -15699,20 +15621,12 @@
   "@lightningAddressLoadingStatus": {
     "description": "Accessibility announcement while Lightning Address capability and status load."
   },
-  "lightningAddressPermanentFirstClaimTitle": "Claim your nym",
-  "@lightningAddressPermanentFirstClaimTitle": {
-    "description": "Title shown before the wallet owner has claimed a permanent Bullnym nym."
-  },
-  "lightningAddressPermanentFirstClaimBody": "A pseudonym tied to your BULL wallet. It allows anyone to send you Bitcoin payments anonymously just by typing your nym in their wallet, and you will receive it in your instant payments wallet. Choose wisely: you can't change it without creating an entirely new Bitcoin wallet.",
-  "@lightningAddressPermanentFirstClaimBody": {
-    "description": "Permanent-name disclosure shown above the first-claim field."
-  },
-  "lightningAddressPermanentNymHelper": "Use 1–32 lowercase letters, numbers, or internal hyphens.",
-  "@lightningAddressPermanentNymHelper": {
+  "getPaidNymClaimHelper": "Use 1–32 lowercase letters, numbers, or internal hyphens.",
+  "@getPaidNymClaimHelper": {
     "description": "Exact local syntax guidance for a permanent Bullnym nym."
   },
-  "lightningAddressClaimButton": "Claim your nym",
-  "@lightningAddressClaimButton": {
+  "getPaidNymClaimSubmit": "Claim your nym",
+  "@getPaidNymClaimSubmit": {
     "description": "Button that starts the permanent nym claim confirmation."
   },
   "lightningAddressPermanentNamesUnavailableTitle": "Permanent names unavailable",
@@ -15743,12 +15657,12 @@
   "@lightningAddressAlreadyAssigned": {
     "description": "Snackbar for an NymAlreadyAssigned conflict."
   },
-  "lightningAddressNameTaken": "That name is already owned. Choose another available name.",
-  "@lightningAddressNameTaken": {
+  "getPaidNymTaken": "That name is already owned. Choose another available name.",
+  "@getPaidNymTaken": {
     "description": "Safe message for the stable NameTaken code."
   },
-  "lightningAddressReservedNym": "That name is reserved. Choose another name.",
-  "@lightningAddressReservedNym": {
+  "getPaidNymReserved": "That name is reserved. Choose another name.",
+  "@getPaidNymReserved": {
     "description": "Safe message for local or server NymReserved validation."
   },
   "lightningAddressOnlineToggleActive": "Active",
@@ -15779,12 +15693,12 @@
   "@lightningAddressInactiveKnownTitle": {
     "description": "Heading shown when Bullnym reports a known but inactive Lightning Address nym."
   },
-  "lightningAddressNymLabel": "Name",
-  "@lightningAddressNymLabel": {
+  "getPaidNymLabel": "Name",
+  "@getPaidNymLabel": {
     "description": "Label for the Lightning Address nym field."
   },
-  "lightningAddressSubmitting": "Registering...",
-  "@lightningAddressSubmitting": {
+  "getPaidNymClaimSubmitting": "Registering...",
+  "@getPaidNymClaimSubmitting": {
     "description": "Button label while Lightning Address registration is submitting."
   },
   "lightningAddressOperationInProgress": "Lightning Address registration is still in progress.",
@@ -15843,8 +15757,8 @@
   "@lightningAddressLookupFailedBody": {
     "description": "Body shown when Lightning Address status lookup fails."
   },
-  "lightningAddressInvalidNym": "Use a valid name.",
-  "@lightningAddressInvalidNym": {
+  "getPaidNymInvalid": "Use a valid name.",
+  "@getPaidNymInvalid": {
     "description": "Failure message shown when the Lightning Address nym is invalid."
   },
   "lightningAddressSetupFailed": "Setup failed before anything was submitted. Please try again.",
@@ -17125,17 +17039,17 @@
   "@getPaidDashboardWalletWarning": {
     "description": "Get Paid dashboard product card notice: the product wallet could not be re-derived."
   },
-  "posTerminalQrDownloadButton": "Download QR",
-  "@posTerminalQrDownloadButton": {
-    "description": "POS terminal QR: label for the button that saves the QR code as a PNG image."
+  "getPaidLinkQrDownloadButton": "Download QR",
+  "@getPaidLinkQrDownloadButton": {
+    "description": "Get Paid link QR: label for the button that saves the QR code as a PNG image."
   },
-  "posTerminalQrDownloadSaved": "QR code saved",
-  "@posTerminalQrDownloadSaved": {
-    "description": "POS terminal QR: confirmation shown after the QR PNG is saved via the system Files dialog."
+  "getPaidLinkQrDownloadSaved": "QR code saved",
+  "@getPaidLinkQrDownloadSaved": {
+    "description": "Get Paid link QR: confirmation shown after the QR PNG is saved via the system Files dialog."
   },
-  "posTerminalQrDownloadFailed": "Could not save the QR code. Please try again.",
-  "@posTerminalQrDownloadFailed": {
-    "description": "POS terminal QR: shown when saving the QR PNG failed."
+  "getPaidLinkQrDownloadFailed": "Could not save the QR code. Please try again.",
+  "@getPaidLinkQrDownloadFailed": {
+    "description": "Get Paid link QR: shown when saving the QR PNG failed."
   },
   "posStaffInstructionsButton": "Instructions for staff",
   "@posStaffInstructionsButton": {
@@ -17729,5 +17643,46 @@
   "lightningAddressTurnOffConfirmSubmit": "Turn off",
   "@lightningAddressTurnOffConfirmSubmit": {
     "description": "Confirm action for turning off the Lightning Address"
+  },
+  "getPaidNymClaimTitle": "Claim your Bull Nym",
+  "@getPaidNymClaimTitle": {
+    "description": "Title of the minimal Bull Nym claim step shown by every Get Paid activation flow when no nym is claimed yet."
+  },
+  "getPaidNymClaimBody": "This is a permanent anonymous identity linked to your Bitcoin wallet and will become your public Lightning Address.",
+  "@getPaidNymClaimBody": {
+    "description": "Owner-approved disclosure shown above the single nym field in the shared claim step."
+  },
+  "getPaidNameChoiceTitle": "Your nym is {nym}",
+  "@getPaidNameChoiceTitle": {
+    "description": "Header of the Point of Sale / Donation Page naming choice, naming the claimed nym.",
+    "placeholders": {
+      "nym": {
+        "type": "String"
+      }
+    }
+  },
+  "getPaidNameChoiceUseNym": "Use my nym",
+  "@getPaidNameChoiceUseNym": {
+    "description": "Action that reuses the claimed nym for this surface instead of claiming an alias."
+  },
+  "getPaidNameChoiceChooseAlias": "Choose an alias",
+  "@getPaidNameChoiceChooseAlias": {
+    "description": "Action that reveals the permanent alias field for this surface."
+  },
+  "paymentPageNameChoiceBody": "You can reuse this nym for your Donation Page and it will be publicly visible. You can optionally choose another Alias, separate from your Lightning Address, for the Point of Sale and Donation Page.",
+  "@paymentPageNameChoiceBody": {
+    "description": "Owner-approved explanation of the nym-versus-alias choice on the Donation Page."
+  },
+  "posNameChoiceBody": "You can reuse this nym for your Point of Sale and it will be publicly visible. You can optionally choose another Alias, separate from your Lightning Address, for the Point of Sale and Donation Page.",
+  "@posNameChoiceBody": {
+    "description": "Owner-approved explanation of the nym-versus-alias choice on the Point of Sale."
+  },
+  "paymentPageAliasLabel": "Alias",
+  "@paymentPageAliasLabel": {
+    "description": "Label for the permanent Donation Page alias field and its claimed-alias summary row."
+  },
+  "posAliasLabel": "Alias",
+  "@posAliasLabel": {
+    "description": "Label for the permanent Point of Sale alias field and its claimed-alias summary row."
   }
 }
