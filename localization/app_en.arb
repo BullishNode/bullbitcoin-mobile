@@ -16617,10 +16617,6 @@
   "@wizardMetadataBackupEnable": {
     "description": "Affirmative onboarding wallet metadata backup action."
   },
-  "wizardMetadataBackupNotNow": "Not now (enable later in Backup settings)",
-  "@wizardMetadataBackupNotNow": {
-    "description": "Negative onboarding wallet metadata backup action."
-  },
   "wizardMetadataBackupRequired": "Choose whether to enable Bull backup before continuing.",
   "@wizardMetadataBackupRequired": {
     "description": "Shown when onboarding is completed without a metadata backup preference."
@@ -16734,14 +16730,6 @@
   },
   "getPaidFiatSettlementContinueBitcoinOnly": "Continue with Bitcoin only",
   "@getPaidFiatSettlementContinueBitcoinOnly": {
-    "description": "Fiat settlement UI"
-  },
-  "getPaidFiatSettlementReconnect": "Reconnect Bull Bitcoin",
-  "@getPaidFiatSettlementReconnect": {
-    "description": "Fiat settlement UI"
-  },
-  "getPaidFiatSettlementCredentialProblem": "We couldn't use your Bull Bitcoin credentials. Reconnect your Bull Bitcoin account and try again.",
-  "@getPaidFiatSettlementCredentialProblem": {
     "description": "Fiat settlement UI"
   },
   "getPaidFiatSettlementDependencyUnavailable": "Bull Bitcoin is temporarily unavailable. Please try again in a moment.",
@@ -17704,5 +17692,37 @@
   "getPaidFiatSettlementLoadingStatus": "Checking your current payout settings with Bull Bitcoin...",
   "@getPaidFiatSettlementLoadingStatus": {
     "description": "Explains the server round-trip the fiat settlement editor performs while it opens."
+  },
+  "getPaidFiatSettlementConnect": "Connect Bull Bitcoin",
+  "@getPaidFiatSettlementConnect": {
+    "description": "Action that opens the Bull Bitcoin login so the account can be connected for fiat settlement."
+  },
+  "getPaidFiatSettlementConnectTitle": "Connect your Bull Bitcoin account",
+  "@getPaidFiatSettlementConnectTitle": {
+    "description": "Heading of the fiat-settlement connection outcome: the account is not connected for fiat settlement yet."
+  },
+  "getPaidFiatSettlementCredentialProblem": "Settling to fiat needs your Bull Bitcoin account connected to this wallet. Connect it, then save again.",
+  "@getPaidFiatSettlementCredentialProblem": {
+    "description": "Body of the fiat-settlement connection outcome, stated as a first connection rather than a repair."
+  },
+  "getPaidFiatSettlementConnectionIncompleteTitle": "Logged in, but not connected",
+  "@getPaidFiatSettlementConnectionIncompleteTitle": {
+    "description": "Heading shown when the Bull Bitcoin login succeeded but delivered no fiat-settlement permission."
+  },
+  "getPaidFiatSettlementConnectionIncompleteBody": "You are logged in to Bull Bitcoin, but this account did not provide the permission needed to settle to fiat. Try connecting again, or contact support.",
+  "@getPaidFiatSettlementConnectionIncompleteBody": {
+    "description": "Body shown when the login worked but no scoped settlement credential was issued."
+  },
+  "getPaidFiatSettlementLoginUnfinishedTitle": "Bull Bitcoin was not connected",
+  "@getPaidFiatSettlementLoginUnfinishedTitle": {
+    "description": "Heading shown when the merchant returned from the Bull Bitcoin login without logging in."
+  },
+  "getPaidFiatSettlementLoginUnfinishedBody": "The login was not completed, so nothing was connected and nothing changed. Your selection is still here when you are ready.",
+  "@getPaidFiatSettlementLoginUnfinishedBody": {
+    "description": "Body shown when the merchant returned from the Bull Bitcoin login without logging in."
+  },
+  "wizardMetadataBackupNotNow": "Not now",
+  "@wizardMetadataBackupNotNow": {
+    "description": "Declines the metadata backup offer in the wizard."
   }
 }

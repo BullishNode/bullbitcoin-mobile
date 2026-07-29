@@ -269,6 +269,10 @@ class _EditorForm extends StatelessWidget {
             ],
           ],
         ],
+        if (state.connectionProblem case final problem?) ...[
+          const Gap(24),
+          _ConnectionProblemPanel(problem: problem, state: state),
+        ],
         if (state.failure != null) ...[
           const Gap(24),
           _OutcomePanel(state: state),
@@ -585,66 +589,22 @@ class _UnderstandRow extends StatelessWidget {
   }
 }
 
-/// Renders the validated outcome action-sets. "Continue with Bitcoin only" is
-/// offered only on a first activation; edits show corrective actions only.
-class _OutcomePanel extends StatelessWidget {
-  const _OutcomePanel({required this.state});
-  final FiatSettlementEditorState state;
+/// The shell both notices use: an optional heading, the explanation, and
+/// full-width stacked actions.
+class _NoticePanel extends StatelessWidget {
+  const _NoticePanel({
+    this.title,
+    required this.message,
+    required this.actions,
+  });
+
+  final String? title;
+  final String message;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<FiatSettlementEditorCubit>();
     final colors = context.bull;
-    final failure = state.failure!;
-    final showContinueBitcoin = state.isFirstActivation;
-
-    final (String message, List<Widget> actions) = switch (failure.kind) {
-      FiatSettlementFailureKind.kycRequired => (
-        context.loc.getPaidFiatSettlementKycRequired,
-        [
-          _action(
-            context,
-            context.loc.getPaidFiatSettlementCompleteKyc,
-            () => context.pushNamed(ExchangeRoute.exchangeKyc.name),
-          ),
-          _support(context),
-          if (showContinueBitcoin) _continueBitcoin(context, cubit),
-        ],
-      ),
-      FiatSettlementFailureKind.credentialProblem => (
-        context.loc.getPaidFiatSettlementCredentialProblem,
-        [
-          _action(
-            context,
-            context.loc.getPaidFiatSettlementReconnect,
-            () => _reconnect(context, cubit),
-          ),
-          _support(context),
-          if (showContinueBitcoin) _continueBitcoin(context, cubit),
-        ],
-      ),
-      FiatSettlementFailureKind.dependencyUnavailable => (
-        context.loc.getPaidFiatSettlementDependencyUnavailable,
-        [
-          _action(context, context.loc.getPaidFiatSettlementRetry, cubit.save),
-          _support(context),
-          if (showContinueBitcoin) _continueBitcoin(context, cubit),
-        ],
-      ),
-      FiatSettlementFailureKind.bullnymUnreachable => (
-        context.loc.getPaidFiatSettlementUnreachable,
-        [
-          _action(context, context.loc.getPaidFiatSettlementRetry, cubit.save),
-          _support(context),
-        ],
-      ),
-      FiatSettlementFailureKind.invalidInput ||
-      FiatSettlementFailureKind.unexpected => (
-        context.loc.getPaidFiatSettlementGenericError,
-        [_action(context, context.loc.getPaidFiatSettlementRetry, cubit.save)],
-      ),
-    };
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -652,47 +612,166 @@ class _OutcomePanel extends StatelessWidget {
         borderRadius: const BorderRadius.all(Radius.circular(12)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (title case final heading?) ...[
+            Text(heading, style: context.bullText.titleSmall),
+            const Gap(8),
+          ],
           Text(message, style: context.bullText.bodyMedium),
-          const Gap(12),
-          Wrap(spacing: 8, runSpacing: 8, children: actions),
+          const Gap(16),
+          for (final (index, action) in actions.indexed) ...[
+            if (index > 0) const Gap(12),
+            action,
+          ],
         ],
       ),
     );
   }
+}
 
-  Widget _action(BuildContext context, String label, VoidCallback onTap) {
-    final colors = context.bull;
-    return BullButton.small(
-      label: label,
-      onPressed: onTap,
-      bgColor: colors.primary,
-      textColor: colors.onPrimary,
-    );
+/// What the Bull Bitcoin login round-trip achieved, when it left the device
+/// still unable to settle to fiat. Before this existed the merchant was dropped
+/// back on the untouched form, saved again, got the same server answer, and
+/// looped — which is what a production account that cannot issue the settlement
+/// credential does every time.
+class _ConnectionProblemPanel extends StatelessWidget {
+  const _ConnectionProblemPanel({required this.problem, required this.state});
+
+  final FiatSettlementConnectionProblem problem;
+  final FiatSettlementEditorState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<FiatSettlementEditorCubit>();
+    return switch (problem) {
+      FiatSettlementConnectionProblem.loginUnfinished => _NoticePanel(
+        title: context.loc.getPaidFiatSettlementLoginUnfinishedTitle,
+        message: context.loc.getPaidFiatSettlementLoginUnfinishedBody,
+        actions: [
+          _actionButton(
+            context,
+            context.loc.getPaidFiatSettlementConnect,
+            () => _connect(context, cubit),
+          ),
+        ],
+      ),
+      FiatSettlementConnectionProblem.missingSettlementPermission =>
+        _NoticePanel(
+          title: context.loc.getPaidFiatSettlementConnectionIncompleteTitle,
+          message: context.loc.getPaidFiatSettlementConnectionIncompleteBody,
+          actions: [
+            _actionButton(
+              context,
+              context.loc.getPaidFiatSettlementConnect,
+              () => _connect(context, cubit),
+            ),
+            _supportButton(context),
+          ],
+        ),
+    };
   }
+}
 
-  Widget _support(BuildContext context) {
-    final colors = context.bull;
-    return BullButton.small(
-      label: context.loc.getPaidFiatSettlementContactSupport,
-      onPressed: () =>
-          context.pushNamed(ExchangeSupportChatRoute.supportChat.name),
-      bgColor: colors.surface,
-      textColor: colors.onSurface,
-      outlined: true,
-      borderColor: colors.onSurfaceVariant,
-    );
+/// Renders the validated outcome action-sets. "Continue with Bitcoin only" is
+/// offered only on a first activation; edits show corrective actions only.
+///
+/// Presented like the rest of the editor: an optional heading, the explanation,
+/// then full-width stacked actions — one primary, the rest outlined — instead of
+/// a row of small buttons of competing weights.
+class _OutcomePanel extends StatelessWidget {
+  const _OutcomePanel({required this.state});
+  final FiatSettlementEditorState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<FiatSettlementEditorCubit>();
+    final failure = state.failure!;
+    final showContinueBitcoin = state.isFirstActivation;
+
+    final (
+      String? title,
+      String message,
+      List<Widget> actions,
+    ) = switch (failure.kind) {
+      FiatSettlementFailureKind.kycRequired => (
+        null,
+        context.loc.getPaidFiatSettlementKycRequired,
+        [
+          _actionButton(
+            context,
+            context.loc.getPaidFiatSettlementCompleteKyc,
+            () => context.pushNamed(ExchangeRoute.exchangeKyc.name),
+          ),
+          _supportButton(context),
+          if (showContinueBitcoin) _continueBitcoin(context, cubit),
+        ],
+      ),
+      // Nothing was ever connected from the merchant's side, so this is a first
+      // connection, not a repair.
+      FiatSettlementFailureKind.credentialProblem => (
+        context.loc.getPaidFiatSettlementConnectTitle,
+        context.loc.getPaidFiatSettlementCredentialProblem,
+        [
+          _actionButton(
+            context,
+            context.loc.getPaidFiatSettlementConnect,
+            () => _connect(context, cubit),
+          ),
+          _supportButton(context),
+          if (showContinueBitcoin) _continueBitcoin(context, cubit),
+        ],
+      ),
+      FiatSettlementFailureKind.dependencyUnavailable => (
+        null,
+        context.loc.getPaidFiatSettlementDependencyUnavailable,
+        [
+          _actionButton(
+            context,
+            context.loc.getPaidFiatSettlementRetry,
+            cubit.save,
+          ),
+          _supportButton(context),
+          if (showContinueBitcoin) _continueBitcoin(context, cubit),
+        ],
+      ),
+      FiatSettlementFailureKind.bullnymUnreachable => (
+        null,
+        context.loc.getPaidFiatSettlementUnreachable,
+        [
+          _actionButton(
+            context,
+            context.loc.getPaidFiatSettlementRetry,
+            cubit.save,
+          ),
+          _supportButton(context),
+        ],
+      ),
+      FiatSettlementFailureKind.invalidInput ||
+      FiatSettlementFailureKind.unexpected => (
+        null,
+        context.loc.getPaidFiatSettlementGenericError,
+        [
+          _actionButton(
+            context,
+            context.loc.getPaidFiatSettlementRetry,
+            cubit.save,
+          ),
+        ],
+      ),
+    };
+
+    return _NoticePanel(title: title, message: message, actions: actions);
   }
 
   Widget _continueBitcoin(
     BuildContext context,
     FiatSettlementEditorCubit cubit,
   ) {
-    final colors = context.bull;
-    return BullButton.small(
-      label: context.loc.getPaidFiatSettlementContinueBitcoinOnly,
-      onPressed: () {
+    return _secondaryButton(
+      context,
+      context.loc.getPaidFiatSettlementContinueBitcoinOnly,
+      () {
         // When the saved config is already Bitcoin-only there is nothing to
         // change server-side — just close the editor instead of a redundant
         // disable call.
@@ -702,23 +781,57 @@ class _OutcomePanel extends StatelessWidget {
           cubit.disable();
         }
       },
-      bgColor: colors.surface,
-      textColor: colors.onSurface,
-      outlined: true,
-      borderColor: colors.onSurfaceVariant,
     );
   }
+}
 
-  Future<void> _reconnect(
-    BuildContext context,
-    FiatSettlementEditorCubit cubit,
-  ) async {
-    await context.pushNamed(
-      ExchangeRoute.exchangeAuth.name,
-      queryParameters: {'returnToCaller': 'true'},
-    );
-    // Re-check ONLY the local connection and keep the draft; the merchant
-    // re-saves explicitly (owner Q15 — no auto-retry).
-    if (context.mounted) await cubit.refreshConnection();
-  }
+/// The panel actions, shared by both notices: one primary, the rest outlined,
+/// full width — the same conventions as the editor's own Save / Turn off.
+Widget _actionButton(BuildContext context, String label, VoidCallback onTap) {
+  final colors = context.bull;
+  return BullButton.big(
+    label: label,
+    onPressed: onTap,
+    bgColor: colors.primary,
+    textColor: colors.onPrimary,
+  );
+}
+
+Widget _secondaryButton(
+  BuildContext context,
+  String label,
+  VoidCallback onTap,
+) {
+  final colors = context.bull;
+  return BullButton.big(
+    label: label,
+    onPressed: onTap,
+    bgColor: colors.surface,
+    textColor: colors.onSurface,
+    outlined: true,
+    borderColor: colors.onSurfaceVariant,
+  );
+}
+
+Widget _supportButton(BuildContext context) {
+  return _secondaryButton(
+    context,
+    context.loc.getPaidFiatSettlementContactSupport,
+    () => context.pushNamed(ExchangeSupportChatRoute.supportChat.name),
+  );
+}
+
+/// Opens the Bull Bitcoin login, then diagnoses what came back rather than
+/// dropping the merchant on the untouched form.
+Future<void> _connect(
+  BuildContext context,
+  FiatSettlementEditorCubit cubit,
+) async {
+  await context.pushNamed(
+    ExchangeRoute.exchangeAuth.name,
+    queryParameters: {'returnToCaller': 'true'},
+  );
+  // Re-check ONLY the local connection and keep the draft; the merchant
+  // re-saves explicitly (owner Q15 — no auto-retry).
+  if (context.mounted) await cubit.refreshConnection();
 }

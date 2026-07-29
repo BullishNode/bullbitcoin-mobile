@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/backup_wallet_now_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/delete_wallet_backup_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/set_wallet_backup_enabled_usecase.dart';
@@ -66,6 +67,18 @@ void main() {
     expect(find.text('Delete wallet metadata backup'), findsNothing);
   });
 
+  testWidgets('states on/off the way the Backup Settings rows do', (
+    tester,
+  ) async {
+    await pumpScreen(tester, _FakeWalletBackupFacade(_offState));
+
+    // The status line, not a transplanted card: a value beside the label and the
+    // one fact that matters under it.
+    expect(find.text(loc.backupSettingsMetadataTurnedOff), findsOneWidget);
+    expect(find.text(loc.walletBackupSettingsOff), findsOneWidget);
+    expect(find.byType(Card), findsNothing);
+  });
+
   testWidgets('keeps manual backup disabled while automatic backup is off', (
     tester,
   ) async {
@@ -87,10 +100,10 @@ void main() {
     );
 
     expect(find.text(loc.walletBackupSettingsOff), findsOneWidget);
-    final button = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, loc.walletBackupSettingsBackupNow),
+    final button = tester.widget<BBButton>(
+      find.widgetWithText(BBButton, loc.walletBackupSettingsBackupNow),
     );
-    expect(button.onPressed, isNull);
+    expect(button.disabled, isTrue);
   });
 
   testWidgets('turns automatic backup on through the toggle', (tester) async {
@@ -108,7 +121,7 @@ void main() {
     await pumpScreen(tester, facade);
 
     await tester.tap(
-      find.widgetWithText(FilledButton, loc.walletBackupSettingsBackupNow),
+      find.widgetWithText(BBButton, loc.walletBackupSettingsBackupNow),
     );
     await tester.pumpAndSettle();
 

@@ -51,14 +51,39 @@ class FiatSettlementEditorCubit extends Cubit<FiatSettlementEditorState> {
 
   /// After the merchant returns from the exchange login (triggered only by a
   /// credentialProblem outcome — i.e. the server had no sell-only key for this
-  /// npub), clear the failure so the Save button reappears with the draft
-  /// intact. The merchant re-saves explicitly (owner Q15 — no auto-retry); that
-  /// save now carries the freshly issued key on the server's credential-required
-  /// retry. Does NOT re-read the server config (that would reset the draft).
+  /// npub), say what that round-trip actually achieved.
+  ///
+  /// With the credential now on the device, the failure clears and the Save
+  /// button reappears with the draft intact; the merchant re-saves explicitly
+  /// (owner Q15 — no auto-retry), and that save carries the freshly issued key
+  /// on the server's credential-required retry. When the credential is still
+  /// missing the merchant is NOT returned to a bare form as if nothing had
+  /// happened: the reason is stated instead, distinguishing a login that was
+  /// never completed from an account that issued no settlement permission.
+  /// Never re-reads the server config (that would reset the draft).
   Future<void> refreshConnection() async {
     if (state.status != FiatSettlementEditorStatus.ready) return;
+    final connection = await _facade.connectionStatus();
     if (isClosed) return;
-    emit(state.copyWith(clearFailure: true));
+    switch (connection) {
+      case FiatSettlementConnectionStatus.connected:
+        emit(state.copyWith(clearFailure: true, clearConnectionProblem: true));
+      case FiatSettlementConnectionStatus.missingSettlementPermission:
+        emit(
+          state.copyWith(
+            clearFailure: true,
+            connectionProblem:
+                FiatSettlementConnectionProblem.missingSettlementPermission,
+          ),
+        );
+      case FiatSettlementConnectionStatus.notLoggedIn:
+        emit(
+          state.copyWith(
+            clearFailure: true,
+            connectionProblem: FiatSettlementConnectionProblem.loginUnfinished,
+          ),
+        );
+    }
   }
 
   void selectMode(FiatSettlementReceiveMode mode) {
@@ -96,6 +121,7 @@ class FiatSettlementEditorCubit extends Cubit<FiatSettlementEditorState> {
       state.copyWith(
         status: FiatSettlementEditorStatus.saving,
         clearFailure: true,
+        clearConnectionProblem: true,
       ),
     );
     final result = await _facade.set(

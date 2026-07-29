@@ -6,14 +6,20 @@ import 'package:bb_mobile/features/backup_settings/domain/usecases/delete_wallet
 import 'package:bb_mobile/features/backup_settings/domain/usecases/set_wallet_backup_enabled_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/domain/usecases/watch_wallet_backup_usecase.dart';
 import 'package:bb_mobile/features/backup_settings/presentation/cubit/wallet_backup_settings_cubit.dart';
-import 'package:bb_mobile/features/backup_settings/ui/widgets/wallet_backup_controls.dart';
+import 'package:bb_mobile/locator.dart';
+import 'package:bb_mobile/features/backup_settings/ui/screens/metadata_backup_options_screen.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
+import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// The whole metadata-backup lifecycle over a live state stream, on the screen
+/// that owns it: turn automatic backup on, write immediately, turn it off,
+/// delete the remote copy.
 void main() {
+  tearDown(() async => locator.reset());
+
   testWidgets('renders and drives the one global Bull backup lifecycle', (
     tester,
   ) async {
@@ -26,21 +32,18 @@ void main() {
     );
     addTearDown(cubit.close);
     addTearDown(backup.close);
-    await cubit.load();
+    locator.registerFactory<WalletBackupSettingsCubit>(() => cubit);
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: AppTheme.themeData(AppThemeType.light),
         locale: const Locale('en'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: BlocProvider.value(
-            value: cubit,
-            child: const WalletBackupControls(),
-          ),
-        ),
+        home: const MetadataBackupOptionsScreen(),
       ),
     );
+    await tester.pump();
 
     backup.states.add(Ok(_state(enabled: false, dirty: true)));
     await tester.pump();

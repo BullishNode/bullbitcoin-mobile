@@ -1,13 +1,17 @@
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/entities/fiat_settlement.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_failure.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/scoped_settlement_key_port.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/usecases/disable_fiat_settlement_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_configuration_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_connection_status_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/usecases/set_fiat_settlement_usecase.dart';
 import 'package:flutter/foundation.dart';
 
 export 'package:bb_mobile/features/fiat_settlement/domain/entities/fiat_settlement.dart';
 export 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_failure.dart';
+export 'package:bb_mobile/features/fiat_settlement/domain/scoped_settlement_key_port.dart'
+    show FiatSettlementConnectionStatus;
 
 /// Locator-singleton revision counter shared by every [FiatSettlementFacade]
 /// instance (the facade itself is factory-registered). It bumps after every
@@ -24,12 +28,14 @@ class FiatSettlementConfigurationRevision extends ChangeNotifier {
 /// probe capability, read configuration, and activate/change/disable settlement.
 class FiatSettlementFacade {
   final GetFiatSettlementConfigurationUsecase _getConfiguration;
+  final GetFiatSettlementConnectionStatusUsecase _getConnectionStatus;
   final SetFiatSettlementUsecase _set;
   final DisableFiatSettlementUsecase _disable;
   final FiatSettlementConfigurationRevision _revision;
 
   const FiatSettlementFacade({
     required this._getConfiguration,
+    required this._getConnectionStatus,
     required this._set,
     required this._disable,
     required FiatSettlementConfigurationRevision revision,
@@ -42,6 +48,11 @@ class FiatSettlementFacade {
 
   Future<Result<FiatSettlementConfigurationView, FiatSettlementFailure>>
   configuration() => _getConfiguration.execute();
+
+  /// Whether this device holds a usable settlement credential, and if not, why.
+  /// Local only — no server call and no credential material.
+  Future<FiatSettlementConnectionStatus> connectionStatus() =>
+      _getConnectionStatus.execute();
 
   Future<Result<FiatSettlementConfigurationView, FiatSettlementFailure>> set({
     required FiatSettlementProduct product,
