@@ -80,7 +80,8 @@ void main() {
     bool? hide;
     await _pump(
       tester,
-      behavior: _behavior(),
+      // Auto-sweep on, so hide-on-home is offered at all (it is gated on it).
+      behavior: _behavior(autoSweep: true),
       online: false,
       onOnline: (v) => online = v,
       onAutoSweep: (v) => autoSweep = v,
@@ -93,7 +94,7 @@ void main() {
     await tester.pump();
 
     expect(online, isTrue);
-    expect(autoSweep, isTrue);
+    expect(autoSweep, isFalse); // it was on
     expect(hide, isTrue);
   });
 

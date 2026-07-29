@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_wallet_behavior_card.dart';
 import 'package:flutter/material.dart';
 
 /// The shared Advanced Settings sheet for every Get Paid product (Lightning
@@ -76,31 +77,11 @@ class GetPaidAdvancedSettingsSheet extends StatelessWidget {
               ),
             ),
             if (behavior != null)
-              Card(
-                margin: const EdgeInsets.only(top: 24),
-                child: Column(
-                  children: [
-                    ListTile(
-                      title: Text(loc.getPaidWalletSettingsSectionTitle),
-                    ),
-                    SwitchListTile(
-                      value: behavior.autoSweepEnabled,
-                      onChanged: walletBehaviorSaving
-                          ? null
-                          : onAutoSweepChanged,
-                      title: Text(loc.getPaidWalletAutoSweepLabel),
-                      subtitle: Text(loc.getPaidWalletAutoSweepInfo),
-                    ),
-                    SwitchListTile(
-                      value: behavior.hideOnHome,
-                      onChanged: walletBehaviorSaving
-                          ? null
-                          : onHideOnHomeChanged,
-                      title: Text(loc.getPaidWalletHideOnHomeLabel),
-                      subtitle: Text(loc.getPaidWalletHideOnHomeInfo),
-                    ),
-                  ],
-                ),
+              GetPaidWalletBehaviorCard(
+                behavior: behavior,
+                saving: walletBehaviorSaving,
+                onAutoSweepChanged: onAutoSweepChanged,
+                onHideOnHomeChanged: onHideOnHomeChanged,
               ),
           ],
         ),
