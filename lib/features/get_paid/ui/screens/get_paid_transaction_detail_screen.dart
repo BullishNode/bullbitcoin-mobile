@@ -36,6 +36,8 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
     final invoice = invoiceFacts is GetPaidInvoiceFactsData
         ? invoiceFacts.invoice
         : null;
+    final authenticatedPaymentEvidence =
+        transaction.isInvoiceBacked || (invoice?.hasPaymentEvidence ?? false);
     return BullScaffold(
       body: SafeArea(
         bottom: false,
@@ -87,6 +89,21 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
                           )
                         : _invoiceRows(context, invoice, transaction),
                   ),
+                  if (invoice != null &&
+                      authenticatedPaymentEvidence &&
+                      invoice.paymentSummaryUnavailable)
+                    Padding(
+                      key: const ValueKey(
+                        'get-paid-payment-summary-unavailable',
+                      ),
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        context.loc.invoicePaymentSummaryUnavailable,
+                        style: context.bullText.bodyMedium?.copyWith(
+                          color: context.bull.textMuted,
+                        ),
+                      ),
+                    ),
                   // Everything that happened, one compact row per observation.
                   ..._section(
                     context,
@@ -108,7 +125,12 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
                     ),
                     rows: invoice == null
                         ? const []
-                        : _payerInstructionRows(context, invoice),
+                        : _payerInstructionRows(
+                            context,
+                            invoice,
+                            authenticatedPaymentEvidence:
+                                authenticatedPaymentEvidence,
+                          ),
                   ),
                 ],
               ),
@@ -308,7 +330,9 @@ List<DetailsTableItem> _invoiceRows(
   );
   // The headline already states what was received; a paid amount that equals it
   // adds nothing. A differing one is the partial/over payment fact.
-  if (invoice.paidAmountSat case final paidAmountSat?) {
+  final summary = invoice.paymentSummary;
+  final paidAmount = summary?.observedAmountSat ?? invoice.paidAmountSat;
+  if (paidAmount case final paidAmountSat?) {
     if (paidAmountSat != transaction.amountSat) {
       rows.add(
         _row(
@@ -321,24 +345,33 @@ List<DetailsTableItem> _invoiceRows(
       );
     }
   }
-  if (invoice.hasPaymentEvidence && invoice.remainingAmountSat > 0) {
+  final remainingAmount =
+      summary?.remainingAmountSat ?? invoice.remainingAmountSat;
+  if (invoice.hasPaymentEvidence && remainingAmount > 0) {
     rows.add(
       _row(
         context,
-        label: context.loc.invoicePaymentRemainingLabel,
-        value: getPaidTransactionAmountText(
-          context,
-          invoice.remainingAmountSat,
-        ),
+        label: context.loc.invoicePaymentDifferenceLabel,
+        value: getPaidTransactionAmountText(context, remainingAmount),
       ),
     );
   }
-  if (invoice.overpaidAmountSat case final overpaidAmountSat?) {
+  final overpaidAmount = summary?.excessAmountSat ?? invoice.overpaidAmountSat;
+  if (overpaidAmount case final overpaidAmountSat?) {
     rows.add(
       _row(
         context,
         label: context.loc.invoicePaymentOverpaidByLabel,
         value: getPaidTransactionAmountText(context, overpaidAmountSat),
+      ),
+    );
+  }
+  if (summary != null && summary.logicalPaymentCount > 1) {
+    rows.add(
+      _row(
+        context,
+        label: context.loc.invoicePaymentCountLabel,
+        value: '${summary.logicalPaymentCount}',
       ),
     );
   }
@@ -482,8 +515,13 @@ List<DetailsTableItem> _paymentEventRows(
 /// copyable in full, and expandable — present, but never in the way.
 List<DetailsTableItem> _payerInstructionRows(
   BuildContext context,
-  GetPaidInvoiceFacts invoice,
-) {
+  GetPaidInvoiceFacts invoice, {
+  required bool authenticatedPaymentEvidence,
+}) {
+  if (authenticatedPaymentEvidence ||
+      !invoice.acceptsInitialPayment(DateTime.now().toUtc())) {
+    return const [];
+  }
   final rows = <DetailsTableItem>[];
   void addPayload(String label, String? payload) {
     if (payload == null || payload.isEmpty) return;

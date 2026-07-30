@@ -21,11 +21,13 @@ class LookUpGetPaidInvoiceFactsUsecase {
   Future<Result<GetPaidInvoiceFacts, GetPaidFailure>> execute({
     required String invoiceId,
   }) async {
+    final id = InvoiceId(invoiceId);
+    late final InvoiceStatusSnapshot publicInvoice;
     try {
-      final result = await _invoices.status(InvoiceId(invoiceId));
+      final result = await _invoices.status(id);
       switch (result) {
         case Ok(:final value):
-          return Ok(_map(value));
+          publicInvoice = value;
         case Err(:final failure):
           log.warning(
             'Get Paid invoice facts lookup was rejected',
@@ -50,9 +52,53 @@ class LookUpGetPaidInvoiceFactsUsecase {
         GetPaidFailure.unavailable(logMessage: error.runtimeType.toString()),
       );
     }
+
+    final merchant = await _merchantSummary(id);
+    return Ok(
+      _map(
+        publicInvoice,
+        paymentSummary: merchant.summary,
+        paymentSummaryUnavailable: merchant.unavailable,
+      ),
+    );
   }
 
-  GetPaidInvoiceFacts _map(InvoiceStatusSnapshot invoice) {
+  Future<({GetPaidInvoicePaymentSummary? summary, bool unavailable})>
+  _merchantSummary(InvoiceId invoiceId) async {
+    try {
+      final result = await _invoices.merchantInvoice(invoiceId);
+      switch (result) {
+        case Ok(:final value):
+          final summary = value?.paymentSummary;
+          return (
+            summary: summary == null ? null : _paymentSummary(summary),
+            unavailable: summary == null,
+          );
+        case Err(:final failure):
+          log.warning(
+            'Get Paid authenticated invoice accounting was rejected',
+            error: failure.runtimeType,
+          );
+          return (summary: null, unavailable: true);
+      }
+    } on Exception catch (error, trace) {
+      // The public invoice remains useful when the authenticated accounting
+      // read is unavailable. State that gap explicitly without erasing the
+      // public detail or reviving payer instructions.
+      log.warning(
+        'Get Paid authenticated invoice accounting lookup failed',
+        error: error,
+        trace: trace,
+      );
+      return (summary: null, unavailable: true);
+    }
+  }
+
+  GetPaidInvoiceFacts _map(
+    InvoiceStatusSnapshot invoice, {
+    required GetPaidInvoicePaymentSummary? paymentSummary,
+    required bool paymentSummaryUnavailable,
+  }) {
     final availability = invoice.quoteRailAvailability;
     return GetPaidInvoiceFacts(
       status: _status(invoice.status),
@@ -62,6 +108,10 @@ class LookUpGetPaidInvoiceFactsUsecase {
       fiatAmountMinor: invoice.fiatAmountMinor,
       fiatCurrency: invoice.fiatCurrency,
       remainingAmountSat: invoice.remainingAmountSat,
+      acceptingPayments: invoice.acceptingPayments,
+      topUpAllowed: invoice.topUpAllowed,
+      paymentSummary: paymentSummary,
+      paymentSummaryUnavailable: paymentSummaryUnavailable,
       paymentToleranceSat: invoice.paymentToleranceSat,
       rateMinorPerBtc: invoice.rateMinorPerBtc,
       creationRateMinorPerBtc: invoice.creationRateMinorPerBtc,
@@ -113,6 +163,15 @@ class LookUpGetPaidInvoiceFactsUsecase {
       presentationMarksLatePayment: invoice.presentationMarksLatePayment,
     );
   }
+
+  GetPaidInvoicePaymentSummary _paymentSummary(InvoicePaymentSummary summary) =>
+      GetPaidInvoicePaymentSummary(
+        observedAmountSat: summary.observedAmountSat,
+        creditedAmountSat: summary.creditedAmountSat,
+        remainingAmountSat: summary.remainingAmountSat,
+        excessAmountSat: summary.excessAmountSat,
+        logicalPaymentCount: summary.logicalPaymentCount,
+      );
 
   GetPaidInvoiceStatus _status(InvoiceStatus status) => switch (status) {
     InvoiceStatus.unpaid => GetPaidInvoiceStatus.unpaid,

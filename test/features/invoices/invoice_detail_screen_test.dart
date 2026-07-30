@@ -29,6 +29,10 @@ class _StubDetailCubit extends Cubit<InvoiceDetailState>
 
   @override
   void quoteExpired() {}
+
+  @override
+  bool canRequestQuote(InvoiceStatusSnapshot snapshot) =>
+      snapshot.acceptsInitialPayment(DateTime.now().toUtc());
 }
 
 InvoicePaymentEvent _bitcoinPayment({
@@ -95,6 +99,7 @@ InvoiceStatusSnapshot _fiatSnapshot({
   int? paidAmountSat,
   List<InvoicePaymentEvent> paymentEvents = const [],
   InvoiceQuoteRailAvailability? quoteRailAvailability,
+  DateTime? expiresAt,
 }) {
   return InvoiceStatusSnapshot(
     status: status,
@@ -108,7 +113,7 @@ InvoiceStatusSnapshot _fiatSnapshot({
     remainingAmountSat: 0,
     paymentToleranceSat: 0,
     rateLocksUntil: DateTime.utc(2030),
-    expiresAt: DateTime.utc(2030),
+    expiresAt: expiresAt ?? DateTime.utc(2030),
     paidVia: paidAmountSat == null ? null : PaymentMethod.btc,
     paidAt: paidAmountSat == null ? null : DateTime.utc(2026, 2),
     paidAmountSat: paidAmountSat,
@@ -292,10 +297,73 @@ void main() {
 
     expect(find.text('Partially paid'), findsOneWidget);
     expect(find.text('Received'), findsNWidgets(2));
-    expect(find.text('Remaining'), findsOneWidget);
+    expect(find.text('Difference from requested'), findsOneWidget);
     expect(find.text('1 confirmation'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'authenticated summary shows repeated-payment facts without top-up',
+    (tester) async {
+      final summary = InvoicePaymentSummary(
+        observedAmountSat: 2400,
+        creditedAmountSat: 2000,
+        remainingAmountSat: 0,
+        excessAmountSat: 1400,
+        logicalPaymentCount: 2,
+        multiplePayments: true,
+        latePaymentCount: 1,
+        hasLatePayment: true,
+        firstPaymentAt: DateTime.utc(2026, 2),
+        lastPaymentAt: DateTime.utc(2026, 2, 2),
+        acceptingPayments: false,
+        topUpAllowed: false,
+        requiresMerchantAction: true,
+        attentionReasons: const ['multiple_payments', 'late_payment'],
+        fiat: null,
+      );
+      final invoice = Invoice(
+        id: InvoiceId('inv-1'),
+        status: InvoiceStatus.overpaid,
+        amountSat: 1000,
+        remainingAmountSat: 0,
+        acceptingPayments: false,
+        paymentSummary: summary,
+        acceptBtc: true,
+        acceptLn: true,
+        acceptLiquid: true,
+        createdAt: DateTime.utc(2026),
+        expiresAt: DateTime.utc(2030),
+      );
+
+      await _pump(
+        tester,
+        InvoiceDetailState(
+          status: InvoiceDetailStatus.loaded,
+          invoice: invoice,
+          snapshot: _historySnapshot(
+            status: InvoiceStatus.overpaid,
+            settlementState: InvoiceSettlementState.settled,
+            paidAmountSat: 2400,
+            payment: _bitcoinPayment(
+              state: InvoicePaymentEventState.settled,
+              isLate: true,
+              amountSat: 2400,
+            ),
+          ),
+          privateLinkLookupComplete: true,
+        ),
+      );
+
+      expect(find.text('Observed'), findsOneWidget);
+      expect(find.text('Credited'), findsOneWidget);
+      expect(find.text('Payments observed'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text('Private payment link'), findsNothing);
+      expect(find.text('Cancel invoice'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('unsupported status hides payment and private-link actions', (
     tester,
@@ -325,7 +393,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('retained private link is the only sharing surface', (
+  testWidgets('retained private link is available only before evidence', (
     tester,
   ) async {
     final invoiceId = InvoiceId('inv-1');
@@ -340,7 +408,7 @@ void main() {
       tester,
       InvoiceDetailState(
         status: InvoiceDetailStatus.loaded,
-        snapshot: _privateLinkSnapshot(InvoiceStatus.paid),
+        snapshot: _privateLinkSnapshot(InvoiceStatus.unpaid),
         privateLink: link,
         privateLinkLookupComplete: true,
       ),
@@ -356,7 +424,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('missing retained link has no fragmentless fallback', (
+  testWidgets('payment evidence hides retained private-link actions', (
     tester,
   ) async {
     await _pump(
@@ -368,10 +436,8 @@ void main() {
       ),
     );
 
-    expect(
-      find.text('Private link unavailable on this device'),
-      findsOneWidget,
-    );
+    expect(find.text('Private payment link'), findsNothing);
+    expect(find.text('Private link unavailable on this device'), findsNothing);
     expect(find.text('Copy private link'), findsNothing);
     expect(find.text('Share private link'), findsNothing);
     expect(find.text('Open link'), findsNothing);
@@ -437,6 +503,33 @@ void main() {
 
     expect(find.text('Refreshing payer quote…'), findsOneWidget);
     expect(find.text(quote.instruction.copyPayload), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an expired unpaid fiat invoice exposes no payer quote', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      InvoiceDetailState(
+        status: InvoiceDetailStatus.loaded,
+        snapshot: _fiatSnapshot(
+          status: InvoiceStatus.unpaid,
+          settlementState: InvoiceSettlementState.none,
+          expiresAt: DateTime.utc(2020),
+          quoteRailAvailability: const InvoiceQuoteRailAvailability(
+            lightning: true,
+            liquid: true,
+            bitcoin: true,
+          ),
+        ),
+        selectedQuoteRail: PaymentMethod.btc,
+        quote: _activeQuote(),
+      ),
+    );
+
+    expect(find.text('Payer quote'), findsNothing);
+    expect(find.text('Payer quote is temporarily unavailable'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

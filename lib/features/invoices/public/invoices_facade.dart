@@ -6,8 +6,10 @@ import 'package:bb_mobile/features/invoices/application/results/invoice_results.
 import 'package:bb_mobile/features/invoices/application/usecases/cancel_invoice_usecase.dart';
 import 'package:bb_mobile/features/invoices/application/usecases/create_invoice_usecase.dart';
 import 'package:bb_mobile/features/invoices/application/usecases/get_invoice_usecase.dart';
+import 'package:bb_mobile/features/invoices/application/usecases/get_merchant_invoice_usecase.dart';
 import 'package:bb_mobile/features/invoices/application/usecases/list_invoices_usecase.dart';
 import 'package:bb_mobile/features/invoices/application/usecases/list_invoice_fallback_supervision_usecase.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_status_snapshot.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_quote.dart';
@@ -26,6 +28,7 @@ export 'package:bb_mobile/features/invoices/application/results/invoice_results.
 export 'package:bb_mobile/features/invoices/domain/entities/invoice.dart';
 export 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';
 export 'package:bb_mobile/features/invoices/domain/entities/invoice_payment_event.dart';
+export 'package:bb_mobile/features/invoices/domain/entities/invoice_payment_summary.dart';
 export 'package:bb_mobile/features/invoices/domain/entities/invoice_payer_amount.dart';
 export 'package:bb_mobile/features/invoices/domain/entities/invoice_status_snapshot.dart';
 export 'package:bb_mobile/features/invoices/domain/entities/invoice_quote.dart';
@@ -43,6 +46,7 @@ class InvoicesFacade {
   final ListInvoicesUsecase _list;
   final ListInvoiceFallbackSupervisionUsecase _listFallbackSupervision;
   final GetInvoiceUsecase _getStatus;
+  final GetMerchantInvoiceUsecase _getMerchantInvoice;
   final GetPrivateInvoiceLinkUsecase _getPrivateLink;
   final BullnymFacade _bullnym;
 
@@ -52,6 +56,7 @@ class InvoicesFacade {
     required this._list,
     required this._listFallbackSupervision,
     required this._getStatus,
+    required this._getMerchantInvoice,
     required this._getPrivateLink,
     required this._bullnym,
   });
@@ -74,6 +79,11 @@ class InvoicesFacade {
   Future<Result<ListInvoicesResult, InvoicesFailure>> list(
     ListInvoicesCommand command,
   ) => _list.execute(command);
+
+  @useResult
+  Future<Result<Invoice?, InvoicesFailure>> merchantInvoice(
+    InvoiceId invoiceId,
+  ) => _getMerchantInvoice.execute(invoiceId);
 
   @useResult
   Future<Result<InvoiceFallbackOverview, InvoicesFailure>>

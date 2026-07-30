@@ -37,8 +37,8 @@ progression fail closed at the Bullnym data boundary.
 
 Rows show amount, source, receipt time, rail, and settlement state. Optional
 payer comments appear only on the transaction detail screen. Invoice-backed
-details may navigate to the existing invoice detail using the server-provided
-invoice id; Lightning Address receipts never carry an invoice id.
+details merge their invoice and authenticated accounting facts into that same
+screen; Lightning Address receipts never carry an invoice id.
 
 ## Privacy And Identity
 
@@ -79,7 +79,7 @@ cases plus core wallet reads, and the hub's product rules live in `domain/`:
 | `GetPaidFallbackAttentionUsecase` | `InvoicesFacade` | attention count only |
 | `LoadGetPaidInvoicesOverviewUsecase` | core wallets + the attention wrapper | preserves known readiness, known empty, and unavailable as distinct card outcomes |
 | `LoadGetPaidProductOverviewUsecase` | the Lightning Address/Page/POS/fallback/wallet wrappers | coordinates nym-keyed probes and active-product self-healing while streaming independent card results |
-| `LookUpGetPaidInvoiceFactsUsecase` | `InvoicesFacade` | maps the detail read into a Get Paid-owned snapshot and typed `GetPaidFailure` result |
+| `LookUpGetPaidInvoiceFactsUsecase` | `InvoicesFacade` | requires the public detail read, best-effort reads authenticated accounting, and maps both into a Get Paid-owned snapshot |
 
 Every product read reports one of three outcomes — found, confirmed absent, or
 unavailable (`GetPaidProductProbe`). Collapsing "unavailable" into "absent" is
@@ -115,9 +115,15 @@ four typed states — initial, loading, data, failure. The route provides it and
 starts the read; the screen renders whichever state it holds and resolves nothing
 itself.
 
-The use case maps the Invoices public response into `GetPaidInvoiceFacts`,
-including Get Paid-owned rail, payment-event and lifecycle values. The provider
-entity and its failure family therefore never enter Get Paid presentation or UI.
+The use case maps the required Invoices public response and the best-effort
+authenticated merchant payment summary into `GetPaidInvoiceFacts`, including
+Get Paid-owned admission, rail, payment-event, lifecycle, and aggregate payment
+values. Provider entities and their failure family therefore never enter Get
+Paid presentation or UI. A public-read failure remains a retryable detail
+failure. An authenticated-accounting failure is stated as unavailable while
+the public detail remains visible; it must never erase the ordinary receipt or
+revive payer instructions. An invoice-backed history row is itself positive
+authenticated payment evidence.
 
 Initial and failure are deliberately distinct. Initial means no read applies (a
 Lightning Address receipt carries no invoice id) and the card renders as it does

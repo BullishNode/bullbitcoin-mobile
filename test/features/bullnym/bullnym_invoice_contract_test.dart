@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
@@ -457,6 +458,114 @@ void main() {
   });
 
   group('T-INV-DTO parse round-trips', () {
+    test('C30 fixture hash and Bullnym provenance are pinned', () {
+      final fixture = File(
+        'test/features/bullnym/fixtures/invoice-payment-admission-c30.json',
+      ).readAsBytesSync();
+      final sidecar = File(
+        'test/features/bullnym/fixtures/invoice-payment-admission-c30.sha256',
+      ).readAsStringSync();
+
+      expect(sidecar.split(' ').first, sha256.convert(fixture).toString());
+      final json = jsonDecode(utf8.decode(fixture)) as Map<String, dynamic>;
+      final provenance = json['_provenance'] as Map<String, dynamic>;
+      expect(
+        provenance['bullnym_commit'],
+        '1accc304026bcba7b3724f7f971db3e1f9462765',
+      );
+      expect(provenance['synthetic'], isTrue);
+    });
+
+    test('C30 public admission fixtures decode exact booleans', () async {
+      final fixture =
+          jsonDecode(
+                File(
+                  'test/features/bullnym/fixtures/invoice-payment-admission-c30.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      final cases = fixture['public_status_cases'] as List<dynamic>;
+
+      for (final entry in cases.cast<Map<String, dynamic>>()) {
+        final response = entry['response'] as Map<String, dynamic>;
+        final status = _unwrap(
+          await BullnymHttpClient.withDio(
+            _stubDio([response]).dio,
+          ).getInvoiceStatus(invoiceId: 'fixture'),
+        );
+        expect(
+          status.status,
+          response['status'],
+          reason: entry['name'] as String,
+        );
+        expect(status.acceptingPayments, response['accepting_payments']);
+        expect(status.topUpAllowed, response['top_up_allowed']);
+      }
+    });
+
+    test(
+      'C30 authenticated summaries decode without fabricating legacy data',
+      () async {
+        final fixture =
+            jsonDecode(
+                  File(
+                    'test/features/bullnym/fixtures/invoice-payment-admission-c30.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, dynamic>;
+        final response =
+            fixture['authenticated_list_response'] as Map<String, dynamic>;
+
+        final list = _unwrap(
+          await BullnymHttpClient.withDio(
+            _stubDio([response]).dio,
+            nowSecs: () => timestamp,
+          ).listInvoices(signer: signer, page: 1, pageSize: 100),
+        );
+
+        expect(list.invoices, hasLength(5));
+        expect(list.invoices[0].paymentSummary?.remainingAmountSat, 8000);
+        expect(list.invoices[0].paymentSummary?.fiat?.currency, 'CAD');
+        expect(list.invoices[1].paymentSummary?.excessAmountSat, 0);
+        expect(list.invoices[2].paymentSummary?.excessAmountSat, 2000);
+        expect(list.invoices[3].paymentSummary?.logicalPaymentCount, 2);
+        expect(list.invoices[3].paymentSummary?.multiplePayments, isTrue);
+        expect(list.invoices[3].paymentSummary?.hasLatePayment, isTrue);
+        expect(list.invoices[4].paymentSummary, isNull);
+        expect(list.invoices[4].acceptingPayments, isNull);
+        expect(list.invoices[4].topUpAllowed, isNull);
+      },
+    );
+
+    test('present admission fields must be exact booleans', () async {
+      for (final field in ['accepting_payments', 'top_up_allowed']) {
+        for (final invalidValue in <Object?>['false', null]) {
+          final response = _statusView()..[field] = invalidValue;
+          final failure = _unwrapFailure(
+            await BullnymHttpClient.withDio(
+              _stubDio([response]).dio,
+            ).getInvoiceStatus(invoiceId: 'inv-1'),
+          );
+          expect(failure.kind, BullnymFailureKind.invalidServerResponse);
+
+          final listItem = _listItemView()..[field] = invalidValue;
+          final listFailure = _unwrapFailure(
+            await BullnymHttpClient.withDio(
+              _stubDio([
+                {
+                  'invoices': [listItem],
+                  'page': 1,
+                  'pageSize': 100,
+                  'has_more': false,
+                },
+              ]).dio,
+            ).listInvoices(signer: signer, page: 1, pageSize: 100),
+          );
+          expect(listFailure.kind, BullnymFailureKind.invalidServerResponse);
+        }
+      }
+    });
+
     test(
       'status parses exact payer amounts, observations, and unknown keys',
       () async {

@@ -92,6 +92,8 @@ InvoiceStatusSnapshot _snapshot({
   String? bitcoinChainBip21,
   InvoicePayerAmount? lightningPayerAmount,
   InvoiceQuoteRailAvailability? quoteRailAvailability,
+  bool? acceptingPayments,
+  DateTime? expiresAt,
 }) => InvoiceStatusSnapshot(
   status: status,
   settlementState: settlementState,
@@ -101,13 +103,14 @@ InvoiceStatusSnapshot _snapshot({
   fiatAmountMinor: fiatAmountMinor,
   fiatCurrency: fiatCurrency,
   remainingAmountSat: remainingAmountSat,
+  acceptingPayments: acceptingPayments,
   paymentToleranceSat: paymentToleranceSat,
   creationRateMinorPerBtc: creationRateMinorPerBtc,
   rateMinorPerBtc: rateMinorPerBtc,
   rateLocksUntil: DateTime.utc(2026, 7, 18, 12, 5),
-  expiresAt: DateTime.utc(2026, 7, 25, 12),
-  paidVia: PaymentMethod.lightning,
-  paidAt: DateTime.utc(2026, 7, 18, 11, 59),
+  expiresAt: expiresAt ?? DateTime.utc(2026, 7, 25, 12),
+  paidVia: paidAmountSat == null ? null : PaymentMethod.lightning,
+  paidAt: paidAmountSat == null ? null : DateTime.utc(2026, 7, 18, 11, 59),
   paidAmountSat: paidAmountSat,
   lightningPr: lightningPr,
   lightningPayerAmount: lightningPayerAmount,
@@ -120,6 +123,36 @@ InvoiceStatusSnapshot _snapshot({
   acceptLiquid: false,
   quoteRailAvailability: quoteRailAvailability,
   paymentEvents: paymentEvents,
+);
+
+Invoice _merchantInvoiceWithRepeatPayment() => Invoice(
+  id: InvoiceId(_invoiceId),
+  status: InvoiceStatus.overpaid,
+  amountSat: 5000,
+  remainingAmountSat: 0,
+  acceptingPayments: false,
+  paymentSummary: InvoicePaymentSummary(
+    observedAmountSat: 6000,
+    creditedAmountSat: 5000,
+    remainingAmountSat: 0,
+    excessAmountSat: 1000,
+    logicalPaymentCount: 2,
+    multiplePayments: true,
+    latePaymentCount: 0,
+    hasLatePayment: false,
+    firstPaymentAt: DateTime.utc(2026, 7, 18, 11, 58),
+    lastPaymentAt: DateTime.utc(2026, 7, 18, 12),
+    acceptingPayments: false,
+    topUpAllowed: false,
+    requiresMerchantAction: true,
+    attentionReasons: const ['excess_payment'],
+    fiat: null,
+  ),
+  acceptBtc: true,
+  acceptLn: true,
+  acceptLiquid: true,
+  createdAt: DateTime.utc(2026, 7, 18),
+  expiresAt: DateTime.utc(2026, 7, 25),
 );
 
 Widget _app(Widget home) => MaterialApp(
@@ -171,6 +204,9 @@ Future<void> _pump(
 /// the card's cubit over it through the same constructor production uses.
 _MockInvoicesFacade _registerFacade(InvoiceStatusSnapshot snapshot) {
   final facade = _MockInvoicesFacade();
+  when(
+    () => facade.merchantInvoice(any()),
+  ).thenAnswer((_) async => const Ok<Invoice?, InvoicesFailure>(null));
   when(() => facade.status(any())).thenAnswer(
     (_) async => Ok<InvoiceStatusSnapshot, InvoicesFailure>(snapshot),
   );
@@ -209,20 +245,26 @@ void main() {
     testWidgets('each populated section carries its own titled table', (
       tester,
     ) async {
-      _registerFacade(_snapshot(lightningPr: _lightningPr));
+      _registerFacade(
+        _snapshot(
+          status: InvoiceStatus.unpaid,
+          settlementState: InvoiceSettlementState.none,
+          paidAmountSat: null,
+          acceptingPayments: true,
+          expiresAt: DateTime.utc(2030),
+          lightningPr: _lightningPr,
+        ),
+      );
 
       await _pump(tester, _tx(settlement: _mixed()));
 
-      for (final title in const [
-        'Details',
-        'Settlement',
-        'Payer instructions',
-      ]) {
+      for (final title in const ['Details', 'Settlement']) {
         expect(find.text(title), findsOneWidget);
       }
       // "Invoice" twice: the Source row's value and the invoice section title.
       expect(find.text('Invoice'), findsNWidgets(2));
-      expect(find.byType(DetailsTable), findsNWidgets(4));
+      expect(find.byType(DetailsTable), findsNWidgets(3));
+      expect(find.text('Payer instructions'), findsNothing);
       // No payment events ⇒ no Payment history section at all (never a header
       // over nothing).
       expect(find.text('Payment history'), findsNothing);
@@ -380,10 +422,37 @@ void main() {
       // moment the payment arrived.
       expect(find.text('Amount paid'), findsOneWidget);
       expect(find.text('4,000 sats'), findsOneWidget);
-      expect(find.text('Remaining'), findsOneWidget);
+      expect(find.text('Difference from requested'), findsOneWidget);
       expect(find.text('1,000 sats'), findsOneWidget);
       // The headline stays this entry's own amount.
       expect(find.text('2,100 sats'), findsOneWidget);
+    });
+
+    testWidgets('authenticated repeat-payment accounting is rendered', (
+      tester,
+    ) async {
+      final facade = _registerFacade(
+        _snapshot(
+          amountSat: 5000,
+          fiatAmountMinor: null,
+          fiatCurrency: null,
+          pricingMode: 'sat_fixed',
+          paidAmountSat: 5000,
+        ),
+      );
+      when(() => facade.merchantInvoice(any())).thenAnswer(
+        (_) async =>
+            Ok<Invoice?, InvoicesFailure>(_merchantInvoiceWithRepeatPayment()),
+      );
+
+      await _pump(tester, _tx());
+
+      expect(find.text('Amount paid'), findsOneWidget);
+      expect(find.text('6,000 sats'), findsOneWidget);
+      expect(find.text('Overpaid by'), findsOneWidget);
+      expect(find.text('1,000 sats'), findsOneWidget);
+      expect(find.text('Payments observed'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
     });
 
     testWidgets('the R1 rate is never printed twice', (tester) async {
@@ -462,132 +531,94 @@ void main() {
     });
   });
 
-  group('the payer-instructions section', () {
-    InvoiceStatusSnapshot withInstructions() => _snapshot(
-      lightningPr: _lightningPr,
-      liquidAddress: _liquidAddress,
-      bitcoinAddress: 'bc1qonchainaddressonchainaddressonchain',
-      bitcoinChainAddress: 'bc1qchainaddresschainaddresschainaddr',
-      bitcoinChainBip21:
-          'bitcoin:bc1qchainaddresschainaddresschainaddr?amount=0.000021',
-      lightningPayerAmount: InvoicePayerAmount(
-        rail: PaymentMethod.lightning,
-        merchantTargetAmountSat: 2000,
-        payerAmountSat: 2100,
-      ),
-      quoteRailAvailability: const InvoiceQuoteRailAvailability(
-        lightning: true,
-        liquid: true,
-        bitcoin: false,
-      ),
-    );
+  InvoiceStatusSnapshot withStaleInstructions() => _snapshot(
+    status: InvoiceStatus.unpaid,
+    settlementState: InvoiceSettlementState.none,
+    paidAmountSat: null,
+    acceptingPayments: true,
+    expiresAt: DateTime.utc(2030),
+    lightningPr: _lightningPr,
+    liquidAddress: _liquidAddress,
+    bitcoinAddress: 'bc1qonchainaddressonchainaddressonchain',
+    bitcoinChainAddress: 'bc1qchainaddresschainaddresschainaddr',
+    bitcoinChainBip21:
+        'bitcoin:bc1qchainaddresschainaddresschainaddr?amount=0.000021',
+    lightningPayerAmount: InvoicePayerAmount(
+      rail: PaymentMethod.lightning,
+      merchantTargetAmountSat: 2000,
+      payerAmountSat: 2100,
+    ),
+    quoteRailAvailability: const InvoiceQuoteRailAvailability(
+      lightning: true,
+      liquid: true,
+      bitcoin: false,
+    ),
+  );
 
+  group('the payer-instructions section', () {
     testWidgets(
-      'every payload the snapshot carries renders, last on the card',
+      'an authenticated receipt never revives stale payer instructions',
       (tester) async {
-        _registerFacade(withInstructions());
+        _registerFacade(withStaleInstructions());
 
         await _pump(tester, _tx());
 
-        expect(_payerSection, findsOneWidget);
-        for (final label in const [
-          'Lightning invoice',
-          'Liquid address',
-          'Bitcoin address',
-          'Bitcoin chain address',
-          'Bitcoin payment URI',
-        ]) {
-          expect(_inside(_payerSection, find.text(label)), findsOne);
-        }
-        // Long payloads are truncated in place, never wrapped in full.
-        expect(find.text(_truncated(_lightningPr)), findsOneWidget);
-        expect(find.text(_truncated(_liquidAddress)), findsOneWidget);
-        // The per-rail payer amount: what the payer sends, on its own row.
-        expect(_inside(_payerSection, find.text('Lightning')), findsOne);
-        expect(find.text('Payer sends'), findsOneWidget);
-        expect(_inside(_payerSection, find.text('2,100 sats')), findsOne);
-        // Quote rail availability, rendered as the rails it was available on.
-        expect(find.text('Payer quote rails'), findsOneWidget);
-        expect(find.text('Lightning · Liquid'), findsOneWidget);
+        expect(_payerSection, findsNothing);
+        expect(find.text('Payer instructions'), findsNothing);
+        expect(find.text(_lightningPr), findsNothing);
+        expect(find.text('Lightning invoice'), findsNothing);
+      },
+    );
+  });
+
+  group('authenticated accounting availability', () {
+    testWidgets(
+      'an authenticated error closes stale public admission and stays visible',
+      (tester) async {
+        final facade = _registerFacade(withStaleInstructions());
+        when(() => facade.merchantInvoice(any())).thenAnswer(
+          (_) async =>
+              const Err<Invoice?, InvoicesFailure>(InvoicesFailure.network()),
+        );
+
+        await _pump(tester, _tx());
+
+        expect(
+          find.byKey(const ValueKey('get-paid-invoice-section')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('get-paid-payment-summary-unavailable')),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Detailed payment accounting is unavailable.'),
+          findsOneWidget,
+        );
+        expect(_payerSection, findsNothing);
+        expect(find.text('Lightning invoice'), findsNothing);
       },
     );
 
-    testWidgets('a bulky payload is collapsed by default and expands on tap', (
-      tester,
-    ) async {
-      _registerFacade(withInstructions());
+    testWidgets(
+      'a missing authenticated row closes stale admission and is unavailable',
+      (tester) async {
+        _registerFacade(withStaleInstructions());
 
-      await _pump(tester, _tx());
+        await _pump(tester, _tx());
 
-      // Collapsed: only the truncated form is on screen.
-      expect(find.text(_lightningPr), findsNothing);
-
-      await tester.tap(
-        _inside(_payerSection, find.byIcon(Icons.expand_more)).first,
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text(_lightningPr), findsOneWidget);
-    });
-
-    testWidgets('the payer amount detail is behind the expander too', (
-      tester,
-    ) async {
-      _registerFacade(withInstructions());
-
-      await _pump(tester, _tx());
-
-      expect(find.text('Merchant amount'), findsNothing);
-      expect(find.text('Checkout costs'), findsNothing);
-
-      await tester.tap(
-        _inside(_payerSection, find.byIcon(Icons.expand_more)).last,
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Merchant amount'), findsOneWidget);
-      expect(find.text('Checkout costs'), findsOneWidget);
-      expect(find.text('2,000 sats'), findsOneWidget);
-    });
-
-    testWidgets('the live payer quote rate is labelled as such, never as R1', (
-      tester,
-    ) async {
-      _registerFacade(
-        _snapshot(creationRateMinorPerBtc: 6416000, rateMinorPerBtc: 6390000),
-      );
-
-      await _pump(tester, _tx());
-
-      // The quote rate lives in the payer-instructions section, plainly stated —
-      // no ≈ (that marks the R1 reference index) and no "executed at" (that
-      // marks R2) — under a muted qualifier naming it the quote at fetch time.
-      expect(_inside(_payerSection, find.text('Payer quote rate')), findsOne);
-      expect(find.text('63900.00 USD / BTC'), findsOneWidget);
-      expect(
-        find.text('the live quote when this invoice was read'),
-        findsOneWidget,
-      );
-      // R1 is still the invoice section's own row, and stays distinct.
-      expect(find.text('Rate at creation'), findsOneWidget);
-      expect(find.text('≈ 64160.00 USD / BTC'), findsOneWidget);
-      expect(find.textContaining('executed at'), findsNothing);
-    });
-
-    testWidgets('absent payloads render no payer-instructions section', (
-      tester,
-    ) async {
-      // The snapshot default carries no payer instructions at all.
-      _registerFacade(_snapshot());
-
-      await _pump(tester, _tx());
-
-      expect(_payerSection, findsNothing);
-      expect(find.text('Payer instructions'), findsNothing);
-      expect(find.text('Lightning invoice'), findsNothing);
-      expect(find.text('Payer quote rails'), findsNothing);
-      expect(find.text('Payer quote rate'), findsNothing);
-    });
+        expect(
+          find.byKey(const ValueKey('get-paid-invoice-section')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('get-paid-payment-summary-unavailable')),
+          findsOneWidget,
+        );
+        expect(_payerSection, findsNothing);
+        expect(find.text('Lightning invoice'), findsNothing);
+      },
+    );
   });
 
   group('no invoice facts: the card renders exactly as before', () {
@@ -606,6 +637,9 @@ void main() {
 
     testWidgets('a rejected status read is STATED, not hidden', (tester) async {
       final facade = _MockInvoicesFacade();
+      when(
+        () => facade.merchantInvoice(any()),
+      ).thenAnswer((_) async => const Ok<Invoice?, InvoicesFailure>(null));
       when(() => facade.status(any())).thenAnswer(
         (_) async => const Err<InvoiceStatusSnapshot, InvoicesFailure>(
           InvoicesFailure.notFound(),
@@ -635,6 +669,9 @@ void main() {
     ) async {
       final first = Completer<Result<InvoiceStatusSnapshot, InvoicesFailure>>();
       final facade = _MockInvoicesFacade();
+      when(
+        () => facade.merchantInvoice(any()),
+      ).thenAnswer((_) async => const Ok<Invoice?, InvoicesFailure>(null));
       var calls = 0;
       when(() => facade.status(any())).thenAnswer((_) {
         calls++;

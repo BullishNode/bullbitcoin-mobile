@@ -1,5 +1,6 @@
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_payment_event.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_payment_summary.dart';
 import 'package:bb_mobile/features/invoices/domain/primitives/invoice_status.dart';
 import 'package:bb_mobile/features/invoices/domain/primitives/payment_method.dart';
 import 'package:bb_mobile/features/invoices/domain/value_objects/invoice_id.dart';
@@ -20,6 +21,9 @@ class Invoice {
   final bool presentationMarksLatePayment;
   final int amountSat;
   final int remainingAmountSat;
+  final bool? acceptingPayments;
+  final bool topUpAllowed;
+  final InvoicePaymentSummary? paymentSummary;
   final int? fiatAmountMinor;
   final String? fiatCurrency;
   final String? memo;
@@ -44,6 +48,9 @@ class Invoice {
     this.presentationMarksLatePayment = false,
     required this.amountSat,
     required this.remainingAmountSat,
+    this.acceptingPayments,
+    this.topUpAllowed = false,
+    this.paymentSummary,
     this.fiatAmountMinor,
     this.fiatCurrency,
     this.memo,
@@ -75,6 +82,9 @@ class Invoice {
       presentationMarksLatePayment: presentationMarksLatePayment,
       amountSat: amountSat,
       remainingAmountSat: remainingAmountSat,
+      acceptingPayments: acceptingPayments,
+      topUpAllowed: topUpAllowed,
+      paymentSummary: paymentSummary,
       fiatAmountMinor: fiatAmountMinor,
       fiatCurrency: fiatCurrency,
       memo: memo,
@@ -95,6 +105,7 @@ class Invoice {
   bool get isExpired => status == InvoiceStatus.expired;
 
   bool get hasPaymentEvidence =>
+      (paymentSummary?.hasPaymentEvidence ?? false) ||
       paidAmountSat != null ||
       paidAt != null ||
       paidVia != null ||
@@ -112,19 +123,26 @@ class Invoice {
 
   bool get hasLatePayment =>
       presentationMarksLatePayment ||
+      (paymentSummary?.hasLatePayment ?? false) ||
       (paidAt != null &&
           (!expiresAt.isAfter(paidAt!) || status == InvoiceStatus.cancelled));
 
-  /// Still collectible: unpaid or partially paid, and not past expiry.
+  /// Only an open unpaid invoice may present its initial payment request.
+  /// Explicit server admission wins; legacy payloads fall back to the unpaid
+  /// status. Positive evidence always closes admission.
   bool isPayable(DateTime now) {
-    final open =
-        status == InvoiceStatus.unpaid || status == InvoiceStatus.partiallyPaid;
-    return open && expiresAt.isAfter(now);
+    return status == InvoiceStatus.unpaid &&
+        !hasPaymentEvidence &&
+        (acceptingPayments ?? true) &&
+        expiresAt.isAfter(now);
   }
 
   /// The server allows cancel only while `unpaid`; the affordance is offered
   /// only when this is true (§3.13 / DG-I5).
-  bool get isCancellable => status == InvoiceStatus.unpaid;
+  bool get isCancellable =>
+      status == InvoiceStatus.unpaid &&
+      !hasPaymentEvidence &&
+      (acceptingPayments ?? true);
 
   /// Zero once expired; never negative.
   Duration timeUntilExpiry(DateTime now) {

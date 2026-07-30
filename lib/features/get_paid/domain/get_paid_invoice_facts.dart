@@ -80,9 +80,31 @@ class GetPaidInvoiceRailAvailability {
   });
 }
 
+/// Get Paid's narrow, merchant-only view of authenticated invoice accounting.
+/// The Invoices feature's entity is mapped at the use-case boundary and never
+/// enters Get Paid presentation state.
+class GetPaidInvoicePaymentSummary {
+  final int observedAmountSat;
+  final int creditedAmountSat;
+  final int remainingAmountSat;
+  final int excessAmountSat;
+  final int logicalPaymentCount;
+
+  const GetPaidInvoicePaymentSummary({
+    required this.observedAmountSat,
+    required this.creditedAmountSat,
+    required this.remainingAmountSat,
+    required this.excessAmountSat,
+    required this.logicalPaymentCount,
+  });
+
+  bool get hasPaymentEvidence =>
+      observedAmountSat > 0 || logicalPaymentCount > 0;
+}
+
 /// Get Paid's presentation-safe invoice facts. The Invoices feature's public
-/// entity is mapped into this record at the use-case boundary and never enters
-/// Get Paid presentation state.
+/// entity and authenticated accounting summary are mapped into this record at
+/// the use-case boundary and never enter Get Paid presentation state.
 class GetPaidInvoiceFacts {
   final GetPaidInvoiceStatus status;
   final GetPaidInvoiceSettlementState settlementState;
@@ -91,6 +113,10 @@ class GetPaidInvoiceFacts {
   final int? fiatAmountMinor;
   final String? fiatCurrency;
   final int remainingAmountSat;
+  final bool? acceptingPayments;
+  final bool topUpAllowed;
+  final GetPaidInvoicePaymentSummary? paymentSummary;
+  final bool paymentSummaryUnavailable;
   final int paymentToleranceSat;
   final int? rateMinorPerBtc;
   final int? creationRateMinorPerBtc;
@@ -120,6 +146,10 @@ class GetPaidInvoiceFacts {
     required this.fiatAmountMinor,
     required this.fiatCurrency,
     required this.remainingAmountSat,
+    required this.acceptingPayments,
+    required this.topUpAllowed,
+    required this.paymentSummary,
+    required this.paymentSummaryUnavailable,
     required this.paymentToleranceSat,
     required this.rateMinorPerBtc,
     required this.creationRateMinorPerBtc,
@@ -157,6 +187,7 @@ class GetPaidInvoiceFacts {
   };
 
   bool get hasPaymentEvidence =>
+      (paymentSummary?.hasPaymentEvidence ?? false) ||
       paymentEvents.isNotEmpty ||
       paidAmountSat != null ||
       paidAt != null ||
@@ -166,6 +197,15 @@ class GetPaidInvoiceFacts {
       status == GetPaidInvoiceStatus.paid ||
       status == GetPaidInvoiceStatus.underpaid ||
       status == GetPaidInvoiceStatus.overpaid;
+
+  /// Whether public invoice state permits the initial payment request now.
+  /// Authenticated evidence always closes admission. [topUpAllowed] is not an
+  /// initial-payment authorization and deliberately does not participate.
+  bool acceptsInitialPayment(DateTime now) =>
+      status == GetPaidInvoiceStatus.unpaid &&
+      !hasPaymentEvidence &&
+      (acceptingPayments ?? true) &&
+      expiresAt.isAfter(now);
 
   bool get isAwaitingConfirmation =>
       !_statusIsTerminal &&

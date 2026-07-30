@@ -448,57 +448,48 @@ void main() {
       },
     );
 
-    test(
-      'keeps merchant face value separate from exact payer costs by rail',
-      () async {
-        when(
-          () => bullnym.getInvoiceStatus(invoiceId: any(named: 'invoiceId')),
-        ).thenAnswer(
-          (_) async => const Ok(
-            BullnymInvoiceStatus(
-              status: 'partially_paid',
-              presentationStatus: 'partial',
-              pricingMode: 'sat_fixed',
-              settlementStatus: 'pending',
-              amountSat: 10000,
-              remainingAmountSat: 4000,
-              paymentToleranceSat: 1,
-              rateLocksUntilUnix: 1893456000,
-              expiresAtUnix: 1893456000,
-              lightningPr: 'lnbc4050n1test',
-              lightningAmountSat: 4050,
-              liquidAddress: 'lq1qtest',
-              liquidAmountSat: 4000,
-              bitcoinChainAddress: 'bc1qchain',
-              bitcoinChainBip21: 'bitcoin:bc1qchain?amount=0.00004100',
-              bitcoinChainAmountSat: 4100,
-              acceptBtc: true,
-              acceptLn: true,
-              acceptLiquid: true,
-              bitcoinDirectObservations: [],
-            ),
+    test('legacy partial status hides every stale payer instruction', () async {
+      when(
+        () => bullnym.getInvoiceStatus(invoiceId: any(named: 'invoiceId')),
+      ).thenAnswer(
+        (_) async => const Ok(
+          BullnymInvoiceStatus(
+            status: 'partially_paid',
+            presentationStatus: 'partial',
+            pricingMode: 'sat_fixed',
+            settlementStatus: 'pending',
+            amountSat: 10000,
+            remainingAmountSat: 4000,
+            paymentToleranceSat: 1,
+            rateLocksUntilUnix: 1893456000,
+            expiresAtUnix: 1893456000,
+            lightningPr: 'lnbc4050n1test',
+            lightningAmountSat: 4050,
+            liquidAddress: 'lq1qtest',
+            liquidAmountSat: 4000,
+            bitcoinChainAddress: 'bc1qchain',
+            bitcoinChainBip21: 'bitcoin:bc1qchain?amount=0.00004100',
+            bitcoinChainAmountSat: 4100,
+            acceptBtc: true,
+            acceptLn: true,
+            acceptLiquid: true,
+            bitcoinDirectObservations: [],
           ),
-        );
+        ),
+      );
 
-        final snapshot = _unwrap(
-          await datasource.getInvoiceStatus(InvoiceId('inv-1')),
-        );
+      final snapshot = _unwrap(
+        await datasource.getInvoiceStatus(InvoiceId('inv-1')),
+      );
 
-        expect(snapshot.merchantFaceAmountSat, 10000);
-        expect(snapshot.remainingAmountSat, 4000);
-        expect(snapshot.payerAmounts.map((amount) => amount.rail), [
-          PaymentMethod.lightning,
-          PaymentMethod.liquid,
-          PaymentMethod.btc,
-        ]);
-        expect(snapshot.lightningPayerAmount!.payerAmountSat, 4050);
-        expect(snapshot.lightningPayerAmount!.checkoutCostSat, 50);
-        expect(snapshot.liquidPayerAmount!.payerAmountSat, 4000);
-        expect(snapshot.liquidPayerAmount!.checkoutCostSat, 0);
-        expect(snapshot.bitcoinChainPayerAmount!.payerAmountSat, 4100);
-        expect(snapshot.bitcoinChainPayerAmount!.checkoutCostSat, 100);
-      },
-    );
+      expect(snapshot.merchantFaceAmountSat, 10000);
+      expect(snapshot.remainingAmountSat, 4000);
+      expect(snapshot.payerAmounts, isEmpty);
+      expect(snapshot.lightningPr, isNull);
+      expect(snapshot.liquidAddress, isNull);
+      expect(snapshot.bitcoinChainAddress, isNull);
+      expect(snapshot.isCancellable, isFalse);
+    });
 
     test('rejects a payer amount below the merchant remainder', () async {
       when(
@@ -846,6 +837,75 @@ void main() {
         final invoice = result.invoices.single;
         expect(invoice.status, InvoiceStatus.unsupported);
         expect(invoice.isCancellable, isFalse);
+      },
+    );
+
+    test(
+      'preserves authenticated payment summary and closes admission',
+      () async {
+        when(
+          () => bullnym.listInvoices(
+            signer: any(named: 'signer'),
+            page: any(named: 'page'),
+            pageSize: any(named: 'pageSize'),
+            status: any(named: 'status'),
+          ),
+        ).thenAnswer(
+          (_) async => const Ok(
+            BullnymListInvoicesResponse(
+              invoices: [
+                BullnymInvoiceListItem(
+                  id: 'inv-summary',
+                  origin: 'wallet',
+                  status: 'unpaid',
+                  presentationStatus: 'unpaid',
+                  pricingMode: 'sat_fixed',
+                  settlementStatus: 'none',
+                  amountSat: 20000,
+                  remainingAmountSat: 8000,
+                  acceptingPayments: true,
+                  acceptBtc: true,
+                  acceptLn: true,
+                  acceptLiquid: true,
+                  createdAtUnix: 1893450000,
+                  expiresAtUnix: 1893456000,
+                  paymentSummary: BullnymMerchantPaymentSummary(
+                    observedAmountSat: 12000,
+                    creditedAmountSat: 12000,
+                    remainingAmountSat: 8000,
+                    excessAmountSat: 0,
+                    logicalPaymentCount: 1,
+                    multiplePayments: false,
+                    latePaymentCount: 0,
+                    hasLatePayment: false,
+                    acceptingPayments: false,
+                    topUpAllowed: false,
+                    requiresMerchantAction: true,
+                    attentionReasons: ['underpaid'],
+                  ),
+                ),
+              ],
+              page: 1,
+              pageSize: 100,
+              hasMore: false,
+            ),
+          ),
+        );
+
+        final result = _unwrap(
+          await datasource.listInvoices(
+            signer: signer,
+            command: const ListInvoicesCommand(),
+          ),
+        );
+        final invoice = result.invoices.single;
+
+        expect(invoice.paymentSummary?.observedAmountSat, 12000);
+        expect(invoice.paymentSummary?.remainingAmountSat, 8000);
+        expect(invoice.topUpAllowed, isFalse);
+        expect(invoice.hasPaymentEvidence, isTrue);
+        expect(invoice.isCancellable, isFalse);
+        expect(invoice.isPayable(DateTime.utc(2029)), isFalse);
       },
     );
   });

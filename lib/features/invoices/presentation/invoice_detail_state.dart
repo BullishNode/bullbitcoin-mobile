@@ -12,6 +12,9 @@ class InvoiceDetailState {
   final Invoice? invoice;
   final InvoiceStatusSnapshot? snapshot;
   final InvoicesFailure? failure;
+  final InvoicesFailure? authenticatedInvoiceFailure;
+  final bool authenticatedInvoiceRefreshing;
+  final bool authenticatedPaymentEvidenceSeen;
   final PrivateInvoiceLink? privateLink;
   final bool privateLinkLookupComplete;
   final List<InvoiceFallbackSupervision> fallbackSupervisions;
@@ -32,6 +35,9 @@ class InvoiceDetailState {
     this.invoice,
     this.snapshot,
     this.failure,
+    this.authenticatedInvoiceFailure,
+    this.authenticatedInvoiceRefreshing = false,
+    this.authenticatedPaymentEvidenceSeen = false,
     this.privateLink,
     this.privateLinkLookupComplete = false,
     this.fallbackSupervisions = const [],
@@ -58,6 +64,9 @@ class InvoiceDetailState {
     // must continue polling. Treating an empty projection as complete after a
     // transient failure would permanently stop supervision updates.
     if (fallbackSupervisionFailure != null) return false;
+    if (authenticatedInvoiceFailure != null || authenticatedInvoiceRefreshing) {
+      return false;
+    }
     // A cancel response is not a settlement snapshot. A cancelled invoice
     // can still have a payment race or unresolved settlement evidence, so
     // polling may stop only after the status endpoint reports completion.
@@ -73,7 +82,16 @@ class InvoiceDetailState {
   bool get canCancel =>
       !cancelling &&
       cancelFinalStatus == null &&
-      snapshot?.status == InvoiceStatus.unpaid;
+      !hasAuthenticatedPaymentEvidence &&
+      (snapshot?.isCancellable ?? false);
+
+  bool get hasAuthenticatedPaymentEvidence =>
+      authenticatedPaymentEvidenceSeen ||
+      (invoice?.hasPaymentEvidence ?? false);
+
+  bool acceptsInitialPayment(DateTime now) =>
+      !hasAuthenticatedPaymentEvidence &&
+      (snapshot?.acceptsInitialPayment(now) ?? false);
 
   bool hasUsableQuote(DateTime now) =>
       quote != null && !quote!.isExpired(now) && !quoteRefreshing;
@@ -83,6 +101,9 @@ class InvoiceDetailState {
     Invoice? invoice,
     InvoiceStatusSnapshot? snapshot,
     InvoicesFailure? failure,
+    InvoicesFailure? authenticatedInvoiceFailure,
+    bool? authenticatedInvoiceRefreshing,
+    bool? authenticatedPaymentEvidenceSeen,
     PrivateInvoiceLink? privateLink,
     bool? privateLinkLookupComplete,
     List<InvoiceFallbackSupervision>? fallbackSupervisions,
@@ -96,6 +117,7 @@ class InvoiceDetailState {
     InvoiceStatus? cancelFinalStatus,
     InvoicesFailure? cancelFailure,
     bool clearFailure = false,
+    bool clearAuthenticatedInvoiceFailure = false,
     bool clearFallbackSupervisionFailure = false,
     bool clearQuote = false,
     bool clearQuoteFailure = false,
@@ -106,6 +128,14 @@ class InvoiceDetailState {
       invoice: invoice ?? this.invoice,
       snapshot: snapshot ?? this.snapshot,
       failure: clearFailure ? null : failure ?? this.failure,
+      authenticatedInvoiceFailure: clearAuthenticatedInvoiceFailure
+          ? null
+          : authenticatedInvoiceFailure ?? this.authenticatedInvoiceFailure,
+      authenticatedInvoiceRefreshing:
+          authenticatedInvoiceRefreshing ?? this.authenticatedInvoiceRefreshing,
+      authenticatedPaymentEvidenceSeen:
+          authenticatedPaymentEvidenceSeen ??
+          this.authenticatedPaymentEvidenceSeen,
       privateLink: privateLink ?? this.privateLink,
       privateLinkLookupComplete:
           privateLinkLookupComplete ?? this.privateLinkLookupComplete,

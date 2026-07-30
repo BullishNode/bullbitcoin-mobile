@@ -10,6 +10,8 @@ Invoice _invoice({
   required InvoiceStatus status,
   String? nymOwner,
   required DateTime expiresAt,
+  bool? acceptingPayments,
+  int? paidAmountSat,
 }) {
   return Invoice(
     id: InvoiceId('inv-1'),
@@ -17,11 +19,13 @@ Invoice _invoice({
     status: status,
     amountSat: 25000,
     remainingAmountSat: 25000,
+    acceptingPayments: acceptingPayments,
     acceptBtc: false,
     acceptLn: true,
     acceptLiquid: true,
     createdAt: DateTime.utc(2024, 1, 1),
     expiresAt: expiresAt,
+    paidAmountSat: paidAmountSat,
   );
 }
 
@@ -91,6 +95,39 @@ void main() {
       expect(
         _invoice(
           status: InvoiceStatus.unsupported,
+          expiresAt: now.add(const Duration(hours: 1)),
+        ).isPayable(now),
+        isFalse,
+      );
+    });
+
+    test('explicitly closed unpaid invoice is not payable', () {
+      expect(
+        _invoice(
+          status: InvoiceStatus.unpaid,
+          acceptingPayments: false,
+          expiresAt: now.add(const Duration(hours: 1)),
+        ).isPayable(now),
+        isFalse,
+      );
+    });
+
+    test('positive evidence overrides contradictory admission', () {
+      final invoice = _invoice(
+        status: InvoiceStatus.unpaid,
+        acceptingPayments: true,
+        paidAmountSat: 1,
+        expiresAt: now.add(const Duration(hours: 1)),
+      );
+
+      expect(invoice.isPayable(now), isFalse);
+      expect(invoice.isCancellable, isFalse);
+    });
+
+    test('historical partially paid invoice is not collectible', () {
+      expect(
+        _invoice(
+          status: InvoiceStatus.partiallyPaid,
           expiresAt: now.add(const Duration(hours: 1)),
         ).isPayable(now),
         isFalse,

@@ -18021,5 +18021,25 @@
   "wizardChoicesSaveFailed": "Your choices couldn’t be saved. Try again.",
   "@wizardChoicesSaveFailed": {
     "description": "Retryable message when the completed onboarding choices cannot be persisted."
+  },
+  "invoicePaymentDifferenceLabel": "Difference from requested",
+  "@invoicePaymentDifferenceLabel": {
+    "description": "Merchant-facing label for the unpaid difference after a payment; it must not imply the same invoice can be topped up."
+  },
+  "invoicePaymentObservedLabel": "Observed",
+  "@invoicePaymentObservedLabel": {
+    "description": "Merchant-facing aggregate amount observed across logical payments."
+  },
+  "invoicePaymentCreditedLabel": "Credited",
+  "@invoicePaymentCreditedLabel": {
+    "description": "Merchant-facing aggregate amount credited by authoritative server accounting."
+  },
+  "invoicePaymentCountLabel": "Payments observed",
+  "@invoicePaymentCountLabel": {
+    "description": "Merchant-facing count of logical payments reported by the server."
+  },
+  "invoicePaymentSummaryUnavailable": "Detailed payment accounting is unavailable.",
+  "@invoicePaymentSummaryUnavailable": {
+    "description": "Shown when an authenticated legacy invoice has payment evidence but no payment summary."
   }
 }
