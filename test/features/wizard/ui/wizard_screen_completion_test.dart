@@ -1,8 +1,10 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/utils/constants.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
+import 'package:bb_mobile/features/wizard/domain/wizard_failure.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/mark_wizard_complete_usecase.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/save_metadata_backup_choice_usecase.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/save_pending_wizard_choices_usecase.dart';
@@ -104,7 +106,9 @@ class _CompletionRepository implements WizardRepository {
   Future<WizardChoices?> readPending() async => null;
 
   @override
-  Future<void> saveMetadataBackupChoice(bool enabled) async {}
+  Future<Result<void, WizardFailure>> saveMetadataBackupChoice(
+    bool enabled,
+  ) async => const Ok(null);
 
   @override
   Future<void> savePending(WizardChoices choices) async {

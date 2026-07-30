@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
+import 'package:bb_mobile/features/wizard/domain/wizard_failure.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/mark_wizard_complete_usecase.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/save_metadata_backup_choice_usecase.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/save_pending_wizard_choices_usecase.dart';
@@ -90,7 +92,9 @@ void main() {
   test(
     'keeps the choice unset and exposes retry after persistence fails',
     () async {
-      repository.saveFailure = Exception('storage unavailable');
+      repository.saveFailure = const WizardPersistenceFailure(
+        'storage unavailable',
+      );
       final bloc = buildBloc();
       addTearDown(bloc.close);
       final states = bloc.stream.take(2).toList();
@@ -220,7 +224,7 @@ void main() {
 class _FakeWizardRepository implements WizardRepository {
   final List<WizardChoices> savedChoices = [];
   final List<bool> savedMetadataBackupChoices = [];
-  Exception? saveFailure;
+  WizardFailure? saveFailure;
   Exception? pendingSaveFailure;
   Completer<void>? saveGate;
   Completer<void>? pendingSaveGate;
@@ -241,12 +245,15 @@ class _FakeWizardRepository implements WizardRepository {
   Future<WizardChoices?> readPending() async => null;
 
   @override
-  Future<void> saveMetadataBackupChoice(bool enabled) async {
+  Future<Result<void, WizardFailure>> saveMetadataBackupChoice(
+    bool enabled,
+  ) async {
     saveAttempts++;
     final failure = saveFailure;
-    if (failure != null) throw failure;
+    if (failure != null) return Err(failure);
     await saveGate?.future;
     savedMetadataBackupChoices.add(enabled);
+    return const Ok(null);
   }
 
   @override

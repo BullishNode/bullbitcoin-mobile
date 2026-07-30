@@ -1,7 +1,10 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/utils/logger.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wizard/data/datasource/wizard_local_datasource.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
+import 'package:bb_mobile/features/wizard/domain/wizard_failure.dart';
 
 /// Bump this integer whenever the wizard gains new mandatory questions.
 /// Users whose stored version is lower will see the wizard again on
@@ -65,12 +68,24 @@ class WizardRepositoryImpl implements WizardRepository {
   }
 
   @override
-  Future<void> saveMetadataBackupChoice(bool enabled) async {
-    // The backup decision is persisted before the wizard advances. Updating
-    // only these two keys preserves every other staged choice and, when a
-    // replacement write fails, leaves the previously durable choice intact.
-    await _datasource.writePendingVersion(kCurrentWizardVersion);
-    await _datasource.writePendingMetadataBackup(enabled);
+  Future<Result<void, WizardFailure>> saveMetadataBackupChoice(
+    bool enabled,
+  ) async {
+    try {
+      // The backup decision is persisted before the wizard advances. Updating
+      // only these two keys preserves every other staged choice and, when a
+      // replacement write fails, leaves the previously durable choice intact.
+      await _datasource.writePendingVersion(kCurrentWizardVersion);
+      await _datasource.writePendingMetadataBackup(enabled);
+      return const Ok(null);
+    } on Exception catch (error, trace) {
+      log.severe(
+        message: 'Failed to persist wizard metadata-backup choice',
+        error: error,
+        trace: trace,
+      );
+      return Err(WizardPersistenceFailure(error.toString()));
+    }
   }
 
   /// Returns `null` when nothing is staged OR when the staged blob was

@@ -162,6 +162,24 @@ void main() {
     verify(() => wizard.markComplete()).called(1);
   });
 
+  test('queues an offline opt-in instead of blocking app startup', () async {
+    when(() => wizard.readPending()).thenAnswer(
+      (_) async => const WizardChoices(
+        metadataBackupEnabled: true,
+        touched: {WizardField.metadataBackupEnabled},
+      ),
+    );
+    when(() => walletBackup.setEnabled(true)).thenAnswer(
+      (_) async => const Err(WalletBackupRemoteUnavailableFailure()),
+    );
+
+    await usecase.execute();
+
+    verify(() => walletBackup.setEnabled(true)).called(1);
+    verify(() => wizard.clearPending()).called(1);
+    verify(() => wizard.markComplete()).called(1);
+  });
+
   test('does not hide unexpected backup failures during startup', () async {
     when(() => wizard.readPending()).thenAnswer(
       (_) async => const WizardChoices(

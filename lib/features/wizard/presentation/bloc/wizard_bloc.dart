@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/mark_wizard_complete_usecase.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/save_metadata_backup_choice_usecase.dart';
@@ -97,23 +98,23 @@ class WizardBloc extends Bloc<WizardEvent, WizardState> {
         completionSaveFailed: false,
       ),
     );
-    try {
-      await _saveMetadataBackupChoice.execute(event.enabled);
-      emit(
-        state.copyWith(
-          choices: state.choices.copyWith(
-            metadataBackupEnabled: ConsentValue(event.enabled),
+    switch (await _saveMetadataBackupChoice.execute(event.enabled)) {
+      case Ok():
+        emit(
+          state.copyWith(
+            choices: state.choices.copyWith(
+              metadataBackupEnabled: ConsentValue(event.enabled),
+            ),
+            metadataBackupSaving: false,
           ),
-          metadataBackupSaving: false,
-        ),
-      );
-    } on Exception {
-      emit(
-        state.copyWith(
-          metadataBackupSaving: false,
-          metadataBackupSaveFailed: true,
-        ),
-      );
+        );
+      case Err():
+        emit(
+          state.copyWith(
+            metadataBackupSaving: false,
+            metadataBackupSaveFailed: true,
+          ),
+        );
     }
   }
 

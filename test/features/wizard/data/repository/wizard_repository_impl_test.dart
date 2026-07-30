@@ -1,7 +1,9 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wizard/data/datasource/wizard_local_datasource.dart';
 import 'package:bb_mobile/features/wizard/data/repository/wizard_repository_impl.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
+import 'package:bb_mobile/features/wizard/domain/wizard_failure.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -88,7 +90,7 @@ void main() {
           'wizard_pending_metadata_backup': true,
         });
 
-        await _build().saveMetadataBackupChoice(false);
+        expect(await _build().saveMetadataBackupChoice(false), isA<Ok>());
 
         final pending = await _build().readPending();
         expect(pending?.metadataBackupEnabled, isFalse);
@@ -112,9 +114,9 @@ void main() {
           _FailingMetadataBackupDatasource(),
         );
 
-        await expectLater(
-          repository.saveMetadataBackupChoice(false),
-          throwsA(isA<StateError>()),
+        expect(
+          await repository.saveMetadataBackupChoice(false),
+          isA<Err<void, WizardFailure>>(),
         );
 
         final pending = await repository.readPending();
@@ -198,7 +200,7 @@ void main() {
 class _FailingMetadataBackupDatasource extends WizardLocalDatasourceImpl {
   @override
   Future<void> writePendingMetadataBackup(bool enabled) async {
-    throw StateError('storage unavailable');
+    throw const WizardPersistenceException('write backup choice');
   }
 }
 

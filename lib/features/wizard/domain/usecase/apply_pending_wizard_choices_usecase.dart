@@ -1,8 +1,8 @@
 import 'package:bb_mobile/core/settings/domain/repositories/settings_repository.dart';
-import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
-import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
+import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
+import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
 
 /// Flushes the pre-init wizard's pending choices (collected in
 /// [SharedPreferences] before the locator was up) to the SQLite
@@ -50,11 +50,13 @@ class ApplyPendingWizardChoicesUsecase {
 
   void _requireBackupUpdate(Result<void, WalletBackupFailure> result) {
     if (result case Err(:final failure)) {
-      // Enabling persists the user's choice and marks the unified backup dirty
-      // before attempting its first publication. The pre-init wizard runs
-      // before a wallet can exist, so publication is expected to be deferred
-      // until the coordinator observes the wallet's first successful sync.
-      if (failure is WalletBackupWalletUnavailableFailure) return;
+      // The choice and dirty marker are already durable. A pre-init wallet gap
+      // or a temporary remote outage only defers publication; the coordinator
+      // retries once the required dependency is available.
+      if (failure is WalletBackupWalletUnavailableFailure ||
+          failure is WalletBackupRemoteUnavailableFailure) {
+        return;
+      }
       throw _ApplyPendingWizardChoicesException(
         'Could not apply wizard wallet backup choice: '
         '${failure.runtimeType}',
