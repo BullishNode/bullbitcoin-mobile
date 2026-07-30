@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_invoice_facts.dart';
@@ -50,10 +52,37 @@ void main() {
       await cubit.close();
     },
   );
+
+  test('an older read cannot overwrite a newer refreshed summary', () async {
+    final lookup = _ControlledLookUpInvoiceFacts();
+    final cubit = GetPaidInvoiceFactsCubit(lookUpInvoiceFacts: lookup);
+
+    final older = cubit.load(invoiceId: 'inv-1');
+    final newer = cubit.retry();
+
+    lookup.pending[1].complete(
+      Ok(_snapshot(status: GetPaidInvoiceStatus.paid)),
+    );
+    await newer;
+    expect(
+      (cubit.state as GetPaidInvoiceFactsData).invoice.status,
+      GetPaidInvoiceStatus.paid,
+    );
+
+    lookup.pending[0].complete(Ok(_snapshot()));
+    await older;
+    expect(
+      (cubit.state as GetPaidInvoiceFactsData).invoice.status,
+      GetPaidInvoiceStatus.paid,
+    );
+    await cubit.close();
+  });
 }
 
-GetPaidInvoiceFacts _snapshot() => GetPaidInvoiceFacts(
-  status: GetPaidInvoiceStatus.unpaid,
+GetPaidInvoiceFacts _snapshot({
+  GetPaidInvoiceStatus status = GetPaidInvoiceStatus.unpaid,
+}) => GetPaidInvoiceFacts(
+  status: status,
   settlementState: GetPaidInvoiceSettlementState.none,
   pricingMode: 'sat',
   amountSat: 1000,
@@ -104,5 +133,21 @@ class _FakeLookUpInvoiceFacts implements LookUpGetPaidInvoiceFactsUsecase {
     calls.add(invoiceId);
     authenticatedEvidence.add(authenticatedPaymentEvidence);
     return result;
+  }
+}
+
+class _ControlledLookUpInvoiceFacts
+    implements LookUpGetPaidInvoiceFactsUsecase {
+  final List<Completer<Result<GetPaidInvoiceFacts, GetPaidFailure>>> pending =
+      [];
+
+  @override
+  Future<Result<GetPaidInvoiceFacts, GetPaidFailure>> execute({
+    required String invoiceId,
+    bool authenticatedPaymentEvidence = false,
+  }) {
+    final completer = Completer<Result<GetPaidInvoiceFacts, GetPaidFailure>>();
+    pending.add(completer);
+    return completer.future;
   }
 }
