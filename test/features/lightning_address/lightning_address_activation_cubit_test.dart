@@ -255,6 +255,18 @@ void main() {
       expect(lookup.calls, 2, reason: 'initial lookup plus post-claim refresh');
     });
 
+    test(
+      'does not convert a post-claim programmer error into UI failure',
+      () async {
+        await _loadFirstClaim(cubit, lookup);
+        cubit.nymChanged('alice');
+        walletBehaviors.error = StateError('broken wallet behavior adapter');
+
+        await expectLater(cubit.submit(), throwsA(isA<StateError>()));
+        expect(activate.nyms, ['alice']);
+      },
+    );
+
     test('invalid and reserved nyms never reach registration', () async {
       await _loadFirstClaim(cubit, lookup);
 

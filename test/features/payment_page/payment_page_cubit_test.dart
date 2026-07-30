@@ -359,6 +359,23 @@ void main() {
       expect(cubit.state.submitting, isFalse);
     });
 
+    test(
+      'does not convert a post-save programmer error into UI failure',
+      () async {
+        facade.page = null;
+        final cubit = build();
+        await cubit.load();
+        cubit
+          ..headerChanged('Tip me')
+          ..descriptionChanged('Support my work');
+        facade.savedPage = buildPage();
+        walletBehaviors.error = StateError('broken wallet behavior adapter');
+
+        await expectLater(cubit.save(), throwsA(isA<StateError>()));
+        expect(facade.saveCallCount, 1);
+      },
+    );
+
     test('surfaces an uncertain submission failure', () async {
       facade.page = null;
       final cubit = build();

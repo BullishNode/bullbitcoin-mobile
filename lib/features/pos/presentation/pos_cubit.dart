@@ -375,7 +375,7 @@ class PosCubit extends Cubit<PosState> {
           clearInvalidField: e.kind != PosErrorKind.aliasTaken,
         ),
       );
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning('Point of Sale provision failed', error: e, trace: stack);
       if (isClosed || _isStale(op)) return;
       emit(state.copyWith(submitting: false, failure: _asPosException(e)));

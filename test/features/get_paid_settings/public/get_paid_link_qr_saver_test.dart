@@ -20,4 +20,12 @@ void main() {
     );
     expect(outcome, QrImageSaveOutcome.failed);
   });
+
+  test('does not convert programmer errors into save failures', () async {
+    final future = mapSaveDialogResult(
+      () async => throw StateError('broken save adapter'),
+    );
+
+    await expectLater(future, throwsA(isA<StateError>()));
+  });
 }

@@ -58,7 +58,7 @@ Future<QrImageSaveOutcome> mapSaveDialogResult(
     return result == null
         ? QrImageSaveOutcome.cancelled
         : QrImageSaveOutcome.saved;
-  } catch (_) {
+  } on Exception {
     return QrImageSaveOutcome.failed;
   }
 }

@@ -9,6 +9,27 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockFacade extends Mock implements InvoicesFacade {}
 
+InvoiceDetailCubit _buildDetailCubit(
+  _MockFacade facade, {
+  required InvoiceId invoiceId,
+  Invoice? invoice,
+  Duration pollInitialDelay = const Duration(seconds: 3),
+  Duration pollMaxDelay = const Duration(seconds: 30),
+  DateTime Function()? now,
+}) => InvoiceDetailCubit(
+  getPrivateLink: facade.privateLink,
+  getStatus: facade.status,
+  getMerchantInvoice: facade.merchantInvoice,
+  getFallbackSupervision: facade.fallbackSupervision,
+  getQuote: facade.quote,
+  cancelInvoice: facade.cancel,
+  invoiceId: invoiceId,
+  invoice: invoice,
+  pollInitialDelay: pollInitialDelay,
+  pollMaxDelay: pollMaxDelay,
+  now: now,
+);
+
 InvoiceStatusSnapshot _snapshot(
   InvoiceStatus status, {
   InvoiceSettlementState settlementState = InvoiceSettlementState.none,
@@ -134,6 +155,7 @@ void main() {
 
   setUp(() {
     facade = _MockFacade();
+    when(() => facade.privateLink(any())).thenAnswer((_) async => null);
     when(() => facade.merchantInvoice(any())).thenAnswer(
       (_) async =>
           Ok<Invoice?, InvoicesFailure>(_merchantInvoiceWithoutEvidence()),
@@ -145,12 +167,16 @@ void main() {
 
   InvoiceDetailCubit build({
     Duration initial = const Duration(milliseconds: 5),
-    Duration max = const Duration(milliseconds: 20),
-  }) => InvoiceDetailCubit(
-    facade: facade,
+    Duration? max,
+  }) => _buildDetailCubit(
+    facade,
     invoiceId: InvoiceId('inv-1'),
     pollInitialDelay: initial,
-    pollMaxDelay: max,
+    pollMaxDelay:
+        max ??
+        (initial > const Duration(milliseconds: 20)
+            ? initial
+            : const Duration(milliseconds: 20)),
   );
 
   test(
@@ -220,8 +246,8 @@ void main() {
         ),
       ).thenAnswer((_) async => Ok(_quote(now)));
 
-      final cubit = InvoiceDetailCubit(
-        facade: facade,
+      final cubit = _buildDetailCubit(
+        facade,
         invoiceId: InvoiceId('inv-1'),
         pollInitialDelay: const Duration(milliseconds: 5),
         pollMaxDelay: const Duration(milliseconds: 20),
@@ -351,8 +377,8 @@ void main() {
         ),
       ).thenAnswer((_) async => Ok(_quote(now)));
 
-      final cubit = InvoiceDetailCubit(
-        facade: facade,
+      final cubit = _buildDetailCubit(
+        facade,
         invoiceId: InvoiceId('inv-1'),
         pollInitialDelay: const Duration(seconds: 30),
         now: () => now,
@@ -412,8 +438,8 @@ void main() {
         ),
       ).thenAnswer((_) async => Ok(_quote(now)));
 
-      final cubit = InvoiceDetailCubit(
-        facade: facade,
+      final cubit = _buildDetailCubit(
+        facade,
         invoiceId: InvoiceId('inv-1'),
         pollInitialDelay: const Duration(seconds: 30),
         now: () => now,
@@ -472,8 +498,8 @@ void main() {
         ),
       ).thenAnswer((_) async => Ok(_quote(now)));
 
-      final cubit = InvoiceDetailCubit(
-        facade: facade,
+      final cubit = _buildDetailCubit(
+        facade,
         invoiceId: InvoiceId('inv-1'),
         pollInitialDelay: const Duration(seconds: 30),
         now: () => now,
@@ -541,8 +567,8 @@ void main() {
         ),
       ).thenAnswer((_) async => Ok(_quote(now)));
 
-      final cubit = InvoiceDetailCubit(
-        facade: facade,
+      final cubit = _buildDetailCubit(
+        facade,
         invoiceId: InvoiceId('inv-1'),
         pollInitialDelay: const Duration(seconds: 30),
         now: () => now,
@@ -732,6 +758,24 @@ void main() {
     },
   );
 
+  test(
+    'sub-second polling backs off without collapsing to a zero-delay loop',
+    () async {
+      var statusCalls = 0;
+      when(() => facade.status(any())).thenAnswer((_) async {
+        statusCalls++;
+        return Ok(_snapshot(InvoiceStatus.unpaid));
+      });
+
+      final cubit = build();
+      await cubit.load();
+      await Future<void>.delayed(const Duration(milliseconds: 42));
+
+      expect(statusCalls, inInclusiveRange(3, 5));
+      await cubit.close();
+    },
+  );
+
   test('dispose stops the poll loop (no post-dispose fetch)', () async {
     when(
       () => facade.status(any()),
@@ -829,8 +873,8 @@ void main() {
       ),
     ).thenAnswer((_) async => Ok(_quote(now)));
 
-    final cubit = InvoiceDetailCubit(
-      facade: facade,
+    final cubit = _buildDetailCubit(
+      facade,
       invoiceId: InvoiceId('inv-1'),
       pollInitialDelay: const Duration(seconds: 30),
       now: () => now,
@@ -878,8 +922,8 @@ void main() {
       return quoteCalls == 1 ? Future.value(Ok(first)) : replacement.future;
     });
 
-    final cubit = InvoiceDetailCubit(
-      facade: facade,
+    final cubit = _buildDetailCubit(
+      facade,
       invoiceId: InvoiceId('inv-1'),
       pollInitialDelay: const Duration(seconds: 30),
       now: () => now,
@@ -936,8 +980,8 @@ void main() {
       );
     });
 
-    final cubit = InvoiceDetailCubit(
-      facade: facade,
+    final cubit = _buildDetailCubit(
+      facade,
       invoiceId: InvoiceId('inv-1'),
       pollInitialDelay: const Duration(seconds: 30),
       now: () => now,
@@ -980,8 +1024,8 @@ void main() {
       ),
     ).thenAnswer((_) => quoteResult.future);
 
-    final cubit = InvoiceDetailCubit(
-      facade: facade,
+    final cubit = _buildDetailCubit(
+      facade,
       invoiceId: InvoiceId('inv-1'),
       pollInitialDelay: const Duration(seconds: 30),
       now: () => now,

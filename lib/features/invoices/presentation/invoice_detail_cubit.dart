@@ -63,7 +63,7 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
           state.copyWith(privateLink: link, privateLinkLookupComplete: true),
         );
       }
-    } on Object {
+    } on Exception {
       if (!isClosed) {
         emit(state.copyWith(privateLinkLookupComplete: true));
       }

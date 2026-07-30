@@ -54,7 +54,7 @@ class LightningAddressActivationCubit
     late final bool permanentNamesSupported;
     try {
       permanentNamesSupported = await _getCapability.execute();
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       log.warning(
         'Failed to load Bullnym permanent-name capability',
         error: error,
@@ -156,7 +156,7 @@ class LightningAddressActivationCubit
         readiness,
         walletBehaviorRead: walletBehaviorRead,
       );
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       if (_isStale(operationId)) return;
       final cause = _lightningAddressCause(error);
       if (cause?.code == 'NymNotFound' && !hadPermanentNym) {
@@ -311,7 +311,7 @@ class LightningAddressActivationCubit
         operationId: operationId,
         walletBehaviorRead: walletBehaviorRead,
       );
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       log.warning(
         'Failed to claim permanent Lightning Address nym',
         error: error,
@@ -380,7 +380,7 @@ class LightningAddressActivationCubit
         operationId: operationId,
         walletBehaviorRead: walletBehaviorRead,
       );
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       log.warning(
         online
             ? 'Failed to reactivate permanent Lightning Address'

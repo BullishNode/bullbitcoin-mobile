@@ -441,7 +441,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           clearInvalidField: e.kind != PaymentPageErrorKind.aliasTaken,
         ),
       );
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning('Donation Page save failed', error: e, trace: stack);
       if (isClosed || _isStale(op)) return;
       emit(
