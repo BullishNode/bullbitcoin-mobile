@@ -229,12 +229,19 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
           ),
         );
       case Err(:final failure):
+        _quoteExpiryTimer?.cancel();
+        // A failed public refresh makes the retained admission snapshot stale.
+        // Invalidate payer quotes immediately; read-only invoice details may
+        // remain visible, but no stale state may authorize a payment or cancel.
+        _quoteOperation++;
         emit(
           state.copyWith(
             status: state.snapshot == null
                 ? InvoiceDetailStatus.error
                 : state.status,
             failure: failure,
+            quoteRefreshing: false,
+            clearQuote: true,
           ),
         );
     }

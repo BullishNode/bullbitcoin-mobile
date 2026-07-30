@@ -82,6 +82,7 @@ class InvoiceDetailState {
   bool get canCancel =>
       !cancelling &&
       cancelFinalStatus == null &&
+      failure == null &&
       !hasAuthenticatedPaymentEvidence &&
       (snapshot?.isCancellable ?? false);
 
@@ -94,6 +95,7 @@ class InvoiceDetailState {
       (snapshot?.hasPaymentEvidence ?? false);
 
   bool acceptsInitialPayment(DateTime now) =>
+      failure == null &&
       !hasAuthenticatedPaymentEvidence &&
       (snapshot?.acceptsInitialPayment(now) ?? false);
 

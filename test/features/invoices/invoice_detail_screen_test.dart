@@ -35,6 +35,7 @@ class _StubDetailCubit extends Cubit<InvoiceDetailState>
 
   @override
   bool canRequestQuote(InvoiceStatusSnapshot snapshot) =>
+      state.failure == null &&
       snapshot.acceptsInitialPayment(DateTime.now().toUtc());
 }
 
@@ -448,13 +449,31 @@ void main() {
   });
 
   testWidgets('cached details disclose a failed refresh', (tester) async {
+    final invoiceId = InvoiceId('inv-1');
+    final link = PrivateInvoiceLink.fromServer(
+      invoiceUrl: 'https://example.com/invoice/inv-1',
+      expectedInvoiceId: invoiceId,
+      viewingKey: 'A' * 43,
+      expectedOrigin: Uri.parse('https://example.com'),
+      expectedNym: null,
+    );
     await _pump(
       tester,
       InvoiceDetailState(
         status: InvoiceDetailStatus.loaded,
-        snapshot: _privateLinkSnapshot(InvoiceStatus.unpaid),
+        snapshot: _fiatSnapshot(
+          status: InvoiceStatus.unpaid,
+          settlementState: InvoiceSettlementState.none,
+          quoteRailAvailability: const InvoiceQuoteRailAvailability(
+            lightning: false,
+            liquid: false,
+            bitcoin: true,
+          ),
+        ),
         failure: const InvoicesFailure.network(),
+        privateLink: link,
         privateLinkLookupComplete: true,
+        quote: _activeQuote(),
       ),
     );
 
@@ -462,6 +481,10 @@ void main() {
       find.text('Refresh failed. Showing the last verified invoice details.'),
       findsOneWidget,
     );
+    expect(find.text('Payer quote'), findsNothing);
+    expect(find.text('Private payment link'), findsNothing);
+    expect(find.text('Copy private link'), findsNothing);
+    expect(find.text('Cancel invoice'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

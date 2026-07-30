@@ -321,6 +321,60 @@ void main() {
   );
 
   test(
+    'public refresh failure invalidates stale payer actions and quote',
+    () async {
+      final now = DateTime.utc(2026, 1, 1, 12);
+      var statusCalls = 0;
+      when(() => facade.status(any())).thenAnswer((_) async {
+        statusCalls++;
+        if (statusCalls > 1) {
+          return const Err(InvoicesFailure.network());
+        }
+        return Ok(
+          _snapshot(
+            InvoiceStatus.unpaid,
+            pricingMode: 'fiat_fixed',
+            acceptingPayments: true,
+            expiresAt: now.add(const Duration(days: 1)),
+            quoteRailAvailability: const InvoiceQuoteRailAvailability(
+              lightning: true,
+              liquid: false,
+              bitcoin: false,
+            ),
+          ),
+        );
+      });
+      when(
+        () => facade.quote(
+          invoiceId: any(named: 'invoiceId'),
+          rail: any(named: 'rail'),
+        ),
+      ).thenAnswer((_) async => Ok(_quote(now)));
+
+      final cubit = InvoiceDetailCubit(
+        facade: facade,
+        invoiceId: InvoiceId('inv-1'),
+        pollInitialDelay: const Duration(seconds: 30),
+        now: () => now,
+      );
+      await cubit.load();
+      expect(cubit.state.quote, isNotNull);
+      expect(cubit.state.canCancel, isTrue);
+
+      await cubit.refresh();
+
+      expect(cubit.state.snapshot?.status, InvoiceStatus.unpaid);
+      expect(cubit.state.failure?.kind, InvoicesFailureKind.network);
+      expect(cubit.state.quote, isNull);
+      expect(cubit.state.quoteRefreshing, isFalse);
+      expect(cubit.state.canCancel, isFalse);
+      expect(cubit.state.acceptsInitialPayment(now), isFalse);
+      expect(cubit.canRequestQuote(cubit.state.snapshot!), isFalse);
+      await cubit.close();
+    },
+  );
+
+  test(
     'authenticated evidence closes every stale public payment action',
     () async {
       final now = DateTime.utc(2026, 1, 1, 12);
