@@ -17710,6 +17710,14 @@
   "@getPaidCardSettlementKindLabel": {
     "description": "Detail screen settlement section: label for the server-provided settlement kind."
   },
+  "getPaidCardInvoiceDetailsUnavailable": "Invoice details unavailable",
+  "@getPaidCardInvoiceDetailsUnavailable": {
+    "description": "Get Paid transaction detail card"
+  },
+  "getPaidCardInvoiceDetailsLoading": "Loading invoice details",
+  "@getPaidCardInvoiceDetailsLoading": {
+    "description": "Accessible status while a Get Paid transaction card loads its linked invoice"
+  },
   "getPaidCardPayerInstructionsSectionTitle": "Payer instructions",
   "@getPaidCardPayerInstructionsSectionTitle": {
     "description": "Detail screen: title of the section holding the invoice's payer-facing payment instructions."
@@ -17997,5 +18005,9 @@
   "wizardMetadataBackupNotNow": "Not now",
   "@wizardMetadataBackupNotNow": {
     "description": "Declines the metadata backup offer in the wizard."
+  },
+  "getPaidWalletSettingsUnavailable": "Wallet settings are temporarily unavailable. Try again.",
+  "@getPaidWalletSettingsUnavailable": {
+    "description": "Persistent warning shown when a Get Paid product cannot read its reserved wallet settings."
   }
 }

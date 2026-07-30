@@ -1,7 +1,6 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/widgets/qr_display_widget.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
@@ -20,7 +19,11 @@ GetPaidWalletBehavior _behavior() => const GetPaidWalletBehavior(
   autoSweepEnabled: false,
 );
 
-PosState _editState({bool archived = false, GetPaidWalletBehavior? behavior}) {
+PosState _editState({
+  bool archived = false,
+  GetPaidWalletBehavior? behavior,
+  bool walletBehaviorUnavailable = false,
+}) {
   return PosState(
     status: archived ? PosStatus.archived : PosStatus.edit,
     permanentAlias: 'alice',
@@ -36,6 +39,7 @@ PosState _editState({bool archived = false, GetPaidWalletBehavior? behavior}) {
     label: 'Shop One',
     displayCurrency: 'CAD',
     walletBehavior: behavior,
+    walletBehaviorUnavailable: walletBehaviorUnavailable,
   );
 }
 
@@ -47,6 +51,32 @@ PosState _createState() => const PosState(
 );
 
 void main() {
+  testWidgets('keeps wallet settings unavailability visibly stated', (
+    tester,
+  ) async {
+    final cubit = await _pump(
+      tester,
+      _editState(walletBehaviorUnavailable: true),
+    );
+
+    expect(
+      find.byKey(const Key('get_paid_wallet_behavior_unavailable_warning')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Wallet settings are temporarily unavailable. '
+        'Try again.',
+      ),
+      findsOneWidget,
+    );
+    final priorLoads = cubit.loadCalls;
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(cubit.loadCalls, priorLoads);
+    expect(cubit.retryWalletBehaviorCalls, 1);
+  });
+
   testWidgets(
     'an existing POS collapses the form, shows the exact-URL QR and staff '
     'instructions',
@@ -344,6 +374,7 @@ class _StubPosCubit extends Cubit<PosState> implements PosCubit {
   _StubPosCubit(super.initialState);
 
   int loadCalls = 0;
+  int retryWalletBehaviorCalls = 0;
   int provisionCalls = 0;
   int claimNymCalls = 0;
   bool failOnProvision = false;
@@ -353,6 +384,11 @@ class _StubPosCubit extends Cubit<PosState> implements PosCubit {
   @override
   Future<void> load() async {
     loadCalls += 1;
+  }
+
+  @override
+  Future<void> retryWalletBehavior() async {
+    retryWalletBehaviorCalls += 1;
   }
 
   @override

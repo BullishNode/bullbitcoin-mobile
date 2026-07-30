@@ -74,6 +74,10 @@ class PosState {
   /// True while a wallet-behavior toggle write is in flight.
   final bool walletBehaviorSaving;
 
+  /// The wallet exists status could not be read, so controls must not silently
+  /// disappear as though wallet 103 were confirmed absent.
+  final bool walletBehaviorUnavailable;
+
   const PosState({
     this.status = PosStatus.loading,
     this.submitting = false,
@@ -92,6 +96,7 @@ class PosState {
     this.invalidField,
     this.walletBehavior,
     this.walletBehaviorSaving = false,
+    this.walletBehaviorUnavailable = false,
   });
 
   bool get isLoading => status == PosStatus.loading;
@@ -128,6 +133,7 @@ class PosState {
     PosField? invalidField,
     GetPaidWalletBehavior? walletBehavior,
     bool? walletBehaviorSaving,
+    bool? walletBehaviorUnavailable,
     bool clearFailure = false,
     bool clearTerminal = false,
     bool clearPermanentAlias = false,
@@ -159,6 +165,8 @@ class PosState {
           ? null
           : walletBehavior ?? this.walletBehavior,
       walletBehaviorSaving: walletBehaviorSaving ?? this.walletBehaviorSaving,
+      walletBehaviorUnavailable:
+          walletBehaviorUnavailable ?? this.walletBehaviorUnavailable,
     );
   }
 }

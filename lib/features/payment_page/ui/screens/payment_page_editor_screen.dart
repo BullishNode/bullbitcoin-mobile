@@ -5,11 +5,7 @@ import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/core/widgets/bottom_sheet/x.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_wallet_behavior_card.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_name_choice.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_activation_offer.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_tile.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
@@ -128,7 +124,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
 
   Widget _body(BuildContext context, PaymentPageState state) {
     final cubit = context.read<PaymentPageCubit>();
-    return switch (state.status) {
+    final body = switch (state.status) {
       PaymentPageStatus.loading => const Padding(
         padding: EdgeInsets.only(top: 8),
         child: Column(
@@ -147,6 +143,19 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
       PaymentPageStatus.create ||
       PaymentPageStatus.edit => _editorForm(context, state, cubit),
     };
+    if (!state.walletBehaviorUnavailable) return body;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: GetPaidWalletBehaviorUnavailableWarning(
+            onRetry: cubit.retryWalletBehavior,
+            isRetrying: state.walletBehaviorSaving,
+          ),
+        ),
+        Expanded(child: body),
+      ],
+    );
   }
 
   Widget _unsupportedView(BuildContext context, PaymentPageState state) {

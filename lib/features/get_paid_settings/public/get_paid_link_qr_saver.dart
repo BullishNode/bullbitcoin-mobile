@@ -18,6 +18,9 @@ enum QrImageSaveOutcome {
 /// Saves a rendered QR PNG through the system Files save dialog. No gallery or
 /// broad-storage permission is requested (the picker owns the destination), and
 /// the URL / QR contents / chosen path are never logged.
+///
+/// It lives beside `GetPaidLinkQr` because it exists only as that widget's
+/// injected save seam.
 abstract interface class GetPaidLinkQrSaver {
   Future<QrImageSaveOutcome> save({
     required Uint8List pngBytes,

@@ -15,12 +15,14 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/deactivate_
 import 'package:bb_mobile/features/lightning_address/domain/usecases/delete_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/ensure_lightning_address_registration_live_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_permanent_name_capability_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_receive_readiness_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/lookup_wallet_owned_lightning_address_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/prepare_lightning_address_wallet_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_lightning_address_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/register_wallet_owned_lightning_address_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/update_lightning_address_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
@@ -127,13 +129,24 @@ class LightningAddressLocator {
         delete: locator<DeleteLightningAddressRegistrationUsecase>(),
       ),
     );
+    locator.registerFactory<GetLightningAddressWalletBehaviorUsecase>(
+      () => GetLightningAddressWalletBehaviorUsecase(
+        getPaidSettings: locator<GetPaidSettingsFacade>(),
+      ),
+    );
+    locator.registerFactory<UpdateLightningAddressWalletBehaviorUsecase>(
+      () => UpdateLightningAddressWalletBehaviorUsecase(
+        getPaidSettings: locator<GetPaidSettingsFacade>(),
+      ),
+    );
     locator.registerFactory<LightningAddressActivationCubit>(
       () => LightningAddressActivationCubit(
         locator<GetLightningAddressPermanentNameCapabilityUsecase>(),
         locator<ActivateWalletOwnedLightningAddressUsecase>(),
         locator<DeactivateWalletOwnedLightningAddressUsecase>(),
         locator<LookupLightningAddressReceiveReadinessUsecase>(),
-        locator<GetPaidSettingsFacade>(),
+        locator<GetLightningAddressWalletBehaviorUsecase>(),
+        locator<UpdateLightningAddressWalletBehaviorUsecase>(),
       ),
     );
   }

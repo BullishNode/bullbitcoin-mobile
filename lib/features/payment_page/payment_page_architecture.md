@@ -91,3 +91,16 @@ Archived legacy Pages remain editable before re-publication so descriptions that
 ## Anti-scope
 
 No Invoices or dashboard hub; no image upload (this fork does not manage the OG/avatar images); no QR / save-to-gallery (copy-to-clipboard + external open only). POS remains a separate feature and wallet; the only shared product state is the server-owned permanent alias.
+
+## Wallet Behavior Boundary
+
+Donation Page's auto-sweep and hide-on-home controls read and write the reserved wallet (102)'s behavior
+through Get Paid Settings. That is a foreign boundary, so this feature owns the
+wrapper: `GetPaymentPageWalletBehaviorUsecase` and
+`UpdatePaymentPageWalletBehaviorUsecase` call `GetPaidSettingsFacade`, and the
+Cubit calls only those. The read wrapper owns a found/absent/unavailable result:
+found carries the stable public behavior value, confirmed absence hides the
+controls, and unavailability hides the controls while keeping a persistent
+settings warning visible. A write that fails is `false` (restore what was
+optimistically shown). The settings failure family never reaches presentation,
+and programmer `Error`s are not converted into unavailability.

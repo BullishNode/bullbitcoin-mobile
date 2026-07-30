@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
-import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/claim_payment_page_nym_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_permanent_name_usecase.dart';
+import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_wallet_behavior_usecase.dart';
+import 'package:bb_mobile/features/payment_page/domain/usecases/update_payment_page_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -17,15 +18,23 @@ void main() {
   late _FakeUpdateWalletBehaviorUsecase updateWalletBehavior;
   late _FakeClaimPaymentPageNymUsecase claimNym;
 
-  PaymentPageCubit build() => PaymentPageCubit(
-    facade: facade,
-    getPermanentName: permanentName,
-    claimNym: claimNym,
-    getPaidSettings: _FakeGetPaidSettings(
-      walletBehaviors,
-      updateWalletBehavior,
-    ),
-  );
+  PaymentPageCubit build() {
+    final settings = GetPaidSettingsFacade(
+      walletBehaviors: walletBehaviors.execute,
+      updateWalletBehavior: updateWalletBehavior.execute,
+    );
+    return PaymentPageCubit(
+      facade: facade,
+      getPermanentName: permanentName,
+      claimNym: claimNym,
+      getWalletBehavior: GetPaymentPageWalletBehaviorUsecase(
+        getPaidSettings: settings,
+      ),
+      updateWalletBehavior: UpdatePaymentPageWalletBehaviorUsecase(
+        getPaidSettings: settings,
+      ),
+    );
+  }
 
   PaymentPage buildPage({
     bool archived = false,
@@ -175,6 +184,62 @@ void main() {
 
       expect(cubit.state.status, PaymentPageStatus.loadFailed);
     });
+
+    test('keeps an unavailable wallet read distinct from absence', () async {
+      walletBehaviors.error = Exception('settings unavailable');
+      final cubit = build();
+
+      await cubit.load();
+
+      expect(cubit.state.walletBehavior, isNull);
+      expect(cubit.state.walletBehaviorUnavailable, isTrue);
+    });
+
+    test('confirmed wallet absence does not report unavailability', () async {
+      final cubit = build();
+
+      await cubit.load();
+
+      expect(cubit.state.walletBehavior, isNull);
+      expect(cubit.state.walletBehaviorUnavailable, isFalse);
+    });
+
+    test(
+      'wallet retry preserves dirty form state and coalesces duplicate taps',
+      () async {
+        facade.page = buildPage();
+        walletBehaviors.error = Exception('settings unavailable');
+        final cubit = build();
+        await cubit.load();
+        cubit.headerChanged('Unsaved heading');
+
+        walletBehaviors
+          ..error = null
+          ..behaviors = const [
+            GetPaidWalletBehavior(
+              product: GetPaidWalletProduct.paymentPage,
+              walletId: 'wallet-102',
+              hideOnHome: false,
+              autoSweepEnabled: false,
+            ),
+          ];
+        final gate = Completer<void>();
+        walletBehaviors.gate = gate.future;
+
+        final first = cubit.retryWalletBehavior();
+        await Future<void>.delayed(Duration.zero);
+        await cubit.retryWalletBehavior();
+
+        expect(walletBehaviors.calls, 2); // initial load + one retry
+        expect(cubit.state.header, 'Unsaved heading');
+        gate.complete();
+        await first;
+
+        expect(cubit.state.header, 'Unsaved heading');
+        expect(cubit.state.walletBehavior?.walletId, 'wallet-102');
+        expect(cubit.state.walletBehaviorUnavailable, isFalse);
+      },
+    );
 
     test(
       'server load failure still exposes the local wallet behavior',
@@ -448,14 +513,21 @@ void main() {
   );
 }
 
-class _FakeGetGetPaidWalletBehaviorsUsecase
-    implements GetGetPaidWalletBehaviorsUsecase {
+/// Stands in for the wallet-behavior read the facade callback is wired to.
+class _FakeGetGetPaidWalletBehaviorsUsecase {
   List<GetPaidWalletBehavior> behaviors = const [];
+  Object? error;
+  Future<void>? gate;
+  int calls = 0;
 
-  @override
   Future<List<GetPaidWalletBehavior>> execute({
     GetPaidWalletProduct? only,
   }) async {
+    calls += 1;
+    final currentGate = gate;
+    if (currentGate != null) await currentGate;
+    final currentError = error;
+    if (currentError != null) throw currentError;
     if (only == null) return behaviors;
     return behaviors.where((b) => b.product == only).toList();
   }
@@ -468,33 +540,6 @@ class _FakeUpdateWalletBehaviorUsecase implements UpdateWalletBehaviorUsecase {
     bool? hideOnHome,
     bool? autoSweepEnabled,
   }) async {}
-}
-
-/// Thin fake of the public facade the cubit now depends on, delegating the two
-/// wallet-behavior methods to the existing fakes.
-class _FakeGetPaidSettings implements GetPaidSettingsFacade {
-  _FakeGetPaidSettings(this._behaviors, this._update);
-  final _FakeGetGetPaidWalletBehaviorsUsecase _behaviors;
-  final _FakeUpdateWalletBehaviorUsecase _update;
-
-  @override
-  Future<List<GetPaidWalletBehavior>> walletBehaviors({
-    GetPaidWalletProduct? only,
-  }) => _behaviors.execute(only: only);
-
-  @override
-  Future<void> updateWalletBehavior({
-    required String walletId,
-    bool? hideOnHome,
-    bool? autoSweepEnabled,
-  }) => _update.execute(
-    walletId: walletId,
-    hideOnHome: hideOnHome,
-    autoSweepEnabled: autoSweepEnabled,
-  );
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeGetPaymentPagePermanentNameUsecase

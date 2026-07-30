@@ -8,11 +8,7 @@ import 'package:bb_mobile/core/widgets/bottom_sheet/x.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_activation_offer.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_tile.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_wallet_behavior_card.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_name_choice.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/pos/domain/pos_error.dart';
 import 'package:bb_mobile/features/pos/domain/pos_validation.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
@@ -118,7 +114,7 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
 
   Widget _body(BuildContext context, PosState state) {
     final cubit = context.read<PosCubit>();
-    return switch (state.status) {
+    final body = switch (state.status) {
       PosStatus.loading => const Padding(
         padding: EdgeInsets.only(top: 8),
         child: Column(
@@ -136,6 +132,19 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
       PosStatus.archived => _archivedView(context, state, cubit),
       PosStatus.create || PosStatus.edit => _form(context, state, cubit),
     };
+    if (!state.walletBehaviorUnavailable) return body;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: GetPaidWalletBehaviorUnavailableWarning(
+            onRetry: cubit.retryWalletBehavior,
+            isRetrying: state.walletBehaviorSaving,
+          ),
+        ),
+        Expanded(child: body),
+      ],
+    );
   }
 
   Widget _unsupportedView(BuildContext context, PosState state) {

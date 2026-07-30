@@ -58,6 +58,10 @@ class LightningAddressActivationState {
   /// True while a wallet-behavior toggle write is in flight.
   final bool walletBehaviorSaving;
 
+  /// The wallet exists status could not be read, so controls must not silently
+  /// disappear as though wallet 101 were confirmed absent.
+  final bool walletBehaviorUnavailable;
+
   const LightningAddressActivationState({
     this.status = LightningAddressActivationStatus.loading,
     this.failure,
@@ -71,6 +75,7 @@ class LightningAddressActivationState {
     this.autoSweepConfirmed = false,
     this.walletBehavior,
     this.walletBehaviorSaving = false,
+    this.walletBehaviorUnavailable = false,
   });
 
   bool get isLoading => status == LightningAddressActivationStatus.loading;
@@ -100,6 +105,7 @@ class LightningAddressActivationState {
     bool? autoSweepConfirmed,
     GetPaidWalletBehavior? walletBehavior,
     bool? walletBehaviorSaving,
+    bool? walletBehaviorUnavailable,
     bool clearFailure = false,
     bool clearRegisteredAddress = false,
     bool clearWalletBehavior = false,
@@ -125,6 +131,8 @@ class LightningAddressActivationState {
           ? null
           : walletBehavior ?? this.walletBehavior,
       walletBehaviorSaving: walletBehaviorSaving ?? this.walletBehaviorSaving,
+      walletBehaviorUnavailable:
+          walletBehaviorUnavailable ?? this.walletBehaviorUnavailable,
     );
   }
 }

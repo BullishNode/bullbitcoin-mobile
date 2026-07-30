@@ -79,3 +79,16 @@ The feature remains fail-closed unless pay2 advertises the exact
 permanent-name contract, and `kind='pos'` signing/response validation remains
 mandatory. Server deployment is an ops gate outside this mobile slice; this
 mobile PR makes no server commits.
+
+## Wallet Behavior Boundary
+
+Point of Sale's auto-sweep and hide-on-home controls read and write the reserved wallet (103)'s behavior
+through Get Paid Settings. That is a foreign boundary, so this feature owns the
+wrapper: `GetPosWalletBehaviorUsecase` and
+`UpdatePosWalletBehaviorUsecase` call `GetPaidSettingsFacade`, and the
+Cubit calls only those. The read wrapper owns a found/absent/unavailable result:
+found carries the stable public behavior value, confirmed absence hides the
+controls, and unavailability hides the controls while keeping a persistent
+settings warning visible. A write that fails is `false` (restore what was
+optimistically shown). The settings failure family never reaches presentation,
+and programmer `Error`s are not converted into unavailability.

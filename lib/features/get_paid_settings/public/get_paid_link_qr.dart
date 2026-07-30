@@ -7,7 +7,7 @@ import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/qr_display_widget.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr_saver.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_link_qr_saver.dart';
 import 'package:bull_ui/bull_ui.dart' show Gap;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -21,6 +21,10 @@ import 'package:url_launcher/url_launcher.dart';
 /// normalization. Download renders the on-screen QR to a high-contrast PNG and
 /// hands it to the system Files save dialog; a user cancel is neutral. The URL,
 /// QR contents and chosen destination are never logged.
+///
+/// It lives in this feature's `public/` surface because it is shared Get Paid
+/// product UI — the link a Get Paid surface advertises — and both product
+/// features render it directly.
 class GetPaidLinkQr extends StatefulWidget {
   const GetPaidLinkQr({
     super.key,

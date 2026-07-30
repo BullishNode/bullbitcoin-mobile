@@ -17,10 +17,12 @@ import 'package:bb_mobile/features/payment_page/domain/usecases/ensure_payment_p
 import 'package:bb_mobile/features/payment_page/domain/usecases/find_payment_page_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_permanent_name_usecase.dart';
+import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_supported_display_currencies_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/prepare_payment_page_wallet_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/resolve_payment_page_identity_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/save_payment_page_usecase.dart';
+import 'package:bb_mobile/features/payment_page/domain/usecases/update_payment_page_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
 import 'package:get_it/get_it.dart';
@@ -114,12 +116,36 @@ class PaymentPageLocator {
         prepareWallet: prepareWallet.execute,
       );
     });
+    locator.registerFactory<GetPaymentPageWalletBehaviorUsecase>(
+      () => GetPaymentPageWalletBehaviorUsecase(
+        getPaidSettings: locator<GetPaidSettingsFacade>(),
+      ),
+    );
+    locator.registerFactory<UpdatePaymentPageWalletBehaviorUsecase>(
+      () => UpdatePaymentPageWalletBehaviorUsecase(
+        getPaidSettings: locator<GetPaidSettingsFacade>(),
+      ),
+    );
     locator.registerFactory<PaymentPageCubit>(
       () => PaymentPageCubit(
-        facade: locator<PaymentPageFacade>(),
+        find: ({required nym}) =>
+            locator<FindPaymentPageUsecase>().execute(nym: nym),
+        save: (command) => locator<SavePaymentPageUsecase>().execute(
+          header: command.header,
+          description: command.description,
+          displayCurrency: command.displayCurrency,
+          website: command.website,
+          twitter: command.twitter,
+          instagram: command.instagram,
+          aliasClaim: command.aliasClaim,
+        ),
+        archive: locator<ArchivePaymentPageUsecase>().execute,
+        supportedCurrencies:
+            locator<GetSupportedDisplayCurrenciesUsecase>().execute,
         getPermanentName: locator<GetPaymentPagePermanentNameUsecase>(),
         claimNym: locator<ClaimPaymentPageNymUsecase>(),
-        getPaidSettings: locator<GetPaidSettingsFacade>(),
+        getWalletBehavior: locator<GetPaymentPageWalletBehaviorUsecase>(),
+        updateWalletBehavior: locator<UpdatePaymentPageWalletBehaviorUsecase>(),
       ),
     );
   }

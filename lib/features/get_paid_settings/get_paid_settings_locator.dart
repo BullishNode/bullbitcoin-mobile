@@ -15,8 +15,15 @@ final class GetPaidSettingsLocator {
     );
     locator.registerFactory<GetPaidSettingsFacade>(
       () => GetPaidSettingsFacade(
-        locator<GetGetPaidWalletBehaviorsUsecase>(),
-        locator<UpdateWalletBehaviorUsecase>(),
+        walletBehaviors: ({only}) =>
+            locator<GetGetPaidWalletBehaviorsUsecase>().execute(only: only),
+        updateWalletBehavior:
+            ({required walletId, hideOnHome, autoSweepEnabled}) =>
+                locator<UpdateWalletBehaviorUsecase>().execute(
+                  walletId: walletId,
+                  hideOnHome: hideOnHome,
+                  autoSweepEnabled: autoSweepEnabled,
+                ),
       ),
     );
   }

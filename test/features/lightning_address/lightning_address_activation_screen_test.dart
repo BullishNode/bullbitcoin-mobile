@@ -4,16 +4,20 @@ import 'package:bb_mobile/features/lightning_address/presentation/lightning_addr
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_state.dart';
 import 'package:bb_mobile/features/lightning_address/ui/screens/lightning_address_activation_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
+import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../fiat_settlement/support/testnet_fiat_settlement_dependencies.dart';
+
 void main() {
   String? copiedText;
 
   setUp(() {
+    registerTestnetFiatSettlementDependencies();
     copiedText = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
@@ -25,9 +29,39 @@ void main() {
         });
   });
 
-  tearDown(() {
+  tearDown(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
+    await locator.reset();
+  });
+
+  testWidgets('keeps wallet settings unavailability visibly stated', (
+    tester,
+  ) async {
+    final cubit = await _pump(
+      tester,
+      const LightningAddressActivationState(
+        status: LightningAddressActivationStatus.unsupported,
+        walletBehaviorUnavailable: true,
+      ),
+    );
+
+    expect(
+      find.byKey(const Key('get_paid_wallet_behavior_unavailable_warning')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Wallet settings are temporarily unavailable. '
+        'Try again.',
+      ),
+      findsOneWidget,
+    );
+    final priorLoads = cubit.loadCalls;
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(cubit.loadCalls, priorLoads);
+    expect(cubit.retryWalletBehaviorCalls, 1);
   });
 
   testWidgets('old-server state hides every name and availability control', (
@@ -332,11 +366,17 @@ class _StubCubit extends Cubit<LightningAddressActivationState>
   int activateExistingCalls = 0;
   int deactivateCalls = 0;
   int loadCalls = 0;
+  int retryWalletBehaviorCalls = 0;
   int submitCalls = 0;
 
   @override
   Future<void> load() async {
     loadCalls += 1;
+  }
+
+  @override
+  Future<void> retryWalletBehavior() async {
+    retryWalletBehaviorCalls += 1;
   }
 
   @override
