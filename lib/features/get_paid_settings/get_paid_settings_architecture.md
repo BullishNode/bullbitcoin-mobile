@@ -56,7 +56,8 @@ code or test — has to name an internal use case to reach the boundary.
 
 No consuming Cubit calls this facade directly. Each product feature owns a
 wrapper use case pair over it — `Get<Product>WalletBehaviorUsecase` and
-`Update<Product>WalletBehaviorUsecase` — which maps a failed read to `null` and a
-failed write to `false`, so this feature's failures never surface as foreign
+`Update<Product>WalletBehaviorUsecase`. Reads map the foreign result into the
+consumer's own `found`, `absent`, or `unavailable` outcome; writes map failure
+to `false`. This feature's failures therefore never surface as foreign
 exceptions inside another feature's presentation layer. The Lightning Address,
 Donation Page and Point of Sale edges are recorded in `FEATURES.md`.
