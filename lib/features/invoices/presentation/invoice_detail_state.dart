@@ -89,6 +89,10 @@ class InvoiceDetailState {
       authenticatedPaymentEvidenceSeen ||
       (invoice?.hasPaymentEvidence ?? false);
 
+  bool get hasPaymentEvidence =>
+      hasAuthenticatedPaymentEvidence ||
+      (snapshot?.hasPaymentEvidence ?? false);
+
   bool acceptsInitialPayment(DateTime now) =>
       !hasAuthenticatedPaymentEvidence &&
       (snapshot?.acceptsInitialPayment(now) ?? false);

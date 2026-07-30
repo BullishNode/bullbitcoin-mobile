@@ -122,8 +122,11 @@ values. Provider entities and their failure family therefore never enter Get
 Paid presentation or UI. A public-read failure remains a retryable detail
 failure. An authenticated-accounting failure is stated as unavailable while
 the public detail remains visible; it must never erase the ordinary receipt or
-revive payer instructions. An invoice-backed history row is itself positive
-authenticated payment evidence.
+revive payer instructions. The route supplies the fact that an invoice-backed
+history row is positive authenticated payment evidence; the Get Paid use case
+folds that fact into its owned admission snapshot. The screen only renders the
+result and never combines foreign transaction and invoice state into a payment
+policy of its own.
 
 Initial and failure are deliberately distinct. Initial means no read applies (a
 Lightning Address receipt carries no invoice id) and the card renders as it does

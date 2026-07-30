@@ -115,6 +115,7 @@ class GetPaidInvoiceFacts {
   final int remainingAmountSat;
   final bool? acceptingPayments;
   final bool topUpAllowed;
+  final bool authenticatedPaymentEvidence;
   final GetPaidInvoicePaymentSummary? paymentSummary;
   final bool paymentSummaryUnavailable;
   final int paymentToleranceSat;
@@ -148,6 +149,7 @@ class GetPaidInvoiceFacts {
     required this.remainingAmountSat,
     required this.acceptingPayments,
     required this.topUpAllowed,
+    required this.authenticatedPaymentEvidence,
     required this.paymentSummary,
     required this.paymentSummaryUnavailable,
     required this.paymentToleranceSat,
@@ -186,8 +188,7 @@ class GetPaidInvoiceFacts {
     _ => false,
   };
 
-  bool get hasPaymentEvidence =>
-      (paymentSummary?.hasPaymentEvidence ?? false) ||
+  bool get hasPublicPaymentEvidence =>
       paymentEvents.isNotEmpty ||
       paidAmountSat != null ||
       paidAt != null ||
@@ -197,6 +198,14 @@ class GetPaidInvoiceFacts {
       status == GetPaidInvoiceStatus.paid ||
       status == GetPaidInvoiceStatus.underpaid ||
       status == GetPaidInvoiceStatus.overpaid;
+
+  bool get hasPaymentEvidence =>
+      authenticatedPaymentEvidence ||
+      (paymentSummary?.hasPaymentEvidence ?? false) ||
+      hasPublicPaymentEvidence;
+
+  bool get shouldShowPaymentSummaryUnavailable =>
+      hasPaymentEvidence && paymentSummaryUnavailable;
 
   /// Whether public invoice state permits the initial payment request now.
   /// Authenticated evidence always closes admission. [topUpAllowed] is not an

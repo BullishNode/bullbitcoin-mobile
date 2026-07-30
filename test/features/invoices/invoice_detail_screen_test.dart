@@ -365,6 +365,95 @@ void main() {
     },
   );
 
+  testWidgets(
+    'retained authenticated evidence marks accounting stale when public lags',
+    (tester) async {
+      final invoice = Invoice(
+        id: InvoiceId('inv-1'),
+        status: InvoiceStatus.paid,
+        amountSat: 1000,
+        remainingAmountSat: 0,
+        acceptingPayments: false,
+        paymentSummary: InvoicePaymentSummary(
+          observedAmountSat: 1000,
+          creditedAmountSat: 1000,
+          remainingAmountSat: 0,
+          excessAmountSat: 0,
+          logicalPaymentCount: 1,
+          multiplePayments: false,
+          latePaymentCount: 0,
+          hasLatePayment: false,
+          firstPaymentAt: DateTime.utc(2026, 2),
+          lastPaymentAt: DateTime.utc(2026, 2),
+          acceptingPayments: false,
+          topUpAllowed: false,
+          requiresMerchantAction: false,
+          attentionReasons: const [],
+          fiat: null,
+        ),
+        acceptBtc: true,
+        acceptLn: true,
+        acceptLiquid: true,
+        createdAt: DateTime.utc(2026),
+        expiresAt: DateTime.utc(2030),
+      );
+
+      await _pump(
+        tester,
+        InvoiceDetailState(
+          status: InvoiceDetailStatus.loaded,
+          invoice: invoice,
+          snapshot: _privateLinkSnapshot(InvoiceStatus.unpaid),
+          authenticatedInvoiceFailure: const InvoicesFailure.network(),
+          authenticatedPaymentEvidenceSeen: true,
+          privateLinkLookupComplete: true,
+        ),
+      );
+
+      expect(
+        find.text(
+          'Payment totals could not be refreshed. '
+          'Showing the last verified values.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Private payment link'), findsNothing);
+      expect(find.text('Cancel invoice'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('initial read failure offers an explicit retry', (tester) async {
+    await _pump(
+      tester,
+      const InvoiceDetailState(
+        status: InvoiceDetailStatus.error,
+        failure: InvoicesFailure.network(),
+      ),
+    );
+
+    expect(find.text('Retry'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('cached details disclose a failed refresh', (tester) async {
+    await _pump(
+      tester,
+      InvoiceDetailState(
+        status: InvoiceDetailStatus.loaded,
+        snapshot: _privateLinkSnapshot(InvoiceStatus.unpaid),
+        failure: const InvoicesFailure.network(),
+        privateLinkLookupComplete: true,
+      ),
+    );
+
+    expect(
+      find.text('Refresh failed. Showing the last verified invoice details.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('unsupported status hides payment and private-link actions', (
     tester,
   ) async {

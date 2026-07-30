@@ -18041,5 +18041,13 @@
   "invoicePaymentSummaryUnavailable": "Detailed payment accounting is unavailable.",
   "@invoicePaymentSummaryUnavailable": {
     "description": "Shown when an authenticated legacy invoice has payment evidence but no payment summary."
+  },
+  "invoiceDetailRefreshFailed": "Refresh failed. Showing the last verified invoice details.",
+  "@invoiceDetailRefreshFailed": {
+    "description": "Shown above cached invoice details when a read-only refresh fails."
+  },
+  "invoicePaymentSummaryStale": "Payment totals could not be refreshed. Showing the last verified values.",
+  "@invoicePaymentSummaryStale": {
+    "description": "Shown when retained authenticated payment totals are visible after their refresh fails."
   }
 }

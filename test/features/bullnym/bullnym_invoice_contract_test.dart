@@ -459,28 +459,33 @@ void main() {
 
   group('T-INV-DTO parse round-trips', () {
     test('C30 fixture hash and Bullnym provenance are pinned', () {
-      final fixture = File(
-        'test/features/bullnym/fixtures/invoice-payment-admission-c30.json',
-      ).readAsBytesSync();
-      final sidecar = File(
-        'test/features/bullnym/fixtures/invoice-payment-admission-c30.sha256',
-      ).readAsStringSync();
+      for (final name in const [
+        'invoice-payment-admission-public-c30',
+        'invoice-payment-accounting-authenticated-c30',
+      ]) {
+        final fixture = File(
+          'test/features/bullnym/fixtures/$name.json',
+        ).readAsBytesSync();
+        final sidecar = File(
+          'test/features/bullnym/fixtures/$name.sha256',
+        ).readAsStringSync();
 
-      expect(sidecar.split(' ').first, sha256.convert(fixture).toString());
-      final json = jsonDecode(utf8.decode(fixture)) as Map<String, dynamic>;
-      final provenance = json['_provenance'] as Map<String, dynamic>;
-      expect(
-        provenance['bullnym_commit'],
-        '1accc304026bcba7b3724f7f971db3e1f9462765',
-      );
-      expect(provenance['synthetic'], isTrue);
+        expect(sidecar.split(' ').first, sha256.convert(fixture).toString());
+        final json = jsonDecode(utf8.decode(fixture)) as Map<String, dynamic>;
+        final provenance = json['_provenance'] as Map<String, dynamic>;
+        expect(
+          provenance['bullnym_commit'],
+          '1accc304026bcba7b3724f7f971db3e1f9462765',
+        );
+        expect(provenance['synthetic'], isTrue);
+      }
     });
 
     test('C30 public admission fixtures decode exact booleans', () async {
       final fixture =
           jsonDecode(
                 File(
-                  'test/features/bullnym/fixtures/invoice-payment-admission-c30.json',
+                  'test/features/bullnym/fixtures/invoice-payment-admission-public-c30.json',
                 ).readAsStringSync(),
               )
               as Map<String, dynamic>;
@@ -509,7 +514,7 @@ void main() {
         final fixture =
             jsonDecode(
                   File(
-                    'test/features/bullnym/fixtures/invoice-payment-admission-c30.json',
+                    'test/features/bullnym/fixtures/invoice-payment-accounting-authenticated-c30.json',
                   ).readAsStringSync(),
                 )
                 as Map<String, dynamic>;

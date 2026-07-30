@@ -20,6 +20,7 @@ class LookUpGetPaidInvoiceFactsUsecase {
   @useResult
   Future<Result<GetPaidInvoiceFacts, GetPaidFailure>> execute({
     required String invoiceId,
+    bool authenticatedPaymentEvidence = false,
   }) async {
     final id = InvoiceId(invoiceId);
     late final InvoiceStatusSnapshot publicInvoice;
@@ -57,6 +58,7 @@ class LookUpGetPaidInvoiceFactsUsecase {
     return Ok(
       _map(
         publicInvoice,
+        authenticatedPaymentEvidence: authenticatedPaymentEvidence,
         paymentSummary: merchant.summary,
         paymentSummaryUnavailable: merchant.unavailable,
       ),
@@ -96,6 +98,7 @@ class LookUpGetPaidInvoiceFactsUsecase {
 
   GetPaidInvoiceFacts _map(
     InvoiceStatusSnapshot invoice, {
+    required bool authenticatedPaymentEvidence,
     required GetPaidInvoicePaymentSummary? paymentSummary,
     required bool paymentSummaryUnavailable,
   }) {
@@ -110,6 +113,7 @@ class LookUpGetPaidInvoiceFactsUsecase {
       remainingAmountSat: invoice.remainingAmountSat,
       acceptingPayments: invoice.acceptingPayments,
       topUpAllowed: invoice.topUpAllowed,
+      authenticatedPaymentEvidence: authenticatedPaymentEvidence,
       paymentSummary: paymentSummary,
       paymentSummaryUnavailable: paymentSummaryUnavailable,
       paymentToleranceSat: invoice.paymentToleranceSat,

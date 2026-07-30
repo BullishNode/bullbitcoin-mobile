@@ -36,8 +36,6 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
     final invoice = invoiceFacts is GetPaidInvoiceFactsData
         ? invoiceFacts.invoice
         : null;
-    final authenticatedPaymentEvidence =
-        transaction.isInvoiceBacked || (invoice?.hasPaymentEvidence ?? false);
     return BullScaffold(
       body: SafeArea(
         bottom: false,
@@ -48,91 +46,90 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
               onBack: context.pop,
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Text(
-                    getPaidTransactionAmountText(
-                      context,
-                      transaction.amountSat,
-                    ),
-                    textAlign: TextAlign.center,
-                    style: context.bullText.headlineLarge,
-                  ),
-                  // The entry's own facts.
-                  ..._section(
-                    context,
-                    title: context.loc.getPaidCardDetailsSectionTitle,
-                    sectionKey: const ValueKey('get-paid-core-facts-section'),
-                    rows: _coreFactRows(context, transaction),
-                  ),
-                  // The private, merchant-only settlement breakdown.
-                  ..._section(
-                    context,
-                    title: context.loc.getPaidCardSettlementSectionTitle,
-                    sectionKey: const ValueKey('get-paid-settlement-section'),
-                    rows: _settlementRows(context, transaction.settlement),
-                  ),
-                  // The invoice's own state, merged into this card rather than
-                  // hidden behind a second screen. A failed read states itself
-                  // in the section's own place, mirroring how an uninterpretable
-                  // settlement says so.
-                  ..._section(
-                    context,
-                    title: context.loc.invoiceDetailTitle,
-                    sectionKey: const ValueKey('get-paid-invoice-section'),
-                    rows: invoice == null
-                        ? _invoiceStatusRows(
-                            context,
-                            invoiceFacts,
-                            transaction.invoiceId,
-                          )
-                        : _invoiceRows(context, invoice, transaction),
-                  ),
-                  if (invoice != null &&
-                      authenticatedPaymentEvidence &&
-                      invoice.paymentSummaryUnavailable)
-                    Padding(
-                      key: const ValueKey(
-                        'get-paid-payment-summary-unavailable',
+              child: RefreshIndicator(
+                onRefresh: context.read<GetPaidInvoiceFactsCubit>().retry,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Text(
+                      getPaidTransactionAmountText(
+                        context,
+                        transaction.amountSat,
                       ),
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        context.loc.invoicePaymentSummaryUnavailable,
-                        style: context.bullText.bodyMedium?.copyWith(
-                          color: context.bull.textMuted,
+                      textAlign: TextAlign.center,
+                      style: context.bullText.headlineLarge,
+                    ),
+                    // The entry's own facts.
+                    ..._section(
+                      context,
+                      title: context.loc.getPaidCardDetailsSectionTitle,
+                      sectionKey: const ValueKey('get-paid-core-facts-section'),
+                      rows: _coreFactRows(context, transaction),
+                    ),
+                    // The private, merchant-only settlement breakdown.
+                    ..._section(
+                      context,
+                      title: context.loc.getPaidCardSettlementSectionTitle,
+                      sectionKey: const ValueKey('get-paid-settlement-section'),
+                      rows: _settlementRows(context, transaction.settlement),
+                    ),
+                    // The invoice's own state, merged into this card rather than
+                    // hidden behind a second screen. A failed read states itself
+                    // in the section's own place, mirroring how an uninterpretable
+                    // settlement says so.
+                    ..._section(
+                      context,
+                      title: context.loc.invoiceDetailTitle,
+                      sectionKey: const ValueKey('get-paid-invoice-section'),
+                      rows: invoice == null
+                          ? _invoiceStatusRows(
+                              context,
+                              invoiceFacts,
+                              transaction.invoiceId,
+                            )
+                          : _invoiceRows(context, invoice, transaction),
+                    ),
+                    if (invoice != null &&
+                        invoice.shouldShowPaymentSummaryUnavailable)
+                      Padding(
+                        key: const ValueKey(
+                          'get-paid-payment-summary-unavailable',
+                        ),
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          context.loc.invoicePaymentSummaryUnavailable,
+                          style: context.bullText.bodyMedium?.copyWith(
+                            color: context.bull.textMuted,
+                          ),
                         ),
                       ),
+                    // Everything that happened, one compact row per observation.
+                    ..._section(
+                      context,
+                      title: context.loc.invoicePaymentHistoryTitle,
+                      sectionKey: const ValueKey(
+                        'get-paid-invoice-payment-events',
+                      ),
+                      rows: invoice == null
+                          ? const []
+                          : _paymentEventRows(context, invoice.paymentEvents),
                     ),
-                  // Everything that happened, one compact row per observation.
-                  ..._section(
-                    context,
-                    title: context.loc.invoicePaymentHistoryTitle,
-                    sectionKey: const ValueKey(
-                      'get-paid-invoice-payment-events',
+                    // Last, and collapsed: the payer-facing instructions the
+                    // invoice carried. Kept for completeness, not for scanning.
+                    ..._section(
+                      context,
+                      title:
+                          context.loc.getPaidCardPayerInstructionsSectionTitle,
+                      sectionKey: const ValueKey(
+                        'get-paid-payer-instructions-section',
+                      ),
+                      rows: invoice == null
+                          ? const []
+                          : _payerInstructionRows(context, invoice),
                     ),
-                    rows: invoice == null
-                        ? const []
-                        : _paymentEventRows(context, invoice.paymentEvents),
-                  ),
-                  // Last, and collapsed: the payer-facing instructions the
-                  // invoice carried. Kept for completeness, not for scanning.
-                  ..._section(
-                    context,
-                    title: context.loc.getPaidCardPayerInstructionsSectionTitle,
-                    sectionKey: const ValueKey(
-                      'get-paid-payer-instructions-section',
-                    ),
-                    rows: invoice == null
-                        ? const []
-                        : _payerInstructionRows(
-                            context,
-                            invoice,
-                            authenticatedPaymentEvidence:
-                                authenticatedPaymentEvidence,
-                          ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -175,9 +172,7 @@ List<DetailsTableItem> _invoiceStatusRows(
               textAlign: TextAlign.end,
             ),
             TextButton(
-              onPressed: () => context.read<GetPaidInvoiceFactsCubit>().load(
-                invoiceId: invoiceId,
-              ),
+              onPressed: context.read<GetPaidInvoiceFactsCubit>().retry,
               child: Text(context.loc.retry),
             ),
           ],
@@ -331,7 +326,9 @@ List<DetailsTableItem> _invoiceRows(
   // The headline already states what was received; a paid amount that equals it
   // adds nothing. A differing one is the partial/over payment fact.
   final summary = invoice.paymentSummary;
-  final paidAmount = summary?.observedAmountSat ?? invoice.paidAmountSat;
+  final paidAmount =
+      summary?.observedAmountSat ??
+      (invoice.hasPublicPaymentEvidence ? invoice.paidAmountSat : null);
   if (paidAmount case final paidAmountSat?) {
     if (paidAmountSat != transaction.amountSat) {
       rows.add(
@@ -346,8 +343,9 @@ List<DetailsTableItem> _invoiceRows(
     }
   }
   final remainingAmount =
-      summary?.remainingAmountSat ?? invoice.remainingAmountSat;
-  if (invoice.hasPaymentEvidence && remainingAmount > 0) {
+      summary?.remainingAmountSat ??
+      (invoice.hasPublicPaymentEvidence ? invoice.remainingAmountSat : 0);
+  if (remainingAmount > 0) {
     rows.add(
       _row(
         context,
@@ -356,7 +354,9 @@ List<DetailsTableItem> _invoiceRows(
       ),
     );
   }
-  final overpaidAmount = summary?.excessAmountSat ?? invoice.overpaidAmountSat;
+  final overpaidAmount =
+      summary?.excessAmountSat ??
+      (invoice.hasPublicPaymentEvidence ? invoice.overpaidAmountSat : null);
   if (overpaidAmount case final overpaidAmountSat?) {
     rows.add(
       _row(
@@ -515,11 +515,9 @@ List<DetailsTableItem> _paymentEventRows(
 /// copyable in full, and expandable — present, but never in the way.
 List<DetailsTableItem> _payerInstructionRows(
   BuildContext context,
-  GetPaidInvoiceFacts invoice, {
-  required bool authenticatedPaymentEvidence,
-}) {
-  if (authenticatedPaymentEvidence ||
-      !invoice.acceptsInitialPayment(DateTime.now().toUtc())) {
+  GetPaidInvoiceFacts invoice,
+) {
+  if (!invoice.acceptsInitialPayment(DateTime.now().toUtc())) {
     return const [];
   }
   final rows = <DetailsTableItem>[];

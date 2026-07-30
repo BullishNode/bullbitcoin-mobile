@@ -475,5 +475,6 @@ class _UnreadInvoiceFacts implements LookUpGetPaidInvoiceFactsUsecase {
   @override
   Future<Result<GetPaidInvoiceFacts, GetPaidFailure>> execute({
     required String invoiceId,
+    bool authenticatedPaymentEvidence = false,
   }) => throw UnimplementedError();
 }

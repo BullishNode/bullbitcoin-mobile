@@ -316,6 +316,140 @@ void main() {
   );
 
   test(
+    'public payment evidence closes actions before authentication completes',
+    () async {
+      final now = DateTime.utc(2026, 1, 1, 12);
+      final delayedAuthentication =
+          Completer<Result<Invoice?, InvoicesFailure>>();
+      var statusCalls = 0;
+      var authenticatedCalls = 0;
+      when(() => facade.status(any())).thenAnswer((_) async {
+        statusCalls++;
+        return Ok(
+          _snapshot(
+            statusCalls == 1 ? InvoiceStatus.unpaid : InvoiceStatus.paid,
+            pricingMode: 'fiat_fixed',
+            acceptingPayments: statusCalls == 1,
+            expiresAt: now.add(const Duration(days: 1)),
+            quoteRailAvailability: const InvoiceQuoteRailAvailability(
+              lightning: true,
+              liquid: false,
+              bitcoin: false,
+            ),
+          ),
+        );
+      });
+      when(() => facade.merchantInvoice(any())).thenAnswer((_) {
+        authenticatedCalls++;
+        if (authenticatedCalls == 1) {
+          return Future.value(
+            Ok<Invoice?, InvoicesFailure>(_merchantInvoiceWithoutEvidence()),
+          );
+        }
+        return delayedAuthentication.future;
+      });
+      when(
+        () => facade.quote(
+          invoiceId: any(named: 'invoiceId'),
+          rail: any(named: 'rail'),
+        ),
+      ).thenAnswer((_) async => Ok(_quote(now)));
+
+      final cubit = InvoiceDetailCubit(
+        facade: facade,
+        invoiceId: InvoiceId('inv-1'),
+        pollInitialDelay: const Duration(seconds: 30),
+        now: () => now,
+      );
+      await cubit.load();
+      expect(cubit.state.quote, isNotNull);
+      expect(cubit.state.canCancel, isTrue);
+
+      final refresh = cubit.refresh();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.snapshot?.status, InvoiceStatus.paid);
+      expect(cubit.state.quote, isNull);
+      expect(cubit.state.canCancel, isFalse);
+      expect(cubit.canRequestQuote(cubit.state.snapshot!), isFalse);
+
+      delayedAuthentication.complete(
+        Ok(_merchantInvoice(observedAmountSat: 1000, logicalPaymentCount: 1)),
+      );
+      await refresh;
+      await cubit.close();
+    },
+  );
+
+  test(
+    'authenticated evidence closes actions before public status completes',
+    () async {
+      final now = DateTime.utc(2026, 1, 1, 12);
+      final delayedPublicStatus =
+          Completer<Result<InvoiceStatusSnapshot, InvoicesFailure>>();
+      var statusCalls = 0;
+      var authenticatedCalls = 0;
+      final unpaid = _snapshot(
+        InvoiceStatus.unpaid,
+        pricingMode: 'fiat_fixed',
+        acceptingPayments: true,
+        expiresAt: now.add(const Duration(days: 1)),
+        quoteRailAvailability: const InvoiceQuoteRailAvailability(
+          lightning: true,
+          liquid: false,
+          bitcoin: false,
+        ),
+      );
+      when(() => facade.status(any())).thenAnswer((_) {
+        statusCalls++;
+        return statusCalls == 1
+            ? Future.value(Ok(unpaid))
+            : delayedPublicStatus.future;
+      });
+      when(() => facade.merchantInvoice(any())).thenAnswer((_) async {
+        authenticatedCalls++;
+        return Ok(
+          authenticatedCalls == 1
+              ? _merchantInvoiceWithoutEvidence()
+              : _merchantInvoice(
+                  observedAmountSat: 1000,
+                  logicalPaymentCount: 1,
+                ),
+        );
+      });
+      when(
+        () => facade.quote(
+          invoiceId: any(named: 'invoiceId'),
+          rail: any(named: 'rail'),
+        ),
+      ).thenAnswer((_) async => Ok(_quote(now)));
+
+      final cubit = InvoiceDetailCubit(
+        facade: facade,
+        invoiceId: InvoiceId('inv-1'),
+        pollInitialDelay: const Duration(seconds: 30),
+        now: () => now,
+      );
+      await cubit.load();
+      expect(cubit.state.quote, isNotNull);
+
+      final refresh = cubit.refresh();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.hasAuthenticatedPaymentEvidence, isTrue);
+      expect(cubit.state.quote, isNull);
+      expect(cubit.state.canCancel, isFalse);
+      expect(cubit.canRequestQuote(cubit.state.snapshot!), isFalse);
+
+      delayedPublicStatus.complete(Ok(unpaid));
+      await refresh;
+      expect(cubit.state.quote, isNull);
+      expect(cubit.state.canCancel, isFalse);
+      await cubit.close();
+    },
+  );
+
+  test(
     'an older overlapping refresh cannot replace newer accounting',
     () async {
       final statusFirst =

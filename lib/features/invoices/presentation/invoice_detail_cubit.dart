@@ -185,8 +185,66 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
     }
     final statusFuture = _facade.status(_invoiceId);
     final authenticatedFuture = _facade.merchantInvoice(_invoiceId);
-    final statusResult = await statusFuture;
-    final authenticatedResult = await authenticatedFuture;
+    await Future.wait<void>([
+      _applyPublicStatus(statusFuture, operation),
+      _applyAuthenticatedInvoice(authenticatedFuture, operation),
+    ]);
+    if (isClosed || operation != _fetchOperation) return;
+    await _fetchFallbackSupervision(operation);
+  }
+
+  Future<void> _applyPublicStatus(
+    Future<Result<InvoiceStatusSnapshot, InvoicesFailure>> pending,
+    int operation,
+  ) async {
+    final statusResult = await pending;
+    if (isClosed || operation != _fetchOperation) return;
+
+    switch (statusResult) {
+      case Ok(:final value):
+        final acceptsInitialPayment =
+            !state.hasAuthenticatedPaymentEvidence &&
+            value.acceptsInitialPayment(_now());
+        final quoteUnavailable =
+            !value.isFiatFixed ||
+            !acceptsInitialPayment ||
+            value.quoteRailAvailability == null ||
+            (state.selectedQuoteRail != null &&
+                !value.quoteRailAvailability!.supports(
+                  state.selectedQuoteRail!,
+                ));
+        if (quoteUnavailable) {
+          _quoteExpiryTimer?.cancel();
+          // Fresh public evidence immediately supersedes any quote request
+          // started from an older admission snapshot. Do not wait for the
+          // slower authenticated accounting scan before closing payment UI.
+          _quoteOperation++;
+        }
+        emit(
+          state.copyWith(
+            status: InvoiceDetailStatus.loaded,
+            snapshot: value,
+            clearFailure: true,
+            clearQuote: quoteUnavailable,
+          ),
+        );
+      case Err(:final failure):
+        emit(
+          state.copyWith(
+            status: state.snapshot == null
+                ? InvoiceDetailStatus.error
+                : state.status,
+            failure: failure,
+          ),
+        );
+    }
+  }
+
+  Future<void> _applyAuthenticatedInvoice(
+    Future<Result<Invoice?, InvoicesFailure>> pending,
+    int operation,
+  ) async {
+    final authenticatedResult = await pending;
     if (isClosed || operation != _fetchOperation) return;
 
     var authenticatedInvoice = state.invoice;
@@ -205,55 +263,20 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
     final authenticatedEvidenceSeen =
         state.authenticatedPaymentEvidenceSeen ||
         (authenticatedInvoice?.hasPaymentEvidence ?? false);
-
-    switch (statusResult) {
-      case Ok(:final value):
-        final acceptsInitialPayment =
-            !authenticatedEvidenceSeen && value.acceptsInitialPayment(_now());
-        final quoteUnavailable =
-            !value.isFiatFixed ||
-            !acceptsInitialPayment ||
-            value.quoteRailAvailability == null ||
-            (state.selectedQuoteRail != null &&
-                !value.quoteRailAvailability!.supports(
-                  state.selectedQuoteRail!,
-                ));
-        if (quoteUnavailable) {
-          _quoteExpiryTimer?.cancel();
-          // Any completed fetch supersedes a quote request started from older
-          // admission evidence.
-          _quoteOperation++;
-        }
-        emit(
-          state.copyWith(
-            status: InvoiceDetailStatus.loaded,
-            snapshot: value,
-            invoice: authenticatedInvoice,
-            authenticatedInvoiceFailure: authenticatedFailure,
-            authenticatedInvoiceRefreshing: false,
-            authenticatedPaymentEvidenceSeen: authenticatedEvidenceSeen,
-            clearAuthenticatedInvoiceFailure: clearAuthenticatedFailure,
-            clearFailure: true,
-            clearQuote: quoteUnavailable,
-          ),
-        );
-      case Err(:final failure):
-        emit(
-          state.copyWith(
-            status: state.snapshot == null
-                ? InvoiceDetailStatus.error
-                : state.status,
-            invoice: authenticatedInvoice,
-            failure: failure,
-            authenticatedInvoiceFailure: authenticatedFailure,
-            authenticatedInvoiceRefreshing: false,
-            authenticatedPaymentEvidenceSeen: authenticatedEvidenceSeen,
-            clearAuthenticatedInvoiceFailure: clearAuthenticatedFailure,
-          ),
-        );
+    if (authenticatedEvidenceSeen) {
+      _quoteExpiryTimer?.cancel();
+      _quoteOperation++;
     }
-    if (isClosed || operation != _fetchOperation) return;
-    await _fetchFallbackSupervision(operation);
+    emit(
+      state.copyWith(
+        invoice: authenticatedInvoice,
+        authenticatedInvoiceFailure: authenticatedFailure,
+        authenticatedInvoiceRefreshing: false,
+        authenticatedPaymentEvidenceSeen: authenticatedEvidenceSeen,
+        clearAuthenticatedInvoiceFailure: clearAuthenticatedFailure,
+        clearQuote: authenticatedEvidenceSeen,
+      ),
+    );
   }
 
   Future<void> _fetchFallbackSupervision(int operation) async {

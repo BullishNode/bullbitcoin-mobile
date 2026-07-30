@@ -24,13 +24,14 @@ void main() {
     final states = <GetPaidInvoiceFactsState>[];
     final subscription = cubit.stream.listen(states.add);
 
-    await cubit.load(invoiceId: 'inv-1');
+    await cubit.load(invoiceId: 'inv-1', authenticatedPaymentEvidence: true);
     await Future<void>.delayed(Duration.zero);
 
     expect(states, [
       isA<GetPaidInvoiceFactsLoading>(),
       isA<GetPaidInvoiceFactsData>(),
     ]);
+    expect(lookup.authenticatedEvidence, [true]);
     await subscription.cancel();
     await cubit.close();
   });
@@ -61,6 +62,7 @@ GetPaidInvoiceFacts _snapshot() => GetPaidInvoiceFacts(
   remainingAmountSat: 1000,
   acceptingPayments: true,
   topUpAllowed: false,
+  authenticatedPaymentEvidence: false,
   paymentSummary: null,
   paymentSummaryUnavailable: false,
   paymentToleranceSat: 0,
@@ -88,6 +90,7 @@ GetPaidInvoiceFacts _snapshot() => GetPaidInvoiceFacts(
 class _FakeLookUpInvoiceFacts implements LookUpGetPaidInvoiceFactsUsecase {
   final Result<GetPaidInvoiceFacts, GetPaidFailure> result;
   final List<String> calls = [];
+  final List<bool> authenticatedEvidence = [];
 
   _FakeLookUpInvoiceFacts({
     this.result = const Err(GetPaidFailure.unavailable()),
@@ -96,8 +99,10 @@ class _FakeLookUpInvoiceFacts implements LookUpGetPaidInvoiceFactsUsecase {
   @override
   Future<Result<GetPaidInvoiceFacts, GetPaidFailure>> execute({
     required String invoiceId,
+    bool authenticatedPaymentEvidence = false,
   }) async {
     calls.add(invoiceId);
+    authenticatedEvidence.add(authenticatedPaymentEvidence);
     return result;
   }
 }

@@ -11,18 +11,33 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// is claimed.
 class GetPaidInvoiceFactsCubit extends Cubit<GetPaidInvoiceFactsState> {
   final LookUpGetPaidInvoiceFactsUsecase _lookUpInvoiceFacts;
+  String? _invoiceId;
+  bool _authenticatedPaymentEvidence = false;
 
   GetPaidInvoiceFactsCubit({required this._lookUpInvoiceFacts})
     : super(const GetPaidInvoiceFactsInitial());
 
-  Future<void> load({required String? invoiceId}) async {
+  Future<void> load({
+    required String? invoiceId,
+    bool authenticatedPaymentEvidence = false,
+  }) async {
     if (invoiceId == null) return;
+    _invoiceId = invoiceId;
+    _authenticatedPaymentEvidence = authenticatedPaymentEvidence;
     emit(const GetPaidInvoiceFactsLoading());
-    final result = await _lookUpInvoiceFacts.execute(invoiceId: invoiceId);
+    final result = await _lookUpInvoiceFacts.execute(
+      invoiceId: invoiceId,
+      authenticatedPaymentEvidence: authenticatedPaymentEvidence,
+    );
     if (isClosed) return;
     emit(switch (result) {
       Ok(:final value) => GetPaidInvoiceFactsData(value),
       Err(:final failure) => GetPaidInvoiceFactsFailure(failure),
     });
   }
+
+  Future<void> retry() => load(
+    invoiceId: _invoiceId,
+    authenticatedPaymentEvidence: _authenticatedPaymentEvidence,
+  );
 }

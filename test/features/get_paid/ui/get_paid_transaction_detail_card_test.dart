@@ -186,7 +186,12 @@ Future<void> _pump(
               invoices: invoices ?? _MockInvoicesFacade(),
             ),
           );
-          if (invoices != null) cubit.load(invoiceId: transaction.invoiceId);
+          if (invoices != null) {
+            cubit.load(
+              invoiceId: transaction.invoiceId,
+              authenticatedPaymentEvidence: transaction.isInvoiceBacked,
+            );
+          }
           return cubit;
         },
         child: GetPaidTransactionDetailScreen(transaction: transaction),
@@ -531,29 +536,31 @@ void main() {
     });
   });
 
-  InvoiceStatusSnapshot withStaleInstructions() => _snapshot(
-    status: InvoiceStatus.unpaid,
-    settlementState: InvoiceSettlementState.none,
-    paidAmountSat: null,
-    acceptingPayments: true,
-    expiresAt: DateTime.utc(2030),
-    lightningPr: _lightningPr,
-    liquidAddress: _liquidAddress,
-    bitcoinAddress: 'bc1qonchainaddressonchainaddressonchain',
-    bitcoinChainAddress: 'bc1qchainaddresschainaddresschainaddr',
-    bitcoinChainBip21:
-        'bitcoin:bc1qchainaddresschainaddresschainaddr?amount=0.000021',
-    lightningPayerAmount: InvoicePayerAmount(
-      rail: PaymentMethod.lightning,
-      merchantTargetAmountSat: 2000,
-      payerAmountSat: 2100,
-    ),
-    quoteRailAvailability: const InvoiceQuoteRailAvailability(
-      lightning: true,
-      liquid: true,
-      bitcoin: false,
-    ),
-  );
+  InvoiceStatusSnapshot withStaleInstructions({int remainingAmountSat = 0}) =>
+      _snapshot(
+        status: InvoiceStatus.unpaid,
+        settlementState: InvoiceSettlementState.none,
+        paidAmountSat: null,
+        remainingAmountSat: remainingAmountSat,
+        acceptingPayments: true,
+        expiresAt: DateTime.utc(2030),
+        lightningPr: _lightningPr,
+        liquidAddress: _liquidAddress,
+        bitcoinAddress: 'bc1qonchainaddressonchainaddressonchain',
+        bitcoinChainAddress: 'bc1qchainaddresschainaddresschainaddr',
+        bitcoinChainBip21:
+            'bitcoin:bc1qchainaddresschainaddresschainaddr?amount=0.000021',
+        lightningPayerAmount: InvoicePayerAmount(
+          rail: PaymentMethod.lightning,
+          merchantTargetAmountSat: 2000,
+          payerAmountSat: 2100,
+        ),
+        quoteRailAvailability: const InvoiceQuoteRailAvailability(
+          lightning: true,
+          liquid: true,
+          bitcoin: false,
+        ),
+      );
 
   group('the payer-instructions section', () {
     testWidgets(
@@ -575,7 +582,9 @@ void main() {
     testWidgets(
       'an authenticated error closes stale public admission and stays visible',
       (tester) async {
-        final facade = _registerFacade(withStaleInstructions());
+        final facade = _registerFacade(
+          withStaleInstructions(remainingAmountSat: 5000),
+        );
         when(() => facade.merchantInvoice(any())).thenAnswer(
           (_) async =>
               const Err<Invoice?, InvoicesFailure>(InvoicesFailure.network()),
@@ -597,6 +606,7 @@ void main() {
         );
         expect(_payerSection, findsNothing);
         expect(find.text('Lightning invoice'), findsNothing);
+        expect(find.text('Difference from requested'), findsNothing);
       },
     );
 
@@ -736,5 +746,15 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+  });
+
+  testWidgets('a loaded receipt offers read-only pull-to-refresh', (
+    tester,
+  ) async {
+    _registerFacade(_snapshot());
+
+    await _pump(tester, _tx());
+
+    expect(find.byType(RefreshIndicator), findsOneWidget);
   });
 }

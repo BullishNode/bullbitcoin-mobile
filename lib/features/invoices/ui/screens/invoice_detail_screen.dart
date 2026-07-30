@@ -63,10 +63,20 @@ class InvoiceDetailScreen extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Text(
-          state.failure?.toTranslated(context) ??
-              context.loc.invoiceErrorUnexpected,
-          textAlign: TextAlign.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              state.failure?.toTranslated(context) ??
+                  context.loc.invoiceErrorUnexpected,
+              textAlign: TextAlign.center,
+            ),
+            const Gap(12),
+            TextButton(
+              onPressed: context.read<InvoiceDetailCubit>().refresh,
+              child: Text(context.loc.retry),
+            ),
+          ],
         ),
       ),
     );
@@ -75,6 +85,7 @@ class InvoiceDetailScreen extends StatelessWidget {
   Widget _loaded(BuildContext context, InvoiceDetailState state) {
     final cubit = context.read<InvoiceDetailCubit>();
     final snapshot = state.snapshot!;
+    final paymentSummary = state.invoice?.paymentSummary;
     final status = state.effectiveStatus ?? snapshot.status;
     final unsupported = status.isUnsupported;
     return RefreshIndicator(
@@ -82,6 +93,8 @@ class InvoiceDetailScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (state.failure != null)
+            _notice(context, context.loc.invoiceDetailRefreshFailed),
           _row(
             context,
             context.loc.invoiceStatusLabel,
@@ -113,7 +126,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                   FormatAmount.fiat(creationRate / 100, snapshot.fiatCurrency!),
                 ),
               ),
-          if (state.invoice?.paymentSummary case final summary?) ...[
+          if (paymentSummary case final summary?) ...[
             _row(
               context,
               context.loc.invoicePaymentObservedLabel,
@@ -162,10 +175,11 @@ class InvoiceDetailScreen extends StatelessWidget {
                 context.loc.invoiceAmountSats(overpaidAmountSat),
               ),
           ],
-          if (snapshot.hasPaymentEvidence &&
+          if (paymentSummary != null &&
               (state.authenticatedInvoiceRefreshing ||
-                  state.authenticatedInvoiceFailure != null ||
-                  state.invoice?.paymentSummary == null))
+                  state.authenticatedInvoiceFailure != null))
+            _notice(context, context.loc.invoicePaymentSummaryStale)
+          else if (state.hasPaymentEvidence && paymentSummary == null)
             _notice(context, context.loc.invoicePaymentSummaryUnavailable),
           const Divider(),
           _expiry(context, snapshot),

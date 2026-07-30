@@ -47,9 +47,11 @@ class GetPaidRouter {
             builder: (context, state) {
               final transaction = state.extra! as GetPaidTransaction;
               return BlocProvider(
-                create: (_) =>
-                    locator<GetPaidInvoiceFactsCubit>()
-                      ..load(invoiceId: transaction.invoiceId),
+                create: (_) => locator<GetPaidInvoiceFactsCubit>()
+                  ..load(
+                    invoiceId: transaction.invoiceId,
+                    authenticatedPaymentEvidence: transaction.isInvoiceBacked,
+                  ),
                 child: GetPaidTransactionDetailScreen(transaction: transaction),
               );
             },
