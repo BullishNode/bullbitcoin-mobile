@@ -30,9 +30,7 @@ class GetPaidTransaction {
   final bool late;
   final String? comment;
 
-  /// Private Get Paid-owned settlement projection. Null when the server
-  /// provided no settlement classification (a no-data row) — this is NOT
-  /// Bitcoin, and the history list omits the label for it.
+  /// Private Get Paid-owned settlement projection. Null when the server provided no settlement classification (a no-data row) — this is not Bitcoin, and the history list omits the label for it.
   final GetPaidSettlement? settlement;
 
   const GetPaidTransaction._({
@@ -93,13 +91,10 @@ class GetPaidTransaction {
     );
   }
 
-  /// Coarse classification for the history label, or null when the server
-  /// provided no settlement classification (label omitted — never Bitcoin).
+  /// Coarse classification for the history label, or null when the server provided no settlement classification (label omitted — never Bitcoin).
   GetPaidSettlementKind? get settlementKind => settlement?.kind;
 
   String get stableKey => '${source.name}:$transactionId';
-
-  bool get isInvoiceBacked => invoiceId != null;
 
   static bool _isCanonicalUuid(String value) =>
       value != _nilUuid && _canonicalUuid.hasMatch(value);

@@ -5,13 +5,9 @@ import 'package:bb_mobile/features/get_paid/domain/get_paid_invoice_facts.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:meta/meta.dart';
 
-/// Get Paid's narrow wrapper over the invoices boundary for the transaction
-/// detail card: read the entry's own invoice state.
+/// Get Paid's narrow wrapper over the invoices boundary for the transaction detail card: read the entry's own invoice state.
 ///
-/// The invoices failure family stays behind the boundary — a rejected or thrown
-/// read becomes a Get Paid-owned [GetPaidFailure] that the card states, rather
-/// than rendering as though the entry had no invoice. An entry carrying an
-/// invoice id must never read as an invoice-less payment.
+/// The invoices failure family stays behind the boundary — a rejected or thrown read becomes a Get Paid-owned [GetPaidFailure] that the card states, rather than rendering as though the entry had no invoice. An entry carrying an invoice id must never read as an invoice-less payment.
 class LookUpGetPaidInvoiceFactsUsecase {
   final InvoicesFacade _invoices;
 
@@ -20,7 +16,6 @@ class LookUpGetPaidInvoiceFactsUsecase {
   @useResult
   Future<Result<GetPaidInvoiceFacts, GetPaidFailure>> execute({
     required String invoiceId,
-    bool authenticatedPaymentEvidence = false,
   }) async {
     final id = InvoiceId(invoiceId);
     late final InvoiceStatusSnapshot publicInvoice;
@@ -41,9 +36,7 @@ class LookUpGetPaidInvoiceFactsUsecase {
           );
       }
     } on Exception catch (error, trace) {
-      // An operational exception makes the invoice state unreadable. Never
-      // rethrow it — an unreadable invoice must not take the card down with it.
-      // Programming errors remain visible to tests and crash reporting.
+      // An operational exception makes the invoice state unreadable. Never rethrow it — an unreadable invoice must not take the card down with it. Programming errors remain visible to tests and crash reporting.
       log.warning(
         'Get Paid invoice facts lookup failed',
         error: error,
@@ -58,7 +51,6 @@ class LookUpGetPaidInvoiceFactsUsecase {
     return Ok(
       _map(
         publicInvoice,
-        authenticatedPaymentEvidence: authenticatedPaymentEvidence,
         paymentSummary: merchant.summary,
         paymentSummaryUnavailable: merchant.unavailable,
       ),
@@ -84,9 +76,7 @@ class LookUpGetPaidInvoiceFactsUsecase {
           return (summary: null, unavailable: true);
       }
     } on Exception catch (error, trace) {
-      // The public invoice remains useful when the authenticated accounting
-      // read is unavailable. State that gap explicitly without erasing the
-      // public detail or reviving payer instructions.
+      // The public invoice remains useful when the authenticated accounting read is unavailable. State that gap explicitly without erasing the public receipt detail.
       log.warning(
         'Get Paid authenticated invoice accounting lookup failed',
         error: error,
@@ -98,11 +88,9 @@ class LookUpGetPaidInvoiceFactsUsecase {
 
   GetPaidInvoiceFacts _map(
     InvoiceStatusSnapshot invoice, {
-    required bool authenticatedPaymentEvidence,
     required GetPaidInvoicePaymentSummary? paymentSummary,
     required bool paymentSummaryUnavailable,
   }) {
-    final availability = invoice.quoteRailAvailability;
     return GetPaidInvoiceFacts(
       status: _status(invoice.status),
       settlementState: _settlementState(invoice.settlementState),
@@ -111,42 +99,18 @@ class LookUpGetPaidInvoiceFactsUsecase {
       fiatAmountMinor: invoice.fiatAmountMinor,
       fiatCurrency: invoice.fiatCurrency,
       remainingAmountSat: invoice.remainingAmountSat,
-      acceptingPayments: invoice.acceptingPayments,
-      topUpAllowed: invoice.topUpAllowed,
-      authenticatedPaymentEvidence: authenticatedPaymentEvidence,
       paymentSummary: paymentSummary,
       paymentSummaryUnavailable: paymentSummaryUnavailable,
       paymentToleranceSat: invoice.paymentToleranceSat,
-      rateMinorPerBtc: invoice.rateMinorPerBtc,
       creationRateMinorPerBtc: invoice.creationRateMinorPerBtc,
       rateLocksUntil: invoice.rateLocksUntil,
       expiresAt: invoice.expiresAt,
       paidVia: invoice.paidVia == null ? null : _rail(invoice.paidVia!),
       paidAt: invoice.paidAt,
       paidAmountSat: invoice.paidAmountSat,
-      lightningPr: invoice.lightningPr,
-      liquidAddress: invoice.liquidAddress,
-      bitcoinAddress: invoice.bitcoinAddress,
-      bitcoinChainAddress: invoice.bitcoinChainAddress,
-      bitcoinChainBip21: invoice.bitcoinChainBip21,
-      payerAmounts: [
-        for (final amount in invoice.payerAmounts)
-          GetPaidInvoicePayerAmount(
-            rail: _rail(amount.rail),
-            merchantTargetAmountSat: amount.merchantTargetAmountSat,
-            payerAmountSat: amount.payerAmountSat,
-          ),
-      ],
       acceptBtc: invoice.acceptBtc,
       acceptLn: invoice.acceptLn,
       acceptLiquid: invoice.acceptLiquid,
-      quoteRailAvailability: availability == null
-          ? null
-          : GetPaidInvoiceRailAvailability(
-              lightning: availability.lightning,
-              liquid: availability.liquid,
-              bitcoin: availability.bitcoin,
-            ),
       paymentEvents: [
         for (final event in invoice.paymentEvents)
           GetPaidInvoicePaymentEvent(

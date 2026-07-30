@@ -19,18 +19,12 @@ void main() {
     invoices.result = Ok(snapshot);
     invoices.merchantResult = Ok(_merchantInvoice());
 
-    final result = await usecase.execute(
-      invoiceId: 'inv-1',
-      authenticatedPaymentEvidence: true,
-    );
+    final result = await usecase.execute(invoiceId: 'inv-1');
 
     expect(result, isA<Ok<GetPaidInvoiceFacts, GetPaidFailure>>());
     final facts = (result as Ok<GetPaidInvoiceFacts, GetPaidFailure>).value;
     expect(facts.status, GetPaidInvoiceStatus.unpaid);
     expect(facts.amountSat, 1000);
-    expect(facts.acceptingPayments, isTrue);
-    expect(facts.topUpAllowed, isFalse);
-    expect(facts.authenticatedPaymentEvidence, isTrue);
     expect(facts.paymentSummary?.observedAmountSat, 1200);
     expect(facts.paymentSummary?.creditedAmountSat, 1000);
     expect(facts.paymentSummary?.remainingAmountSat, 0);

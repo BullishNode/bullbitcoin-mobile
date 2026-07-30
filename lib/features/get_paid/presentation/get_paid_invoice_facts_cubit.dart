@@ -5,41 +5,40 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Owns the invoice-state read for one Get Paid transaction detail card.
 ///
-/// The card renders whichever state this holds; it never resolves the invoices
-/// boundary itself and never drops a failure. An entry with no invoice id is a
-/// no-op that stays [GetPaidInvoiceFactsInitial] — nothing is read, and nothing
-/// is claimed.
+/// The card renders whichever state this holds; it never resolves the invoices boundary itself and never drops a failure. An entry with no invoice id is a no-op that stays [GetPaidInvoiceFactsInitial] — nothing is read, and nothing is claimed.
 class GetPaidInvoiceFactsCubit extends Cubit<GetPaidInvoiceFactsState> {
   final LookUpGetPaidInvoiceFactsUsecase _lookUpInvoiceFacts;
   int _loadOperation = 0;
   String? _invoiceId;
-  bool _authenticatedPaymentEvidence = false;
 
   GetPaidInvoiceFactsCubit({required this._lookUpInvoiceFacts})
     : super(const GetPaidInvoiceFactsInitial());
 
-  Future<void> load({
-    required String? invoiceId,
-    bool authenticatedPaymentEvidence = false,
-  }) async {
+  Future<void> load({required String? invoiceId}) async {
     if (invoiceId == null) return;
     final operation = ++_loadOperation;
     _invoiceId = invoiceId;
-    _authenticatedPaymentEvidence = authenticatedPaymentEvidence;
-    emit(const GetPaidInvoiceFactsLoading());
-    final result = await _lookUpInvoiceFacts.execute(
-      invoiceId: invoiceId,
-      authenticatedPaymentEvidence: authenticatedPaymentEvidence,
+    final retained = state is GetPaidInvoiceFactsData
+        ? (state as GetPaidInvoiceFactsData).invoice
+        : null;
+    emit(
+      retained == null
+          ? const GetPaidInvoiceFactsLoading()
+          : GetPaidInvoiceFactsData(retained, isRefreshing: true),
     );
+    final result = await _lookUpInvoiceFacts.execute(invoiceId: invoiceId);
     if (isClosed || operation != _loadOperation) return;
-    emit(switch (result) {
-      Ok(:final value) => GetPaidInvoiceFactsData(value),
-      Err(:final failure) => GetPaidInvoiceFactsFailure(failure),
-    });
+    switch (result) {
+      case Ok(:final value):
+        emit(GetPaidInvoiceFactsData(value));
+      case Err(:final failure):
+        emit(
+          retained == null
+              ? GetPaidInvoiceFactsFailure(failure)
+              : GetPaidInvoiceFactsData(retained, refreshFailed: true),
+        );
+    }
   }
 
-  Future<void> retry() => load(
-    invoiceId: _invoiceId,
-    authenticatedPaymentEvidence: _authenticatedPaymentEvidence,
-  );
+  Future<void> retry() => load(invoiceId: _invoiceId);
 }

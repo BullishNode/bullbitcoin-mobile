@@ -334,83 +334,6 @@
   "@backupSettingsScreenTitle": {
     "description": "AppBar title for backup settings screen"
   },
-  "walletBackupSettingsTitle": "Bull backup",
-  "@walletBackupSettingsTitle": {
-    "description": "Title for the automatic encrypted Bull backup controls"
-  },
-  "walletBackupSettingsDescription": "Automatically stores one encrypted, seed-bound backup of your wallet recovery data.",
-  "@walletBackupSettingsDescription": {
-    "description": "Description for the automatic Bull backup"
-  },
-  "walletBackupSettingsEnabled": "Automatic Bull backup",
-  "@walletBackupSettingsEnabled": {
-    "description": "Switch label for automatic Bull backup"
-  },
-  "walletBackupSettingsPending": "Backup pending",
-  "@walletBackupSettingsPending": {
-    "description": "Status shown when local backup changes have not been published"
-  },
-  "walletBackupSettingsOff": "Automatic backup is off",
-  "@walletBackupSettingsOff": {
-    "description": "Status shown while automatic Bull backup is disabled"
-  },
-  "walletBackupSettingsNeverBackedUp": "Not backed up yet",
-  "@walletBackupSettingsNeverBackedUp": {
-    "description": "Status shown before the first successful Bull backup"
-  },
-  "walletBackupSettingsLastBackup": "Last backup: {date}",
-  "@walletBackupSettingsLastBackup": {
-    "description": "Status showing the last successful Bull backup time",
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "walletBackupSettingsBackupNow": "Back up now",
-  "@walletBackupSettingsBackupNow": {
-    "description": "Button to publish the Bull backup immediately"
-  },
-  "walletBackupSettingsDelete": "Delete backup",
-  "@walletBackupSettingsDelete": {
-    "description": "Button to delete the remote Bull backup"
-  },
-  "walletBackupSettingsDeleteTitle": "Delete Bull backup?",
-  "@walletBackupSettingsDeleteTitle": {
-    "description": "Title of the remote Bull backup deletion confirmation"
-  },
-  "walletBackupSettingsDeleteDescription": "This removes the remote backup. Your wallets and local data stay on this device.",
-  "@walletBackupSettingsDeleteDescription": {
-    "description": "Description of remote Bull backup deletion"
-  },
-  "walletBackupSettingsCancel": "Cancel",
-  "@walletBackupSettingsCancel": {
-    "description": "Cancel remote Bull backup deletion"
-  },
-  "walletBackupSettingsDeleteConfirm": "Delete",
-  "@walletBackupSettingsDeleteConfirm": {
-    "description": "Confirm remote Bull backup deletion"
-  },
-  "walletBackupSettingsUnavailable": "Bull backup is temporarily unavailable.",
-  "@walletBackupSettingsUnavailable": {
-    "description": "Error when the Bull backup service cannot be reached"
-  },
-  "walletBackupSettingsDisabled": "Enable automatic Bull backup first.",
-  "@walletBackupSettingsDisabled": {
-    "description": "Error shown when backup now is requested while disabled"
-  },
-  "walletBackupSettingsUpdateRequired": "Update the app before changing this backup.",
-  "@walletBackupSettingsUpdateRequired": {
-    "description": "Error or status for a backup written by a newer app"
-  },
-  "walletBackupSettingsFailed": "Bull backup could not be completed.",
-  "@walletBackupSettingsFailed": {
-    "description": "Generic sanitized Bull backup error"
-  },
-  "walletBackupSettingsRecoveryBlocked": "Backup recovery needs attention.",
-  "@walletBackupSettingsRecoveryBlocked": {
-    "description": "Shown when remote wallet backup recovery was incomplete"
-  },
   "settingsExchangeSettingsTitle": "Exchange Settings",
   "@settingsExchangeSettingsTitle": {
     "description": "Title for the exchange settings section in the settings menu"
@@ -555,6 +478,10 @@
   "settingsTorSettingsTitle": "Tor Settings",
   "@settingsTorSettingsTitle": {
     "description": "Title for the Tor settings section in app settings"
+  },
+  "settingsRecoverbullTitle": "Recoverbull",
+  "@settingsRecoverbullTitle": {
+    "description": "Title for the Recoverbull backup section in app settings"
   },
   "settingsLanguageTitle": "Language",
   "@settingsLanguageTitle": {
@@ -820,846 +747,6 @@
   "@mempoolErrorInvalidUrl": {
     "description": "Error when the custom mempool server URL is malformed"
   },
-  "bullnymErrorConnectionFailed": "Unable to reach the server. Check your network connection and try again.",
-  "@bullnymErrorConnectionFailed": {
-    "description": "Bullnym error when the request cannot reach the server (network down or timed out)"
-  },
-  "bullnymErrorServerUnavailable": "The server is temporarily unavailable. Please try again later.",
-  "@bullnymErrorServerUnavailable": {
-    "description": "Bullnym error when the server rejects a request but the operation can be retried"
-  },
-  "bullnymErrorServerError": "The server could not complete the request. Please try again later.",
-  "@bullnymErrorServerError": {
-    "description": "Bullnym error when the server rejects a request and it should not be retried as-is"
-  },
-  "bullnymErrorUnexpected": "Something went wrong. Please try again.",
-  "@bullnymErrorUnexpected": {
-    "description": "Bullnym generic error for invalid input, unexpected responses, or a local signing failure"
-  },
-  "lightningAddressErrorConnectionFailed": "Unable to reach the server. Check your network connection and try again.",
-  "@lightningAddressErrorConnectionFailed": {
-    "description": "Lightning Address error when the request cannot reach the server (network down or timed out)"
-  },
-  "lightningAddressErrorServerUnavailable": "The server is temporarily unavailable. Please try again later.",
-  "@lightningAddressErrorServerUnavailable": {
-    "description": "Lightning Address error when the server rejects a request but it can be retried"
-  },
-  "lightningAddressErrorServerError": "The server could not complete the request. Please try again later.",
-  "@lightningAddressErrorServerError": {
-    "description": "Lightning Address error when the server rejects a request and it should not be retried as-is"
-  },
-  "lightningAddressErrorUnexpected": "Something went wrong. Please try again.",
-  "@lightningAddressErrorUnexpected": {
-    "description": "Lightning Address generic error for unexpected responses or a local signing failure"
-  },
-  "paymentPageErrorInvalidInput": "Please check the highlighted fields and try again.",
-  "@paymentPageErrorInvalidInput": {
-    "description": "Donation Page error when the entered details fail validation"
-  },
-  "paymentPageErrorNoNym": "Choose your name to create your Donation Page.",
-  "@paymentPageErrorNoNym": {
-    "description": "Donation Page error shown when the user has no Bull nym yet"
-  },
-  "paymentPageErrorNoDefaultWallet": "Set up a Bitcoin wallet before creating a Donation Page.",
-  "@paymentPageErrorNoDefaultWallet": {
-    "description": "Donation Page error when there is no default Bitcoin wallet to derive from"
-  },
-  "paymentPageErrorSetupFailed": "Could not set up your Donation Page wallet. Please try again.",
-  "@paymentPageErrorSetupFailed": {
-    "description": "Donation Page error for a local wallet-preparation failure"
-  },
-  "paymentPageErrorConnection": "Could not reach the server. Check your connection and try again.",
-  "@paymentPageErrorConnection": {
-    "description": "Donation Page error for a network or timeout failure"
-  },
-  "paymentPageErrorServer": "The server could not complete the request. Please try again later.",
-  "@paymentPageErrorServer": {
-    "description": "Donation Page error for a retryable server failure"
-  },
-  "paymentPageErrorNotFound": "No Donation Page exists for this name yet.",
-  "@paymentPageErrorNotFound": {
-    "description": "Donation Page error when the page row does not exist on the server"
-  },
-  "paymentPageErrorRejected": "The server rejected your Donation Page. Please review your details and try again.",
-  "@paymentPageErrorRejected": {
-    "description": "Donation Page error when the server rejects the submitted page"
-  },
-  "paymentPageErrorAuth": "Your Lightning address must be active to manage your Donation Page. Reactivate it and try again.",
-  "@paymentPageErrorAuth": {
-    "description": "Donation Page error when the server rejects the signature or the registration is inactive"
-  },
-  "paymentPageErrorUnexpected": "Something went wrong. Please try again.",
-  "@paymentPageErrorUnexpected": {
-    "description": "Donation Page generic error for unexpected responses or a local signing failure"
-  },
-  "posErrorInvalidInput": "Please check the highlighted fields and try again.",
-  "@posErrorInvalidInput": {
-    "description": "Point of Sale error when the entered details fail validation"
-  },
-  "posErrorNoNym": "Choose your name to create your Point of Sale.",
-  "@posErrorNoNym": {
-    "description": "Point of Sale error shown when the user has no Bull nym yet"
-  },
-  "posErrorNoDefaultWallet": "Set up a Bitcoin wallet before creating a Point of Sale.",
-  "@posErrorNoDefaultWallet": {
-    "description": "Point of Sale error when there is no default Bitcoin wallet to derive from"
-  },
-  "posErrorSetupFailed": "Could not set up your Point of Sale wallet. Please try again.",
-  "@posErrorSetupFailed": {
-    "description": "Point of Sale error for a local wallet-preparation failure"
-  },
-  "posErrorConnection": "Could not reach the server. Check your connection and try again.",
-  "@posErrorConnection": {
-    "description": "Point of Sale error for a network or timeout failure"
-  },
-  "posErrorServer": "The server could not complete the request. Please try again later.",
-  "@posErrorServer": {
-    "description": "Point of Sale error for a retryable server failure"
-  },
-  "posErrorNotFound": "No Point of Sale exists for this name yet.",
-  "@posErrorNotFound": {
-    "description": "Point of Sale error when the terminal row does not exist on the server"
-  },
-  "posErrorRejected": "The server rejected your Point of Sale. Please review your details and try again.",
-  "@posErrorRejected": {
-    "description": "Point of Sale error when the server rejects the submitted terminal"
-  },
-  "posErrorAuth": "Your Lightning address must be active to manage your Point of Sale. Reactivate it and try again.",
-  "@posErrorAuth": {
-    "description": "Point of Sale error when the server rejects the signature or the registration is inactive"
-  },
-  "posErrorUnexpected": "Something went wrong. Please try again.",
-  "@posErrorUnexpected": {
-    "description": "Point of Sale generic error for unexpected responses or a local signing failure"
-  },
-  "invoiceErrorNoDefaultBitcoinWallet": "Set up a Bitcoin wallet before creating an invoice that accepts Bitcoin.",
-  "@invoiceErrorNoDefaultBitcoinWallet": {
-    "description": "Invoice error when no default Bitcoin wallet exists for the BTC rail"
-  },
-  "invoiceErrorNoDefaultLiquidWallet": "Set up a Liquid wallet before creating an invoice that accepts Lightning or Liquid.",
-  "@invoiceErrorNoDefaultLiquidWallet": {
-    "description": "Invoice error when no default Liquid wallet exists for the Lightning or Liquid rail"
-  },
-  "invoiceErrorInvalidInput": "Please check the highlighted fields and try again.",
-  "@invoiceErrorInvalidInput": {
-    "description": "Invoice error when the entered details fail validation"
-  },
-  "invoiceErrorReusedAddress": "That receive address was already used. Please try again.",
-  "@invoiceErrorReusedAddress": {
-    "description": "Invoice error when the supplied Bitcoin or Liquid address is already assigned"
-  },
-  "invoiceErrorNotFound": "This invoice could not be found.",
-  "@invoiceErrorNotFound": {
-    "description": "Invoice error when the invoice does not exist or is not owned by this wallet"
-  },
-  "invoiceErrorAuth": "Your wallet signature could not be verified. Please try again.",
-  "@invoiceErrorAuth": {
-    "description": "Invoice error when the server rejects the signature"
-  },
-  "invoiceErrorRateLimited": "Too many requests. Please wait a moment and try again.",
-  "@invoiceErrorRateLimited": {
-    "description": "Invoice error when the server rate-limits the request"
-  },
-  "invoiceErrorConnection": "Could not reach the server. Check your connection and try again.",
-  "@invoiceErrorConnection": {
-    "description": "Invoice error for a network or timeout failure"
-  },
-  "invoiceErrorServer": "The server could not complete the request. Please try again later.",
-  "@invoiceErrorServer": {
-    "description": "Invoice error for a retryable server failure or an unavailable invoice service"
-  },
-  "invoiceErrorUnexpected": "Something went wrong. Please try again.",
-  "@invoiceErrorUnexpected": {
-    "description": "Invoice generic error for unexpected responses or a local signing failure"
-  },
-  "bitcoinSettingsInvoicesTitle": "Invoices",
-  "@bitcoinSettingsInvoicesTitle": {
-    "description": "Bitcoin settings entry tile for the Invoices feature"
-  },
-  "invoicesListTitle": "Invoices",
-  "@invoicesListTitle": {
-    "description": "Title of the invoices list screen"
-  },
-  "invoicesCreateButton": "New invoice",
-  "@invoicesCreateButton": {
-    "description": "Button to start creating an invoice"
-  },
-  "invoicesRetryButton": "Retry",
-  "@invoicesRetryButton": {
-    "description": "Retry loading the invoices list"
-  },
-  "invoicesFilterAll": "All",
-  "@invoicesFilterAll": {
-    "description": "The client-side status filter chip that shows every invoice"
-  },
-  "invoicesEmptyTitle": "No invoices yet",
-  "@invoicesEmptyTitle": {
-    "description": "Empty-state title for the invoices list"
-  },
-  "invoicesEmptyBody": "Create an invoice to get paid.",
-  "@invoicesEmptyBody": {
-    "description": "Empty-state body for the invoices list"
-  },
-  "invoiceCreateTitle": "New invoice",
-  "@invoiceCreateTitle": {
-    "description": "Title of the create-invoice screen"
-  },
-  "invoiceCreatedTitle": "Invoice created",
-  "@invoiceCreatedTitle": {
-    "description": "Title of the create-invoice success view"
-  },
-  "invoiceDetailTitle": "Invoice",
-  "@invoiceDetailTitle": {
-    "description": "Title of the invoice detail screen"
-  },
-  "invoiceAmountSats": "{count} sats",
-  "@invoiceAmountSats": {
-    "description": "An invoice amount rendered in satoshis",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "invoiceAmountModeSats": "Sats",
-  "@invoiceAmountModeSats": {
-    "description": "Amount mode toggle: denominate in satoshis"
-  },
-  "invoiceAmountModeFiat": "Fiat",
-  "@invoiceAmountModeFiat": {
-    "description": "Amount mode toggle: denominate in a fiat currency"
-  },
-  "invoiceAmountSatsLabel": "Amount (sats)",
-  "@invoiceAmountSatsLabel": {
-    "description": "Label for the sat amount input"
-  },
-  "invoiceAmountFiatLabel": "Amount",
-  "@invoiceAmountFiatLabel": {
-    "description": "Label for the fiat amount input"
-  },
-  "invoiceCurrencyLabel": "Currency",
-  "@invoiceCurrencyLabel": {
-    "description": "Label for the fiat currency selector"
-  },
-  "invoiceAmountError": "Enter a valid amount",
-  "@invoiceAmountError": {
-    "description": "Per-field error shown when the invoice amount is missing or not a positive number"
-  },
-  "invoiceCurrencyError": "Choose a currency",
-  "@invoiceCurrencyError": {
-    "description": "Per-field error shown when no invoice fiat currency is selected"
-  },
-  "invoiceRailsLabel": "Accepted payment methods",
-  "@invoiceRailsLabel": {
-    "description": "Section header for the invoice payment-rail toggles"
-  },
-  "invoiceEditRailsButton": "Edit accepted payment methods",
-  "@invoiceEditRailsButton": {
-    "description": "Button that reveals the collapsed invoice payment-rail toggles on the create page"
-  },
-  "invoiceAcceptLn": "Lightning",
-  "@invoiceAcceptLn": {
-    "description": "Toggle to accept Lightning payment"
-  },
-  "invoiceAcceptLiquid": "Liquid",
-  "@invoiceAcceptLiquid": {
-    "description": "Toggle to accept Liquid payment"
-  },
-  "invoiceAcceptBtc": "On-chain Bitcoin",
-  "@invoiceAcceptBtc": {
-    "description": "Toggle to accept on-chain Bitcoin payment"
-  },
-  "invoicePublicDescriptionLabel": "Description",
-  "@invoicePublicDescriptionLabel": {
-    "description": "Label for the public invoice description"
-  },
-  "invoiceNumberLabel": "Invoice number",
-  "@invoiceNumberLabel": {
-    "description": "Label for the invoice number field"
-  },
-  "invoiceRecipientNameLabel": "Recipient name",
-  "@invoiceRecipientNameLabel": {
-    "description": "Label for the recipient name field"
-  },
-  "invoiceExpiryDays": "Expires in {count} days",
-  "@invoiceExpiryDays": {
-    "description": "Label showing the selected expiry window in days",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "invoicePrivateMemoLabel": "Private note (only you)",
-  "@invoicePrivateMemoLabel": {
-    "description": "Label for the local-only private memo field"
-  },
-  "invoiceCreateButton": "Create invoice",
-  "@invoiceCreateButton": {
-    "description": "Button to submit the create-invoice form"
-  },
-  "invoiceCreatingButton": "Creating…",
-  "@invoiceCreatingButton": {
-    "description": "Submit button label while an invoice is being created"
-  },
-  "invoiceShareLabel": "Share this payment link",
-  "@invoiceShareLabel": {
-    "description": "Label above the created invoice share URL"
-  },
-  "invoiceOpenLink": "Open link",
-  "@invoiceOpenLink": {
-    "description": "Button to open the invoice share link externally"
-  },
-  "invoiceDoneButton": "Done",
-  "@invoiceDoneButton": {
-    "description": "Button to close the create-invoice success view"
-  },
-  "invoiceStatusLabel": "Status",
-  "@invoiceStatusLabel": {
-    "description": "Label for the invoice status row on the detail screen"
-  },
-  "invoiceAmountLabel": "Amount",
-  "@invoiceAmountLabel": {
-    "description": "Label for the invoice amount row on the detail screen"
-  },
-  "invoiceAmountUnavailable": "Amount unavailable",
-  "@invoiceAmountUnavailable": {
-    "description": "Fallback shown when an invoice carries no fiat face value and no positive satoshi target to headline."
-  },
-  "invoiceExpiresLabel": "Expires in",
-  "@invoiceExpiresLabel": {
-    "description": "Label for the invoice expiry countdown row"
-  },
-  "invoiceExpiredLabel": "Expired",
-  "@invoiceExpiredLabel": {
-    "description": "Shown when an invoice has passed its expiry"
-  },
-  "invoicePaymentLightningLabel": "Lightning invoice",
-  "@invoicePaymentLightningLabel": {
-    "description": "Label for the Lightning payment request on the detail screen"
-  },
-  "invoicePaymentLiquidLabel": "Liquid address",
-  "@invoicePaymentLiquidLabel": {
-    "description": "Label for the Liquid payment address on the detail screen"
-  },
-  "invoicePaymentBitcoinLabel": "Bitcoin address",
-  "@invoicePaymentBitcoinLabel": {
-    "description": "Label for the Bitcoin payment address on the detail screen"
-  },
-  "invoiceCancelButton": "Cancel invoice",
-  "@invoiceCancelButton": {
-    "description": "Button to cancel an unpaid invoice"
-  },
-  "invoiceCancelConfirmTitle": "Cancel this invoice?",
-  "@invoiceCancelConfirmTitle": {
-    "description": "Title of the cancel-invoice confirmation dialog"
-  },
-  "invoiceCancelConfirmBody": "The payment link will stop working. This cannot be undone.",
-  "@invoiceCancelConfirmBody": {
-    "description": "Body of the cancel-invoice confirmation dialog"
-  },
-  "invoiceCancelConfirmCancel": "Keep it",
-  "@invoiceCancelConfirmCancel": {
-    "description": "Dismiss action of the cancel-invoice confirmation dialog"
-  },
-  "invoiceCancelConfirmConfirm": "Cancel invoice",
-  "@invoiceCancelConfirmConfirm": {
-    "description": "Confirm action of the cancel-invoice confirmation dialog"
-  },
-  "invoiceStatusUnpaid": "Unpaid",
-  "@invoiceStatusUnpaid": {
-    "description": "Invoice status label: unpaid"
-  },
-  "invoiceStatusInProgress": "In progress",
-  "@invoiceStatusInProgress": {
-    "description": "Invoice status label: in progress"
-  },
-  "invoiceStatusPartiallyPaid": "Partially paid",
-  "@invoiceStatusPartiallyPaid": {
-    "description": "Invoice status label: partially paid"
-  },
-  "invoiceStatusPaid": "Paid",
-  "@invoiceStatusPaid": {
-    "description": "Invoice status label: paid"
-  },
-  "invoiceStatusUnderpaid": "Underpaid",
-  "@invoiceStatusUnderpaid": {
-    "description": "Invoice status label: underpaid"
-  },
-  "invoiceStatusOverpaid": "Overpaid",
-  "@invoiceStatusOverpaid": {
-    "description": "Invoice status label: overpaid"
-  },
-  "invoiceStatusExpired": "Expired",
-  "@invoiceStatusExpired": {
-    "description": "Invoice status label: expired"
-  },
-  "invoiceStatusCancelled": "Cancelled",
-  "@invoiceStatusCancelled": {
-    "description": "Invoice status label: cancelled"
-  },
-  "invoiceStatusUnsupported": "Update required",
-  "@invoiceStatusUnsupported": {
-    "description": "Generic invoice status label shown when the server returns a status this app version does not understand"
-  },
-  "invoiceUnsupportedStatusMessage": "Update the app, then refresh this invoice. Payment reconciliation may still be in progress.",
-  "@invoiceUnsupportedStatusMessage": {
-    "description": "Detail-screen guidance shown when an invoice has a server status this app version does not understand"
-  },
-  "bitcoinSettingsPaymentPageTitle": "Donation Page",
-  "@bitcoinSettingsPaymentPageTitle": {
-    "description": "Bitcoin settings tile opening the Donation Page editor"
-  },
-  "paymentPageScreenTitle": "Donation Page",
-  "@paymentPageScreenTitle": {
-    "description": "Title of the Donation Page editor screen"
-  },
-  "paymentPageHeaderLabel": "Title",
-  "@paymentPageHeaderLabel": {
-    "description": "Label for the Donation Page header/title field"
-  },
-  "paymentPageHeaderHint": "e.g. Support my work",
-  "@paymentPageHeaderHint": {
-    "description": "Hint for the Donation Page title field"
-  },
-  "paymentPageDescriptionLabel": "Short description",
-  "@paymentPageDescriptionLabel": {
-    "description": "Label for the Donation Page description field"
-  },
-  "paymentPageDescriptionHint": "Shown on your Donation Page and when its link is shared.",
-  "@paymentPageDescriptionHint": {
-    "description": "Hint for the Donation Page description field"
-  },
-  "paymentPageWebsiteLabel": "Website (optional)",
-  "@paymentPageWebsiteLabel": {
-    "description": "Label for the Donation Page website field"
-  },
-  "paymentPageTwitterLabel": "X / Twitter handle (optional)",
-  "@paymentPageTwitterLabel": {
-    "description": "Label for the Donation Page Twitter handle field"
-  },
-  "paymentPageInstagramLabel": "Instagram handle (optional)",
-  "@paymentPageInstagramLabel": {
-    "description": "Label for the Donation Page Instagram handle field"
-  },
-  "paymentPageHeaderError": "Enter a title",
-  "@paymentPageHeaderError": {
-    "description": "Per-field error shown when the Donation Page title is empty or too long"
-  },
-  "paymentPageDescriptionError": "Enter a description of 1–120 characters",
-  "@paymentPageDescriptionError": {
-    "description": "Per-field error shown when the Donation Page description is empty or too long"
-  },
-  "paymentPageCurrencyError": "Choose a currency",
-  "@paymentPageCurrencyError": {
-    "description": "Per-field error shown when no Donation Page display currency is selected"
-  },
-  "paymentPageWebsiteError": "Enter a website like https://example.com",
-  "@paymentPageWebsiteError": {
-    "description": "Per-field error shown when the Donation Page website is invalid"
-  },
-  "paymentPageTwitterError": "Use letters, numbers and underscores only",
-  "@paymentPageTwitterError": {
-    "description": "Per-field error shown when the Donation Page X/Twitter handle is invalid"
-  },
-  "paymentPageInstagramError": "Use letters, numbers, dots and underscores only",
-  "@paymentPageInstagramError": {
-    "description": "Per-field error shown when the Donation Page Instagram handle is invalid"
-  },
-  "paymentPageCurrencyLabel": "Display currency",
-  "@paymentPageCurrencyLabel": {
-    "description": "Label for the Donation Page display-currency dropdown"
-  },
-  "paymentPageByteCounter": "{count}/{max}",
-  "@paymentPageByteCounter": {
-    "description": "Current and maximum length counter shown under a Donation Page text field",
-    "placeholders": {
-      "count": {"type": "int"},
-      "max": {"type": "int"}
-    }
-  },
-  "paymentPageDescriptionByteLimit": "Some characters use extra space. Shorten this description ({count}/{max} bytes).",
-  "@paymentPageDescriptionByteLimit": {
-    "description": "Error shown when a short Donation Page description exceeds the UTF-8 safety ceiling despite fitting the visible-character limit",
-    "placeholders": {
-      "count": {"type": "int"},
-      "max": {"type": "int"}
-    }
-  },
-  "paymentPageRoutingNotice": "Your Lightning address pays into your Lightning Address wallet. Your Donation Page has its own link and its own wallet.",
-  "@paymentPageRoutingNotice": {
-    "description": "ROUTE-3W notice clarifying the Donation Page settles to its own wallet"
-  },
-  "paymentPageShareLabel": "Your Donation Page link",
-  "@paymentPageShareLabel": {
-    "description": "Label above the shareable Donation Page URL"
-  },
-  "paymentPageCopyLink": "Copy link",
-  "@paymentPageCopyLink": {
-    "description": "Button to copy the Donation Page link to the clipboard"
-  },
-  "paymentPageCopiedLink": "Link copied",
-  "@paymentPageCopiedLink": {
-    "description": "Snackbar confirming the Donation Page link was copied"
-  },
-  "paymentPageOpenLink": "Open link",
-  "@paymentPageOpenLink": {
-    "description": "Button to open the Donation Page link externally"
-  },
-  "paymentPageCreateButton": "Create Donation Page",
-  "@paymentPageCreateButton": {
-    "description": "Primary button to create the Donation Page"
-  },
-  "paymentPageSaveButton": "Save changes",
-  "@paymentPageSaveButton": {
-    "description": "Primary button to save Donation Page edits"
-  },
-  "paymentPagePublishButton": "Republish Donation Page",
-  "@paymentPagePublishButton": {
-    "description": "Button to republish (revive) an archived Donation Page"
-  },
-  "paymentPageDeactivateButton": "Deactivate Donation Page",
-  "@paymentPageDeactivateButton": {
-    "description": "Button to archive/deactivate the Donation Page"
-  },
-  "paymentPageSubmitting": "Saving…",
-  "@paymentPageSubmitting": {
-    "description": "Primary button label while a Donation Page save is in flight"
-  },
-  "paymentPageArchiveConfirmTitle": "Deactivate Donation Page?",
-  "@paymentPageArchiveConfirmTitle": {
-    "description": "Title of the Donation Page deactivate confirmation dialog"
-  },
-  "paymentPageArchiveConfirmBody": "Your public page will show a deactivation notice. You can republish it later.",
-  "@paymentPageArchiveConfirmBody": {
-    "description": "Body of the Donation Page deactivate confirmation dialog"
-  },
-  "paymentPageArchiveConfirmCancel": "Cancel",
-  "@paymentPageArchiveConfirmCancel": {
-    "description": "Cancel action of the Donation Page deactivate dialog"
-  },
-  "paymentPageArchiveConfirmConfirm": "Deactivate",
-  "@paymentPageArchiveConfirmConfirm": {
-    "description": "Confirm action of the Donation Page deactivate dialog"
-  },
-  "paymentPageNeedsNymTitle": "Choose your name",
-  "@paymentPageNeedsNymTitle": {
-    "description": "Title of the Donation Page nym-registration first step"
-  },
-  "paymentPageNeedsNymBody": "Your Donation Page needs a Bull name. This also activates your Lightning address.",
-  "@paymentPageNeedsNymBody": {
-    "description": "Body explaining the nym prerequisite for the Donation Page"
-  },
-  "paymentPageNymHelper": "Letters and numbers only",
-  "@paymentPageNymHelper": {
-    "description": "Helper for the Donation Page nym input"
-  },
-  "paymentPageCreateNymButton": "Continue",
-  "@paymentPageCreateNymButton": {
-    "description": "Button to register the nym and continue to the Donation Page form"
-  },
-  "paymentPagePermanentNamesUnavailableTitle": "Donation Page unavailable",
-  "@paymentPagePermanentNamesUnavailableTitle": {
-    "description": "Title shown when the server does not advertise the exact permanent-name contract required by Donation Page"
-  },
-  "paymentPagePermanentNamesUnavailableBody": "This server does not support the permanent-name contract required to manage your Donation Page. Your wallet controls are still available.",
-  "@paymentPagePermanentNamesUnavailableBody": {
-    "description": "Fail-closed explanation shown when exact permanent-name capability support is absent"
-  },
-  "paymentPageAliasHelper": "One shared alias for Donation Page and Point of Sale. Once claimed, it cannot be changed, cleared, or replaced.",
-  "@paymentPageAliasHelper": {
-    "description": "Explains alias sharing and permanence before the first claim"
-  },
-  "paymentPageAliasInvalid": "Use 1–32 lowercase letters, numbers, or internal hyphens",
-  "@paymentPageAliasInvalid": {
-    "description": "Validation error for a first Donation Page alias claim"
-  },
-  "paymentPageAliasTaken": "That alias is already claimed. Choose another.",
-  "@paymentPageAliasTaken": {
-    "description": "Structured shared-namespace conflict shown when a requested alias is unavailable"
-  },
-  "paymentPageAliasAlreadyAssigned": "Your account already owns a permanent alias. Reloading the server-owned alias.",
-  "@paymentPageAliasAlreadyAssigned": {
-    "description": "Structured conflict shown when the account already has a different permanent alias"
-  },
-  "paymentPageOnlineToggleLabel": "Donation Page online",
-  "@paymentPageOnlineToggleLabel": {
-    "description": "Label for the Donation Page-specific availability switch"
-  },
-  "paymentPageOnlineToggleBody": "Controls only your Donation Page. Lightning Address and Point of Sale stay as they are.",
-  "@paymentPageOnlineToggleBody": {
-    "description": "Explains independent Donation Page availability"
-  },
-  "paymentPageTurnOffConfirmTitle": "Turn off Donation Page?",
-  "@paymentPageTurnOffConfirmTitle": {
-    "description": "Title of the Donation Page-specific turn-off confirmation"
-  },
-  "paymentPageTurnOffConfirmBody": "Your Donation Page will show an offline notice. Your permanent names remain claimed, and Lightning Address and Point of Sale stay as they are.",
-  "@paymentPageTurnOffConfirmBody": {
-    "description": "Explains effects and non-effects of turning off Donation Page"
-  },
-  "paymentPageTurnOffConfirmCancel": "Keep online",
-  "@paymentPageTurnOffConfirmCancel": {
-    "description": "Cancel action for turning off Donation Page"
-  },
-  "paymentPageTurnOffConfirmSubmit": "Turn off",
-  "@paymentPageTurnOffConfirmSubmit": {
-    "description": "Confirm action for turning off Donation Page"
-  },
-  "paymentPageSaveAndTurnOnButton": "Save and turn on Donation Page",
-  "@paymentPageSaveAndTurnOnButton": {
-    "description": "Primary action that saves edits and turns an archived Donation Page back on"
-  },
-  "paymentPageArchivedTitle": "Donation Page deactivated",
-  "@paymentPageArchivedTitle": {
-    "description": "Title of the archived Donation Page view"
-  },
-  "paymentPageArchivedBody": "Your page is deactivated and shows a notice to visitors. Republish it to make it live again.",
-  "@paymentPageArchivedBody": {
-    "description": "Body of the archived Donation Page view"
-  },
-  "paymentPageLoadFailedTitle": "Couldn't load your Donation Page",
-  "@paymentPageLoadFailedTitle": {
-    "description": "Title shown when the Donation Page could not be loaded"
-  },
-  "paymentPageLoadFailedBody": "We couldn't reach the server. Check your connection and try again.",
-  "@paymentPageLoadFailedBody": {
-    "description": "Body shown when the Donation Page could not be loaded"
-  },
-  "paymentPageRetryButton": "Try again",
-  "@paymentPageRetryButton": {
-    "description": "Retry button for the Donation Page load-failed view"
-  },
-  "paymentPageCurrenciesUnavailable": "Currency list unavailable. Using {currency}.",
-  "@paymentPageCurrenciesUnavailable": {
-    "description": "Notice shown when the live currency list could not be fetched",
-    "placeholders": {
-      "currency": {"type": "String"}
-    }
-  },
-  "paymentPageRetryCurrencies": "Retry",
-  "@paymentPageRetryCurrencies": {
-    "description": "Button to retry fetching the supported currency list"
-  },
-  "paymentPageSubmissionUncertain": "Your changes may not have been saved. Reload to check.",
-  "@paymentPageSubmissionUncertain": {
-    "description": "Notice shown when a Donation Page save timed out and may be uncertain"
-  },
-  "paymentPageOperationInProgress": "Please wait for the current operation to finish.",
-  "@paymentPageOperationInProgress": {
-    "description": "Snackbar shown when the user tries to leave during a Donation Page operation"
-  },
-  "paymentPageHealNeedsReactivation": "Your Donation Page needs to be set up again after recovery.",
-  "@paymentPageHealNeedsReactivation": {
-    "description": "Recovery notice when the recovered Donation Page row is missing"
-  },
-  "paymentPageHealNeedsReactivationAction": "Set up your Donation Page",
-  "@paymentPageHealNeedsReactivationAction": {
-    "description": "Button to re-create the Donation Page after recovery"
-  },
-  "paymentPageHealUnreachable": "We couldn't verify your Donation Page. Check it in Bitcoin settings.",
-  "@paymentPageHealUnreachable": {
-    "description": "Recovery notice when the Donation Page liveness check could not reach the server"
-  },
-  "posHealNeedsReactivation": "Your Point of Sale needs to be set up again after recovery.",
-  "@posHealNeedsReactivation": {
-    "description": "Recovery notice when the recovered Point of Sale row is missing"
-  },
-  "posHealNeedsReactivationAction": "Set up your Point of Sale again",
-  "@posHealNeedsReactivationAction": {
-    "description": "Button to re-create the Point of Sale after recovery"
-  },
-  "posHealUnreachable": "We couldn't verify your Point of Sale. Check it in Bitcoin settings.",
-  "@posHealUnreachable": {
-    "description": "Recovery notice when the Point of Sale liveness check could not reach the server"
-  },
-  "bitcoinSettingsPointOfSaleTitle": "Point of Sale",
-  "@bitcoinSettingsPointOfSaleTitle": {
-    "description": "Bitcoin settings tile opening the Point of Sale provisioning screen"
-  },
-  "posScreenTitle": "Point of Sale",
-  "@posScreenTitle": {
-    "description": "Title of the Point of Sale provisioning screen"
-  },
-  "posOperationInProgress": "Please wait for the current operation to finish.",
-  "@posOperationInProgress": {
-    "description": "Snackbar shown when the user tries to leave during a Point of Sale operation"
-  },
-  "posNeedsNymTitle": "Choose your name",
-  "@posNeedsNymTitle": {
-    "description": "Title of the Point of Sale nym-registration first step"
-  },
-  "posNeedsNymBody": "Your Point of Sale needs a Bull name. This also activates your Lightning address.",
-  "@posNeedsNymBody": {
-    "description": "Body explaining the nym prerequisite for the Point of Sale"
-  },
-  "posNymHelper": "Letters and numbers only",
-  "@posNymHelper": {
-    "description": "Helper for the Point of Sale nym input"
-  },
-  "posCreateNymButton": "Continue",
-  "@posCreateNymButton": {
-    "description": "Button to register the nym and continue to the Point of Sale form"
-  },
-  "posPermanentNamesUnavailableTitle": "Point of Sale unavailable",
-  "@posPermanentNamesUnavailableTitle": {
-    "description": "Title shown when the server does not advertise the exact permanent-name contract required by Point of Sale"
-  },
-  "posPermanentNamesUnavailableBody": "This server does not support the permanent-name contract required to manage your Point of Sale. Your wallet controls are still available.",
-  "@posPermanentNamesUnavailableBody": {
-    "description": "Fail-closed explanation shown when exact permanent-name capability support is absent"
-  },
-  "posAliasHelper": "One shared alias for Donation Page and Point of Sale. Once claimed, it cannot be changed, cleared, or replaced.",
-  "@posAliasHelper": {
-    "description": "Explains alias sharing and permanence before the first claim"
-  },
-  "posAliasInvalid": "Use 1–32 lowercase letters, numbers, or internal hyphens",
-  "@posAliasInvalid": {
-    "description": "Validation error for a first Point of Sale alias claim"
-  },
-  "posAliasTaken": "That alias is already claimed. Choose another.",
-  "@posAliasTaken": {
-    "description": "Structured shared-namespace conflict shown when a requested alias is unavailable"
-  },
-  "posAliasAlreadyAssigned": "Your account already owns a permanent alias. Reloading the server-owned alias.",
-  "@posAliasAlreadyAssigned": {
-    "description": "Structured conflict shown when the account already has a different permanent alias"
-  },
-  "posOnlineToggleLabel": "Point of Sale online",
-  "@posOnlineToggleLabel": {
-    "description": "Label for the Point of Sale-specific availability switch"
-  },
-  "posOnlineToggleBody": "Controls only your Point of Sale. Lightning Address and Donation Page stay as they are.",
-  "@posOnlineToggleBody": {
-    "description": "Explains independent Point of Sale availability"
-  },
-  "posTurnOffConfirmTitle": "Turn off Point of Sale?",
-  "@posTurnOffConfirmTitle": {
-    "description": "Title of the Point of Sale-specific turn-off confirmation"
-  },
-  "posTurnOffConfirmBody": "Your Point of Sale will show an offline notice. Your permanent names remain claimed, and Lightning Address and Donation Page stay as they are.",
-  "@posTurnOffConfirmBody": {
-    "description": "Explains effects and non-effects of turning off Point of Sale"
-  },
-  "posTurnOffConfirmCancel": "Keep online",
-  "@posTurnOffConfirmCancel": {
-    "description": "Cancel action for turning off Point of Sale"
-  },
-  "posTurnOffConfirmSubmit": "Turn off",
-  "@posTurnOffConfirmSubmit": {
-    "description": "Confirm action for turning off Point of Sale"
-  },
-  "posRoutingNotice": "Your Lightning address pays into your Lightning Address wallet — even with a Point of Sale. Your Point of Sale has its own till link and its own wallet.",
-  "@posRoutingNotice": {
-    "description": "ROUTE-3W notice clarifying the Lightning address settles to wallet 101 even for a POS-only nym"
-  },
-  "posLabelFieldLabel": "Name",
-  "@posLabelFieldLabel": {
-    "description": "Label for the Point of Sale name/label field"
-  },
-  "posLabelFieldHint": "e.g. Front counter",
-  "@posLabelFieldHint": {
-    "description": "Hint for the Point of Sale name/label field"
-  },
-  "posByteCounter": "{count}/{max}",
-  "@posByteCounter": {
-    "description": "Byte counter shown under the Point of Sale name field",
-    "placeholders": {
-      "count": {"type": "int"},
-      "max": {"type": "int"}
-    }
-  },
-  "posCurrencyLabel": "Display currency",
-  "@posCurrencyLabel": {
-    "description": "Label for the Point of Sale display-currency dropdown"
-  },
-  "posLabelError": "Enter a name",
-  "@posLabelError": {
-    "description": "Per-field error shown when the Point of Sale name is empty or too long"
-  },
-  "posCurrencyError": "Choose a currency",
-  "@posCurrencyError": {
-    "description": "Per-field error shown when no Point of Sale display currency is selected"
-  },
-  "posCurrenciesUnavailable": "Currency list unavailable. Using {currency}.",
-  "@posCurrenciesUnavailable": {
-    "description": "Notice shown when the live currency list could not be fetched for the Point of Sale",
-    "placeholders": {
-      "currency": {"type": "String"}
-    }
-  },
-  "posRetryCurrencies": "Retry",
-  "@posRetryCurrencies": {
-    "description": "Button to retry fetching the supported currency list for the Point of Sale"
-  },
-  "posShareLabel": "Your Point of Sale terminal link",
-  "@posShareLabel": {
-    "description": "Label above the shareable Point of Sale terminal URL"
-  },
-  "posOpenLink": "Open terminal",
-  "@posOpenLink": {
-    "description": "Button to open the Point of Sale terminal URL externally"
-  },
-  "posCreateButton": "Create Point of Sale",
-  "@posCreateButton": {
-    "description": "Primary button to create the Point of Sale"
-  },
-  "posSaveButton": "Save changes",
-  "@posSaveButton": {
-    "description": "Primary button to save Point of Sale edits"
-  },
-  "posSubmitting": "Saving…",
-  "@posSubmitting": {
-    "description": "Primary button label while a Point of Sale save is in flight"
-  },
-  "posPublishButton": "Reactivate Point of Sale",
-  "@posPublishButton": {
-    "description": "Button to reactivate (revive) an archived Point of Sale"
-  },
-  "posDeactivateButton": "Deactivate Point of Sale",
-  "@posDeactivateButton": {
-    "description": "Button to archive/deactivate the Point of Sale"
-  },
-  "posSubmissionUncertain": "Your changes may not have been saved. Reload to check.",
-  "@posSubmissionUncertain": {
-    "description": "Notice shown when a Point of Sale save timed out and may be uncertain"
-  },
-  "posArchivedTitle": "Point of Sale deactivated",
-  "@posArchivedTitle": {
-    "description": "Title of the archived Point of Sale view"
-  },
-  "posArchivedBody": "Your Point of Sale is deactivated and its terminal shows a notice. Reactivate it to accept sales again.",
-  "@posArchivedBody": {
-    "description": "Body of the archived Point of Sale view"
-  },
-  "posArchiveConfirmTitle": "Deactivate Point of Sale?",
-  "@posArchiveConfirmTitle": {
-    "description": "Title of the Point of Sale deactivate confirmation dialog"
-  },
-  "posArchiveConfirmBody": "Your terminal will show a deactivation notice. You can reactivate it later.",
-  "@posArchiveConfirmBody": {
-    "description": "Body of the Point of Sale deactivate confirmation dialog"
-  },
-  "posArchiveConfirmCancel": "Cancel",
-  "@posArchiveConfirmCancel": {
-    "description": "Cancel action of the Point of Sale deactivate dialog"
-  },
-  "posArchiveConfirmConfirm": "Deactivate",
-  "@posArchiveConfirmConfirm": {
-    "description": "Confirm action of the Point of Sale deactivate dialog"
-  },
-  "posLoadFailedTitle": "Couldn't load your Point of Sale",
-  "@posLoadFailedTitle": {
-    "description": "Title shown when the Point of Sale could not be loaded"
-  },
-  "posLoadFailedBody": "We couldn't reach the server. Check your connection and try again.",
-  "@posLoadFailedBody": {
-    "description": "Body shown when the Point of Sale could not be loaded"
-  },
-  "posRetryButton": "Try again",
-  "@posRetryButton": {
-    "description": "Retry button for the Point of Sale load-failed view"
-  },
   "mempoolErrorSaveServerFailed": "Failed to save server",
   "@mempoolErrorSaveServerFailed": {
     "description": "Error when saving mempool server fails"
@@ -1683,10 +770,6 @@
   "bitcoinSettingsImportWalletTitle": "Import Wallet",
   "@bitcoinSettingsImportWalletTitle": {
     "description": "Title for the import wallet option in Bitcoin settings"
-  },
-  "bitcoinSettingsBtcpayTitle": "BTCPay",
-  "@bitcoinSettingsBtcpayTitle": {
-    "description": "Title for the BTCPay option in Bitcoin settings"
   },
   "bitcoinSettingsBroadcastTransactionTitle": "Broadcast Transaction",
   "@bitcoinSettingsBroadcastTransactionTitle": {
@@ -5661,6 +4744,10 @@
   "@recoverWalletScreenTitle": {
     "description": "Title for recover wallet screen"
   },
+  "recoverbullVaultRecoveryTitle": "Recoverbull vault recovery",
+  "@recoverbullVaultRecoveryTitle": {
+    "description": "Title for recoverbull vault recovery screen"
+  },
   "chooseAccessPinTitle": "Choose access {pinOrPassword}",
   "@chooseAccessPinTitle": {
     "description": "Title for choosing access PIN or password",
@@ -5756,203 +4843,6 @@
   "anErrorOccurred": "An error occurred",
   "@anErrorOccurred": {
     "description": "Generic error message"
-  },
-  "getPaidWalletSettingsSectionTitle": "Wallet settings",
-  "@getPaidWalletSettingsSectionTitle": {
-    "description": "Section header for a Get Paid product's reserved wallet behavior controls"
-  },
-  "getPaidWalletAutoSweepLabel": "Auto-sweep",
-  "@getPaidWalletAutoSweepLabel": {
-    "description": "Label for the reserved wallet auto-sweep toggle"
-  },
-  "getPaidWalletAutoSweepInfo": "Automatically transfers funds received on this wallet to your main wallet.",
-  "@getPaidWalletAutoSweepInfo": {
-    "description": "Subtitle describing what the auto-sweep toggle does"
-  },
-  "getPaidWalletHideOnHomeLabel": "Hide on home",
-  "@getPaidWalletHideOnHomeLabel": {
-    "description": "Label for the reserved wallet hide-on-home toggle"
-  },
-  "getPaidWalletHideOnHomeInfo": "Keeps this wallet off your home screen wallet list.",
-  "@getPaidWalletHideOnHomeInfo": {
-    "description": "Subtitle describing what the hide-on-home toggle does"
-  },
-  "getPaidDashboardTitle": "Get Paid",
-  "@getPaidDashboardTitle": {
-    "description": "Title of the Get Paid hub screen"
-  },
-  "getPaidDashboardActive": "Active",
-  "@getPaidDashboardActive": {
-    "description": "Status chip shown when a Get Paid product is active"
-  },
-  "getPaidDashboardNotPublished": "Not published",
-  "@getPaidDashboardNotPublished": {
-    "description": "Status chip shown when a Get Paid product exists but is not published"
-  },
-  "getPaidDashboardError": "Something went wrong. Please try again.",
-  "@getPaidDashboardError": {
-    "description": "Error toast shown when the Get Paid hub fails to refresh"
-  },
-  "getPaidDashboardLightningAddressTitle": "Lightning Address",
-  "@getPaidDashboardLightningAddressTitle": {
-    "description": "Lightning Address slot card title on the Get Paid hub"
-  },
-  "getPaidDashboardLightningAddressSubtitle": "Reusable payment alias compatible with all major Lightning wallets",
-  "@getPaidDashboardLightningAddressSubtitle": {
-    "description": "Lightning Address slot card call-to-action subtitle when unset"
-  },
-  "getPaidDashboardDonationPageTitle": "Donation Page",
-  "@getPaidDashboardDonationPageTitle": {
-    "description": "Donation Page slot card title on the Get Paid hub"
-  },
-  "getPaidDashboardDonationPageSubtitle": "Create a public page to accept donations",
-  "@getPaidDashboardDonationPageSubtitle": {
-    "description": "Donation Page slot card call-to-action subtitle when unset"
-  },
-  "getPaidDashboardPosTitle": "Point of Sale",
-  "@getPaidDashboardPosTitle": {
-    "description": "Point of Sale slot card title on the Get Paid hub"
-  },
-  "getPaidDashboardPosSubtitle": "Accept in-person payments at your business",
-  "@getPaidDashboardPosSubtitle": {
-    "description": "Point of Sale slot card call-to-action subtitle when unset"
-  },
-  "getPaidDashboardInvoicesTitle": "Invoices",
-  "@getPaidDashboardInvoicesTitle": {
-    "description": "Invoices slot card title on the Get Paid hub"
-  },
-  "getPaidDashboardInvoicesSubtitle": "Create a new invoice",
-  "@getPaidDashboardInvoicesSubtitle": {
-    "description": "Invoices slot card subtitle on the Get Paid hub"
-  },
-  "getPaidDashboardTransactionsTitle": "Transactions",
-  "@getPaidDashboardTransactionsTitle": {
-    "description": "Title for the Get Paid transaction history card"
-  },
-  "getPaidDashboardTransactionsSubtitle": "Payments received through Get Paid",
-  "@getPaidDashboardTransactionsSubtitle": {
-    "description": "Subtitle for the Get Paid transaction history card"
-  },
-  "getPaidDashboardBtcpayTitle": "BTCPay Server",
-  "@getPaidDashboardBtcpayTitle": {
-    "description": "BTCPay/SamRock slot card title on the Get Paid hub"
-  },
-  "getPaidDashboardBtcpaySubtitle": "Connect your BTCPay Server via SamRock",
-  "@getPaidDashboardBtcpaySubtitle": {
-    "description": "BTCPay/SamRock slot card call-to-action subtitle when unset"
-  },
-  "getPaidTransactionsTitle": "Transactions",
-  "@getPaidTransactionsTitle": {
-    "description": "Title of the Get Paid transaction history screen"
-  },
-  "getPaidTransactionDetailTitle": "Payment details",
-  "@getPaidTransactionDetailTitle": {
-    "description": "Title of a Get Paid transaction detail screen"
-  },
-  "getPaidTransactionsUnavailable": "Get Paid transactions are temporarily unavailable.",
-  "@getPaidTransactionsUnavailable": {
-    "description": "Error shown when private Get Paid transaction history cannot load"
-  },
-  "getPaidTransactionsRetry": "Retry",
-  "@getPaidTransactionsRetry": {
-    "description": "Retry loading Get Paid transaction history"
-  },
-  "getPaidTransactionsLoadMore": "Load more",
-  "@getPaidTransactionsLoadMore": {
-    "description": "Load the next page of Get Paid transactions"
-  },
-  "getPaidTransactionsEmptyTitle": "No payments yet",
-  "@getPaidTransactionsEmptyTitle": {
-    "description": "Empty-state title for Get Paid transaction history"
-  },
-  "getPaidTransactionsEmptyBody": "Payments received through your Get Paid tools will appear here.",
-  "@getPaidTransactionsEmptyBody": {
-    "description": "Empty-state body for Get Paid transaction history"
-  },
-  "getPaidTransactionsAmountSats": "{amount} sats",
-  "@getPaidTransactionsAmountSats": {
-    "description": "A Get Paid transaction amount in satoshis",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "getPaidTransactionsSourceLightningAddress": "Lightning Address",
-  "@getPaidTransactionsSourceLightningAddress": {
-    "description": "Get Paid transaction source label for a Lightning Address"
-  },
-  "getPaidTransactionsSourceInvoice": "Invoice",
-  "@getPaidTransactionsSourceInvoice": {
-    "description": "Get Paid transaction source label for a wallet invoice"
-  },
-  "getPaidTransactionsSourcePaymentPage": "Donation Page",
-  "@getPaidTransactionsSourcePaymentPage": {
-    "description": "Get Paid transaction source label for a Donation Page"
-  },
-  "getPaidTransactionsSourcePointOfSale": "Point of Sale",
-  "@getPaidTransactionsSourcePointOfSale": {
-    "description": "Get Paid transaction source label for Point of Sale"
-  },
-  "getPaidTransactionsRailLightning": "Lightning",
-  "@getPaidTransactionsRailLightning": {
-    "description": "Lightning settlement rail label"
-  },
-  "getPaidTransactionsRailLiquid": "Liquid",
-  "@getPaidTransactionsRailLiquid": {
-    "description": "Liquid settlement rail label"
-  },
-  "getPaidTransactionsRailBitcoin": "Bitcoin",
-  "@getPaidTransactionsRailBitcoin": {
-    "description": "Bitcoin settlement rail label"
-  },
-  "getPaidTransactionsStatePending": "Pending",
-  "@getPaidTransactionsStatePending": {
-    "description": "Pending Get Paid settlement state"
-  },
-  "getPaidTransactionsStateSettled": "Settled",
-  "@getPaidTransactionsStateSettled": {
-    "description": "Settled Get Paid settlement state"
-  },
-  "getPaidTransactionsStateProblem": "Needs attention",
-  "@getPaidTransactionsStateProblem": {
-    "description": "Problem Get Paid settlement state"
-  },
-  "getPaidTransactionsSourceLabel": "Source",
-  "@getPaidTransactionsSourceLabel": {
-    "description": "Label for the Get Paid product that received a payment"
-  },
-  "getPaidTransactionsReceivedLabel": "Received",
-  "@getPaidTransactionsReceivedLabel": {
-    "description": "Label for when a Get Paid payment was received"
-  },
-  "getPaidTransactionsRailLabel": "Network",
-  "@getPaidTransactionsRailLabel": {
-    "description": "Label for a Get Paid payment settlement network"
-  },
-  "getPaidTransactionsStatusLabel": "Status",
-  "@getPaidTransactionsStatusLabel": {
-    "description": "Label for a Get Paid payment settlement state"
-  },
-  "getPaidTransactionsTimingLabel": "Timing",
-  "@getPaidTransactionsTimingLabel": {
-    "description": "Label for late Get Paid payment timing"
-  },
-  "getPaidTransactionsLate": "Received late",
-  "@getPaidTransactionsLate": {
-    "description": "Value shown for a late Get Paid payment"
-  },
-  "getPaidTransactionsCommentLabel": "Comment",
-  "@getPaidTransactionsCommentLabel": {
-    "description": "Label for an optional private payer comment"
-  },
-  "getPaidTransactionsViewInvoice": "View invoice",
-  "@getPaidTransactionsViewInvoice": {
-    "description": "Open the invoice associated with a Get Paid transaction"
-  },
-  "navigationTabGetPaid": "Get Paid",
-  "@navigationTabGetPaid": {
-    "description": "Label of the Get Paid bottom navigation tab"
   },
   "dcaSetRecurringBuyTitle": "Set Recurring Buy",
   "@dcaSetRecurringBuyTitle": {
@@ -9236,6 +8126,10 @@
   "@backupSettingsLabelsButton": {
     "description": "Button text to manage transaction labels"
   },
+  "backupSettingsRecoverBullSettings": "Recoverbull",
+  "@backupSettingsRecoverBullSettings": {
+    "description": "Button text for Recoverbull"
+  },
   "backupWalletImportanceWarning": "Without a backup, you will eventually lose access to your money. It is critically important to do a backup.",
   "@backupWalletImportanceWarning": {
     "description": "Warning message emphasizing the importance of creating a backup"
@@ -10092,6 +8986,10 @@
   "@recoverbullSelectCustomLocationError": {
     "description": "Error when file selection from custom location fails"
   },
+  "recoverbullSelectBackupFileNotValidError": "This encrypted vault backup file is not valid",
+  "@recoverbullSelectBackupFileNotValidError": {
+    "description": "Error when the selected file is not a valid encrypted vault backup format"
+  },
   "recoverbullSelectVaultProvider": "Select Vault Provider",
   "@recoverbullSelectVaultProvider": {
     "description": "Screen title for vault provider selection"
@@ -10147,6 +9045,10 @@
   "recoverbullWaiting": "Waiting",
   "@recoverbullWaiting": {
     "description": "Status label indicating waiting state"
+  },
+  "recoverbullRecoveryTitle": "Recoverbull vault recovery",
+  "@recoverbullRecoveryTitle": {
+    "description": "AppBar title for vault recovery screen"
   },
   "recoverbullRecoveryLoadingMessage": "Looking for balance and transactions…",
   "@recoverbullRecoveryLoadingMessage": {
@@ -14393,10 +13295,6 @@
   "@systemLabelExchangeSell": {
     "description": "System label for exchange sell transactions"
   },
-  "systemLabelInvoice": "Invoice",
-  "@systemLabelInvoice": {
-    "description": "System label for invoice payout addresses"
-  },
   "labelDeleteFailed": "Unable to delete \"{label}\". Please try again.",
   "@labelDeleteFailed": {
     "description": "Error message when label deletion fails",
@@ -14517,225 +13415,6 @@
   "settingsAccountSettingsTitle": "Account Settings",
   "@settingsAccountSettingsTitle": {
     "description": "Title for the account settings screen (shown to non-superusers)"
-  },
-  "btcpaySettingsTitle": "BTCPay",
-  "@btcpaySettingsTitle": {
-    "description": "Title for the BTCPay settings screen"
-  },
-  "btcpayPairingUrlLabel": "SamRock pairing URL",
-  "@btcpayPairingUrlLabel": {
-    "description": "Label for the SamRock pairing URL input"
-  },
-  "btcpayPairingUrlRequired": "Enter a pairing URL",
-  "@btcpayPairingUrlRequired": {
-    "description": "Validation message when the BTCPay pairing URL is missing"
-  },
-  "btcpayPairingWalletsBitcoin": "Bitcoin wallet",
-  "@btcpayPairingWalletsBitcoin": {
-    "description": "Bitcoin wallet summary for BTCPay pairing"
-  },
-  "btcpayPairingWalletsLiquid": "Liquid wallet",
-  "@btcpayPairingWalletsLiquid": {
-    "description": "Liquid wallet summary for BTCPay pairing"
-  },
-  "btcpayPairingWalletsBitcoinAndLiquid": "Liquid and Bitcoin wallets",
-  "@btcpayPairingWalletsBitcoinAndLiquid": {
-    "description": "Bitcoin and Liquid wallet summary for BTCPay pairing"
-  },
-  "btcpayPairingSubmit": "Pair BTCPay",
-  "@btcpayPairingSubmit": {
-    "description": "Submit button text for BTCPay pairing"
-  },
-  "btcpayPairingScanQr": "Scan pairing QR",
-  "@btcpayPairingScanQr": {
-    "description": "Button text for scanning a BTCPay SamRock pairing QR code"
-  },
-  "btcpayPairingSubmitting": "Pairing...",
-  "@btcpayPairingSubmitting": {
-    "description": "Submit button text while BTCPay pairing is in progress"
-  },
-  "btcpayPairingOperationInProgress": "Wait for BTCPay pairing to finish before leaving.",
-  "@btcpayPairingOperationInProgress": {
-    "description": "Message shown when leaving BTCPay pairing is blocked during pairing"
-  },
-  "btcpayPairingSuccess": "BTCPay paired successfully.",
-  "@btcpayPairingSuccess": {
-    "description": "Success message after BTCPay pairing completes"
-  },
-  "btcpayPairingSuccessTitle": "BTCPay Server connected",
-  "@btcpayPairingSuccessTitle": {
-    "description": "Success screen title after BTCPay pairing completes"
-  },
-  "btcpayPairingGenericError": "Could not pair BTCPay Server.",
-  "@btcpayPairingGenericError": {
-    "description": "Generic error message when BTCPay pairing fails"
-  },
-  "btcpayPairingLocalSetupError": "Dedicated BTCPay wallets were kept, but local setup did not finish. Retry to reuse them and finish setup.",
-  "@btcpayPairingLocalSetupError": {
-    "description": "Error shown when dedicated BTCPay wallets were prepared locally but setup failed before server submission"
-  },
-  "btcpayPairingKeychainConflictError": "Dedicated BTCPay wallets already have different recovery metadata. Do not retry with this pairing request; contact support before continuing.",
-  "@btcpayPairingKeychainConflictError": {
-    "description": "Error shown when BTCPay wallet materialization conflicts with existing keychain manifest metadata"
-  },
-  "btcpayPairingInvalidRequestError": "The SamRock pairing URL is invalid.",
-  "@btcpayPairingInvalidRequestError": {
-    "description": "Error shown when the BTCPay pairing URL cannot be parsed or is unsupported"
-  },
-  "lightningAddressInvalidNymError": "Enter a Lightning Address name.",
-  "@lightningAddressInvalidNymError": {
-    "description": "Validation error shown when the Lightning Address name field is empty"
-  },
-  "lightningAddressReservedNymError": "That name is reserved and cannot be claimed.",
-  "@lightningAddressReservedNymError": {
-    "description": "Domain error shown when a permanent Bullnym nym is reserved."
-  },
-  "lightningAddressInvalidRegistrationInputError": "The Lightning Address registration request is invalid. Check the wallet identity and try again.",
-  "@lightningAddressInvalidRegistrationInputError": {
-    "description": "Error shown when Bullnym rejects Lightning Address registration input that is not specifically local name validation"
-  },
-  "lightningAddressLocalPreparationFailedError": "Could not prepare the Lightning Address wallet. Please try again.",
-  "@lightningAddressLocalPreparationFailedError": {
-    "description": "Error shown when the app fails to prepare the dedicated Lightning Address receive wallet locally"
-  },
-  "lightningAddressLocalPreparationNotRetryableError": "Could not prepare the Lightning Address wallet. Contact support before trying again.",
-  "@lightningAddressLocalPreparationNotRetryableError": {
-    "description": "Error shown when the app cannot prepare the dedicated Lightning Address receive wallet because local recovery metadata has a durable conflict"
-  },
-  "lightningAddressNoDefaultBitcoinWalletError": "Set up a Bitcoin wallet before registering a Lightning Address.",
-  "@lightningAddressNoDefaultBitcoinWalletError": {
-    "description": "Error shown when Lightning Address registration cannot derive the default Bitcoin wallet key because no default Bitcoin wallet exists"
-  },
-  "btcpayPairingRejectedError": "BTCPay Server rejected the pairing request. Dedicated BTCPay wallets were kept. Check the pairing URL or create a new pairing request in BTCPay, then retry.",
-  "@btcpayPairingRejectedError": {
-    "description": "Error shown when BTCPay Server rejects the SamRock pairing setup"
-  },
-  "btcpayPairingUncertainError": "BTCPay pairing may have completed. Check the BTCPay Server before retrying.",
-  "@btcpayPairingUncertainError": {
-    "description": "Error shown when BTCPay pairing was submitted but completion could not be confirmed"
-  },
-  "btcpayPairingConfirmTitle": "Pair BTCPay Server?",
-  "@btcpayPairingConfirmTitle": {
-    "description": "Title for the consent dialog before BTCPay wallet descriptors are shared"
-  },
-  "btcpayPairingConfirmBody": "You are about to create or use dedicated {wallets} and share watch-only wallet descriptors with a BTCPay Server at {serverUrl}. That server can monitor payments received by these dedicated wallets. No private keys are shared. These wallets are derived from the same backup as your default wallets. The BTCPay Liquid wallet is hidden from your home screen and automatically sweeps received funds to your default Liquid wallet; you can change both settings later in BTCPay settings. Do you wish to proceed?",
-  "@btcpayPairingConfirmBody": {
-    "placeholders": {
-      "wallets": {
-        "type": "String"
-      },
-      "serverUrl": {
-        "type": "String"
-      }
-    }
-  },
-  "btcpayPairingConfirmRails": "Requested rails: {rails}",
-  "@btcpayPairingConfirmRails": {
-    "placeholders": {
-      "rails": {
-        "type": "String"
-      }
-    }
-  },
-  "btcpayPairingConfirmCancel": "Cancel",
-  "@btcpayPairingConfirmCancel": {
-    "description": "Cancel button text for the BTCPay pairing consent dialog"
-  },
-  "btcpayPairingConfirmSubmit": "Pair and share details",
-  "@btcpayPairingConfirmSubmit": {
-    "description": "Confirm button text for the BTCPay pairing consent dialog"
-  },
-  "btcpayPairingRailBitcoin": "Bitcoin",
-  "@btcpayPairingRailBitcoin": {
-    "description": "Bitcoin rail label for BTCPay pairing"
-  },
-  "btcpayPairingRailLiquid": "Liquid",
-  "@btcpayPairingRailLiquid": {
-    "description": "Liquid rail label for BTCPay pairing"
-  },
-  "btcpayPairingRailLightning": "Lightning via Liquid/Boltz",
-  "@btcpayPairingRailLightning": {
-    "description": "Lightning rail label for BTCPay pairing through Liquid-backed Boltz setup"
-  },
-  "btcpayConnectionTitle": "Connected BTCPay Server",
-  "@btcpayConnectionTitle": {
-    "description": "Title shown when a BTCPay Server is already paired"
-  },
-  "btcpayConnectionServer": "Server",
-  "@btcpayConnectionServer": {
-    "description": "Label for the paired BTCPay Server URL"
-  },
-  "btcpayConnectionStore": "Store",
-  "@btcpayConnectionStore": {
-    "description": "Label for the paired BTCPay Server store ID"
-  },
-  "btcpayConnectionRails": "Rails",
-  "@btcpayConnectionRails": {
-    "description": "Label for the paired BTCPay payment rails"
-  },
-  "btcpayConnectionWallets": "Wallets",
-  "@btcpayConnectionWallets": {
-    "description": "Label for the wallets shared with a paired BTCPay Server"
-  },
-  "btcpayConnectionPairedAt": "Paired",
-  "@btcpayConnectionPairedAt": {
-    "description": "Label for when the BTCPay Server was paired"
-  },
-  "btcpayConnectionUpdatedAt": "Updated",
-  "@btcpayConnectionUpdatedAt": {
-    "description": "Label for when the BTCPay pairing state was last updated"
-  },
-  "btcpayConnectionUncertainTitle": "Pairing status uncertain",
-  "@btcpayConnectionUncertainTitle": {
-    "description": "Title shown when BTCPay pairing may have completed but the app could not confirm it"
-  },
-  "btcpayConnectionUncertainBody": "BTCPay pairing was submitted, but the app could not confirm completion. Check the BTCPay Server before retrying.",
-  "@btcpayConnectionUncertainBody": {
-    "description": "Body shown when BTCPay pairing may have completed but the app could not confirm it"
-  },
-  "btcpayWalletSettingsTitle": "Wallet Settings",
-  "@btcpayWalletSettingsTitle": {
-    "description": "Title for BTCPay wallet behavior settings"
-  },
-  "btcpayHideWalletOnHome": "Hide wallet on Home",
-  "@btcpayHideWalletOnHome": {
-    "description": "Toggle label for hiding a BTCPay wallet on the Home screen"
-  },
-  "btcpayAutoSweepWallet": "Auto-sweep received funds",
-  "@btcpayAutoSweepWallet": {
-    "description": "Toggle label for sweeping received funds from a BTCPay wallet to the default wallet"
-  },
-  "btcpayPairNew": "Pair new BTCPay",
-  "@btcpayPairNew": {
-    "description": "Button text to pair another BTCPay Server"
-  },
-  "deterministicWalletsGenericError": "Something went wrong preparing wallets.",
-  "@deterministicWalletsGenericError": {
-    "description": "Generic error message when deterministic wallet preparation fails"
-  },
-  "keychainManifestGenericError": "Could not update recovery metadata.",
-  "@keychainManifestGenericError": {
-    "description": "Generic error shown when keychain manifest metadata cannot be recorded"
-  },
-  "keychainManifestMalformedFileError": "Could not read this recovery file.",
-  "@keychainManifestMalformedFileError": {
-    "description": "Error shown when a keychain manifest recovery file is not valid JSON or is missing required fields."
-  },
-  "keychainManifestUnsupportedFileError": "This recovery file was created by an unsupported app version.",
-  "@keychainManifestUnsupportedFileError": {
-    "description": "Error shown when a keychain manifest recovery file has an unsupported format version."
-  },
-  "keychainManifestWrongWalletFileError": "This recovery file belongs to a different wallet.",
-  "@keychainManifestWrongWalletFileError": {
-    "description": "Error shown when a keychain manifest recovery file belongs to a different parent wallet fingerprint."
-  },
-  "keychainManifestIncompatibleFileError": "This recovery file is not compatible with this app version.",
-  "@keychainManifestIncompatibleFileError": {
-    "description": "Error shown when a keychain manifest recovery file references reservation metadata unknown to this app version."
-  },
-  "keychainManifestInvalidFileError": "This recovery file is invalid.",
-  "@keychainManifestInvalidFileError": {
-    "description": "Error shown when a keychain manifest recovery file is internally inconsistent or duplicated."
   },
   "exchangeSettingsDeleteAccountTitle": "Delete Account",
   "@exchangeSettingsDeleteAccountTitle": {
@@ -15598,6 +14277,38 @@
   "@autoswapMaximumBalanceLabel": {
     "description": "Label for the maximum instant wallet balance setting in autoswap"
   },
+  "recoverbullServerConfirmTitle": "Vault Recovery Server",
+  "@recoverbullServerConfirmTitle": {
+    "description": "AppBar title on the Recoverbull server confirmation page"
+  },
+  "recoverbullServerUsingDefault": "Using Default Server",
+  "@recoverbullServerUsingDefault": {
+    "description": "Shown when the default Recoverbull server is in use"
+  },
+  "recoverbullServerUsingCustom": "Using Custom Server",
+  "@recoverbullServerUsingCustom": {
+    "description": "Shown when a custom Recoverbull server is in use"
+  },
+  "recoverbullServerUrlLabel": "Server URL:",
+  "@recoverbullServerUrlLabel": {
+    "description": "Label for the Recoverbull server URL value"
+  },
+  "recoverbullServerCustomWarning": "You are about to use a custom Recoverbull server. Make sure you trust this server.",
+  "@recoverbullServerCustomWarning": {
+    "description": "Warning shown before saving a custom key server URL in the encrypted vault settings"
+  },
+  "recoverbullServerTorNotice": "We will connect to this server through Tor",
+  "@recoverbullServerTorNotice": {
+    "description": "Notice that the Recoverbull server connection goes through Tor"
+  },
+  "recoverbullLearnMore": "Learn more at recoverbull.com",
+  "@recoverbullLearnMore": {
+    "description": "Link text opening recoverbull.com from the vault settings and server confirmation pages"
+  },
+  "recoverbullSettingsTitle": "Encrypted vault settings",
+  "@recoverbullSettingsTitle": {
+    "description": "AppBar title on the encrypted vault settings page; matches the menu row that opens it"
+  },
   "recoverbullSettingsKeyServerUrl": "Key Server URL",
   "@recoverbullSettingsKeyServerUrl": {
     "description": "Label for the Recoverbull key server URL field"
@@ -15673,203 +14384,6 @@
   "importWatchOnlyXpubLabel": "XPUB",
   "@importWatchOnlyXpubLabel": {
     "description": "Label for the derived XPUB value in watch-only wallet details"
-  },
-  "bitcoinSettingsLightningAddressTitle": "Lightning Address",
-  "@bitcoinSettingsLightningAddressTitle": {
-    "description": "Title for the Lightning Address entry in Bitcoin settings."
-  },
-  "lightningAddressTitle": "Lightning Address",
-  "@lightningAddressTitle": {
-    "description": "Title for the Lightning Address activation and status screen."
-  },
-  "lightningAddressLoadingStatus": "Checking permanent-name capability and status",
-  "@lightningAddressLoadingStatus": {
-    "description": "Accessibility announcement while Lightning Address capability and status load."
-  },
-  "getPaidNymClaimHelper": "Use 1–32 lowercase letters, numbers, or internal hyphens.",
-  "@getPaidNymClaimHelper": {
-    "description": "Exact local syntax guidance for a permanent Bullnym nym."
-  },
-  "getPaidNymClaimSubmit": "Claim your nym",
-  "@getPaidNymClaimSubmit": {
-    "description": "Button that starts the permanent nym claim confirmation."
-  },
-  "lightningAddressPermanentNamesUnavailableTitle": "Permanent names unavailable",
-  "@lightningAddressPermanentNamesUnavailableTitle": {
-    "description": "Title when the configured Bullnym server does not advertise the permanent-name policy."
-  },
-  "lightningAddressPermanentNamesUnavailableBody": "This server does not support permanent-name controls. Lightning Address naming is hidden, while the rest of Bull Wallet and Get Paid remain available.",
-  "@lightningAddressPermanentNamesUnavailableBody": {
-    "description": "Fail-closed legacy-server explanation."
-  },
-  "lightningAddressCapabilityUnavailableTitle": "Lightning Address unavailable",
-  "@lightningAddressCapabilityUnavailableTitle": {
-    "description": "Title when the Bullnym version capability check fails or conflicts with status."
-  },
-  "lightningAddressCapabilityUnavailableBody": "Your Lightning Address could not be loaded. Check your connection and try again.",
-  "@lightningAddressCapabilityUnavailableBody": {
-    "description": "Fail-closed capability error body."
-  },
-  "lightningAddressAlreadyAssignedTitle": "A permanent name is already assigned",
-  "@lightningAddressAlreadyAssignedTitle": {
-    "description": "Title shown while reconciling an NymAlreadyAssigned conflict."
-  },
-  "lightningAddressAlreadyAssignedBody": "Bullnym reports that this wallet already owns a name. Refresh status to use that name; a different name cannot be claimed.",
-  "@lightningAddressAlreadyAssignedBody": {
-    "description": "Safe reconciliation guidance for an NymAlreadyAssigned conflict."
-  },
-  "lightningAddressAlreadyAssigned": "This wallet already owns a permanent name. Its status is being reconciled.",
-  "@lightningAddressAlreadyAssigned": {
-    "description": "Snackbar for an NymAlreadyAssigned conflict."
-  },
-  "getPaidNymTaken": "That name is already owned. Choose another available name.",
-  "@getPaidNymTaken": {
-    "description": "Safe message for the stable NameTaken code."
-  },
-  "getPaidNymReserved": "That name is reserved. Choose another name.",
-  "@getPaidNymReserved": {
-    "description": "Safe message for local or server NymReserved validation."
-  },
-  "lightningAddressOnlineToggleActive": "Active",
-  "@lightningAddressOnlineToggleActive": {
-    "description": "Label for the active Lightning Address availability switch."
-  },
-  "lightningAddressOnlineToggleActiveBody": "Switch Lightning address off, and people won't be able to send funds to it anymore",
-  "@lightningAddressOnlineToggleActiveBody": {
-    "description": "Explains what deactivating the Lightning Address does."
-  },
-  "lightningAddressOnlineToggleInactive": "Deactivated",
-  "@lightningAddressOnlineToggleInactive": {
-    "description": "Label for the inactive Lightning Address availability switch."
-  },
-  "lightningAddressOnlineToggleInactiveBody": "Switch Lightning address on to start receiving payments again",
-  "@lightningAddressOnlineToggleInactiveBody": {
-    "description": "Explains what reactivating the Lightning Address does."
-  },
-  "lightningAddressOnlineToggleSaving": "Refreshing Lightning Address availability",
-  "@lightningAddressOnlineToggleSaving": {
-    "description": "Accessibility announcement while an online/offline mutation is reconciled."
-  },
-  "lightningAddressToggleUncertain": "The availability change may have reached the server. Refresh status before trying again.",
-  "@lightningAddressToggleUncertain": {
-    "description": "Message for a network or timeout failure after an online/offline submission."
-  },
-  "lightningAddressInactiveKnownTitle": "Lightning Address is inactive",
-  "@lightningAddressInactiveKnownTitle": {
-    "description": "Heading shown when Bullnym reports a known but inactive Lightning Address nym."
-  },
-  "getPaidNymLabel": "Name",
-  "@getPaidNymLabel": {
-    "description": "Label for the Lightning Address nym field."
-  },
-  "getPaidNymClaimSubmitting": "Registering...",
-  "@getPaidNymClaimSubmitting": {
-    "description": "Button label while Lightning Address registration is submitting."
-  },
-  "lightningAddressOperationInProgress": "Lightning Address registration is still in progress.",
-  "@lightningAddressOperationInProgress": {
-    "description": "Snackbar shown when the user tries to leave during registration."
-  },
-  "lightningAddressActiveTitle": "Lightning address is active",
-  "@lightningAddressActiveTitle": {
-    "description": "Heading shown for an active wallet-owned Lightning Address found by lookup."
-  },
-  "lightningAddressAdvancedSettings": "Advanced settings",
-  "@lightningAddressAdvancedSettings": {
-    "description": "Link that opens Lightning Address management settings."
-  },
-  "lightningAddressAddressUnavailableBody": "The server did not return your Lightning Address. Try again.",
-  "@lightningAddressAddressUnavailableBody": {
-    "description": "Recoverable state shown when an older or malformed lookup response omits the server-owned Lightning Address."
-  },
-  "lightningAddressRetryAddressButton": "Try again",
-  "@lightningAddressRetryAddressButton": {
-    "description": "Button that reloads a permanent nym whose lookup response omitted its Lightning Address."
-  },
-  "lightningAddressLocalSetupFailedTitle": "Lightning Address is active",
-  "@lightningAddressLocalSetupFailedTitle": {
-    "description": "Heading shown when Bullnym reports an active Lightning Address but the local receive wallet setup needs retry."
-  },
-  "lightningAddressLocalSetupFailedBody": "The address is registered, but the receive wallet still needs local setup before it is ready.",
-  "@lightningAddressLocalSetupFailedBody": {
-    "description": "Body shown when Bullnym reports an active Lightning Address but local receive wallet setup failed."
-  },
-  "lightningAddressLocalSetupNotRetryableBody": "The address is registered, but the receive wallet could not finish local setup. Contact support before retrying.",
-  "@lightningAddressLocalSetupNotRetryableBody": {
-    "description": "Body shown when Bullnym reports an active Lightning Address but local receive wallet setup failed in a non-retryable way."
-  },
-  "lightningAddressRetrySetupButton": "Retry Setup",
-  "@lightningAddressRetrySetupButton": {
-    "description": "Button label to retry local Lightning Address receive wallet setup."
-  },
-  "lightningAddressCheckStatusButton": "Check Status",
-  "@lightningAddressCheckStatusButton": {
-    "description": "Button label to retry Lightning Address status lookup."
-  },
-  "lightningAddressUncertainTitle": "Status Unknown",
-  "@lightningAddressUncertainTitle": {
-    "description": "Heading shown when registration submission may have succeeded but status is unknown."
-  },
-  "lightningAddressUncertainBody": "Registration may have succeeded. Check status before trying again.",
-  "@lightningAddressUncertainBody": {
-    "description": "Failure message shown when a post-submission Lightning Address error is uncertain."
-  },
-  "lightningAddressLookupFailedTitle": "Status Check Failed",
-  "@lightningAddressLookupFailedTitle": {
-    "description": "Heading shown when Lightning Address status lookup fails."
-  },
-  "lightningAddressLookupFailedBody": "Status could not be checked. Try again before registering.",
-  "@lightningAddressLookupFailedBody": {
-    "description": "Body shown when Lightning Address status lookup fails."
-  },
-  "getPaidNymInvalid": "Use a valid name.",
-  "@getPaidNymInvalid": {
-    "description": "Failure message shown when the Lightning Address nym is invalid."
-  },
-  "lightningAddressSetupFailed": "Setup failed before anything was submitted. Please try again.",
-  "@lightningAddressSetupFailed": {
-    "description": "Failure message shown when local wallet setup failed before server submission."
-  },
-  "lightningAddressRejected": "The server rejected this name.",
-  "@lightningAddressRejected": {
-    "description": "Failure message shown when the Bullnym server rejects registration."
-  },
-  "lightningAddressServerTemporary": "The server could not register this name right now. Please try again.",
-  "@lightningAddressServerTemporary": {
-    "description": "Failure message shown when Bullnym returns a retryable server rejection."
-  },
-  "lightningAddressNetworkError": "Network error. Please try again.",
-  "@lightningAddressNetworkError": {
-    "description": "Failure message shown for a retryable Lightning Address network error before uncertain submission."
-  },
-  "lightningAddressGenericError": "Lightning Address setup failed. Please try again.",
-  "@lightningAddressGenericError": {
-    "description": "Generic Lightning Address activation failure message."
-  },
-  "sendLud22DirectPayFailed": "Direct Liquid payment could not be completed.",
-  "@sendLud22DirectPayFailed": {
-    "description": "Generic failure message for a committed LUD-22 direct-pay rail."
-  },
-  "sendLud22InvalidProof": "This payment could not be verified. Please try again.",
-  "@sendLud22InvalidProof": {
-    "description": "Shown when the recipient server rejected the LUD-22 proof of funds."
-  },
-  "sendLud22UtxoUnavailable": "The coins used for this payment are no longer available.",
-  "@sendLud22UtxoUnavailable": {
-    "description": "Shown when the proof outpoint is unknown or already spent server-side."
-  },
-  "sendLud22NymNotFound": "This Lightning address could not be found.",
-  "@sendLud22NymNotFound": {
-    "description": "Shown when the recipient nym is not registered on the server."
-  },
-  "sendLud22MinValue": "This payment needs a Liquid coin worth at least {minSat} sats.",
-  "@sendLud22MinValue": {
-    "description": "Shown when a LUD-22 proof of funds is required and none met the value floor.",
-    "placeholders": {
-      "minSat": {
-        "type": "int"
-      }
-    }
   },
   "bitcoinPriceExchangeRateUnavailable": "Exchange rate unavailable. Please try again later.",
   "@bitcoinPriceExchangeRateUnavailable": {
@@ -16025,10 +14539,6 @@
         "type": "int"
       }
     }
-  },
-  "sendLud22PaidDirectly": "Paid directly on Liquid (no swap fee)",
-  "@sendLud22PaidDirectly": {
-    "description": "Small non-blocking success annotation shown when a Bull Lightning address was settled directly on Liquid via LUD-22."
   },
   "logsViewerClearFilter": "Clear filter",
   "@logsViewerClearFilter": {
@@ -16514,6 +15024,1584 @@
   "receivePayjoinBelowMinimumAmount": "Payjoin is off for this amount — it is below your Payjoin minimum. Request a larger amount to enable it.",
   "@receivePayjoinBelowMinimumAmount": {
     "description": "Hint on the receive screen when payjoin is enabled but the requested amount is below the anti-probing minimum, so the QR does not advertise a payjoin endpoint."
+  },
+  "walletBackupSettingsTitle": "Bull backup",
+  "@walletBackupSettingsTitle": {
+    "description": "Title for the automatic encrypted Bull backup controls"
+  },
+  "walletBackupSettingsDescription": "Automatically stores one encrypted, seed-bound backup of your wallet recovery data.",
+  "@walletBackupSettingsDescription": {
+    "description": "Description for the automatic Bull backup"
+  },
+  "walletBackupSettingsEnabled": "Automatic Bull backup",
+  "@walletBackupSettingsEnabled": {
+    "description": "Switch label for automatic Bull backup"
+  },
+  "walletBackupSettingsPending": "Backup pending",
+  "@walletBackupSettingsPending": {
+    "description": "Status shown when local backup changes have not been published"
+  },
+  "walletBackupSettingsOff": "Automatic backup is off",
+  "@walletBackupSettingsOff": {
+    "description": "Status shown while automatic Bull backup is disabled"
+  },
+  "walletBackupSettingsNeverBackedUp": "Not backed up yet",
+  "@walletBackupSettingsNeverBackedUp": {
+    "description": "Status shown before the first successful Bull backup"
+  },
+  "walletBackupSettingsLastBackup": "Last backup: {date}",
+  "@walletBackupSettingsLastBackup": {
+    "description": "Status showing the last successful Bull backup time",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "walletBackupSettingsBackupNow": "Back up now",
+  "@walletBackupSettingsBackupNow": {
+    "description": "Button to publish the Bull backup immediately"
+  },
+  "walletBackupSettingsDelete": "Delete backup",
+  "@walletBackupSettingsDelete": {
+    "description": "Button to delete the remote Bull backup"
+  },
+  "walletBackupSettingsDeleteTitle": "Delete Bull backup?",
+  "@walletBackupSettingsDeleteTitle": {
+    "description": "Title of the remote Bull backup deletion confirmation"
+  },
+  "walletBackupSettingsDeleteDescription": "This removes the remote backup. Your wallets and local data stay on this device.",
+  "@walletBackupSettingsDeleteDescription": {
+    "description": "Description of remote Bull backup deletion"
+  },
+  "walletBackupSettingsCancel": "Cancel",
+  "@walletBackupSettingsCancel": {
+    "description": "Cancel remote Bull backup deletion"
+  },
+  "walletBackupSettingsDeleteConfirm": "Delete",
+  "@walletBackupSettingsDeleteConfirm": {
+    "description": "Confirm remote Bull backup deletion"
+  },
+  "walletBackupSettingsUnavailable": "Bull backup is temporarily unavailable.",
+  "@walletBackupSettingsUnavailable": {
+    "description": "Error when the Bull backup service cannot be reached"
+  },
+  "walletBackupSettingsDisabled": "Enable automatic Bull backup first.",
+  "@walletBackupSettingsDisabled": {
+    "description": "Error shown when backup now is requested while disabled"
+  },
+  "walletBackupSettingsUpdateRequired": "Update the app before changing this backup.",
+  "@walletBackupSettingsUpdateRequired": {
+    "description": "Error or status for a backup written by a newer app"
+  },
+  "walletBackupSettingsFailed": "Bull backup could not be completed.",
+  "@walletBackupSettingsFailed": {
+    "description": "Generic sanitized Bull backup error"
+  },
+  "walletBackupSettingsRecoveryBlocked": "Backup recovery needs attention.",
+  "@walletBackupSettingsRecoveryBlocked": {
+    "description": "Shown when remote wallet backup recovery was incomplete"
+  },
+  "bullnymErrorConnectionFailed": "Unable to reach the server. Check your network connection and try again.",
+  "@bullnymErrorConnectionFailed": {
+    "description": "Bullnym error when the request cannot reach the server (network down or timed out)"
+  },
+  "bullnymErrorServerUnavailable": "The server is temporarily unavailable. Please try again later.",
+  "@bullnymErrorServerUnavailable": {
+    "description": "Bullnym error when the server rejects a request but the operation can be retried"
+  },
+  "bullnymErrorServerError": "The server could not complete the request. Please try again later.",
+  "@bullnymErrorServerError": {
+    "description": "Bullnym error when the server rejects a request and it should not be retried as-is"
+  },
+  "bullnymErrorUnexpected": "Something went wrong. Please try again.",
+  "@bullnymErrorUnexpected": {
+    "description": "Bullnym generic error for invalid input, unexpected responses, or a local signing failure"
+  },
+  "lightningAddressErrorConnectionFailed": "Unable to reach the server. Check your network connection and try again.",
+  "@lightningAddressErrorConnectionFailed": {
+    "description": "Lightning Address error when the request cannot reach the server (network down or timed out)"
+  },
+  "lightningAddressErrorServerUnavailable": "The server is temporarily unavailable. Please try again later.",
+  "@lightningAddressErrorServerUnavailable": {
+    "description": "Lightning Address error when the server rejects a request but it can be retried"
+  },
+  "lightningAddressErrorServerError": "The server could not complete the request. Please try again later.",
+  "@lightningAddressErrorServerError": {
+    "description": "Lightning Address error when the server rejects a request and it should not be retried as-is"
+  },
+  "lightningAddressErrorUnexpected": "Something went wrong. Please try again.",
+  "@lightningAddressErrorUnexpected": {
+    "description": "Lightning Address generic error for unexpected responses or a local signing failure"
+  },
+  "paymentPageErrorInvalidInput": "Please check the highlighted fields and try again.",
+  "@paymentPageErrorInvalidInput": {
+    "description": "Donation Page error when the entered details fail validation"
+  },
+  "paymentPageErrorNoNym": "Choose your name to create your Donation Page.",
+  "@paymentPageErrorNoNym": {
+    "description": "Donation Page error shown when the user has no Bull nym yet"
+  },
+  "paymentPageErrorNoDefaultWallet": "Set up a Bitcoin wallet before creating a Donation Page.",
+  "@paymentPageErrorNoDefaultWallet": {
+    "description": "Donation Page error when there is no default Bitcoin wallet to derive from"
+  },
+  "paymentPageErrorSetupFailed": "Could not set up your Donation Page wallet. Please try again.",
+  "@paymentPageErrorSetupFailed": {
+    "description": "Donation Page error for a local wallet-preparation failure"
+  },
+  "paymentPageErrorConnection": "Could not reach the server. Check your connection and try again.",
+  "@paymentPageErrorConnection": {
+    "description": "Donation Page error for a network or timeout failure"
+  },
+  "paymentPageErrorServer": "The server could not complete the request. Please try again later.",
+  "@paymentPageErrorServer": {
+    "description": "Donation Page error for a retryable server failure"
+  },
+  "paymentPageErrorNotFound": "No Donation Page exists for this name yet.",
+  "@paymentPageErrorNotFound": {
+    "description": "Donation Page error when the page row does not exist on the server"
+  },
+  "paymentPageErrorRejected": "The server rejected your Donation Page. Please review your details and try again.",
+  "@paymentPageErrorRejected": {
+    "description": "Donation Page error when the server rejects the submitted page"
+  },
+  "paymentPageErrorAuth": "Your Lightning address must be active to manage your Donation Page. Reactivate it and try again.",
+  "@paymentPageErrorAuth": {
+    "description": "Donation Page error when the server rejects the signature or the registration is inactive"
+  },
+  "paymentPageErrorUnexpected": "Something went wrong. Please try again.",
+  "@paymentPageErrorUnexpected": {
+    "description": "Donation Page generic error for unexpected responses or a local signing failure"
+  },
+  "posErrorInvalidInput": "Please check the highlighted fields and try again.",
+  "@posErrorInvalidInput": {
+    "description": "Point of Sale error when the entered details fail validation"
+  },
+  "posErrorNoNym": "Choose your name to create your Point of Sale.",
+  "@posErrorNoNym": {
+    "description": "Point of Sale error shown when the user has no Bull nym yet"
+  },
+  "posErrorNoDefaultWallet": "Set up a Bitcoin wallet before creating a Point of Sale.",
+  "@posErrorNoDefaultWallet": {
+    "description": "Point of Sale error when there is no default Bitcoin wallet to derive from"
+  },
+  "posErrorSetupFailed": "Could not set up your Point of Sale wallet. Please try again.",
+  "@posErrorSetupFailed": {
+    "description": "Point of Sale error for a local wallet-preparation failure"
+  },
+  "posErrorConnection": "Could not reach the server. Check your connection and try again.",
+  "@posErrorConnection": {
+    "description": "Point of Sale error for a network or timeout failure"
+  },
+  "posErrorServer": "The server could not complete the request. Please try again later.",
+  "@posErrorServer": {
+    "description": "Point of Sale error for a retryable server failure"
+  },
+  "posErrorNotFound": "No Point of Sale exists for this name yet.",
+  "@posErrorNotFound": {
+    "description": "Point of Sale error when the terminal row does not exist on the server"
+  },
+  "posErrorRejected": "The server rejected your Point of Sale. Please review your details and try again.",
+  "@posErrorRejected": {
+    "description": "Point of Sale error when the server rejects the submitted terminal"
+  },
+  "posErrorAuth": "Your Lightning address must be active to manage your Point of Sale. Reactivate it and try again.",
+  "@posErrorAuth": {
+    "description": "Point of Sale error when the server rejects the signature or the registration is inactive"
+  },
+  "posErrorUnexpected": "Something went wrong. Please try again.",
+  "@posErrorUnexpected": {
+    "description": "Point of Sale generic error for unexpected responses or a local signing failure"
+  },
+  "invoiceErrorNoDefaultBitcoinWallet": "Set up a Bitcoin wallet before creating an invoice that accepts Bitcoin.",
+  "@invoiceErrorNoDefaultBitcoinWallet": {
+    "description": "Invoice error when no default Bitcoin wallet exists for the BTC rail"
+  },
+  "invoiceErrorNoDefaultLiquidWallet": "Set up a Liquid wallet before creating an invoice that accepts Lightning or Liquid.",
+  "@invoiceErrorNoDefaultLiquidWallet": {
+    "description": "Invoice error when no default Liquid wallet exists for the Lightning or Liquid rail"
+  },
+  "invoiceErrorInvalidInput": "Please check the highlighted fields and try again.",
+  "@invoiceErrorInvalidInput": {
+    "description": "Invoice error when the entered details fail validation"
+  },
+  "invoiceErrorReusedAddress": "That receive address was already used. Please try again.",
+  "@invoiceErrorReusedAddress": {
+    "description": "Invoice error when the supplied Bitcoin or Liquid address is already assigned"
+  },
+  "invoiceErrorNotFound": "This invoice could not be found.",
+  "@invoiceErrorNotFound": {
+    "description": "Invoice error when the invoice does not exist or is not owned by this wallet"
+  },
+  "invoiceErrorAuth": "Your wallet signature could not be verified. Please try again.",
+  "@invoiceErrorAuth": {
+    "description": "Invoice error when the server rejects the signature"
+  },
+  "invoiceErrorRateLimited": "Too many requests. Please wait a moment and try again.",
+  "@invoiceErrorRateLimited": {
+    "description": "Invoice error when the server rate-limits the request"
+  },
+  "invoiceErrorConnection": "Could not reach the server. Check your connection and try again.",
+  "@invoiceErrorConnection": {
+    "description": "Invoice error for a network or timeout failure"
+  },
+  "invoiceErrorServer": "The server could not complete the request. Please try again later.",
+  "@invoiceErrorServer": {
+    "description": "Invoice error for a retryable server failure or an unavailable invoice service"
+  },
+  "invoiceErrorUnexpected": "Something went wrong. Please try again.",
+  "@invoiceErrorUnexpected": {
+    "description": "Invoice generic error for unexpected responses or a local signing failure"
+  },
+  "bitcoinSettingsInvoicesTitle": "Invoices",
+  "@bitcoinSettingsInvoicesTitle": {
+    "description": "Bitcoin settings entry tile for the Invoices feature"
+  },
+  "invoicesListTitle": "Invoices",
+  "@invoicesListTitle": {
+    "description": "Title of the invoices list screen"
+  },
+  "invoicesCreateButton": "New invoice",
+  "@invoicesCreateButton": {
+    "description": "Button to start creating an invoice"
+  },
+  "invoicesRetryButton": "Retry",
+  "@invoicesRetryButton": {
+    "description": "Retry loading the invoices list"
+  },
+  "invoicesFilterAll": "All",
+  "@invoicesFilterAll": {
+    "description": "The client-side status filter chip that shows every invoice"
+  },
+  "invoicesEmptyTitle": "No invoices yet",
+  "@invoicesEmptyTitle": {
+    "description": "Empty-state title for the invoices list"
+  },
+  "invoicesEmptyBody": "Create an invoice to get paid.",
+  "@invoicesEmptyBody": {
+    "description": "Empty-state body for the invoices list"
+  },
+  "invoicesFilteredEmptyTitle": "No matching invoices",
+  "@invoicesFilteredEmptyTitle": {
+    "description": "Title shown when invoices exist but none match the selected status filter"
+  },
+  "invoicesFilteredEmptyBody": "Try another status or show all invoices.",
+  "@invoicesFilteredEmptyBody": {
+    "description": "Body shown when invoices exist but none match the selected status filter"
+  },
+  "invoicesClearFilterButton": "Show all invoices",
+  "@invoicesClearFilterButton": {
+    "description": "Button that clears the invoice status filter"
+  },
+  "invoicesLoadMoreButton": "Load more invoices",
+  "@invoicesLoadMoreButton": {
+    "description": "Button that loads the next page of merchant invoices"
+  },
+  "invoicesRetryMoreButton": "Retry loading more",
+  "@invoicesRetryMoreButton": {
+    "description": "Button that retries a failed next page of merchant invoices"
+  },
+  "invoiceCreateTitle": "New invoice",
+  "@invoiceCreateTitle": {
+    "description": "Title of the create-invoice screen"
+  },
+  "invoiceCreatedTitle": "Invoice created",
+  "@invoiceCreatedTitle": {
+    "description": "Title of the create-invoice success view"
+  },
+  "invoiceDetailTitle": "Invoice",
+  "@invoiceDetailTitle": {
+    "description": "Title of the invoice detail screen"
+  },
+  "invoiceAmountSats": "{count} sats",
+  "@invoiceAmountSats": {
+    "description": "An invoice amount rendered in satoshis",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "invoiceAmountModeSats": "Sats",
+  "@invoiceAmountModeSats": {
+    "description": "Amount mode toggle: denominate in satoshis"
+  },
+  "invoiceAmountModeFiat": "Fiat",
+  "@invoiceAmountModeFiat": {
+    "description": "Amount mode toggle: denominate in a fiat currency"
+  },
+  "invoiceAmountSatsLabel": "Amount (sats)",
+  "@invoiceAmountSatsLabel": {
+    "description": "Label for the sat amount input"
+  },
+  "invoiceAmountFiatLabel": "Amount",
+  "@invoiceAmountFiatLabel": {
+    "description": "Label for the fiat amount input"
+  },
+  "invoiceCurrencyLabel": "Currency",
+  "@invoiceCurrencyLabel": {
+    "description": "Label for the fiat currency selector"
+  },
+  "invoiceAmountError": "Enter a valid amount",
+  "@invoiceAmountError": {
+    "description": "Per-field error shown when the invoice amount is missing or not a positive number"
+  },
+  "invoiceCurrencyError": "Choose a currency",
+  "@invoiceCurrencyError": {
+    "description": "Per-field error shown when no invoice fiat currency is selected"
+  },
+  "invoiceCurrenciesUnavailable": "Currencies are temporarily unavailable.",
+  "@invoiceCurrenciesUnavailable": {
+    "description": "Invoice creation message shown when supported currency metadata could not be loaded"
+  },
+  "invoiceRetryCurrencies": "Try again",
+  "@invoiceRetryCurrencies": {
+    "description": "Button that retries loading supported invoice currencies"
+  },
+  "invoiceRailsLabel": "Accepted payment methods",
+  "@invoiceRailsLabel": {
+    "description": "Section header for the invoice payment-rail toggles"
+  },
+  "invoiceEditRailsButton": "Edit accepted payment methods",
+  "@invoiceEditRailsButton": {
+    "description": "Button that reveals the collapsed invoice payment-rail toggles on the create page"
+  },
+  "invoiceAcceptLn": "Lightning",
+  "@invoiceAcceptLn": {
+    "description": "Toggle to accept Lightning payment"
+  },
+  "invoiceAcceptLiquid": "Liquid",
+  "@invoiceAcceptLiquid": {
+    "description": "Toggle to accept Liquid payment"
+  },
+  "invoiceAcceptBtc": "On-chain Bitcoin",
+  "@invoiceAcceptBtc": {
+    "description": "Toggle to accept on-chain Bitcoin payment"
+  },
+  "invoicePublicDescriptionLabel": "Description",
+  "@invoicePublicDescriptionLabel": {
+    "description": "Label for the public invoice description"
+  },
+  "invoiceNumberLabel": "Invoice number",
+  "@invoiceNumberLabel": {
+    "description": "Label for the invoice number field"
+  },
+  "invoiceRecipientNameLabel": "Recipient name",
+  "@invoiceRecipientNameLabel": {
+    "description": "Label for the recipient name field"
+  },
+  "invoiceExpiryDays": "Expires in {count} days",
+  "@invoiceExpiryDays": {
+    "description": "Label showing the selected expiry window in days",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "invoicePrivateMemoLabel": "Private note (only you)",
+  "@invoicePrivateMemoLabel": {
+    "description": "Label for the local-only private memo field"
+  },
+  "invoiceCreateButton": "Create invoice",
+  "@invoiceCreateButton": {
+    "description": "Button to submit the create-invoice form"
+  },
+  "invoiceCreatingButton": "Creating…",
+  "@invoiceCreatingButton": {
+    "description": "Submit button label while an invoice is being created"
+  },
+  "invoiceShareLabel": "Share this payment link",
+  "@invoiceShareLabel": {
+    "description": "Label above the created invoice share URL"
+  },
+  "invoiceOpenLink": "Open link",
+  "@invoiceOpenLink": {
+    "description": "Button to open the invoice share link externally"
+  },
+  "invoiceDoneButton": "Done",
+  "@invoiceDoneButton": {
+    "description": "Button to close the create-invoice success view"
+  },
+  "invoiceStatusLabel": "Status",
+  "@invoiceStatusLabel": {
+    "description": "Label for the invoice status row on the detail screen"
+  },
+  "invoiceAmountLabel": "Amount",
+  "@invoiceAmountLabel": {
+    "description": "Label for the invoice amount row on the detail screen"
+  },
+  "invoiceAmountUnavailable": "Amount unavailable",
+  "@invoiceAmountUnavailable": {
+    "description": "Fallback shown when an invoice carries no fiat face value and no positive satoshi target to headline."
+  },
+  "invoiceExpiresLabel": "Expires in",
+  "@invoiceExpiresLabel": {
+    "description": "Label for the invoice expiry countdown row"
+  },
+  "invoiceExpiredLabel": "Expired",
+  "@invoiceExpiredLabel": {
+    "description": "Shown when an invoice has passed its expiry"
+  },
+  "invoicePaymentLightningLabel": "Lightning invoice",
+  "@invoicePaymentLightningLabel": {
+    "description": "Label for the Lightning payment request on the detail screen"
+  },
+  "invoicePaymentLiquidLabel": "Liquid address",
+  "@invoicePaymentLiquidLabel": {
+    "description": "Label for the Liquid payment address on the detail screen"
+  },
+  "invoicePaymentBitcoinLabel": "Bitcoin address",
+  "@invoicePaymentBitcoinLabel": {
+    "description": "Label for the Bitcoin payment address on the detail screen"
+  },
+  "invoiceCancelButton": "Cancel invoice",
+  "@invoiceCancelButton": {
+    "description": "Button to cancel an unpaid invoice"
+  },
+  "invoiceCancelConfirmTitle": "Cancel this invoice?",
+  "@invoiceCancelConfirmTitle": {
+    "description": "Title of the cancel-invoice confirmation dialog"
+  },
+  "invoiceCancelConfirmBody": "The payment link will stop working. This cannot be undone.",
+  "@invoiceCancelConfirmBody": {
+    "description": "Body of the cancel-invoice confirmation dialog"
+  },
+  "invoiceCancelConfirmCancel": "Keep it",
+  "@invoiceCancelConfirmCancel": {
+    "description": "Dismiss action of the cancel-invoice confirmation dialog"
+  },
+  "invoiceCancelConfirmConfirm": "Cancel invoice",
+  "@invoiceCancelConfirmConfirm": {
+    "description": "Confirm action of the cancel-invoice confirmation dialog"
+  },
+  "invoiceStatusUnpaid": "Unpaid",
+  "@invoiceStatusUnpaid": {
+    "description": "Invoice status label: unpaid"
+  },
+  "invoiceStatusInProgress": "In progress",
+  "@invoiceStatusInProgress": {
+    "description": "Invoice status label: in progress"
+  },
+  "invoiceStatusPartiallyPaid": "Partially paid",
+  "@invoiceStatusPartiallyPaid": {
+    "description": "Invoice status label: partially paid"
+  },
+  "invoiceStatusPaid": "Paid",
+  "@invoiceStatusPaid": {
+    "description": "Invoice status label: paid"
+  },
+  "invoiceStatusUnderpaid": "Underpaid",
+  "@invoiceStatusUnderpaid": {
+    "description": "Invoice status label: underpaid"
+  },
+  "invoiceStatusOverpaid": "Overpaid",
+  "@invoiceStatusOverpaid": {
+    "description": "Invoice status label: overpaid"
+  },
+  "invoiceStatusExpired": "Expired",
+  "@invoiceStatusExpired": {
+    "description": "Invoice status label: expired"
+  },
+  "invoiceStatusCancelled": "Cancelled",
+  "@invoiceStatusCancelled": {
+    "description": "Invoice status label: cancelled"
+  },
+  "invoiceStatusUnsupported": "Update required",
+  "@invoiceStatusUnsupported": {
+    "description": "Generic invoice status label shown when the server returns a status this app version does not understand"
+  },
+  "invoiceUnsupportedStatusMessage": "Update the app, then refresh this invoice. Payment reconciliation may still be in progress.",
+  "@invoiceUnsupportedStatusMessage": {
+    "description": "Detail-screen guidance shown when an invoice has a server status this app version does not understand"
+  },
+  "bitcoinSettingsPaymentPageTitle": "Donation Page",
+  "@bitcoinSettingsPaymentPageTitle": {
+    "description": "Bitcoin settings tile opening the Donation Page editor"
+  },
+  "paymentPageScreenTitle": "Donation Page",
+  "@paymentPageScreenTitle": {
+    "description": "Title of the Donation Page editor screen"
+  },
+  "paymentPageHeaderLabel": "Title",
+  "@paymentPageHeaderLabel": {
+    "description": "Label for the Donation Page header/title field"
+  },
+  "paymentPageHeaderHint": "e.g. Support my work",
+  "@paymentPageHeaderHint": {
+    "description": "Hint for the Donation Page title field"
+  },
+  "paymentPageDescriptionLabel": "Short description",
+  "@paymentPageDescriptionLabel": {
+    "description": "Label for the Donation Page description field"
+  },
+  "paymentPageDescriptionHint": "Shown on your Donation Page and when its link is shared.",
+  "@paymentPageDescriptionHint": {
+    "description": "Hint for the Donation Page description field"
+  },
+  "paymentPageWebsiteLabel": "Website (optional)",
+  "@paymentPageWebsiteLabel": {
+    "description": "Label for the Donation Page website field"
+  },
+  "paymentPageTwitterLabel": "X / Twitter handle (optional)",
+  "@paymentPageTwitterLabel": {
+    "description": "Label for the Donation Page Twitter handle field"
+  },
+  "paymentPageInstagramLabel": "Instagram handle (optional)",
+  "@paymentPageInstagramLabel": {
+    "description": "Label for the Donation Page Instagram handle field"
+  },
+  "paymentPageHeaderError": "Enter a title",
+  "@paymentPageHeaderError": {
+    "description": "Per-field error shown when the Donation Page title is empty or too long"
+  },
+  "paymentPageDescriptionError": "Enter a description of 1–120 characters",
+  "@paymentPageDescriptionError": {
+    "description": "Per-field error shown when the Donation Page description is empty or too long"
+  },
+  "paymentPageCurrencyError": "Choose a currency",
+  "@paymentPageCurrencyError": {
+    "description": "Per-field error shown when no Donation Page display currency is selected"
+  },
+  "paymentPageWebsiteError": "Enter a website like https://example.com",
+  "@paymentPageWebsiteError": {
+    "description": "Per-field error shown when the Donation Page website is invalid"
+  },
+  "paymentPageTwitterError": "Use letters, numbers and underscores only",
+  "@paymentPageTwitterError": {
+    "description": "Per-field error shown when the Donation Page X/Twitter handle is invalid"
+  },
+  "paymentPageInstagramError": "Use letters, numbers, dots and underscores only",
+  "@paymentPageInstagramError": {
+    "description": "Per-field error shown when the Donation Page Instagram handle is invalid"
+  },
+  "paymentPageCurrencyLabel": "Display currency",
+  "@paymentPageCurrencyLabel": {
+    "description": "Label for the Donation Page display-currency dropdown"
+  },
+  "paymentPageByteCounter": "{count}/{max}",
+  "@paymentPageByteCounter": {
+    "description": "Current and maximum length counter shown under a Donation Page text field",
+    "placeholders": {
+      "count": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "paymentPageDescriptionByteLimit": "Some characters use extra space. Shorten this description ({count}/{max} bytes).",
+  "@paymentPageDescriptionByteLimit": {
+    "description": "Error shown when a short Donation Page description exceeds the UTF-8 safety ceiling despite fitting the visible-character limit",
+    "placeholders": {
+      "count": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "paymentPageRoutingNotice": "Your Lightning address pays into your Lightning Address wallet. Your Donation Page has its own link and its own wallet.",
+  "@paymentPageRoutingNotice": {
+    "description": "ROUTE-3W notice clarifying the Donation Page settles to its own wallet"
+  },
+  "paymentPageShareLabel": "Your Donation Page link",
+  "@paymentPageShareLabel": {
+    "description": "Label above the shareable Donation Page URL"
+  },
+  "paymentPageCopyLink": "Copy link",
+  "@paymentPageCopyLink": {
+    "description": "Button to copy the Donation Page link to the clipboard"
+  },
+  "paymentPageCopiedLink": "Link copied",
+  "@paymentPageCopiedLink": {
+    "description": "Snackbar confirming the Donation Page link was copied"
+  },
+  "paymentPageOpenLink": "Open link",
+  "@paymentPageOpenLink": {
+    "description": "Button to open the Donation Page link externally"
+  },
+  "paymentPageCreateButton": "Create Donation Page",
+  "@paymentPageCreateButton": {
+    "description": "Primary button to create the Donation Page"
+  },
+  "paymentPageSaveButton": "Save changes",
+  "@paymentPageSaveButton": {
+    "description": "Primary button to save Donation Page edits"
+  },
+  "paymentPagePublishButton": "Republish Donation Page",
+  "@paymentPagePublishButton": {
+    "description": "Button to republish (revive) an archived Donation Page"
+  },
+  "paymentPageDeactivateButton": "Deactivate Donation Page",
+  "@paymentPageDeactivateButton": {
+    "description": "Button to archive/deactivate the Donation Page"
+  },
+  "paymentPageSubmitting": "Saving…",
+  "@paymentPageSubmitting": {
+    "description": "Primary button label while a Donation Page save is in flight"
+  },
+  "paymentPageArchiveConfirmTitle": "Deactivate Donation Page?",
+  "@paymentPageArchiveConfirmTitle": {
+    "description": "Title of the Donation Page deactivate confirmation dialog"
+  },
+  "paymentPageArchiveConfirmBody": "Your public page will show a deactivation notice. You can republish it later.",
+  "@paymentPageArchiveConfirmBody": {
+    "description": "Body of the Donation Page deactivate confirmation dialog"
+  },
+  "paymentPageArchiveConfirmCancel": "Cancel",
+  "@paymentPageArchiveConfirmCancel": {
+    "description": "Cancel action of the Donation Page deactivate dialog"
+  },
+  "paymentPageArchiveConfirmConfirm": "Deactivate",
+  "@paymentPageArchiveConfirmConfirm": {
+    "description": "Confirm action of the Donation Page deactivate dialog"
+  },
+  "paymentPageNeedsNymTitle": "Choose your name",
+  "@paymentPageNeedsNymTitle": {
+    "description": "Title of the Donation Page nym-registration first step"
+  },
+  "paymentPageNeedsNymBody": "Your Donation Page needs a Bull name. This also activates your Lightning address.",
+  "@paymentPageNeedsNymBody": {
+    "description": "Body explaining the nym prerequisite for the Donation Page"
+  },
+  "paymentPageNymHelper": "Letters and numbers only",
+  "@paymentPageNymHelper": {
+    "description": "Helper for the Donation Page nym input"
+  },
+  "paymentPageCreateNymButton": "Continue",
+  "@paymentPageCreateNymButton": {
+    "description": "Button to register the nym and continue to the Donation Page form"
+  },
+  "paymentPagePermanentNamesUnavailableTitle": "Donation Page unavailable",
+  "@paymentPagePermanentNamesUnavailableTitle": {
+    "description": "Title shown when the server does not advertise the exact permanent-name contract required by Donation Page"
+  },
+  "paymentPagePermanentNamesUnavailableBody": "This server does not support the permanent-name contract required to manage your Donation Page. Your wallet controls are still available.",
+  "@paymentPagePermanentNamesUnavailableBody": {
+    "description": "Fail-closed explanation shown when exact permanent-name capability support is absent"
+  },
+  "paymentPageAliasHelper": "One shared alias for Donation Page and Point of Sale. Once claimed, it cannot be changed, cleared, or replaced.",
+  "@paymentPageAliasHelper": {
+    "description": "Explains alias sharing and permanence before the first claim"
+  },
+  "paymentPageAliasInvalid": "Use 1–32 lowercase letters, numbers, or internal hyphens",
+  "@paymentPageAliasInvalid": {
+    "description": "Validation error for a first Donation Page alias claim"
+  },
+  "paymentPageAliasTaken": "That alias is already claimed. Choose another.",
+  "@paymentPageAliasTaken": {
+    "description": "Structured shared-namespace conflict shown when a requested alias is unavailable"
+  },
+  "paymentPageAliasAlreadyAssigned": "Your account already owns a permanent alias. Reloading the server-owned alias.",
+  "@paymentPageAliasAlreadyAssigned": {
+    "description": "Structured conflict shown when the account already has a different permanent alias"
+  },
+  "paymentPageOnlineToggleLabel": "Donation Page online",
+  "@paymentPageOnlineToggleLabel": {
+    "description": "Label for the Donation Page-specific availability switch"
+  },
+  "paymentPageOnlineToggleBody": "Controls only your Donation Page. Lightning Address and Point of Sale stay as they are.",
+  "@paymentPageOnlineToggleBody": {
+    "description": "Explains independent Donation Page availability"
+  },
+  "paymentPageTurnOffConfirmTitle": "Turn off Donation Page?",
+  "@paymentPageTurnOffConfirmTitle": {
+    "description": "Title of the Donation Page-specific turn-off confirmation"
+  },
+  "paymentPageTurnOffConfirmBody": "Your Donation Page will show an offline notice. Your permanent names remain claimed, and Lightning Address and Point of Sale stay as they are.",
+  "@paymentPageTurnOffConfirmBody": {
+    "description": "Explains effects and non-effects of turning off Donation Page"
+  },
+  "paymentPageTurnOffConfirmCancel": "Keep online",
+  "@paymentPageTurnOffConfirmCancel": {
+    "description": "Cancel action for turning off Donation Page"
+  },
+  "paymentPageTurnOffConfirmSubmit": "Turn off",
+  "@paymentPageTurnOffConfirmSubmit": {
+    "description": "Confirm action for turning off Donation Page"
+  },
+  "paymentPageSaveAndTurnOnButton": "Save and turn on Donation Page",
+  "@paymentPageSaveAndTurnOnButton": {
+    "description": "Primary action that saves edits and turns an archived Donation Page back on"
+  },
+  "paymentPageArchivedTitle": "Donation Page deactivated",
+  "@paymentPageArchivedTitle": {
+    "description": "Title of the archived Donation Page view"
+  },
+  "paymentPageArchivedBody": "Your page is deactivated and shows a notice to visitors. Republish it to make it live again.",
+  "@paymentPageArchivedBody": {
+    "description": "Body of the archived Donation Page view"
+  },
+  "paymentPageLoadFailedTitle": "Couldn't load your Donation Page",
+  "@paymentPageLoadFailedTitle": {
+    "description": "Title shown when the Donation Page could not be loaded"
+  },
+  "paymentPageLoadFailedBody": "We couldn't reach the server. Check your connection and try again.",
+  "@paymentPageLoadFailedBody": {
+    "description": "Body shown when the Donation Page could not be loaded"
+  },
+  "paymentPageRetryButton": "Try again",
+  "@paymentPageRetryButton": {
+    "description": "Retry button for the Donation Page load-failed view"
+  },
+  "paymentPageCurrenciesUnavailable": "Currency list unavailable. Using {currency}.",
+  "@paymentPageCurrenciesUnavailable": {
+    "description": "Notice shown when the live currency list could not be fetched",
+    "placeholders": {
+      "currency": {"type": "String"}
+    }
+  },
+  "paymentPageRetryCurrencies": "Retry",
+  "@paymentPageRetryCurrencies": {
+    "description": "Button to retry fetching the supported currency list"
+  },
+  "paymentPageSubmissionUncertain": "Your changes may not have been saved. Reload to check.",
+  "@paymentPageSubmissionUncertain": {
+    "description": "Notice shown when a Donation Page save timed out and may be uncertain"
+  },
+  "paymentPageOperationInProgress": "Please wait for the current operation to finish.",
+  "@paymentPageOperationInProgress": {
+    "description": "Snackbar shown when the user tries to leave during a Donation Page operation"
+  },
+  "paymentPageHealNeedsReactivation": "Your Donation Page needs to be set up again after recovery.",
+  "@paymentPageHealNeedsReactivation": {
+    "description": "Recovery notice when the recovered Donation Page row is missing"
+  },
+  "paymentPageHealNeedsReactivationAction": "Set up your Donation Page",
+  "@paymentPageHealNeedsReactivationAction": {
+    "description": "Button to re-create the Donation Page after recovery"
+  },
+  "paymentPageHealUnreachable": "We couldn't verify your Donation Page. Check it in Bitcoin settings.",
+  "@paymentPageHealUnreachable": {
+    "description": "Recovery notice when the Donation Page liveness check could not reach the server"
+  },
+  "posHealNeedsReactivation": "Your Point of Sale needs to be set up again after recovery.",
+  "@posHealNeedsReactivation": {
+    "description": "Recovery notice when the recovered Point of Sale row is missing"
+  },
+  "posHealNeedsReactivationAction": "Set up your Point of Sale again",
+  "@posHealNeedsReactivationAction": {
+    "description": "Button to re-create the Point of Sale after recovery"
+  },
+  "posHealUnreachable": "We couldn't verify your Point of Sale. Check it in Bitcoin settings.",
+  "@posHealUnreachable": {
+    "description": "Recovery notice when the Point of Sale liveness check could not reach the server"
+  },
+  "bitcoinSettingsPointOfSaleTitle": "Point of Sale",
+  "@bitcoinSettingsPointOfSaleTitle": {
+    "description": "Bitcoin settings tile opening the Point of Sale provisioning screen"
+  },
+  "posScreenTitle": "Point of Sale",
+  "@posScreenTitle": {
+    "description": "Title of the Point of Sale provisioning screen"
+  },
+  "posOperationInProgress": "Please wait for the current operation to finish.",
+  "@posOperationInProgress": {
+    "description": "Snackbar shown when the user tries to leave during a Point of Sale operation"
+  },
+  "posNeedsNymTitle": "Choose your name",
+  "@posNeedsNymTitle": {
+    "description": "Title of the Point of Sale nym-registration first step"
+  },
+  "posNeedsNymBody": "Your Point of Sale needs a Bull name. This also activates your Lightning address.",
+  "@posNeedsNymBody": {
+    "description": "Body explaining the nym prerequisite for the Point of Sale"
+  },
+  "posNymHelper": "Letters and numbers only",
+  "@posNymHelper": {
+    "description": "Helper for the Point of Sale nym input"
+  },
+  "posCreateNymButton": "Continue",
+  "@posCreateNymButton": {
+    "description": "Button to register the nym and continue to the Point of Sale form"
+  },
+  "posPermanentNamesUnavailableTitle": "Point of Sale unavailable",
+  "@posPermanentNamesUnavailableTitle": {
+    "description": "Title shown when the server does not advertise the exact permanent-name contract required by Point of Sale"
+  },
+  "posPermanentNamesUnavailableBody": "This server does not support the permanent-name contract required to manage your Point of Sale. Your wallet controls are still available.",
+  "@posPermanentNamesUnavailableBody": {
+    "description": "Fail-closed explanation shown when exact permanent-name capability support is absent"
+  },
+  "posAliasHelper": "One shared alias for Donation Page and Point of Sale. Once claimed, it cannot be changed, cleared, or replaced.",
+  "@posAliasHelper": {
+    "description": "Explains alias sharing and permanence before the first claim"
+  },
+  "posAliasInvalid": "Use 1–32 lowercase letters, numbers, or internal hyphens",
+  "@posAliasInvalid": {
+    "description": "Validation error for a first Point of Sale alias claim"
+  },
+  "posAliasTaken": "That alias is already claimed. Choose another.",
+  "@posAliasTaken": {
+    "description": "Structured shared-namespace conflict shown when a requested alias is unavailable"
+  },
+  "posAliasAlreadyAssigned": "Your account already owns a permanent alias. Reloading the server-owned alias.",
+  "@posAliasAlreadyAssigned": {
+    "description": "Structured conflict shown when the account already has a different permanent alias"
+  },
+  "posOnlineToggleLabel": "Point of Sale online",
+  "@posOnlineToggleLabel": {
+    "description": "Label for the Point of Sale-specific availability switch"
+  },
+  "posOnlineToggleBody": "Controls only your Point of Sale. Lightning Address and Donation Page stay as they are.",
+  "@posOnlineToggleBody": {
+    "description": "Explains independent Point of Sale availability"
+  },
+  "posTurnOffConfirmTitle": "Turn off Point of Sale?",
+  "@posTurnOffConfirmTitle": {
+    "description": "Title of the Point of Sale-specific turn-off confirmation"
+  },
+  "posTurnOffConfirmBody": "Your Point of Sale will show an offline notice. Your permanent names remain claimed, and Lightning Address and Donation Page stay as they are.",
+  "@posTurnOffConfirmBody": {
+    "description": "Explains effects and non-effects of turning off Point of Sale"
+  },
+  "posTurnOffConfirmCancel": "Keep online",
+  "@posTurnOffConfirmCancel": {
+    "description": "Cancel action for turning off Point of Sale"
+  },
+  "posTurnOffConfirmSubmit": "Turn off",
+  "@posTurnOffConfirmSubmit": {
+    "description": "Confirm action for turning off Point of Sale"
+  },
+  "posRoutingNotice": "Your Lightning address pays into your Lightning Address wallet — even with a Point of Sale. Your Point of Sale has its own till link and its own wallet.",
+  "@posRoutingNotice": {
+    "description": "ROUTE-3W notice clarifying the Lightning address settles to wallet 101 even for a POS-only nym"
+  },
+  "posLabelFieldLabel": "Name",
+  "@posLabelFieldLabel": {
+    "description": "Label for the Point of Sale name/label field"
+  },
+  "posLabelFieldHint": "e.g. Front counter",
+  "@posLabelFieldHint": {
+    "description": "Hint for the Point of Sale name/label field"
+  },
+  "posByteCounter": "{count}/{max}",
+  "@posByteCounter": {
+    "description": "Byte counter shown under the Point of Sale name field",
+    "placeholders": {
+      "count": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "posCurrencyLabel": "Display currency",
+  "@posCurrencyLabel": {
+    "description": "Label for the Point of Sale display-currency dropdown"
+  },
+  "posLabelError": "Enter a name",
+  "@posLabelError": {
+    "description": "Per-field error shown when the Point of Sale name is empty or too long"
+  },
+  "posCurrencyError": "Choose a currency",
+  "@posCurrencyError": {
+    "description": "Per-field error shown when no Point of Sale display currency is selected"
+  },
+  "posCurrenciesUnavailable": "Currency list unavailable. Using {currency}.",
+  "@posCurrenciesUnavailable": {
+    "description": "Notice shown when the live currency list could not be fetched for the Point of Sale",
+    "placeholders": {
+      "currency": {"type": "String"}
+    }
+  },
+  "posRetryCurrencies": "Retry",
+  "@posRetryCurrencies": {
+    "description": "Button to retry fetching the supported currency list for the Point of Sale"
+  },
+  "posShareLabel": "Your Point of Sale terminal link",
+  "@posShareLabel": {
+    "description": "Label above the shareable Point of Sale terminal URL"
+  },
+  "posOpenLink": "Open terminal",
+  "@posOpenLink": {
+    "description": "Button to open the Point of Sale terminal URL externally"
+  },
+  "posCreateButton": "Create Point of Sale",
+  "@posCreateButton": {
+    "description": "Primary button to create the Point of Sale"
+  },
+  "posSaveButton": "Save changes",
+  "@posSaveButton": {
+    "description": "Primary button to save Point of Sale edits"
+  },
+  "posSubmitting": "Saving…",
+  "@posSubmitting": {
+    "description": "Primary button label while a Point of Sale save is in flight"
+  },
+  "posPublishButton": "Reactivate Point of Sale",
+  "@posPublishButton": {
+    "description": "Button to reactivate (revive) an archived Point of Sale"
+  },
+  "posDeactivateButton": "Deactivate Point of Sale",
+  "@posDeactivateButton": {
+    "description": "Button to archive/deactivate the Point of Sale"
+  },
+  "posSubmissionUncertain": "Your changes may not have been saved. Reload to check.",
+  "@posSubmissionUncertain": {
+    "description": "Notice shown when a Point of Sale save timed out and may be uncertain"
+  },
+  "posArchivedTitle": "Point of Sale deactivated",
+  "@posArchivedTitle": {
+    "description": "Title of the archived Point of Sale view"
+  },
+  "posArchivedBody": "Your Point of Sale is deactivated and its terminal shows a notice. Reactivate it to accept sales again.",
+  "@posArchivedBody": {
+    "description": "Body of the archived Point of Sale view"
+  },
+  "posArchiveConfirmTitle": "Deactivate Point of Sale?",
+  "@posArchiveConfirmTitle": {
+    "description": "Title of the Point of Sale deactivate confirmation dialog"
+  },
+  "posArchiveConfirmBody": "Your terminal will show a deactivation notice. You can reactivate it later.",
+  "@posArchiveConfirmBody": {
+    "description": "Body of the Point of Sale deactivate confirmation dialog"
+  },
+  "posArchiveConfirmCancel": "Cancel",
+  "@posArchiveConfirmCancel": {
+    "description": "Cancel action of the Point of Sale deactivate dialog"
+  },
+  "posArchiveConfirmConfirm": "Deactivate",
+  "@posArchiveConfirmConfirm": {
+    "description": "Confirm action of the Point of Sale deactivate dialog"
+  },
+  "posLoadFailedTitle": "Couldn't load your Point of Sale",
+  "@posLoadFailedTitle": {
+    "description": "Title shown when the Point of Sale could not be loaded"
+  },
+  "posLoadFailedBody": "We couldn't reach the server. Check your connection and try again.",
+  "@posLoadFailedBody": {
+    "description": "Body shown when the Point of Sale could not be loaded"
+  },
+  "posRetryButton": "Try again",
+  "@posRetryButton": {
+    "description": "Retry button for the Point of Sale load-failed view"
+  },
+  "bitcoinSettingsBtcpayTitle": "BTCPay",
+  "@bitcoinSettingsBtcpayTitle": {
+    "description": "Title for the BTCPay option in Bitcoin settings"
+  },
+  "receivePayjoinNoUtxos": "Receive funds first to enable it.\nUTXOs are required to use payjoin.",
+  "@receivePayjoinNoUtxos": {
+    "description": "Snackbar shown when user tries to enable payjoin on a wallet without any UTXOs"
+  },
+  "receivePayjoinActivated": "Payjoin activated",
+  "@receivePayjoinActivated": {
+    "description": "Message indicating that payjoin is activated for the receive transaction"
+  },
+  "getPaidWalletSettingsSectionTitle": "Wallet settings",
+  "@getPaidWalletSettingsSectionTitle": {
+    "description": "Section header for a Get Paid product's reserved wallet behavior controls"
+  },
+  "getPaidWalletAutoSweepLabel": "Auto-sweep",
+  "@getPaidWalletAutoSweepLabel": {
+    "description": "Label for the reserved wallet auto-sweep toggle"
+  },
+  "getPaidWalletAutoSweepInfo": "Automatically transfers funds received on this wallet to your main wallet.",
+  "@getPaidWalletAutoSweepInfo": {
+    "description": "Subtitle describing what the auto-sweep toggle does"
+  },
+  "getPaidWalletHideOnHomeLabel": "Hide on home",
+  "@getPaidWalletHideOnHomeLabel": {
+    "description": "Label for the reserved wallet hide-on-home toggle"
+  },
+  "getPaidWalletHideOnHomeInfo": "Keeps this wallet off your home screen wallet list.",
+  "@getPaidWalletHideOnHomeInfo": {
+    "description": "Subtitle describing what the hide-on-home toggle does"
+  },
+  "getPaidDashboardTitle": "Get Paid",
+  "@getPaidDashboardTitle": {
+    "description": "Title of the Get Paid hub screen"
+  },
+  "getPaidDashboardActive": "Active",
+  "@getPaidDashboardActive": {
+    "description": "Status chip shown when a Get Paid product is active"
+  },
+  "getPaidDashboardNotPublished": "Not published",
+  "@getPaidDashboardNotPublished": {
+    "description": "Status chip shown when a Get Paid product exists but is not published"
+  },
+  "getPaidDashboardError": "Something went wrong. Please try again.",
+  "@getPaidDashboardError": {
+    "description": "Error toast shown when the Get Paid hub fails to refresh"
+  },
+  "getPaidDashboardLightningAddressTitle": "Lightning Address",
+  "@getPaidDashboardLightningAddressTitle": {
+    "description": "Lightning Address slot card title on the Get Paid hub"
+  },
+  "getPaidDashboardLightningAddressSubtitle": "Reusable payment alias compatible with all major Lightning wallets",
+  "@getPaidDashboardLightningAddressSubtitle": {
+    "description": "Lightning Address slot card call-to-action subtitle when unset"
+  },
+  "getPaidDashboardDonationPageTitle": "Donation Page",
+  "@getPaidDashboardDonationPageTitle": {
+    "description": "Donation Page slot card title on the Get Paid hub"
+  },
+  "getPaidDashboardDonationPageSubtitle": "Create a public page to accept donations",
+  "@getPaidDashboardDonationPageSubtitle": {
+    "description": "Donation Page slot card call-to-action subtitle when unset"
+  },
+  "getPaidDashboardPosTitle": "Point of Sale",
+  "@getPaidDashboardPosTitle": {
+    "description": "Point of Sale slot card title on the Get Paid hub"
+  },
+  "getPaidDashboardPosSubtitle": "Accept in-person payments at your business",
+  "@getPaidDashboardPosSubtitle": {
+    "description": "Point of Sale slot card call-to-action subtitle when unset"
+  },
+  "getPaidDashboardInvoicesTitle": "Invoices",
+  "@getPaidDashboardInvoicesTitle": {
+    "description": "Invoices slot card title on the Get Paid hub"
+  },
+  "getPaidDashboardInvoicesSubtitle": "Create a new invoice",
+  "@getPaidDashboardInvoicesSubtitle": {
+    "description": "Invoices slot card subtitle on the Get Paid hub"
+  },
+  "getPaidDashboardTransactionsTitle": "Transactions",
+  "@getPaidDashboardTransactionsTitle": {
+    "description": "Title for the Get Paid transaction history card"
+  },
+  "getPaidDashboardTransactionsSubtitle": "Payments received through Get Paid",
+  "@getPaidDashboardTransactionsSubtitle": {
+    "description": "Subtitle for the Get Paid transaction history card"
+  },
+  "getPaidDashboardBtcpayTitle": "BTCPay Server",
+  "@getPaidDashboardBtcpayTitle": {
+    "description": "BTCPay/SamRock slot card title on the Get Paid hub"
+  },
+  "getPaidDashboardBtcpaySubtitle": "Connect your BTCPay Server via SamRock",
+  "@getPaidDashboardBtcpaySubtitle": {
+    "description": "BTCPay/SamRock slot card call-to-action subtitle when unset"
+  },
+  "getPaidTransactionsTitle": "Transactions",
+  "@getPaidTransactionsTitle": {
+    "description": "Title of the Get Paid transaction history screen"
+  },
+  "getPaidTransactionDetailTitle": "Payment details",
+  "@getPaidTransactionDetailTitle": {
+    "description": "Title of a Get Paid transaction detail screen"
+  },
+  "getPaidTransactionsUnavailable": "Get Paid transactions are temporarily unavailable.",
+  "@getPaidTransactionsUnavailable": {
+    "description": "Error shown when private Get Paid transaction history cannot load"
+  },
+  "getPaidTransactionsRetry": "Retry",
+  "@getPaidTransactionsRetry": {
+    "description": "Retry loading Get Paid transaction history"
+  },
+  "getPaidTransactionsLoadMore": "Load more",
+  "@getPaidTransactionsLoadMore": {
+    "description": "Load the next page of Get Paid transactions"
+  },
+  "getPaidTransactionsEmptyTitle": "No payments yet",
+  "@getPaidTransactionsEmptyTitle": {
+    "description": "Empty-state title for Get Paid transaction history"
+  },
+  "getPaidTransactionsEmptyBody": "Payments received through your Get Paid tools will appear here.",
+  "@getPaidTransactionsEmptyBody": {
+    "description": "Empty-state body for Get Paid transaction history"
+  },
+  "getPaidTransactionsAmountSats": "{amount} sats",
+  "@getPaidTransactionsAmountSats": {
+    "description": "A Get Paid transaction amount in satoshis",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "getPaidTransactionsSourceLightningAddress": "Lightning Address",
+  "@getPaidTransactionsSourceLightningAddress": {
+    "description": "Get Paid transaction source label for a Lightning Address"
+  },
+  "getPaidTransactionsSourceInvoice": "Invoice",
+  "@getPaidTransactionsSourceInvoice": {
+    "description": "Get Paid transaction source label for a wallet invoice"
+  },
+  "getPaidTransactionsSourcePaymentPage": "Donation Page",
+  "@getPaidTransactionsSourcePaymentPage": {
+    "description": "Get Paid transaction source label for a Donation Page"
+  },
+  "getPaidTransactionsSourcePointOfSale": "Point of Sale",
+  "@getPaidTransactionsSourcePointOfSale": {
+    "description": "Get Paid transaction source label for Point of Sale"
+  },
+  "getPaidTransactionsRailLightning": "Lightning",
+  "@getPaidTransactionsRailLightning": {
+    "description": "Lightning settlement rail label"
+  },
+  "getPaidTransactionsRailLiquid": "Liquid",
+  "@getPaidTransactionsRailLiquid": {
+    "description": "Liquid settlement rail label"
+  },
+  "getPaidTransactionsRailBitcoin": "Bitcoin",
+  "@getPaidTransactionsRailBitcoin": {
+    "description": "Bitcoin settlement rail label"
+  },
+  "getPaidTransactionsStatePending": "Pending",
+  "@getPaidTransactionsStatePending": {
+    "description": "Pending Get Paid settlement state"
+  },
+  "getPaidTransactionsStateSettled": "Settled",
+  "@getPaidTransactionsStateSettled": {
+    "description": "Settled Get Paid settlement state"
+  },
+  "getPaidTransactionsStateProblem": "Needs attention",
+  "@getPaidTransactionsStateProblem": {
+    "description": "Problem Get Paid settlement state"
+  },
+  "getPaidTransactionsSourceLabel": "Source",
+  "@getPaidTransactionsSourceLabel": {
+    "description": "Label for the Get Paid product that received a payment"
+  },
+  "getPaidTransactionsReceivedLabel": "Received",
+  "@getPaidTransactionsReceivedLabel": {
+    "description": "Label for when a Get Paid payment was received"
+  },
+  "getPaidTransactionsRailLabel": "Network",
+  "@getPaidTransactionsRailLabel": {
+    "description": "Label for a Get Paid payment settlement network"
+  },
+  "getPaidTransactionsStatusLabel": "Status",
+  "@getPaidTransactionsStatusLabel": {
+    "description": "Label for a Get Paid payment settlement state"
+  },
+  "getPaidTransactionsTimingLabel": "Timing",
+  "@getPaidTransactionsTimingLabel": {
+    "description": "Label for late Get Paid payment timing"
+  },
+  "getPaidTransactionsLate": "Received late",
+  "@getPaidTransactionsLate": {
+    "description": "Value shown for a late Get Paid payment"
+  },
+  "getPaidTransactionsCommentLabel": "Comment",
+  "@getPaidTransactionsCommentLabel": {
+    "description": "Label for an optional private payer comment"
+  },
+  "getPaidTransactionsViewInvoice": "View invoice",
+  "@getPaidTransactionsViewInvoice": {
+    "description": "Open the invoice associated with a Get Paid transaction"
+  },
+  "navigationTabGetPaid": "Get Paid",
+  "@navigationTabGetPaid": {
+    "description": "Label of the Get Paid bottom navigation tab"
+  },
+  "systemLabelInvoice": "Invoice",
+  "@systemLabelInvoice": {
+    "description": "System label for invoice payout addresses"
+  },
+  "btcpaySettingsTitle": "BTCPay",
+  "@btcpaySettingsTitle": {
+    "description": "Title for the BTCPay settings screen"
+  },
+  "btcpayPairingUrlLabel": "SamRock pairing URL",
+  "@btcpayPairingUrlLabel": {
+    "description": "Label for the SamRock pairing URL input"
+  },
+  "btcpayPairingUrlRequired": "Enter a pairing URL",
+  "@btcpayPairingUrlRequired": {
+    "description": "Validation message when the BTCPay pairing URL is missing"
+  },
+  "btcpayPairingWalletsBitcoin": "Bitcoin wallet",
+  "@btcpayPairingWalletsBitcoin": {
+    "description": "Bitcoin wallet summary for BTCPay pairing"
+  },
+  "btcpayPairingWalletsLiquid": "Liquid wallet",
+  "@btcpayPairingWalletsLiquid": {
+    "description": "Liquid wallet summary for BTCPay pairing"
+  },
+  "btcpayPairingWalletsBitcoinAndLiquid": "Liquid and Bitcoin wallets",
+  "@btcpayPairingWalletsBitcoinAndLiquid": {
+    "description": "Bitcoin and Liquid wallet summary for BTCPay pairing"
+  },
+  "btcpayPairingSubmit": "Pair BTCPay",
+  "@btcpayPairingSubmit": {
+    "description": "Submit button text for BTCPay pairing"
+  },
+  "btcpayPairingScanQr": "Scan pairing QR",
+  "@btcpayPairingScanQr": {
+    "description": "Button text for scanning a BTCPay SamRock pairing QR code"
+  },
+  "btcpayPairingSubmitting": "Pairing...",
+  "@btcpayPairingSubmitting": {
+    "description": "Submit button text while BTCPay pairing is in progress"
+  },
+  "btcpayPairingOperationInProgress": "Wait for BTCPay pairing to finish before leaving.",
+  "@btcpayPairingOperationInProgress": {
+    "description": "Message shown when leaving BTCPay pairing is blocked during pairing"
+  },
+  "btcpayPairingSuccess": "BTCPay paired successfully.",
+  "@btcpayPairingSuccess": {
+    "description": "Success message after BTCPay pairing completes"
+  },
+  "btcpayPairingSuccessTitle": "BTCPay Server connected",
+  "@btcpayPairingSuccessTitle": {
+    "description": "Success screen title after BTCPay pairing completes"
+  },
+  "btcpayPairingGenericError": "Could not pair BTCPay Server.",
+  "@btcpayPairingGenericError": {
+    "description": "Generic error message when BTCPay pairing fails"
+  },
+  "btcpayPairingLocalSetupError": "Dedicated BTCPay wallets were kept, but local setup did not finish. Retry to reuse them and finish setup.",
+  "@btcpayPairingLocalSetupError": {
+    "description": "Error shown when dedicated BTCPay wallets were prepared locally but setup failed before server submission"
+  },
+  "btcpayPairingKeychainConflictError": "Dedicated BTCPay wallets already have different recovery metadata. Do not retry with this pairing request; contact support before continuing.",
+  "@btcpayPairingKeychainConflictError": {
+    "description": "Error shown when BTCPay wallet materialization conflicts with existing keychain manifest metadata"
+  },
+  "btcpayPairingInvalidRequestError": "The SamRock pairing URL is invalid.",
+  "@btcpayPairingInvalidRequestError": {
+    "description": "Error shown when the BTCPay pairing URL cannot be parsed or is unsupported"
+  },
+  "lightningAddressInvalidNymError": "Enter a Lightning Address name.",
+  "@lightningAddressInvalidNymError": {
+    "description": "Validation error shown when the Lightning Address name field is empty"
+  },
+  "lightningAddressReservedNymError": "That name is reserved and cannot be claimed.",
+  "@lightningAddressReservedNymError": {
+    "description": "Domain error shown when a permanent Bullnym nym is reserved."
+  },
+  "lightningAddressInvalidRegistrationInputError": "The Lightning Address registration request is invalid. Check the wallet identity and try again.",
+  "@lightningAddressInvalidRegistrationInputError": {
+    "description": "Error shown when Bullnym rejects Lightning Address registration input that is not specifically local name validation"
+  },
+  "lightningAddressLocalPreparationFailedError": "Could not prepare the Lightning Address wallet. Please try again.",
+  "@lightningAddressLocalPreparationFailedError": {
+    "description": "Error shown when the app fails to prepare the dedicated Lightning Address receive wallet locally"
+  },
+  "lightningAddressLocalPreparationNotRetryableError": "Could not prepare the Lightning Address wallet. Contact support before trying again.",
+  "@lightningAddressLocalPreparationNotRetryableError": {
+    "description": "Error shown when the app cannot prepare the dedicated Lightning Address receive wallet because local recovery metadata has a durable conflict"
+  },
+  "lightningAddressNoDefaultBitcoinWalletError": "Set up a Bitcoin wallet before registering a Lightning Address.",
+  "@lightningAddressNoDefaultBitcoinWalletError": {
+    "description": "Error shown when Lightning Address registration cannot derive the default Bitcoin wallet key because no default Bitcoin wallet exists"
+  },
+  "btcpayPairingRejectedError": "BTCPay Server rejected the pairing request. Dedicated BTCPay wallets were kept. Check the pairing URL or create a new pairing request in BTCPay, then retry.",
+  "@btcpayPairingRejectedError": {
+    "description": "Error shown when BTCPay Server rejects the SamRock pairing setup"
+  },
+  "btcpayPairingUncertainError": "BTCPay pairing may have completed. Check the BTCPay Server before retrying.",
+  "@btcpayPairingUncertainError": {
+    "description": "Error shown when BTCPay pairing was submitted but completion could not be confirmed"
+  },
+  "btcpayPairingConfirmTitle": "Pair BTCPay Server?",
+  "@btcpayPairingConfirmTitle": {
+    "description": "Title for the consent dialog before BTCPay wallet descriptors are shared"
+  },
+  "btcpayPairingConfirmBody": "You are about to create or use dedicated {wallets} and share watch-only wallet descriptors with a BTCPay Server at {serverUrl}. That server can monitor payments received by these dedicated wallets. No private keys are shared. These wallets are derived from the same backup as your default wallets. The BTCPay Liquid wallet is hidden from your home screen and automatically sweeps received funds to your default Liquid wallet; you can change both settings later in BTCPay settings. Do you wish to proceed?",
+  "@btcpayPairingConfirmBody": {
+    "placeholders": {
+      "wallets": {
+        "type": "String"
+      },
+      "serverUrl": {
+        "type": "String"
+      }
+    }
+  },
+  "btcpayPairingConfirmRails": "Requested rails: {rails}",
+  "@btcpayPairingConfirmRails": {
+    "placeholders": {
+      "rails": {
+        "type": "String"
+      }
+    }
+  },
+  "btcpayPairingConfirmCancel": "Cancel",
+  "@btcpayPairingConfirmCancel": {
+    "description": "Cancel button text for the BTCPay pairing consent dialog"
+  },
+  "btcpayPairingConfirmSubmit": "Pair and share details",
+  "@btcpayPairingConfirmSubmit": {
+    "description": "Confirm button text for the BTCPay pairing consent dialog"
+  },
+  "btcpayPairingRailBitcoin": "Bitcoin",
+  "@btcpayPairingRailBitcoin": {
+    "description": "Bitcoin rail label for BTCPay pairing"
+  },
+  "btcpayPairingRailLiquid": "Liquid",
+  "@btcpayPairingRailLiquid": {
+    "description": "Liquid rail label for BTCPay pairing"
+  },
+  "btcpayPairingRailLightning": "Lightning via Liquid/Boltz",
+  "@btcpayPairingRailLightning": {
+    "description": "Lightning rail label for BTCPay pairing through Liquid-backed Boltz setup"
+  },
+  "btcpayConnectionTitle": "Connected BTCPay Server",
+  "@btcpayConnectionTitle": {
+    "description": "Title shown when a BTCPay Server is already paired"
+  },
+  "btcpayConnectionServer": "Server",
+  "@btcpayConnectionServer": {
+    "description": "Label for the paired BTCPay Server URL"
+  },
+  "btcpayConnectionStore": "Store",
+  "@btcpayConnectionStore": {
+    "description": "Label for the paired BTCPay Server store ID"
+  },
+  "btcpayConnectionRails": "Rails",
+  "@btcpayConnectionRails": {
+    "description": "Label for the paired BTCPay payment rails"
+  },
+  "btcpayConnectionWallets": "Wallets",
+  "@btcpayConnectionWallets": {
+    "description": "Label for the wallets shared with a paired BTCPay Server"
+  },
+  "btcpayConnectionPairedAt": "Paired",
+  "@btcpayConnectionPairedAt": {
+    "description": "Label for when the BTCPay Server was paired"
+  },
+  "btcpayConnectionUpdatedAt": "Updated",
+  "@btcpayConnectionUpdatedAt": {
+    "description": "Label for when the BTCPay pairing state was last updated"
+  },
+  "btcpayConnectionUncertainTitle": "Pairing status uncertain",
+  "@btcpayConnectionUncertainTitle": {
+    "description": "Title shown when BTCPay pairing may have completed but the app could not confirm it"
+  },
+  "btcpayConnectionUncertainBody": "BTCPay pairing was submitted, but the app could not confirm completion. Check the BTCPay Server before retrying.",
+  "@btcpayConnectionUncertainBody": {
+    "description": "Body shown when BTCPay pairing may have completed but the app could not confirm it"
+  },
+  "btcpayWalletSettingsTitle": "Wallet Settings",
+  "@btcpayWalletSettingsTitle": {
+    "description": "Title for BTCPay wallet behavior settings"
+  },
+  "btcpayHideWalletOnHome": "Hide wallet on Home",
+  "@btcpayHideWalletOnHome": {
+    "description": "Toggle label for hiding a BTCPay wallet on the Home screen"
+  },
+  "btcpayAutoSweepWallet": "Auto-sweep received funds",
+  "@btcpayAutoSweepWallet": {
+    "description": "Toggle label for sweeping received funds from a BTCPay wallet to the default wallet"
+  },
+  "btcpayPairNew": "Pair new BTCPay",
+  "@btcpayPairNew": {
+    "description": "Button text to pair another BTCPay Server"
+  },
+  "deterministicWalletsGenericError": "Something went wrong preparing wallets.",
+  "@deterministicWalletsGenericError": {
+    "description": "Generic error message when deterministic wallet preparation fails"
+  },
+  "keychainManifestGenericError": "Could not update recovery metadata.",
+  "@keychainManifestGenericError": {
+    "description": "Generic error shown when keychain manifest metadata cannot be recorded"
+  },
+  "keychainManifestMalformedFileError": "Could not read this recovery file.",
+  "@keychainManifestMalformedFileError": {
+    "description": "Error shown when a keychain manifest recovery file is not valid JSON or is missing required fields."
+  },
+  "keychainManifestUnsupportedFileError": "This recovery file was created by an unsupported app version.",
+  "@keychainManifestUnsupportedFileError": {
+    "description": "Error shown when a keychain manifest recovery file has an unsupported format version."
+  },
+  "keychainManifestWrongWalletFileError": "This recovery file belongs to a different wallet.",
+  "@keychainManifestWrongWalletFileError": {
+    "description": "Error shown when a keychain manifest recovery file belongs to a different parent wallet fingerprint."
+  },
+  "keychainManifestIncompatibleFileError": "This recovery file is not compatible with this app version.",
+  "@keychainManifestIncompatibleFileError": {
+    "description": "Error shown when a keychain manifest recovery file references reservation metadata unknown to this app version."
+  },
+  "keychainManifestInvalidFileError": "This recovery file is invalid.",
+  "@keychainManifestInvalidFileError": {
+    "description": "Error shown when a keychain manifest recovery file is internally inconsistent or duplicated."
+  },
+  "bitcoinSettingsLightningAddressTitle": "Lightning Address",
+  "@bitcoinSettingsLightningAddressTitle": {
+    "description": "Title for the Lightning Address entry in Bitcoin settings."
+  },
+  "lightningAddressTitle": "Lightning Address",
+  "@lightningAddressTitle": {
+    "description": "Title for the Lightning Address activation and status screen."
+  },
+  "lightningAddressLoadingStatus": "Checking permanent-name capability and status",
+  "@lightningAddressLoadingStatus": {
+    "description": "Accessibility announcement while Lightning Address capability and status load."
+  },
+  "getPaidNymClaimHelper": "Use 1–32 lowercase letters, numbers, or internal hyphens.",
+  "@getPaidNymClaimHelper": {
+    "description": "Exact local syntax guidance for a permanent Bullnym nym."
+  },
+  "getPaidNymClaimSubmit": "Claim your nym",
+  "@getPaidNymClaimSubmit": {
+    "description": "Button that starts the permanent nym claim confirmation."
+  },
+  "lightningAddressPermanentNamesUnavailableTitle": "Permanent names unavailable",
+  "@lightningAddressPermanentNamesUnavailableTitle": {
+    "description": "Title when the configured Bullnym server does not advertise the permanent-name policy."
+  },
+  "lightningAddressPermanentNamesUnavailableBody": "This server does not support permanent-name controls. Lightning Address naming is hidden, while the rest of Bull Wallet and Get Paid remain available.",
+  "@lightningAddressPermanentNamesUnavailableBody": {
+    "description": "Fail-closed legacy-server explanation."
+  },
+  "lightningAddressCapabilityUnavailableTitle": "Lightning Address unavailable",
+  "@lightningAddressCapabilityUnavailableTitle": {
+    "description": "Title when the Bullnym version capability check fails or conflicts with status."
+  },
+  "lightningAddressCapabilityUnavailableBody": "Your Lightning Address could not be loaded. Check your connection and try again.",
+  "@lightningAddressCapabilityUnavailableBody": {
+    "description": "Fail-closed capability error body."
+  },
+  "lightningAddressAlreadyAssignedTitle": "A permanent name is already assigned",
+  "@lightningAddressAlreadyAssignedTitle": {
+    "description": "Title shown while reconciling an NymAlreadyAssigned conflict."
+  },
+  "lightningAddressAlreadyAssignedBody": "Bullnym reports that this wallet already owns a name. Refresh status to use that name; a different name cannot be claimed.",
+  "@lightningAddressAlreadyAssignedBody": {
+    "description": "Safe reconciliation guidance for an NymAlreadyAssigned conflict."
+  },
+  "lightningAddressAlreadyAssigned": "This wallet already owns a permanent name. Its status is being reconciled.",
+  "@lightningAddressAlreadyAssigned": {
+    "description": "Snackbar for an NymAlreadyAssigned conflict."
+  },
+  "getPaidNymTaken": "That name is already owned. Choose another available name.",
+  "@getPaidNymTaken": {
+    "description": "Safe message for the stable NameTaken code."
+  },
+  "getPaidNymReserved": "That name is reserved. Choose another name.",
+  "@getPaidNymReserved": {
+    "description": "Safe message for local or server NymReserved validation."
+  },
+  "lightningAddressOnlineToggleActive": "Active",
+  "@lightningAddressOnlineToggleActive": {
+    "description": "Label for the active Lightning Address availability switch."
+  },
+  "lightningAddressOnlineToggleActiveBody": "Switch Lightning address off, and people won't be able to send funds to it anymore",
+  "@lightningAddressOnlineToggleActiveBody": {
+    "description": "Explains what deactivating the Lightning Address does."
+  },
+  "lightningAddressOnlineToggleInactive": "Deactivated",
+  "@lightningAddressOnlineToggleInactive": {
+    "description": "Label for the inactive Lightning Address availability switch."
+  },
+  "lightningAddressOnlineToggleInactiveBody": "Switch Lightning address on to start receiving payments again",
+  "@lightningAddressOnlineToggleInactiveBody": {
+    "description": "Explains what reactivating the Lightning Address does."
+  },
+  "lightningAddressOnlineToggleSaving": "Refreshing Lightning Address availability",
+  "@lightningAddressOnlineToggleSaving": {
+    "description": "Accessibility announcement while an online/offline mutation is reconciled."
+  },
+  "lightningAddressToggleUncertain": "The availability change may have reached the server. Refresh status before trying again.",
+  "@lightningAddressToggleUncertain": {
+    "description": "Message for a network or timeout failure after an online/offline submission."
+  },
+  "lightningAddressInactiveKnownTitle": "Lightning Address is inactive",
+  "@lightningAddressInactiveKnownTitle": {
+    "description": "Heading shown when Bullnym reports a known but inactive Lightning Address nym."
+  },
+  "getPaidNymLabel": "Name",
+  "@getPaidNymLabel": {
+    "description": "Label for the Lightning Address nym field."
+  },
+  "getPaidNymClaimSubmitting": "Registering...",
+  "@getPaidNymClaimSubmitting": {
+    "description": "Button label while Lightning Address registration is submitting."
+  },
+  "lightningAddressOperationInProgress": "Lightning Address registration is still in progress.",
+  "@lightningAddressOperationInProgress": {
+    "description": "Snackbar shown when the user tries to leave during registration."
+  },
+  "lightningAddressActiveTitle": "Lightning address is active",
+  "@lightningAddressActiveTitle": {
+    "description": "Heading shown for an active wallet-owned Lightning Address found by lookup."
+  },
+  "lightningAddressAdvancedSettings": "Advanced settings",
+  "@lightningAddressAdvancedSettings": {
+    "description": "Link that opens Lightning Address management settings."
+  },
+  "lightningAddressAddressUnavailableBody": "The server did not return your Lightning Address. Try again.",
+  "@lightningAddressAddressUnavailableBody": {
+    "description": "Recoverable state shown when an older or malformed lookup response omits the server-owned Lightning Address."
+  },
+  "lightningAddressRetryAddressButton": "Try again",
+  "@lightningAddressRetryAddressButton": {
+    "description": "Button that reloads a permanent nym whose lookup response omitted its Lightning Address."
+  },
+  "lightningAddressLocalSetupFailedTitle": "Lightning Address is active",
+  "@lightningAddressLocalSetupFailedTitle": {
+    "description": "Heading shown when Bullnym reports an active Lightning Address but the local receive wallet setup needs retry."
+  },
+  "lightningAddressLocalSetupFailedBody": "The address is registered, but the receive wallet still needs local setup before it is ready.",
+  "@lightningAddressLocalSetupFailedBody": {
+    "description": "Body shown when Bullnym reports an active Lightning Address but local receive wallet setup failed."
+  },
+  "lightningAddressLocalSetupNotRetryableBody": "The address is registered, but the receive wallet could not finish local setup. Contact support before retrying.",
+  "@lightningAddressLocalSetupNotRetryableBody": {
+    "description": "Body shown when Bullnym reports an active Lightning Address but local receive wallet setup failed in a non-retryable way."
+  },
+  "lightningAddressRetrySetupButton": "Retry Setup",
+  "@lightningAddressRetrySetupButton": {
+    "description": "Button label to retry local Lightning Address receive wallet setup."
+  },
+  "lightningAddressCheckStatusButton": "Check Status",
+  "@lightningAddressCheckStatusButton": {
+    "description": "Button label to retry Lightning Address status lookup."
+  },
+  "lightningAddressUncertainTitle": "Status Unknown",
+  "@lightningAddressUncertainTitle": {
+    "description": "Heading shown when registration submission may have succeeded but status is unknown."
+  },
+  "lightningAddressUncertainBody": "Registration may have succeeded. Check status before trying again.",
+  "@lightningAddressUncertainBody": {
+    "description": "Failure message shown when a post-submission Lightning Address error is uncertain."
+  },
+  "lightningAddressLookupFailedTitle": "Status Check Failed",
+  "@lightningAddressLookupFailedTitle": {
+    "description": "Heading shown when Lightning Address status lookup fails."
+  },
+  "lightningAddressLookupFailedBody": "Status could not be checked. Try again before registering.",
+  "@lightningAddressLookupFailedBody": {
+    "description": "Body shown when Lightning Address status lookup fails."
+  },
+  "getPaidNymInvalid": "Use a valid name.",
+  "@getPaidNymInvalid": {
+    "description": "Failure message shown when the Lightning Address nym is invalid."
+  },
+  "lightningAddressSetupFailed": "Setup failed before anything was submitted. Please try again.",
+  "@lightningAddressSetupFailed": {
+    "description": "Failure message shown when local wallet setup failed before server submission."
+  },
+  "lightningAddressRejected": "The server rejected this name.",
+  "@lightningAddressRejected": {
+    "description": "Failure message shown when the Bullnym server rejects registration."
+  },
+  "lightningAddressServerTemporary": "The server could not register this name right now. Please try again.",
+  "@lightningAddressServerTemporary": {
+    "description": "Failure message shown when Bullnym returns a retryable server rejection."
+  },
+  "lightningAddressNetworkError": "Network error. Please try again.",
+  "@lightningAddressNetworkError": {
+    "description": "Failure message shown for a retryable Lightning Address network error before uncertain submission."
+  },
+  "lightningAddressGenericError": "Lightning Address setup failed. Please try again.",
+  "@lightningAddressGenericError": {
+    "description": "Generic Lightning Address activation failure message."
+  },
+  "sendLud22DirectPayFailed": "Direct Liquid payment could not be completed.",
+  "@sendLud22DirectPayFailed": {
+    "description": "Generic failure message for a committed LUD-22 direct-pay rail."
+  },
+  "sendLud22InvalidProof": "This payment could not be verified. Please try again.",
+  "@sendLud22InvalidProof": {
+    "description": "Shown when the recipient server rejected the LUD-22 proof of funds."
+  },
+  "sendLud22UtxoUnavailable": "The coins used for this payment are no longer available.",
+  "@sendLud22UtxoUnavailable": {
+    "description": "Shown when the proof outpoint is unknown or already spent server-side."
+  },
+  "sendLud22NymNotFound": "This Lightning address could not be found.",
+  "@sendLud22NymNotFound": {
+    "description": "Shown when the recipient nym is not registered on the server."
+  },
+  "sendLud22MinValue": "This payment needs a Liquid coin worth at least {minSat} sats.",
+  "@sendLud22MinValue": {
+    "description": "Shown when a LUD-22 proof of funds is required and none met the value floor.",
+    "placeholders": {
+      "minSat": {
+        "type": "int"
+      }
+    }
+  },
+  "sendLud22PaidDirectly": "Paid directly on Liquid (no swap fee)",
+  "@sendLud22PaidDirectly": {
+    "description": "Small non-blocking success annotation shown when a Bull Lightning address was settled directly on Liquid via LUD-22."
   },
   "invoiceErrorPrivateStorage": "Private invoice storage is unavailable. Please try again.",
   "@invoiceErrorPrivateStorage": {
@@ -17486,6 +17574,38 @@
   "@metadataBackupRetryRecovery": {
     "description": "Metadata backup page: manual recovery retry action"
   },
+  "metadataBackupRecoveryRetryResult": "Latest recovery retry",
+  "@metadataBackupRecoveryRetryResult": {
+    "description": "Label above the visible result of a manual wallet-recovery retry"
+  },
+  "metadataBackupRecoveryRetryComplete": "Wallet recovery complete",
+  "@metadataBackupRecoveryRetryComplete": {
+    "description": "Successful manual wallet-recovery retry result"
+  },
+  "metadataBackupRecoveryRetryNothingToRestore": "No wallets needed recovery",
+  "@metadataBackupRecoveryRetryNothingToRestore": {
+    "description": "Manual wallet-recovery retry result when every recoverable wallet already exists"
+  },
+  "metadataBackupRecoveryRetryNoBackup": "No remote wallet backup was found",
+  "@metadataBackupRecoveryRetryNoBackup": {
+    "description": "Manual wallet-recovery retry result when no remote wallet backup exists"
+  },
+  "metadataBackupRecoveryRetryFailed": "Wallet recovery failed",
+  "@metadataBackupRecoveryRetryFailed": {
+    "description": "Failed manual wallet-recovery retry result"
+  },
+  "metadataBackupRecoveryRetryCounts": "Restored: {restored} · Failed: {failed}",
+  "@metadataBackupRecoveryRetryCounts": {
+    "description": "Wallet counts shown after a manual recovery retry",
+    "placeholders": {
+      "restored": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
   "metadataBackupRetryBackup": "Retry backup",
   "@metadataBackupRetryBackup": {
     "description": "Metadata backup page: retry failed publication action"
@@ -17718,29 +17838,9 @@
   "@getPaidCardInvoiceDetailsLoading": {
     "description": "Accessible status while a Get Paid transaction card loads its linked invoice"
   },
-  "getPaidCardPayerInstructionsSectionTitle": "Payer instructions",
-  "@getPaidCardPayerInstructionsSectionTitle": {
-    "description": "Detail screen: title of the section holding the invoice's payer-facing payment instructions."
-  },
-  "getPaidCardBitcoinChainAddressLabel": "Bitcoin chain address",
-  "@getPaidCardBitcoinChainAddressLabel": {
-    "description": "Detail screen payer-instructions section: label for the invoice's bitcoin_chain_address, distinct from bitcoin_address."
-  },
-  "getPaidCardBitcoinChainBip21Label": "Bitcoin payment URI",
-  "@getPaidCardBitcoinChainBip21Label": {
-    "description": "Detail screen payer-instructions section: label for the invoice's BIP21 bitcoin payment URI."
-  },
   "getPaidSettlementOverriddenAmbiguousCreate": "A conversion attempt could not be confirmed, so the funds stayed in Bitcoin.",
   "@getPaidSettlementOverriddenAmbiguousCreate": {
     "description": "Detail screen: fiat conversion overridden to Bitcoin because the server could not confirm the outcome of a conversion attempt (contract 0.3 ambiguous_create)."
-  },
-  "getPaidCardPayerQuoteRateLabel": "Payer quote rate",
-  "@getPaidCardPayerQuoteRateLabel": {
-    "description": "Detail screen payer-instructions section: label for the live payer quote rate, deliberately distinct from the Rate at creation reference rate."
-  },
-  "getPaidCardPayerQuoteRateSubline": "the live quote when this invoice was read",
-  "@getPaidCardPayerQuoteRateSubline": {
-    "description": "Detail screen payer-instructions section: muted qualifier under the payer quote rate, stating that it was the live quote at fetch time and not a durable rate."
   },
   "getPaidCardRatePerBtcValue": "{rate} / BTC",
   "@getPaidCardRatePerBtcValue": {
@@ -17754,10 +17854,6 @@
   "getPaidInvoicePaidAmountLabel": "Amount paid",
   "@getPaidInvoicePaidAmountLabel": {
     "description": "Detail screen invoice section: label for the satoshi amount actually paid, distinct from the core-facts Received timestamp."
-  },
-  "getPaidCardQuoteRailsLabel": "Payer quote rails",
-  "@getPaidCardQuoteRailsLabel": {
-    "description": "Detail screen payer-instructions section: label for which rails a payer quote is available on."
   },
   "backupHealthAddPhysicalBackupAction": "ADD A PHYSICAL BACKUP",
   "@backupHealthAddPhysicalBackupAction": {
@@ -17847,22 +17943,6 @@
   "testBackupErrorVerificationFailedGeneric": "We could not save your backup test. Please go back and try again.",
   "@testBackupErrorVerificationFailedGeneric": {
     "description": "Localized physical-backup persistence error; never include raw exception details"
-  },
-  "recoverbullLearnMore": "Learn more at recoverbull.com",
-  "@recoverbullLearnMore": {
-    "description": "Link text opening recoverbull.com from the vault settings and server confirmation pages"
-  },
-  "recoverbullSelectBackupFileNotValidError": "This encrypted vault backup file is not valid",
-  "@recoverbullSelectBackupFileNotValidError": {
-    "description": "Error when the selected file is not a valid encrypted vault backup format"
-  },
-  "recoverbullServerCustomWarning": "You are about to use a custom Recoverbull server. Make sure you trust this server.",
-  "@recoverbullServerCustomWarning": {
-    "description": "Warning shown before saving a custom key server URL in the encrypted vault settings"
-  },
-  "recoverbullSettingsTitle": "Encrypted vault settings",
-  "@recoverbullSettingsTitle": {
-    "description": "AppBar title on the encrypted vault settings page; matches the menu row that opens it"
   },
   "backupSettingsMetadataBackup": "Metadata backup",
   "@backupSettingsMetadataBackup": {
@@ -18049,5 +18129,17 @@
   "invoicePaymentSummaryStale": "Payment totals could not be refreshed. Showing the last verified values.",
   "@invoicePaymentSummaryStale": {
     "description": "Shown when retained authenticated payment totals are visible after their refresh fails."
+  },
+  "btcpaySettingsUnavailableTitle": "BTCPay settings unavailable",
+  "@btcpaySettingsUnavailableTitle": {
+    "description": "Title shown when the app cannot determine whether a BTCPay connection exists"
+  },
+  "btcpaySettingsUnavailableBody": "Could not load your BTCPay connection. Retry before pairing a new server.",
+  "@btcpaySettingsUnavailableBody": {
+    "description": "Body shown when the initial BTCPay connection read fails"
+  },
+  "btcpayWalletSettingsUnavailable": "Could not load wallet settings. Retry before changing wallet behavior.",
+  "@btcpayWalletSettingsUnavailable": {
+    "description": "Message shown when BTCPay wallet behavior settings cannot be read"
   }
 }

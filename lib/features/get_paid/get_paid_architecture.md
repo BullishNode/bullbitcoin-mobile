@@ -23,15 +23,26 @@ Rows show amount, source, receipt time, rail, and settlement state. Optional pay
 
 ## Privacy And Identity
 
-The history endpoint is authenticated with the existing Bullnym server-auth Nostr role derived from the current default Bitcoin wallet xprv. The xprv and signer are created only for the request and are not stored in Get Paid state. Bullnym receives the derived public key, signed cursor/limit request, and response metadata; it does not receive the wallet seed or xprv.
+The history endpoint is authenticated with the existing Bullnym server-auth Nostr role derived from the current default Bitcoin wallet xprv. The xprv and signer are created only for the request and are not stored in Get Paid state. Bullnym receives the derived public key, timestamp, signature, cursor, and limit; it does not receive the wallet seed or xprv.
 
-Comments and internal identifiers are not logged, shared, or rendered in list rows. The response is handled as private no-store data and is kept only in memory by the history cubit.
+Comments and internal identifiers are not logged or rendered in list rows. Ordinary browsing keeps the private no-store response only in the history cubit. An explicit merchant CSV export performs its own authenticated history walk and passes the resulting file to the operating-system save/share sheet; that export includes invoice and provider-order identifiers but deliberately omits comment text.
 
 ## Dependencies
 
 The presentation flow is:
 
 `UI -> GetPaidTransactionHistoryCubit -> ListGetPaidTransactionsUsecase -> BullnymFacade`
+
+An open receipt uses the same authenticated collection through a Get Paid-owned
+detail path:
+
+`UI -> GetPaidTransactionDetailCubit -> LookUpGetPaidTransactionUsecase -> ListGetPaidTransactionsUsecase`
+
+The lookup walks opaque cursor pages until it finds the receipt's stable
+`(source, transaction_id)` identity. Pull-to-refresh therefore reloads the
+settlement projection for every source, including Lightning Address receipts
+that have no invoice id. A failed refresh retains the last verified receipt and
+marks it stale instead of blanking the merchant's evidence.
 
 The use case also consumes `NostrIdentityFacade` and a Get Paid-owned default wallet xprv capability implemented against core wallet/seed infrastructure. Cross-feature calls use public facades, and `FEATURES.md` records those edges.
 
@@ -61,8 +72,14 @@ Every hub dependency is required and explicit. Nothing is nullable "when not wir
 
 ## Transaction Detail
 
-`GetPaidInvoiceFactsCubit` owns the detail card's invoice-state read and exposes four typed states — initial, loading, data, failure. The route provides it and starts the read; the screen renders whichever state it holds and resolves nothing itself.
+`GetPaidTransactionDetailCubit` owns the receipt projection and
+`GetPaidInvoiceFactsCubit` owns the optional invoice-state read. The route
+provides both and starts the invoice read; the screen renders whichever states
+they hold and resolves nothing itself. Pull-to-refresh reloads both reads when
+an invoice exists and reloads only the receipt for Lightning Address history.
+After a successful first read, either cubit retains its last verified data when
+a refresh fails and exposes a stale indication.
 
-The use case maps the required Invoices public response and the best-effort authenticated merchant payment summary into `GetPaidInvoiceFacts`, including Get Paid-owned admission, rail, payment-event, lifecycle, and aggregate payment values. Provider entities and their failure family therefore never enter Get Paid presentation or UI. A public-read failure remains a retryable detail failure. An authenticated-accounting failure is stated as unavailable while the public detail remains visible; it must never erase the ordinary receipt or revive payer instructions. The route supplies the fact that an invoice-backed history row is positive authenticated payment evidence; the Get Paid use case folds that fact into its owned admission snapshot. The screen only renders the result and never combines foreign transaction and invoice state into a payment policy of its own.
+The use case maps the required Invoices public response and the best-effort authenticated merchant payment summary into `GetPaidInvoiceFacts`, including Get Paid-owned rail, payment-event, lifecycle, and aggregate payment values. Provider entities and their failure family therefore never enter Get Paid presentation or UI. A public-read failure remains a retryable detail failure. An authenticated-accounting failure is stated as unavailable while the public detail remains visible. An invoice-backed history row is already authenticated positive payment evidence by contract, so this receipt-only surface models no admission state, payer instructions, quote controls, or cancellation actions. The ordinary Invoices flow remains the owner of an unpaid invoice's payment UI.
 
 Initial and failure are deliberately distinct. Initial means no read applies (a Lightning Address receipt carries no invoice id) and the card renders as it does for an entry with no invoice. Failure means a read was attempted and did not land, and the invoice section says so — mirroring how an uninterpretable settlement states itself. Collapsing the two is what would let an unreadable invoice render as an invoice-less payment.

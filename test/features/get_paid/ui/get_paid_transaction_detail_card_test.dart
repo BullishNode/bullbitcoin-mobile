@@ -4,10 +4,13 @@ import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/core/widgets/tables/details_table.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_invoice_facts_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_transaction_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_detail_cubit.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_detail_screen.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
@@ -17,6 +20,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockInvoicesFacade extends Mock implements InvoicesFacade {}
+
+class _MockLookUpTransaction extends Mock
+    implements LookUpGetPaidTransactionUsecase {}
 
 const _invoiceId = '50000000-0000-4000-8000-000000000005';
 const _transactionId = '10000000-0000-4000-8000-000000000001';
@@ -33,6 +39,7 @@ GetPaidTransaction _tx({
   GetPaidTransactionSource source = GetPaidTransactionSource.invoice,
   String? invoiceId = _invoiceId,
   int amountSat = 2100,
+  GetPaidSettlementState settlementState = GetPaidSettlementState.settled,
 }) => GetPaidTransaction(
   transactionId: _transactionId,
   source: source,
@@ -40,7 +47,7 @@ GetPaidTransaction _tx({
   amountSat: amountSat,
   receivedAt: DateTime.utc(2026, 7, 18, 12),
   rail: GetPaidTransactionRail.lightning,
-  settlementState: GetPaidSettlementState.settled,
+  settlementState: settlementState,
   late: false,
   comment: null,
   settlement: settlement,
@@ -163,10 +170,9 @@ Widget _app(Widget home) => MaterialApp(
   home: home,
 );
 
-/// The invoices boundary a test opted into, if any. Null means no invoice read
-/// is wired at all, so the cubit stays initial — the card then renders exactly as
-/// it does for an entry that carries no invoice.
+/// The invoices boundary a test opted into, if any. Null means no invoice read is wired at all, so the cubit stays initial — the card then renders exactly as it does for an entry that carries no invoice.
 InvoicesFacade? _invoices;
+LookUpGetPaidTransactionUsecase? _transactionLookup;
 
 Future<void> _pump(
   WidgetTester tester,
@@ -179,22 +185,29 @@ Future<void> _pump(
   final invoices = _invoices;
   await tester.pumpWidget(
     _app(
-      BlocProvider(
-        create: (_) {
-          final cubit = GetPaidInvoiceFactsCubit(
-            lookUpInvoiceFacts: LookUpGetPaidInvoiceFactsUsecase(
-              invoices: invoices ?? _MockInvoicesFacade(),
+      MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => GetPaidTransactionDetailCubit(
+              _transactionLookup ?? _MockLookUpTransaction(),
+              initialTransaction: transaction,
             ),
-          );
-          if (invoices != null) {
-            cubit.load(
-              invoiceId: transaction.invoiceId,
-              authenticatedPaymentEvidence: transaction.isInvoiceBacked,
-            );
-          }
-          return cubit;
-        },
-        child: GetPaidTransactionDetailScreen(transaction: transaction),
+          ),
+          BlocProvider(
+            create: (_) {
+              final cubit = GetPaidInvoiceFactsCubit(
+                lookUpInvoiceFacts: LookUpGetPaidInvoiceFactsUsecase(
+                  invoices: invoices ?? _MockInvoicesFacade(),
+                ),
+              );
+              if (invoices != null) {
+                cubit.load(invoiceId: transaction.invoiceId);
+              }
+              return cubit;
+            },
+          ),
+        ],
+        child: const GetPaidTransactionDetailScreen(),
       ),
     ),
   );
@@ -205,8 +218,7 @@ Future<void> _pump(
   }
 }
 
-/// Wires a facade whose status read returns [snapshot]. The next [_pump] builds
-/// the card's cubit over it through the same constructor production uses.
+/// Wires a facade whose status read returns [snapshot]. The next [_pump] builds the card's cubit over it through the same constructor production uses.
 _MockInvoicesFacade _registerFacade(InvoiceStatusSnapshot snapshot) {
   final facade = _MockInvoicesFacade();
   when(
@@ -221,9 +233,6 @@ _MockInvoicesFacade _registerFacade(InvoiceStatusSnapshot snapshot) {
 
 void _registerInvoiceFacts(InvoicesFacade facade) => _invoices = facade;
 
-final _payerSection = find.byKey(
-  const ValueKey('get-paid-payer-instructions-section'),
-);
 final _eventSection = find.byKey(
   const ValueKey('get-paid-invoice-payment-events'),
 );
@@ -231,9 +240,22 @@ final _eventSection = find.byKey(
 Finder _inside(Finder section, Finder matching) =>
     find.descendant(of: section, matching: matching);
 
+Future<void> _pullToRefresh(WidgetTester tester) async {
+  final refresh = tester
+      .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+      .show();
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 1));
+  await refresh;
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() => registerFallbackValue(InvoiceId(_invoiceId)));
-  tearDown(() => _invoices = null);
+  tearDown(() {
+    _invoices = null;
+    _transactionLookup = null;
+  });
 
   group('the card replaces the invoice screen', () {
     testWidgets('an invoice-backed entry offers no View invoice action', (
@@ -270,8 +292,7 @@ void main() {
       expect(find.text('Invoice'), findsNWidgets(2));
       expect(find.byType(DetailsTable), findsNWidgets(3));
       expect(find.text('Payer instructions'), findsNothing);
-      // No payment events ⇒ no Payment history section at all (never a header
-      // over nothing).
+      // No payment events ⇒ no Payment history section at all (never a header over nothing).
       expect(find.text('Payment history'), findsNothing);
       expect(_eventSection, findsNothing);
     });
@@ -319,8 +340,7 @@ void main() {
         ),
       );
 
-      // The kind is stated, and the override IS the status ("overridden"),
-      // explained by its reason.
+      // The kind is stated, and the override IS the status ("overridden"), explained by its reason.
       expect(find.text('Settled as'), findsOneWidget);
       expect(find.text('Bitcoin'), findsOneWidget);
       expect(find.text('Fiat conversion'), findsOneWidget);
@@ -347,8 +367,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Overpaid'), findsOneWidget);
-      // Sat-priced face amount (differs from the headline), pricing mode,
-      // overpayment, tolerance, expiry, paid via / at, accepted rails.
+      // Sat-priced face amount (differs from the headline), pricing mode, overpayment, tolerance, expiry, paid via / at, accepted rails.
       expect(find.text('2,000 sats'), findsOneWidget);
       expect(find.text('Pricing'), findsOneWidget);
       expect(find.text('Sats'), findsOneWidget);
@@ -379,8 +398,7 @@ void main() {
     testWidgets('facts the sections above already state are not repeated', (
       tester,
     ) async {
-      // A sat face equal to the headline, a paid amount equal to the headline,
-      // and a settlement state that agrees with the entry's Status row.
+      // A sat face equal to the headline, a paid amount equal to the headline, and a settlement state that agrees with the entry's Status row.
       _registerFacade(
         _snapshot(
           status: InvoiceStatus.paid,
@@ -394,8 +412,7 @@ void main() {
 
       await _pump(tester, _tx());
 
-      // The headline already says 2,100 sats; neither the face amount nor the
-      // paid amount repeats it.
+      // The headline already says 2,100 sats; neither the face amount nor the paid amount repeats it.
       expect(find.text('2,100 sats'), findsOneWidget);
       expect(find.text('Amount'), findsNothing);
       expect(find.text('Amount paid'), findsNothing);
@@ -407,8 +424,7 @@ void main() {
     testWidgets('a paid amount that differs from the headline is shown', (
       tester,
     ) async {
-      // A 5,000 sat invoice paid in two parts: this entry received 2,100 while
-      // the invoice as a whole has taken in 4,000.
+      // A 5,000 sat invoice paid in two parts: this entry received 2,100 while the invoice as a whole has taken in 4,000.
       _registerFacade(
         _snapshot(
           status: InvoiceStatus.partiallyPaid,
@@ -423,8 +439,7 @@ void main() {
 
       await _pump(tester, _tx());
 
-      // Labelled "Amount paid" — the core facts already use "Received" for the
-      // moment the payment arrived.
+      // Labelled "Amount paid" — the core facts already use "Received" for the moment the payment arrived.
       expect(find.text('Amount paid'), findsOneWidget);
       expect(find.text('4,000 sats'), findsOneWidget);
       expect(find.text('Difference from requested'), findsOneWidget);
@@ -562,25 +577,23 @@ void main() {
         ),
       );
 
-  group('the payer-instructions section', () {
-    testWidgets(
-      'an authenticated receipt never revives stale payer instructions',
-      (tester) async {
-        _registerFacade(withStaleInstructions());
+  group('receipt-only payment surface', () {
+    testWidgets('stale public payment payloads never become receipt actions', (
+      tester,
+    ) async {
+      _registerFacade(withStaleInstructions());
 
-        await _pump(tester, _tx());
+      await _pump(tester, _tx());
 
-        expect(_payerSection, findsNothing);
-        expect(find.text('Payer instructions'), findsNothing);
-        expect(find.text(_lightningPr), findsNothing);
-        expect(find.text('Lightning invoice'), findsNothing);
-      },
-    );
+      expect(find.text('Payer instructions'), findsNothing);
+      expect(find.text(_lightningPr), findsNothing);
+      expect(find.text('Lightning invoice'), findsNothing);
+    });
   });
 
   group('authenticated accounting availability', () {
     testWidgets(
-      'an authenticated error closes stale public admission and stays visible',
+      'an authenticated error keeps the receipt read-only and stays visible',
       (tester) async {
         final facade = _registerFacade(
           withStaleInstructions(remainingAmountSat: 5000),
@@ -604,31 +617,28 @@ void main() {
           find.text('Detailed payment accounting is unavailable.'),
           findsOneWidget,
         );
-        expect(_payerSection, findsNothing);
         expect(find.text('Lightning invoice'), findsNothing);
         expect(find.text('Difference from requested'), findsNothing);
       },
     );
 
-    testWidgets(
-      'a missing authenticated row closes stale admission and is unavailable',
-      (tester) async {
-        _registerFacade(withStaleInstructions());
+    testWidgets('a missing authenticated row keeps the receipt read-only', (
+      tester,
+    ) async {
+      _registerFacade(withStaleInstructions());
 
-        await _pump(tester, _tx());
+      await _pump(tester, _tx());
 
-        expect(
-          find.byKey(const ValueKey('get-paid-invoice-section')),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(const ValueKey('get-paid-payment-summary-unavailable')),
-          findsOneWidget,
-        );
-        expect(_payerSection, findsNothing);
-        expect(find.text('Lightning invoice'), findsNothing);
-      },
-    );
+      expect(
+        find.byKey(const ValueKey('get-paid-invoice-section')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('get-paid-payment-summary-unavailable')),
+        findsOneWidget,
+      );
+      expect(find.text('Lightning invoice'), findsNothing);
+    });
   });
 
   group('no invoice facts: the card renders exactly as before', () {
@@ -641,7 +651,6 @@ void main() {
         find.byKey(const ValueKey('get-paid-invoice-section')),
         findsNothing,
       );
-      expect(_payerSection, findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -659,8 +668,7 @@ void main() {
 
       await _pump(tester, _tx());
 
-      // An entry that HAS an invoice must never read as invoice-less: the
-      // section stays and says the state could not be read.
+      // An entry that HAS an invoice must never read as invoice-less: the section stays and says the state could not be read.
       final section = find.byKey(const ValueKey('get-paid-invoice-section'));
       expect(section, findsOneWidget);
       expect(
@@ -670,7 +678,6 @@ void main() {
       expect(_inside(section, find.text('Retry')), findsOneWidget);
       // No half-rendered invoice facts alongside the notice.
       expect(_eventSection, findsNothing);
-      expect(_payerSection, findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -748,13 +755,101 @@ void main() {
     });
   });
 
-  testWidgets('a loaded receipt offers read-only pull-to-refresh', (
+  testWidgets('pull-to-refresh reloads a pending invoice receipt as settled', (
     tester,
   ) async {
     _registerFacade(_snapshot());
+    final pending = _tx(settlementState: GetPaidSettlementState.pending);
+    final settled = _tx(settlementState: GetPaidSettlementState.settled);
+    final lookup = _MockLookUpTransaction();
+    when(
+      () => lookup.execute(
+        source: pending.source,
+        transactionId: pending.transactionId,
+      ),
+    ).thenAnswer((_) async => Ok(settled));
+    _transactionLookup = lookup;
 
-    await _pump(tester, _tx());
+    await _pump(tester, pending);
 
     expect(find.byType(RefreshIndicator), findsOneWidget);
+    final core = find.byKey(const ValueKey('get-paid-core-facts-section'));
+    expect(_inside(core, find.text('Pending')), findsOneWidget);
+
+    await _pullToRefresh(tester);
+
+    expect(_inside(core, find.text('Pending')), findsNothing);
+    expect(_inside(core, find.text('Settled')), findsOneWidget);
+    verify(
+      () => lookup.execute(
+        source: pending.source,
+        transactionId: pending.transactionId,
+      ),
+    ).called(1);
+  });
+
+  testWidgets(
+    'pull-to-refresh reloads a Lightning Address receipt without invoice facts',
+    (tester) async {
+      final pending = _tx(
+        source: GetPaidTransactionSource.lightningAddress,
+        invoiceId: null,
+        settlementState: GetPaidSettlementState.pending,
+      );
+      final settled = _tx(
+        source: GetPaidTransactionSource.lightningAddress,
+        invoiceId: null,
+        settlementState: GetPaidSettlementState.settled,
+      );
+      final lookup = _MockLookUpTransaction();
+      when(
+        () => lookup.execute(
+          source: pending.source,
+          transactionId: pending.transactionId,
+        ),
+      ).thenAnswer((_) async => Ok(settled));
+      _transactionLookup = lookup;
+
+      await _pump(tester, pending);
+      final core = find.byKey(const ValueKey('get-paid-core-facts-section'));
+      expect(_inside(core, find.text('Pending')), findsOneWidget);
+
+      await _pullToRefresh(tester);
+
+      expect(_inside(core, find.text('Settled')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('get-paid-invoice-section')),
+        findsNothing,
+      );
+      verify(
+        () => lookup.execute(
+          source: pending.source,
+          transactionId: pending.transactionId,
+        ),
+      ).called(1);
+    },
+  );
+
+  testWidgets('a failed receipt refresh preserves data and marks it stale', (
+    tester,
+  ) async {
+    final transaction = _tx();
+    final lookup = _MockLookUpTransaction();
+    when(
+      () => lookup.execute(
+        source: transaction.source,
+        transactionId: transaction.transactionId,
+      ),
+    ).thenAnswer((_) async => const Err(GetPaidFailure.unavailable()));
+    _transactionLookup = lookup;
+
+    await _pump(tester, transaction);
+    await _pullToRefresh(tester);
+
+    expect(
+      find.byKey(const ValueKey('get-paid-receipt-refresh-failed')),
+      findsOneWidget,
+    );
+    expect(find.text('2,100 sats'), findsOneWidget);
   });
 }
