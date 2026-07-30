@@ -1,4 +1,4 @@
-import 'package:bb_mobile/features/get_paid/domain/find_get_paid_pos_terminal_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/find_get_paid_pos_terminal_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_product_probe.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';

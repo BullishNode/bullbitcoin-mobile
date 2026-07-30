@@ -1,7 +1,7 @@
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/load_get_paid_invoices_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_paid_fallback_attention_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/load_get_paid_invoices_overview_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 

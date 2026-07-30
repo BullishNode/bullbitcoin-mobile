@@ -1,4 +1,4 @@
-import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_lightning_registration_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_lightning_registration_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 

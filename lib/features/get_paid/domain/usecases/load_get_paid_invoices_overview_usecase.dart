@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_paid_fallback_attention_usecase.dart';
 
 sealed class GetPaidInvoicesOverview {
   const GetPaidInvoicesOverview();

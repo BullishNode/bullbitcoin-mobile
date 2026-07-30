@@ -3,7 +3,7 @@ import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
-import 'package:bb_mobile/features/get_paid/domain/list_get_paid_transactions_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/list_get_paid_transactions_usecase.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

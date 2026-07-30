@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/find_get_paid_payment_page_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/find_get_paid_pos_terminal_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/ensure_get_paid_automatic_fallback_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/ensure_get_paid_product_wallet_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/find_get_paid_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/find_get_paid_pos_terminal_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_product_probe.dart';
-import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_lightning_registration_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_lightning_registration_usecase.dart';
 
 /// Domain events emitted while the coupled Lightning Address / Donation Page /
 /// POS overview is assembled. The stream preserves independent card progress

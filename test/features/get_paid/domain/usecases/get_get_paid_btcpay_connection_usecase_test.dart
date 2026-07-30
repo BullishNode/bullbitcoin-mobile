@@ -1,7 +1,7 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_get_paid_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_get_paid_btcpay_connection_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_product_probe.dart';
 import 'package:flutter_test/flutter_test.dart';

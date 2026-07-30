@@ -1,10 +1,10 @@
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/get_paid/domain/export_get_paid_transactions_csv_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/export_get_paid_transactions_csv_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_csv_export_formatter.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
-import 'package:bb_mobile/features/get_paid/domain/list_get_paid_transactions_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/list_get_paid_transactions_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 

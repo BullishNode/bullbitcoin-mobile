@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
-import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_invoice_facts_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_invoice_facts_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
