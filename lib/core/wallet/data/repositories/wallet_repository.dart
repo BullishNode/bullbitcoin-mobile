@@ -370,10 +370,24 @@ class WalletRepository {
       throw WalletError.notFound(walletId);
     }
 
+    // A behavior the wallet already records always wins over the default
+    // offered here. Filling only the switch that is missing can still land a
+    // recorded hide-on-home next to a default auto-sweep of off, so the pair
+    // that results goes through the same rule a deliberate write does and the
+    // wallet comes back visible instead of hidden while it accumulates.
+    final filledHideOnHome = metadata.hideOnHome ?? hideOnHome;
+    final filledAutoSweep = metadata.autoSweepEnabled ?? autoSweepEnabled;
+    final resolved = resolveWalletBehaviorChange(
+      hideOnHome: filledHideOnHome ?? false,
+      autoSweepEnabled: filledAutoSweep ?? false,
+    );
+
     await _walletMetadataDatasource.store(
       metadata.copyWith(
-        hideOnHome: metadata.hideOnHome ?? hideOnHome,
-        autoSweepEnabled: metadata.autoSweepEnabled ?? autoSweepEnabled,
+        hideOnHome: filledHideOnHome == null ? null : resolved.hideOnHome,
+        autoSweepEnabled: filledAutoSweep == null
+            ? null
+            : resolved.autoSweepEnabled,
       ),
     );
   }
