@@ -78,6 +78,74 @@ void main() {
     });
   });
 
+  group('saveMetadataBackupChoice', () {
+    test(
+      'updates only the backup choice and preserves other staged fields',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'wizard_pending_version': kCurrentWizardVersion,
+          'wizard_pending_language': Language.franceFrench.name,
+          'wizard_pending_metadata_backup': true,
+        });
+
+        await _build().saveMetadataBackupChoice(false);
+
+        final pending = await _build().readPending();
+        expect(pending?.metadataBackupEnabled, isFalse);
+        expect(pending?.language, Language.franceFrench);
+        expect(pending?.touched, {
+          WizardField.language,
+          WizardField.metadataBackupEnabled,
+        });
+      },
+    );
+
+    test(
+      'a failed replacement leaves the prior durable choice intact',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'wizard_pending_version': kCurrentWizardVersion,
+          'wizard_pending_language': Language.franceFrench.name,
+          'wizard_pending_metadata_backup': true,
+        });
+        final repository = WizardRepositoryImpl(
+          _FailingMetadataBackupDatasource(),
+        );
+
+        await expectLater(
+          repository.saveMetadataBackupChoice(false),
+          throwsA(isA<StateError>()),
+        );
+
+        final pending = await repository.readPending();
+        expect(pending?.metadataBackupEnabled, isTrue);
+        expect(pending?.language, Language.franceFrench);
+      },
+    );
+  });
+
+  test(
+    'failed completion write preserves the durable backup decision',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'wizard_pending_version': kCurrentWizardVersion,
+        'wizard_pending_metadata_backup': true,
+      });
+      final repository = WizardRepositoryImpl(_FailingCompletionDatasource());
+      const choices = WizardChoices(
+        language: Language.franceFrench,
+        metadataBackupEnabled: true,
+        touched: {WizardField.language, WizardField.metadataBackupEnabled},
+      );
+
+      await expectLater(repository.savePending(choices), throwsStateError);
+
+      final pending = await repository.readPending();
+      expect(pending?.metadataBackupEnabled, isTrue);
+      expect(pending?.touched, contains(WizardField.metadataBackupEnabled));
+    },
+  );
+
   group('readPending — version invalidation', () {
     test('returns null when nothing has been staged', () async {
       expect(await _build().readPending(), isNull);
@@ -125,4 +193,18 @@ void main() {
       expect(prefs.getInt('wizard_pending_version'), isNull);
     });
   });
+}
+
+class _FailingMetadataBackupDatasource extends WizardLocalDatasourceImpl {
+  @override
+  Future<void> writePendingMetadataBackup(bool enabled) async {
+    throw StateError('storage unavailable');
+  }
+}
+
+class _FailingCompletionDatasource extends WizardLocalDatasourceImpl {
+  @override
+  Future<void> writePendingLanguage(String name) async {
+    throw StateError('storage unavailable');
+  }
 }

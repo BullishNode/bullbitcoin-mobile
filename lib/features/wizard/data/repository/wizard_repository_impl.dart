@@ -34,7 +34,13 @@ class WizardRepositoryImpl implements WizardRepository {
 
   @override
   Future<void> savePending(WizardChoices choices) async {
-    await clearPending();
+    final pendingVersion = await _datasource.readPendingVersion();
+    if (pendingVersion != null && pendingVersion != kCurrentWizardVersion) {
+      await clearPending();
+    } else if (pendingVersion == null) {
+      // Unversioned values cannot belong to the current wizard schema.
+      await clearPending();
+    }
     if (choices.touched.isEmpty) return;
     await _datasource.writePendingVersion(kCurrentWizardVersion);
     if (choices.touched.contains(WizardField.language)) {
@@ -56,6 +62,15 @@ class WizardRepositoryImpl implements WizardRepository {
         consent != null) {
       await _datasource.writePendingErrorReporting(consent);
     }
+  }
+
+  @override
+  Future<void> saveMetadataBackupChoice(bool enabled) async {
+    // The backup decision is persisted before the wizard advances. Updating
+    // only these two keys preserves every other staged choice and, when a
+    // replacement write fails, leaves the previously durable choice intact.
+    await _datasource.writePendingVersion(kCurrentWizardVersion);
+    await _datasource.writePendingMetadataBackup(enabled);
   }
 
   /// Returns `null` when nothing is staged OR when the staged blob was

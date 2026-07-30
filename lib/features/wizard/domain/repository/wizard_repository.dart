@@ -9,6 +9,7 @@ abstract class WizardRepository {
   Future<void> markComplete();
 
   Future<void> savePending(WizardChoices choices);
+  Future<void> saveMetadataBackupChoice(bool enabled);
   Future<WizardChoices?> readPending();
   Future<void> clearPending();
 }

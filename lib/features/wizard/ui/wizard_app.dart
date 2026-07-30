@@ -5,6 +5,7 @@ import 'package:bb_mobile/features/wizard/data/datasource/wizard_local_datasourc
 import 'package:bb_mobile/features/wizard/data/repository/wizard_repository_impl.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/mark_wizard_complete_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecase/save_metadata_backup_choice_usecase.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/save_pending_wizard_choices_usecase.dart';
 import 'package:bb_mobile/features/wizard/presentation/bloc/wizard_bloc.dart';
 import 'package:bb_mobile/features/wizard/ui/screens/wizard_screen.dart';
@@ -23,18 +24,28 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// Back-gesture handling lives inside [WizardScreen] — it steps the
 /// PageView back one page on each pop and blocks the actual app pop
 /// while on page 1 (so consent collection can't be skipped before
-/// migrations / Sentry init run).
+/// migrations / Sentry init run). [initialChoices] restores a decision staged
+/// before an interrupted wizard run.
 class WizardApp extends StatelessWidget {
-  const WizardApp({super.key, required this.onDone});
+  const WizardApp({
+    super.key,
+    required this.onDone,
+    this.initialChoices = const WizardChoices(),
+  });
 
   final ValueChanged<WizardChoices> onDone;
+  final WizardChoices initialChoices;
 
   WizardBloc _createBloc() {
     final datasource = WizardLocalDatasourceImpl();
     final repository = WizardRepositoryImpl(datasource);
     return WizardBloc(
       savePending: SavePendingWizardChoicesUsecase(repository: repository),
+      saveMetadataBackupChoice: SaveMetadataBackupChoiceUsecase(
+        repository: repository,
+      ),
       markComplete: MarkWizardCompleteUsecase(repository: repository),
+      initialChoices: initialChoices,
     );
   }
 

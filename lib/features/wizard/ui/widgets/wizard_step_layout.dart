@@ -14,11 +14,13 @@ class WizardStepLayout extends StatelessWidget {
     required this.page,
     required this.title,
     required this.child,
+    this.bottomPadding = kWizardChromeHeight,
   });
 
   final WizardPage page;
   final String title;
   final Widget child;
+  final double bottomPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +31,7 @@ class WizardStepLayout extends StatelessWidget {
     // Yes/No row) overlaid by `WizardScreen` so the last item is fully
     // visible at max-scroll instead of being hidden behind the chrome.
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, kWizardChromeHeight),
+      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, bottomPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
