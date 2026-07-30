@@ -9,22 +9,23 @@ import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_state.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_detail_cubit.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_history_screen.dart';
 import 'package:bull_ui/bull_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-/// The one detail screen for a Get Paid entry. There is no such thing as a separate "payment": an entry IS its invoice, so everything the server knows about it lives here — the entry's own facts, the private settlement breakdown, and the invoice's state and history. The screen never links out to a second invoice screen.
+/// The detail screen for a Get Paid receipt. Invoice-backed receipts merge the available invoice state and history into this card; Lightning Address receipts have no invoice section. The screen never links out to a second invoice screen.
 ///
 /// Organised, not redundant: each fact appears exactly once in the section it belongs to.
 class GetPaidTransactionDetailScreen extends StatelessWidget {
-  final GetPaidTransaction transaction;
-
-  const GetPaidTransactionDetailScreen({super.key, required this.transaction});
+  const GetPaidTransactionDetailScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final detail = context.watch<GetPaidTransactionDetailCubit>().state;
+    final transaction = detail.transaction;
     final invoiceFacts = context.watch<GetPaidInvoiceFactsCubit>().state;
     final invoice = invoiceFacts is GetPaidInvoiceFactsData
         ? invoiceFacts.invoice
@@ -40,11 +41,29 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: context.read<GetPaidInvoiceFactsCubit>().retry,
+                onRefresh: () async {
+                  await Future.wait([
+                    context.read<GetPaidTransactionDetailCubit>().refresh(),
+                    context.read<GetPaidInvoiceFactsCubit>().retry(),
+                  ]);
+                },
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   children: [
+                    if (detail.refreshFailed)
+                      _refreshNotice(
+                        context,
+                        key: const ValueKey('get-paid-receipt-refresh-failed'),
+                        text: context.loc.invoicePaymentSummaryStale,
+                      ),
+                    if (invoiceFacts is GetPaidInvoiceFactsData &&
+                        invoiceFacts.refreshFailed)
+                      _refreshNotice(
+                        context,
+                        key: const ValueKey('get-paid-invoice-refresh-failed'),
+                        text: context.loc.invoiceDetailRefreshFailed,
+                      ),
                     Text(
                       getPaidTransactionAmountText(
                         context,
@@ -114,6 +133,32 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _refreshNotice(
+  BuildContext context, {
+  required Key key,
+  required String text,
+}) {
+  return Padding(
+    key: key,
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.info_outline, size: 18, color: context.bull.textMuted),
+        const Gap(8),
+        Expanded(
+          child: Text(
+            text,
+            style: context.bullText.bodySmall?.copyWith(
+              color: context.bull.textMuted,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// The invoice section without a snapshot. An entry without an invoice stays absent, while an in-flight or failed authenticated read remains visible and retryable instead of making the invoice-backed card look incomplete.
@@ -359,7 +404,7 @@ List<DetailsTableItem> _invoiceRows(
           label: context.loc.getPaidSettlementRateAtCreationLabel,
           value: context.loc.getPaidSettlementRateAtCreationValue(
             context.loc.getPaidSettlementFiatAmount(
-              _formatMinor(creationRate),
+              _formatMinor(creationRate, invoice.fiatCurrency!),
               invoice.fiatCurrency!,
             ),
           ),
@@ -531,8 +576,8 @@ String _invoiceFaceAmountText(
   GetPaidInvoiceFacts invoice,
 ) {
   if (invoice.hasFiatFace) {
-    return FormatAmount.fiat(
-      invoice.fiatAmountMinor! / 100,
+    return FormatAmount.fiatMinor(
+      invoice.fiatAmountMinor!,
       invoice.fiatCurrency!,
     );
   }
@@ -768,7 +813,10 @@ void _addRateAtCreationRow(
       key: const ValueKey('get-paid-settlement-rate-at-creation'),
       label: context.loc.getPaidSettlementRateAtCreationLabel,
       displayValue: context.loc.getPaidSettlementRateAtCreationValue(
-        context.loc.getPaidSettlementFiatAmount(_formatMinor(rate), currency),
+        context.loc.getPaidSettlementFiatAmount(
+          _formatMinor(rate, currency),
+          currency,
+        ),
       ),
     ),
   );
@@ -829,7 +877,7 @@ List<DetailsTableItem> _bitcoinLegRows(
               Text(
                 context.loc.getPaidSettlementCreationValueSubline(
                   context.loc.getPaidSettlementFiatAmount(
-                    _formatMinor(estimateMinor),
+                    _formatMinor(estimateMinor, creationRateCurrency),
                     creationRateCurrency,
                   ),
                 ),
@@ -888,7 +936,13 @@ List<DetailsTableItem> _fiatLegRows(
     final quotedPending =
         leg.status == GetPaidSettlementLegStatus.pending &&
         leg.quotedAmountMinor != null;
-    // Once settled the value carries the final credited fiat amount; a pending leg with a quote shows the quoted amount; otherwise the expected settlement currency only (v1 server / legacy row). A settled leg that carries Bull Bitcoin's real execution rate (R2) shows it as a muted sub-line under the exact credited amount. R2 is exact and in the leg's own currency, so it carries no ≈; a pending leg keeps its quoted/awaiting sub-line (rendered under the status row below) instead.
+    // Once settled the value carries the final credited fiat amount; a pending
+    // leg with a quote shows the quoted amount; otherwise the expected
+    // settlement currency only (v1 server / legacy row).
+    // A settled leg that carries Bull Bitcoin's real execution rate (R2) shows
+    // it as a muted sub-line under the exact credited amount. R2 is exact and
+    // in the leg's own currency, so it carries no ≈; a pending leg keeps its
+    // quoted/awaiting sub-line (rendered under the status row below) instead.
     final showExecutionRate = settled && leg.executionRateMinorPerBtc != null;
     if (showExecutionRate) {
       rows.add(
@@ -899,7 +953,7 @@ List<DetailsTableItem> _fiatLegRows(
             children: [
               Text(
                 context.loc.getPaidSettlementFiatAmount(
-                  _formatMinor(leg.amountMinor!),
+                  _formatMinor(leg.amountMinor!, leg.currency),
                   leg.currency,
                 ),
                 textAlign: TextAlign.end,
@@ -909,7 +963,7 @@ List<DetailsTableItem> _fiatLegRows(
               Text(
                 context.loc.getPaidSettlementExecutionRateValue(
                   context.loc.getPaidSettlementFiatAmount(
-                    _formatMinor(leg.executionRateMinorPerBtc!),
+                    _formatMinor(leg.executionRateMinorPerBtc!, leg.currency),
                     leg.currency,
                   ),
                 ),
@@ -930,12 +984,12 @@ List<DetailsTableItem> _fiatLegRows(
               : context.loc.getPaidSettlementFiatAmountLabel,
           displayValue: settled
               ? context.loc.getPaidSettlementFiatAmount(
-                  _formatMinor(leg.amountMinor!),
+                  _formatMinor(leg.amountMinor!, leg.currency),
                   leg.currency,
                 )
               : quotedPending
               ? context.loc.getPaidSettlementFiatAmount(
-                  _formatMinor(leg.quotedAmountMinor!),
+                  _formatMinor(leg.quotedAmountMinor!, leg.currency),
                   leg.currency,
                 )
               : leg.currency,
@@ -1019,9 +1073,5 @@ String _legStatusText(BuildContext context, GetPaidSettlementLegStatus status) {
   }
 }
 
-// Fiat minor units → major.minor with integer arithmetic (never floating point). The seven supported currencies are all 2-decimal.
-String _formatMinor(int minor) {
-  final major = minor ~/ 100;
-  final cents = (minor % 100).toString().padLeft(2, '0');
-  return '$major.$cents';
-}
+String _formatMinor(int minor, String currency) =>
+    FormatAmount.fiatMinorValue(minor, currency);
