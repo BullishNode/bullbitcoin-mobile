@@ -1,19 +1,21 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/tables/details_table.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_invoice_facts.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_invoice_facts_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_transaction_usecase.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_detail_cubit.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_detail_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
-import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_invoice_facts_usecase.dart';
-import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 GetPaidTransaction _tx({
   GetPaidSettlement? settlement,
@@ -69,6 +71,10 @@ Future<void> _pumpDetail(
   WidgetTester tester,
   GetPaidTransaction transaction,
 ) async {
+  // Dispose the previous providers so each case owns a fresh initial
+  // transaction rather than reusing an existing BlocProvider element.
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
   await tester.pumpWidget(_app(_detailCard(transaction)));
   await tester.pump();
 }
@@ -80,12 +86,14 @@ void main() {
     ) async {
       await _pumpDetail(tester, _tx(settlement: _fiat()));
 
-      // Two titled sections here — the entry's core facts and the settlement breakdown — and still no loose boxed order-id field below them.
+      // Two titled sections here — the entry's core facts and the settlement
+      // breakdown — and still no loose boxed order-id field below them.
       expect(find.byType(DetailsTable), findsNWidgets(2));
       expect(find.byType(CopyInput), findsNothing);
       expect(find.text('Details'), findsOneWidget);
       expect(find.text('Settlement'), findsOneWidget);
-      // The fiat leg rows live in the settlement section's table; the long order id is truncated in place and copied in full.
+      // The fiat leg rows live in the settlement section's table; the long order
+      // id is truncated in place and copied in full.
       expect(find.text('Bull Bitcoin order ID'), findsOneWidget);
       expect(find.text(_truncated(_orderId)), findsOneWidget);
     });
@@ -127,10 +135,12 @@ void main() {
         // Leg amounts.
         expect(find.text('60,000 sats'), findsOneWidget);
         expect(find.text('123.45 CAD'), findsOneWidget);
-        // The bitcoin (L-BTC) leg's `problem` reuses the needs-attention wording; the fiat leg is settled.
+        // The bitcoin (L-BTC) leg's `problem` reuses the needs-attention
+        // wording; the fiat leg is settled.
         expect(find.text('Needs attention'), findsOneWidget);
         expect(find.text('Settled'), findsWidgets);
-        // The top payment-lifecycle Status row stays (distinct semantic from the per-leg statuses).
+        // The top payment-lifecycle Status row stays (distinct semantic from
+        // the per-leg statuses).
         expect(find.text('Status'), findsOneWidget);
         // The Asset row is dropped entirely.
         expect(find.text('Asset'), findsNothing);
@@ -151,7 +161,8 @@ void main() {
           ),
         ),
       );
-      // The amount row names the expected currency only (v1 has no fiat amount before settlement).
+      // The amount row names the expected currency only (v1 has no fiat amount
+      // before settlement).
       expect(find.text('Fiat amount'), findsOneWidget);
       expect(find.text('CAD'), findsOneWidget);
       expect(find.textContaining('123.45'), findsNothing);
@@ -220,10 +231,12 @@ void main() {
           ),
         ),
       );
-      // The server's classification is stated instead of being conveyed by an absent section.
+      // The server's classification is stated instead of being conveyed by an
+      // absent section.
       expect(find.text('Settled as'), findsOneWidget);
       expect(find.text('Bitcoin'), findsOneWidget);
-      // The "Fiat conversion" row is only rendered when there is something to explain.
+      // The "Fiat conversion" row is only rendered when there is something to
+      // explain.
       expect(find.text('Fiat conversion'), findsNothing);
     });
   });
@@ -372,9 +385,11 @@ void main() {
         // R1 rate-at-creation row, in the FACE currency (USD), marked ≈.
         expect(find.text('Rate at creation'), findsOneWidget);
         expect(find.text('≈ 64160.00 USD / BTC'), findsOneWidget);
-        // The L-BTC ≈ sub-line: 60000 sats × 6416000 / 1e8 = 3850 minor → 38.50, in the FACE currency (USD), marked ≈.
+        // The L-BTC ≈ sub-line: 60000 sats × 6416000 / 1e8 = 3850 minor → 38.50,
+        // in the FACE currency (USD), marked ≈.
         expect(find.text('≈ 38.50 USD at creation rate'), findsOneWidget);
-        // The R2 execution sub-line under the settled fiat amount, in the LEG currency (CAD), exact (no ≈).
+        // The R2 execution sub-line under the settled fiat amount, in the LEG
+        // currency (CAD), exact (no ≈).
         expect(find.text('executed at 63900.00 CAD / BTC'), findsOneWidget);
         // The exact credited fiat amount stays in its own leg currency.
         expect(find.text('123.45 CAD'), findsOneWidget);
@@ -452,17 +467,36 @@ void main() {
   });
 }
 
-/// The card reads its invoice state from a cubit. These tests never wire an invoice read, so it stays initial and the card renders exactly as it does for an entry that carries no invoice.
-Widget _detailCard(GetPaidTransaction transaction) => BlocProvider(
-  create: (_) =>
-      GetPaidInvoiceFactsCubit(lookUpInvoiceFacts: _UnreadInvoiceFacts()),
-  child: GetPaidTransactionDetailScreen(transaction: transaction),
+/// The card reads its invoice state from a cubit. These tests never wire an
+/// invoice read, so it stays initial and the card renders exactly as it does for
+/// an entry that carries no invoice.
+Widget _detailCard(GetPaidTransaction transaction) => MultiBlocProvider(
+  providers: [
+    BlocProvider(
+      create: (_) => GetPaidTransactionDetailCubit(
+        _UnreadTransaction(),
+        initialTransaction: transaction,
+      ),
+    ),
+    BlocProvider(
+      create: (_) =>
+          GetPaidInvoiceFactsCubit(lookUpInvoiceFacts: _UnreadInvoiceFacts()),
+    ),
+  ],
+  child: const GetPaidTransactionDetailScreen(),
 );
 
 class _UnreadInvoiceFacts implements LookUpGetPaidInvoiceFactsUsecase {
   @override
   Future<Result<GetPaidInvoiceFacts, GetPaidFailure>> execute({
     required String invoiceId,
-    bool authenticatedPaymentEvidence = false,
+  }) => throw UnimplementedError();
+}
+
+class _UnreadTransaction implements LookUpGetPaidTransactionUsecase {
+  @override
+  Future<Result<GetPaidTransaction, GetPaidFailure>> execute({
+    required GetPaidTransactionSource source,
+    required String transactionId,
   }) => throw UnimplementedError();
 }
