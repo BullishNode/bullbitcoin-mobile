@@ -1,9 +1,14 @@
 import 'dart:async';
 
+import 'package:bb_mobile/core/entities/signer_entity.dart';
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_connection.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_failure.dart';
+import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
+import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_connection_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_wallet_behaviors_usecase.dart';
@@ -180,6 +185,124 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
   });
+
+  group('wallet behavior switches', () {
+    Future<void> pumpConnected(
+      WidgetTester tester, {
+      required bool hideOnHome,
+      required bool autoSweepEnabled,
+    }) async {
+      when(
+        () => getConnection.execute(),
+      ).thenAnswer((_) async => Ok(_connection()));
+      when(
+        () => getWalletBehaviors.execute(connection: any(named: 'connection')),
+      ).thenAnswer(
+        (_) async => [
+          BtcpayWalletBehavior(
+            network: BtcpayWalletNetwork.bitcoin,
+            wallet: _wallet(
+              hideOnHome: hideOnHome,
+              autoSweepEnabled: autoSweepEnabled,
+            ),
+          ),
+        ],
+      );
+      await _pumpScreen(tester, cubit);
+    }
+
+    testWidgets('hiding is not offered while auto-sweep is off, and says why', (
+      tester,
+    ) async {
+      await pumpConnected(tester, hideOnHome: false, autoSweepEnabled: false);
+
+      expect(_isEnabled(tester, _hideSwitch), isFalse);
+      expect(_isEnabled(tester, _sweepSwitch), isTrue);
+      expect(
+        find.text(
+          'Available only while auto-sweep is on: a wallet keeping its funds '
+          'stays on your home list.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('hiding is offered once auto-sweep is on', (tester) async {
+      await pumpConnected(tester, hideOnHome: false, autoSweepEnabled: true);
+
+      expect(_isEnabled(tester, _hideSwitch), isTrue);
+      expect(
+        find.text(
+          'Available only while auto-sweep is on: a wallet keeping its funds '
+          'stays on your home list.',
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a hidden wallet can always be unhidden', (tester) async {
+      // Only reachable from data written before the rule existed, but the way
+      // out must never be blocked.
+      when(
+        () => updateWalletBehavior.execute(
+          walletId: any(named: 'walletId'),
+          hideOnHome: any(named: 'hideOnHome'),
+          autoSweepEnabled: any(named: 'autoSweepEnabled'),
+        ),
+      ).thenAnswer((_) async {});
+      await pumpConnected(tester, hideOnHome: true, autoSweepEnabled: false);
+
+      expect(_isEnabled(tester, _hideSwitch), isTrue);
+      await tester.tap(find.byKey(_hideSwitch));
+      await tester.pumpAndSettle();
+
+      verify(
+        () => updateWalletBehavior.execute(
+          walletId: 'btcpay-btc',
+          hideOnHome: false,
+        ),
+      ).called(1);
+    });
+  });
+}
+
+const _hideSwitch = Key('btcpay_hide_on_home_switch_btcpay-btc');
+const _sweepSwitch = Key('btcpay_auto_sweep_switch_btcpay-btc');
+
+bool _isEnabled(WidgetTester tester, Key key) =>
+    tester.widget<SwitchListTile>(find.byKey(key)).onChanged != null;
+
+BtcpayConnection _connection() {
+  return BtcpayConnection.tryCreate(
+    environment: Environment.mainnet,
+    serverUrl: 'https://btcpay.example.com',
+    storeId: 'store123',
+    capabilities: const [SamRockSetupCapability.bitcoinChain],
+    walletNetworks: const [BtcpayWalletNetwork.bitcoin],
+    status: BtcpayConnectionStatus.paired,
+    pairedAt: DateTime.utc(2026, 5, 23),
+    updatedAt: DateTime.utc(2026, 5, 23),
+  )!;
+}
+
+Wallet _wallet({required bool hideOnHome, required bool autoSweepEnabled}) {
+  return Wallet(
+    origin: 'btcpay-btc',
+    label: 'BTCPay Bitcoin',
+    network: Network.bitcoinMainnet,
+    isDefault: false,
+    masterFingerprint: 'fingerprint',
+    xpubFingerprint: 'xpub-fingerprint',
+    scriptType: ScriptType.bip84,
+    xpub: 'xpub',
+    externalPublicDescriptor: 'external-desc',
+    internalPublicDescriptor: 'internal-desc',
+    signer: SignerEntity.local,
+    signerDevice: null,
+    balanceSat: BigInt.zero,
+    hideOnHome: hideOnHome,
+    autoSweepEnabled: autoSweepEnabled,
+  );
 }
 
 Future<void> _pumpScreen(WidgetTester tester, BtcpayPairingCubit cubit) async {

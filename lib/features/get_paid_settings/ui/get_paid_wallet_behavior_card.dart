@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/core/wallet/ui/wallet_behavior_switches.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:flutter/material.dart';
 
@@ -34,28 +35,19 @@ class GetPaidWalletBehaviorCard extends StatelessWidget {
       child: Column(
         children: [
           ListTile(title: Text(loc.getPaidWalletSettingsSectionTitle)),
-          SwitchListTile(
-            key: const Key('get_paid_auto_sweep_switch'),
-            value: behavior.autoSweepEnabled,
-            onChanged: saving ? null : onAutoSweepChanged,
-            title: Text(loc.getPaidWalletAutoSweepLabel),
-            subtitle: Text(loc.getPaidWalletAutoSweepInfo),
-          ),
-          SwitchListTile(
-            key: const Key('get_paid_hide_on_home_switch'),
-            value: behavior.hideOnHome,
-            // Hiding needs auto-sweep on; unhiding is always allowed, so a
-            // wallet left hidden by older data can still be brought back.
-            onChanged:
-                saving || !(behavior.canHideOnHome || behavior.hideOnHome)
-                ? null
-                : onHideOnHomeChanged,
-            title: Text(loc.getPaidWalletHideOnHomeLabel),
-            subtitle: Text(
-              behavior.canHideOnHome
-                  ? loc.getPaidWalletHideOnHomeInfo
-                  : loc.getPaidWalletHideOnHomeNeedsAutoSweep,
-            ),
+          WalletBehaviorSwitches(
+            autoSweepSwitchKey: const Key('get_paid_auto_sweep_switch'),
+            hideOnHomeSwitchKey: const Key('get_paid_hide_on_home_switch'),
+            hideOnHome: behavior.hideOnHome,
+            autoSweepEnabled: behavior.autoSweepEnabled,
+            canHideOnHome: behavior.canHideOnHome,
+            saving: saving,
+            autoSweepLabel: loc.getPaidWalletAutoSweepLabel,
+            autoSweepInfo: loc.getPaidWalletAutoSweepInfo,
+            hideOnHomeLabel: loc.getPaidWalletHideOnHomeLabel,
+            hideOnHomeInfo: loc.getPaidWalletHideOnHomeInfo,
+            onAutoSweepChanged: onAutoSweepChanged,
+            onHideOnHomeChanged: onHideOnHomeChanged,
           ),
         ],
       ),

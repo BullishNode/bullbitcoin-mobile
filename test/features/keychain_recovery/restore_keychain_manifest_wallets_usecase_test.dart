@@ -232,46 +232,54 @@ void main() {
     expect(keychainManifest.recordRequests, isEmpty);
   });
 
-  test('re-applies network-specific Get Paid posture to each wallet', () async {
-    final intent = _intent();
-    final liquidIntent = _intent(
-      walletId: 'lbtc-wallet',
-      network: Network.liquidMainnet,
-    );
-    materializer.result = KeychainRecoveryWalletMaterializationResult(
-      materializedWallets: [
-        KeychainRecoveryMaterializedWallet(
-          intent: _recoveryIntent(intent),
-          walletId: intent.walletId,
-          network: intent.network,
-          scriptType: intent.scriptType,
-          childSeedFingerprint: intent.childSeedFingerprint,
-          created: true,
-        ),
-        KeychainRecoveryMaterializedWallet(
-          intent: _recoveryIntent(liquidIntent),
+  test(
+    'recovers the BTCPay pair with Bitcoin auto-sweep off and Liquid on',
+    () async {
+      final intent = _intent();
+      final liquidIntent = _intent(
+        walletId: 'lbtc-wallet',
+        network: Network.liquidMainnet,
+      );
+      materializer.result = KeychainRecoveryWalletMaterializationResult(
+        materializedWallets: [
+          KeychainRecoveryMaterializedWallet(
+            intent: _recoveryIntent(intent),
+            walletId: intent.walletId,
+            network: intent.network,
+            scriptType: intent.scriptType,
+            childSeedFingerprint: intent.childSeedFingerprint,
+            created: true,
+          ),
+          KeychainRecoveryMaterializedWallet(
+            intent: _recoveryIntent(liquidIntent),
+            walletId: liquidIntent.walletId,
+            network: liquidIntent.network,
+            scriptType: liquidIntent.scriptType,
+            childSeedFingerprint: liquidIntent.childSeedFingerprint,
+            created: true,
+          ),
+        ],
+        failedOutcomes: const [],
+        derivationPath: "39'/0'/12'/100'",
+      );
+
+      await usecase.execute(_plan(intent, liquidIntent));
+
+      // The manifest carries no behavior flags, so recovery asks for the same
+      // network defaults initial pairing applies. The ask is the if-missing
+      // kind, so a behavior the wallet already records survives it — and the
+      // repository resolves the resulting pair against the auto-sweep /
+      // hide-on-home rule.
+      expect(applyDefaults.calls, [
+        (walletId: intent.walletId, hideOnHome: false, autoSweepEnabled: false),
+        (
           walletId: liquidIntent.walletId,
-          network: liquidIntent.network,
-          scriptType: liquidIntent.scriptType,
-          childSeedFingerprint: liquidIntent.childSeedFingerprint,
-          created: true,
+          hideOnHome: true,
+          autoSweepEnabled: true,
         ),
-      ],
-      failedOutcomes: const [],
-      derivationPath: "39'/0'/12'/100'",
-    );
-
-    await usecase.execute(_plan(intent, liquidIntent));
-
-    expect(applyDefaults.calls, [
-      (walletId: intent.walletId, hideOnHome: false, autoSweepEnabled: false),
-      (
-        walletId: liquidIntent.walletId,
-        hideOnHome: true,
-        autoSweepEnabled: true,
-      ),
-    ]);
-  });
+      ]);
+    },
+  );
 
   test('a posture-defaults failure does not fail the restore', () async {
     final intent = _intent();
