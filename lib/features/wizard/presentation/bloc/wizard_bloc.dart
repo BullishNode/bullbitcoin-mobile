@@ -1,9 +1,9 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/mark_wizard_complete_usecase.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/save_metadata_backup_choice_usecase.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/save_pending_wizard_choices_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/mark_wizard_complete_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/save_metadata_backup_choice_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/save_pending_wizard_choices_usecase.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';

@@ -25,9 +25,9 @@ import 'package:bb_mobile/features/wizard/data/datasource/wizard_local_datasourc
 import 'package:bb_mobile/features/wizard/data/repository/wizard_repository_impl.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/apply_pending_wizard_choices_usecase.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/is_wizard_complete_usecase.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/read_pending_wizard_choices_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/apply_pending_wizard_choices_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/is_wizard_complete_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/read_pending_wizard_choices_usecase.dart';
 import 'package:bb_mobile/features/wizard/ui/wizard_app.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:bb_mobile/locator.dart';
