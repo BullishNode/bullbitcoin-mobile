@@ -1,23 +1,19 @@
-import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
-import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
-import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
-import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
-import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_get_paid_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_get_paid_fiat_settlement_summary_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_product_probe.dart';
+import 'package:bb_mobile/features/get_paid/domain/load_get_paid_invoices_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/load_get_paid_product_overview_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
-import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
-import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
-import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// Assembles the Get Paid hub snapshot from the public facades only. It reads
-/// each product's current status to render a chip + subtitle; it never touches
-/// balances, protocol internals or money logic. Once a wallet-owned nym exists,
-/// it also invokes the idempotent automatic-fallback setup use-case.
+/// Assembles the Get Paid hub snapshot from Get Paid's own use cases, each of
+/// which wraps one foreign public boundary. It reads each product's current
+/// status to render a chip + subtitle; it never touches balances, protocol
+/// internals or money logic. Once a wallet-owned nym exists, it also invokes the
+/// idempotent automatic-fallback setup use-case.
 ///
 /// The Donation Page and Point of Sale rows are keyed by the wallet nym, which
 /// is resolved from the Lightning Address registration — so those two are only
@@ -25,35 +21,21 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// own identity). The invoices boundary contributes only wallet readiness and
 /// a read-only automatic-fallback attention count.
 class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
-  static const _nymNotFoundCode = 'NymNotFound';
+  final LoadGetPaidProductOverviewUsecase _loadProductOverview;
+  final GetGetPaidBtcpayConnectionUsecase _getBtcpayConnection;
+  final LoadGetPaidInvoicesOverviewUsecase _loadInvoicesOverview;
 
-  final LightningAddressFacade _lightningAddress;
-  final PaymentPageFacade _paymentPage;
-  final PosFacade _pos;
-  final BtcpayFacade _btcpay;
-  final GetWalletsUsecase _getWallets;
-  final EnsureGetPaidAutomaticFallbackUsecase _ensureAutomaticFallback;
-  final EnsureGetPaidProductWalletUsecase _ensureProductWallet;
-  final GetPaidFallbackAttentionUsecase _fallbackAttention;
-
-  /// Optional, mainnet-only fiat-settlement summaries for the slots. Both are
-  /// null in isolated tests / environments where fiat settlement is not wired,
-  /// in which case no settlement summary is shown.
-  final FiatSettlementFacade? _fiatSettlement;
-  final GetSettingsUsecase? _getSettings;
+  /// The mainnet-only fiat-settlement summary read for the slots. Required: the
+  /// use case itself decides that settlement does not apply (non-mainnet), so
+  /// presentation never has to hold a dependency that may be absent.
+  final GetGetPaidFiatSettlementSummaryUsecase _fiatSettlementSummary;
   int _refreshGeneration = 0;
 
   GetPaidDashboardCubit({
-    required this._lightningAddress,
-    required this._paymentPage,
-    required this._pos,
-    required this._btcpay,
-    required this._getWallets,
-    required this._ensureAutomaticFallback,
-    required this._ensureProductWallet,
-    required this._fallbackAttention,
-    this._fiatSettlement,
-    this._getSettings,
+    required this._loadProductOverview,
+    required this._getBtcpayConnection,
+    required this._loadInvoicesOverview,
+    required this._fiatSettlementSummary,
   }) : super(const GetPaidDashboardState());
 
   Future<void> refresh() async {
@@ -66,6 +48,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         paymentPageStatus: GetPaidProductStatus.loading,
         posStatus: GetPaidProductStatus.loading,
         invoicesStatus: GetPaidDashboardCardStatus.loading,
+        invoicesUnavailable: false,
         btcpayStatus: GetPaidDashboardCardStatus.loading,
         // Settlement is server-read-only: drop any prior summary so a stale
         // badge is never shown while the fresh read is in flight.
@@ -79,261 +62,73 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
     );
 
     var failed = false;
-    void recordFailure(String message, {Object? error, StackTrace? trace}) {
+    // The use cases log the failure detail; this only records that the snapshot
+    // is incomplete so the hub can show its retry banner.
+    void recordFailure(String message) {
       failed = true;
-      log.warning(message, error: error, trace: trace);
+      log.warning(message);
     }
 
     final invoicesFuture = () async {
-      final ready = await _hasDefaultWallet();
-      int? fallbackAttentionCount;
-      if (ready) {
-        try {
-          fallbackAttentionCount = await _fallbackAttention.execute();
-        } on Exception catch (error, trace) {
-          log.warning(
-            'Get Paid fallback attention lookup failed unexpectedly',
-            error: error,
-            trace: trace,
-          );
-        }
-      }
+      final overview = await _loadInvoicesOverview.execute();
       if (_isStale(generation)) return;
-      emit(
-        state.copyWith(
-          invoicesWalletReady: ready,
-          fallbackAttentionCount: fallbackAttentionCount,
-          clearFallbackAttention: fallbackAttentionCount == null,
-          invoicesStatus: GetPaidDashboardCardStatus.loaded,
-        ),
-      );
+      switch (overview) {
+        case GetPaidInvoicesOverviewKnown(
+          :final walletReady,
+          :final fallbackAttentionCount,
+        ):
+          emit(
+            state.copyWith(
+              invoicesWalletReady: walletReady,
+              fallbackAttentionCount: fallbackAttentionCount,
+              clearFallbackAttention: fallbackAttentionCount == null,
+              invoicesUnavailable: false,
+              invoicesStatus: GetPaidDashboardCardStatus.loaded,
+            ),
+          );
+        case GetPaidInvoicesOverviewUnavailable():
+          recordFailure('Get Paid dashboard could not load invoice readiness');
+          emit(
+            state.copyWith(
+              invoicesWalletReady: false,
+              clearFallbackAttention: true,
+              invoicesUnavailable: true,
+              invoicesStatus: GetPaidDashboardCardStatus.loaded,
+            ),
+          );
+      }
     }();
 
     final btcpayFuture = () async {
-      try {
-        final result = await _btcpay.connection();
-        if (_isStale(generation)) return;
-        switch (result) {
-          case Ok(:final value):
-            emit(
-              state.copyWith(
-                btcpayConnection: value,
-                clearBtcpayConnection: value == null,
-                btcpayStatus: GetPaidDashboardCardStatus.loaded,
-              ),
-            );
-          case Err(:final failure):
-            recordFailure(
-              'Get Paid dashboard could not load the BTCPay connection',
-              error: failure.runtimeType,
-            );
-            emit(
-              state.copyWith(btcpayStatus: GetPaidDashboardCardStatus.loaded),
-            );
-        }
-      } on Exception catch (error, trace) {
-        if (_isStale(generation)) return;
-        recordFailure(
-          'Get Paid dashboard BTCPay lookup failed',
-          error: error,
-          trace: trace,
-        );
-        emit(state.copyWith(btcpayStatus: GetPaidDashboardCardStatus.loaded));
-      }
-    }();
-
-    final lightningAndSurfacesFuture = () async {
-      LightningAddressStatus registration;
-      try {
-        registration = await _lightningAddress.lookupWalletOwnedRegistration();
-      } on LightningAddressException catch (error, trace) {
-        if (error.code == _nymNotFoundCode) {
-          registration = const LightningAddressStatus(nym: '', active: false);
-        } else {
-          if (_isStale(generation)) return;
-          recordFailure(
-            'Get Paid dashboard Lightning Address lookup failed',
-            error: error,
-            trace: trace,
-          );
-          // The nym drives the Page/POS queries, so a failed lookup leaves ALL
-          // three products UNAVAILABLE (truth unknown) — never absent.
-          emit(
-            state.copyWith(
-              lightningStatus: GetPaidProductStatus.unavailable,
-              paymentPageStatus: GetPaidProductStatus.unavailable,
-              posStatus: GetPaidProductStatus.unavailable,
-            ),
-          );
-          return;
-        }
-      } on Exception catch (error, trace) {
-        if (_isStale(generation)) return;
-        recordFailure(
-          'Get Paid dashboard Lightning Address lookup failed',
-          error: error,
-          trace: trace,
-        );
-        emit(
-          state.copyWith(
-            lightningStatus: GetPaidProductStatus.unavailable,
-            paymentPageStatus: GetPaidProductStatus.unavailable,
-            posStatus: GetPaidProductStatus.unavailable,
-          ),
-        );
-        return;
-      }
+      final probe = await _getBtcpayConnection.execute();
       if (_isStale(generation)) return;
-
-      final nym = registration.nym.isEmpty ? null : registration.nym;
-      final address = (registration.lightningAddress?.isEmpty ?? true)
-          ? null
-          : registration.lightningAddress;
-      emit(
-        state.copyWith(
-          lightningAddress: address,
-          clearLightningAddress: address == null,
-          lightningActive: registration.active,
-          nym: nym,
-          clearNym: nym == null,
-          // A resolved registration (active or inactive) is a present card;
-          // no nym is a CONFIRMED empty account (absent).
-          lightningStatus: nym == null
-              ? GetPaidProductStatus.absent
-              : GetPaidProductStatus.active,
-        ),
-      );
-
-      if (nym == null) {
-        // Confirmed empty account: no Page/POS products yet (absent, not
-        // unavailable). The manifest never creates a product card.
-        emit(
-          state.copyWith(
-            clearPaymentPage: true,
-            clearPos: true,
-            paymentPageStatus: GetPaidProductStatus.absent,
-            posStatus: GetPaidProductStatus.absent,
-          ),
-        );
-        return;
+      switch (probe) {
+        case GetPaidProductFound(:final row):
+          emit(
+            state.copyWith(
+              btcpayConnection: row,
+              btcpayStatus: GetPaidDashboardCardStatus.loaded,
+            ),
+          );
+        case GetPaidProductAbsent():
+          emit(
+            state.copyWith(
+              clearBtcpayConnection: true,
+              btcpayStatus: GetPaidDashboardCardStatus.loaded,
+            ),
+          );
+        case GetPaidProductUnavailable():
+          recordFailure(
+            'Get Paid dashboard could not load the BTCPay connection',
+          );
+          emit(state.copyWith(btcpayStatus: GetPaidDashboardCardStatus.loaded));
       }
-
-      // Self-heal the Lightning Address wallet (101) only while it is active.
-      final lightningHealFuture = registration.active
-          ? _healProductWallet(
-              generation,
-              GetPaidWalletBackedProduct.lightningAddress,
-            )
-          : Future<void>.value();
-
-      final fallbackFuture = () async {
-        try {
-          final ready = await _ensureAutomaticFallback.execute();
-          if (_isStale(generation)) return;
-          if (!ready) {
-            recordFailure('Get Paid automatic fallback setup failed');
-          }
-        } on Exception catch (error, trace) {
-          if (_isStale(generation)) return;
-          recordFailure(
-            'Get Paid automatic fallback setup threw unexpectedly',
-            error: error,
-            trace: trace,
-          );
-        }
-      }();
-
-      final pageFuture = () async {
-        try {
-          final page = await _paymentPage.find(nym: nym);
-          if (_isStale(generation)) return;
-          if (page == null) {
-            emit(
-              state.copyWith(
-                clearPaymentPage: true,
-                paymentPageStatus: GetPaidProductStatus.absent,
-              ),
-            );
-            return;
-          }
-          if (page.isArchived) {
-            // Archived => keep the object for a status-only card; not active.
-            emit(
-              state.copyWith(
-                paymentPage: page,
-                paymentPageStatus: GetPaidProductStatus.archived,
-              ),
-            );
-            return;
-          }
-          emit(
-            state.copyWith(
-              paymentPage: page,
-              paymentPageStatus: GetPaidProductStatus.active,
-            ),
-          );
-          await _healProductWallet(
-            generation,
-            GetPaidWalletBackedProduct.paymentPage,
-          );
-        } on Exception catch (error, trace) {
-          if (_isStale(generation)) return;
-          recordFailure(
-            'Get Paid dashboard Donation Page lookup failed',
-            error: error,
-            trace: trace,
-          );
-          emit(
-            state.copyWith(paymentPageStatus: GetPaidProductStatus.unavailable),
-          );
-        }
-      }();
-      final posFuture = () async {
-        try {
-          final terminal = await _pos.find(nym: nym);
-          if (_isStale(generation)) return;
-          if (terminal == null) {
-            emit(
-              state.copyWith(
-                clearPos: true,
-                posStatus: GetPaidProductStatus.absent,
-              ),
-            );
-            return;
-          }
-          if (terminal.isArchived) {
-            emit(
-              state.copyWith(
-                posTerminal: terminal,
-                posStatus: GetPaidProductStatus.archived,
-              ),
-            );
-            return;
-          }
-          emit(
-            state.copyWith(
-              posTerminal: terminal,
-              posStatus: GetPaidProductStatus.active,
-            ),
-          );
-          await _healProductWallet(generation, GetPaidWalletBackedProduct.pos);
-        } on Exception catch (error, trace) {
-          if (_isStale(generation)) return;
-          recordFailure(
-            'Get Paid dashboard Point of Sale lookup failed',
-            error: error,
-            trace: trace,
-          );
-          emit(state.copyWith(posStatus: GetPaidProductStatus.unavailable));
-        }
-      }();
-      await Future.wait([
-        lightningHealFuture,
-        fallbackFuture,
-        pageFuture,
-        posFuture,
-      ]);
     }();
+
+    final productOverviewFuture = _applyProductOverview(
+      generation,
+      recordFailure,
+    );
 
     // Fiat-settlement badges: mainnet-only, server-read-only truth. A confirmed
     // read populates the per-product config; a mainnet read FAILURE clears the
@@ -341,53 +136,26 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
     // badge (never a stale or guessed Bitcoin-only). Never marks the refresh as
     // failed (settlement presentation is independent of the rest of the hub).
     final fiatSettlementFuture = () async {
-      final facade = _fiatSettlement;
-      final getSettings = _getSettings;
-      if (facade == null || getSettings == null) return;
-      try {
-        final settings = await getSettings.execute();
-        if (settings.environment != Environment.mainnet) return;
-        final result = await facade.configuration();
-        if (_isStale(generation)) return;
-        switch (result) {
-          case Ok(:final value):
-            emit(
-              state.copyWith(
-                fiatSettlement: {
-                  for (final product in FiatSettlementProduct.values)
-                    product: value.configFor(product),
-                },
-                fiatSettlementUnavailable: false,
-              ),
-            );
-          case Err():
-            emit(
-              state.copyWith(
+      final summary = await _fiatSettlementSummary.execute();
+      // A null summary means settlement does not apply — no badge at all.
+      if (summary == null || _isStale(generation)) return;
+      emit(
+        summary.isUnavailable
+            ? state.copyWith(
                 clearFiatSettlement: true,
                 fiatSettlementUnavailable: true,
+              )
+            : state.copyWith(
+                fiatSettlement: summary.configs,
+                fiatSettlementUnavailable: false,
               ),
-            );
-        }
-      } on Exception catch (error, trace) {
-        log.warning(
-          'Get Paid dashboard fiat-settlement summary lookup failed',
-          error: error,
-          trace: trace,
-        );
-        if (_isStale(generation)) return;
-        emit(
-          state.copyWith(
-            clearFiatSettlement: true,
-            fiatSettlementUnavailable: true,
-          ),
-        );
-      }
+      );
     }();
 
     await Future.wait([
       invoicesFuture,
       btcpayFuture,
-      lightningAndSurfacesFuture,
+      productOverviewFuture,
       fiatSettlementFuture,
     ]);
     if (_isStale(generation)) return;
@@ -400,17 +168,122 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
     );
   }
 
-  /// Contract #4 Q9/Q9b self-heal for an ACTIVE product: re-derive its
-  /// fixed-path wallet if missing, recording it in the manifest. Idempotent (a
-  /// present wallet is a no-op). Only a re-derivation FAILURE raises the
-  /// product's missing-wallet warning; success clears it. The usecase never
-  /// throws, and every emit is generation-guarded.
-  Future<void> _healProductWallet(
+  Future<void> _applyProductOverview(
     int generation,
-    GetPaidWalletBackedProduct product,
+    void Function(String message) recordFailure,
   ) async {
-    final outcome = await _ensureProductWallet.execute(product);
-    if (_isStale(generation)) return;
+    await for (final event in _loadProductOverview.execute(
+      isCurrent: () => !_isStale(generation),
+    )) {
+      if (_isStale(generation)) return;
+      switch (event) {
+        case GetPaidRegistrationUnavailable():
+          recordFailure('Get Paid dashboard Lightning Address lookup failed');
+          emit(
+            state.copyWith(
+              lightningStatus: GetPaidProductStatus.unavailable,
+              paymentPageStatus: GetPaidProductStatus.unavailable,
+              posStatus: GetPaidProductStatus.unavailable,
+            ),
+          );
+        case GetPaidRegistrationResolved(:final registration):
+          final nym = registration.nym;
+          final address = registration.address;
+          emit(
+            state.copyWith(
+              lightningAddress: address,
+              clearLightningAddress: address == null,
+              lightningActive: registration.active,
+              nym: nym,
+              clearNym: nym == null,
+              lightningStatus: nym == null
+                  ? GetPaidProductStatus.absent
+                  : GetPaidProductStatus.active,
+            ),
+          );
+        case GetPaidPaymentPageResolved(:final probe):
+          _applyPaymentPageProbe(probe, recordFailure);
+        case GetPaidPosResolved(:final probe):
+          _applyPosProbe(probe, recordFailure);
+        case GetPaidProductWalletResolved(:final product, :final outcome):
+          _applyWalletOutcome(product, outcome);
+        case GetPaidAutomaticFallbackResolved(:final ready):
+          if (!ready) {
+            recordFailure('Get Paid automatic fallback setup failed');
+          }
+        case GetPaidProductOverviewUnavailable():
+          recordFailure('Get Paid product overview failed unexpectedly');
+          emit(
+            state.copyWith(
+              lightningStatus: GetPaidProductStatus.unavailable,
+              paymentPageStatus: GetPaidProductStatus.unavailable,
+              posStatus: GetPaidProductStatus.unavailable,
+            ),
+          );
+      }
+    }
+  }
+
+  void _applyPaymentPageProbe(
+    GetPaidProductProbe<GetPaidPaymentPageSnapshot> probe,
+    void Function(String message) recordFailure,
+  ) {
+    switch (probe) {
+      case GetPaidProductAbsent():
+        emit(
+          state.copyWith(
+            clearPaymentPage: true,
+            paymentPageStatus: GetPaidProductStatus.absent,
+          ),
+        );
+      case GetPaidProductUnavailable():
+        recordFailure('Get Paid dashboard Donation Page lookup failed');
+        emit(
+          state.copyWith(paymentPageStatus: GetPaidProductStatus.unavailable),
+        );
+      case GetPaidProductFound(:final row):
+        emit(
+          state.copyWith(
+            paymentPage: row,
+            paymentPageStatus: row.isArchived
+                ? GetPaidProductStatus.archived
+                : GetPaidProductStatus.active,
+          ),
+        );
+    }
+  }
+
+  void _applyPosProbe(
+    GetPaidProductProbe<GetPaidPosTerminalSnapshot> probe,
+    void Function(String message) recordFailure,
+  ) {
+    switch (probe) {
+      case GetPaidProductAbsent():
+        emit(
+          state.copyWith(
+            clearPos: true,
+            posStatus: GetPaidProductStatus.absent,
+          ),
+        );
+      case GetPaidProductUnavailable():
+        recordFailure('Get Paid dashboard Point of Sale lookup failed');
+        emit(state.copyWith(posStatus: GetPaidProductStatus.unavailable));
+      case GetPaidProductFound(:final row):
+        emit(
+          state.copyWith(
+            posTerminal: row,
+            posStatus: row.isArchived
+                ? GetPaidProductStatus.archived
+                : GetPaidProductStatus.active,
+          ),
+        );
+    }
+  }
+
+  void _applyWalletOutcome(
+    GetPaidWalletBackedProduct product,
+    GetPaidProductWalletOutcome outcome,
+  ) {
     final warning = outcome == GetPaidProductWalletOutcome.failed;
     emit(switch (product) {
       GetPaidWalletBackedProduct.lightningAddress => state.copyWith(
@@ -423,19 +296,6 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         posWalletWarning: warning,
       ),
     });
-  }
-
-  /// Whether the user has at least one default wallet — the Invoices product
-  /// pays out from the default wallet, mirroring [CreateInvoiceUsecase]'s
-  /// `onlyDefaults: true` resolution. Never throws: a missing-wallet failure
-  /// simply means "not ready", and it must not abort the dashboard refresh.
-  Future<bool> _hasDefaultWallet() async {
-    try {
-      final wallets = await _getWallets.execute(onlyDefaults: true);
-      return wallets.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
   }
 
   bool _isStale(int generation) {

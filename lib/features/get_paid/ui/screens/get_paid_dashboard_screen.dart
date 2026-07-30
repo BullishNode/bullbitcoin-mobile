@@ -1,7 +1,6 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_routes.dart';
-import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
-import 'package:bb_mobile/features/fiat_settlement/ui/fiat_settlement_copy.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
@@ -26,7 +25,7 @@ import 'package:go_router/go_router.dart';
 /// The Get Paid hub — the third bottom-nav tab. Draws its own [BullTopBar]
 /// (the shell app bar is null for this tab) and lists Get Paid history plus the
 /// products as tappable slot cards. Auto-refreshes on init, on app-resume and
-/// on pull; reads public facades only.
+/// on pull; renders only the Get Paid-owned snapshot assembled by its Cubit.
 class GetPaidDashboardScreen extends StatefulWidget {
   const GetPaidDashboardScreen({super.key});
 
@@ -107,19 +106,19 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
     final lightningSettlement = _settlementBadge(
       context,
       state,
-      FiatSettlementProduct.lightningAddress,
+      GetPaidDashboardSettlementProduct.lightningAddress,
       active: state.lightningActive,
     );
     final pageSettlement = _settlementBadge(
       context,
       state,
-      FiatSettlementProduct.paymentPage,
+      GetPaidDashboardSettlementProduct.paymentPage,
       active: state.hasPaymentPage,
     );
     final posSettlement = _settlementBadge(
       context,
       state,
-      FiatSettlementProduct.pos,
+      GetPaidDashboardSettlementProduct.pos,
       active: state.hasPos,
     );
     // Per-product truth chips (active / archived / absent / unavailable). LA is
@@ -213,14 +212,22 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
         isLoading: state.invoicesStatus == GetPaidDashboardCardStatus.loading,
         // Active green once the user's default wallet is created (invoices pay
         // out from the default wallet).
-        statusLabel: state.hasFallbackAttention
+        statusLabel: state.invoicesUnavailable
+            ? loc.getPaidDashboardUnavailable
+            : state.hasFallbackAttention
             ? loc.getPaidDashboardFallbackPending(state.fallbackAttentionCount!)
             : state.invoicesWalletReady
             ? loc.getPaidDashboardActive
             : null,
-        statusActive: state.invoicesWalletReady && !state.hasFallbackAttention,
+        statusActive:
+            state.invoicesWalletReady &&
+            !state.hasFallbackAttention &&
+            !state.invoicesUnavailable,
+        retry: state.invoicesUnavailable
+            ? (label: loc.getPaidDashboardRetry, onTap: refresh)
+            : null,
         onTap: () => _open(
-          state.hasFallbackAttention
+          state.invoicesUnavailable || state.hasFallbackAttention
               ? InvoicesRoute.list.name
               : InvoicesRoute.create.name,
         ),
@@ -253,13 +260,27 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
   ({String? label, bool unavailable}) _settlementBadge(
     BuildContext context,
     GetPaidDashboardState state,
-    FiatSettlementProduct product, {
+    GetPaidDashboardSettlementProduct product, {
     required bool active,
   }) {
     if (!active) return (label: null, unavailable: false);
     final config = state.fiatSettlement?[product];
     if (config != null) {
-      return (label: context.fiatSettlementSummary(config), unavailable: false);
+      final label = switch (config.mode) {
+        GetPaidDashboardSettlementMode.bitcoinOnly =>
+          context.loc.getPaidFiatSettlementSummaryBitcoinOnly,
+        GetPaidDashboardSettlementMode.fiatOnly =>
+          context.loc.getPaidFiatSettlementSummaryFiatOnly(
+            config.currencyCode ?? '',
+          ),
+        GetPaidDashboardSettlementMode.mixed =>
+          context.loc.getPaidFiatSettlementSummaryMixed(
+            100 - config.fiatPercentage,
+            config.fiatPercentage,
+            config.currencyCode ?? '',
+          ),
+      };
+      return (label: label, unavailable: false);
     }
     if (state.fiatSettlementUnavailable) {
       return (

@@ -130,6 +130,7 @@ class AppLocator {
     LightningAddressLocator.setup(locator);
     PaymentPageLocator.setup(locator);
     PosLocator.setup(locator);
+    FiatSettlementLocator.setup(locator);
     InvoicesLocator.setup(locator);
     RemoteKeychainRecoveryLocator.setup(locator);
     BtcpayLocator.setup(locator);
@@ -149,7 +150,6 @@ class AppLocator {
 
     ExchangeLocator.setup(locator);
     ExchangeSettingsLocator.setup(locator);
-    FiatSettlementLocator.setup(locator);
     BuyLocator.setup(locator);
     SellLocator.setup(locator);
     WithdrawLocator.setup(locator);

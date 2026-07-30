@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_invoice_facts.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_cubit.dart';
@@ -20,6 +21,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_invoice_facts_usecase.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
 
 class _StubHistoryCubit extends Cubit<GetPaidTransactionHistoryState>
     implements GetPaidTransactionHistoryCubit {
@@ -249,9 +253,8 @@ void main() {
             GoRoute(
               name: GetPaidDashboardRoute.getPaidTransactionDetail.name,
               path: 'detail',
-              builder: (context, state) => GetPaidTransactionDetailScreen(
-                transaction: state.extra! as GetPaidTransaction,
-              ),
+              builder: (context, state) =>
+                  _detailCard(state.extra! as GetPaidTransaction),
             ),
           ],
         ),
@@ -387,8 +390,8 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         _app(
-          GetPaidTransactionDetailScreen(
-            transaction: _transaction(
+          _detailCard(
+            _transaction(
               source: GetPaidTransactionSource.invoice,
               settlementState: GetPaidSettlementState.pending,
               settlement: const GetPaidSettlement(
@@ -419,9 +422,7 @@ void main() {
     'a Lightning Address detail omits From-wallet and invents no chain fields',
     (tester) async {
       final transaction = _transaction(comment: 'note');
-      await tester.pumpWidget(
-        _app(GetPaidTransactionDetailScreen(transaction: transaction)),
-      );
+      await tester.pumpWidget(_app(_detailCard(transaction)));
       await tester.pump();
 
       // Incoming Lightning Address payments have no funding wallet (report #12).
@@ -453,12 +454,26 @@ void main() {
   testWidgets('a Lightning Address detail offers no View invoice action', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      _app(GetPaidTransactionDetailScreen(transaction: _transaction())),
-    );
+    await tester.pumpWidget(_app(_detailCard(_transaction())));
     await tester.pump();
 
     expect(find.text('View invoice'), findsNothing);
     expect(find.byIcon(Icons.receipt_long), findsNothing);
   });
+}
+
+/// The card reads its invoice state from a cubit. These tests never wire an
+/// invoice read, so it stays initial and the card renders exactly as it does for
+/// an entry that carries no invoice.
+Widget _detailCard(GetPaidTransaction transaction) => BlocProvider(
+  create: (_) =>
+      GetPaidInvoiceFactsCubit(lookUpInvoiceFacts: _UnreadInvoiceFacts()),
+  child: GetPaidTransactionDetailScreen(transaction: transaction),
+);
+
+class _UnreadInvoiceFacts implements LookUpGetPaidInvoiceFactsUsecase {
+  @override
+  Future<Result<GetPaidInvoiceFacts, GetPaidFailure>> execute({
+    required String invoiceId,
+  }) => throw UnimplementedError();
 }

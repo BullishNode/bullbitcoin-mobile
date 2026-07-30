@@ -1,6 +1,7 @@
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
 import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
@@ -43,9 +44,15 @@ class GetPaidRouter {
                 ? null
                 : '${GetPaidDashboardRoute.getPaidHome.path}/'
                       '${GetPaidDashboardRoute.getPaidTransactions.path}',
-            builder: (context, state) => GetPaidTransactionDetailScreen(
-              transaction: state.extra! as GetPaidTransaction,
-            ),
+            builder: (context, state) {
+              final transaction = state.extra! as GetPaidTransaction;
+              return BlocProvider(
+                create: (_) =>
+                    locator<GetPaidInvoiceFactsCubit>()
+                      ..load(invoiceId: transaction.invoiceId),
+                child: GetPaidTransactionDetailScreen(transaction: transaction),
+              );
+            },
           ),
         ],
       ),

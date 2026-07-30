@@ -1,7 +1,7 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
-import 'package:bb_mobile/features/bitcoin_price/ui/currency_text.dart';
+import 'package:bb_mobile/features/bitcoin_price/public/currency_text.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_cubit.dart';

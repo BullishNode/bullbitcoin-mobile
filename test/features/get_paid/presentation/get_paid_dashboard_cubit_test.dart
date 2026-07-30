@@ -10,7 +10,15 @@ import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/find_get_paid_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/find_get_paid_pos_terminal_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_get_paid_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_get_paid_fiat_settlement_summary_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_lightning_registration_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/load_get_paid_invoices_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/load_get_paid_product_overview_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
@@ -53,7 +61,9 @@ FiatSettlementConfigurationView _fiatView(
 }
 
 // The public facades are callback-injected, so the tests wire real facade
-// instances to plain closures — no mocking framework needed.
+// instances to plain closures — no mocking framework needed. Each facade then
+// goes through the Get Paid use case the cubit actually depends on, so these
+// tests exercise the real wrapping (the cubit never sees a foreign facade).
 
 LightningAddressFacade _laFacade(
   Future<LightningAddressStatus> Function() lookup,
@@ -194,6 +204,7 @@ GetPaidDashboardCubit _cubit({
   ensureFallback,
   bool hasDefaultWallet = false,
   int? fallbackAttentionCount = 0,
+  Future<GetPaidFallbackAttentionResult> Function()? fallbackAttentionLookup,
   Future<Result<FiatSettlementConfigurationView, FiatSettlementFailure>>
   Function()?
   fiatConfiguration,
@@ -202,9 +213,13 @@ GetPaidDashboardCubit _cubit({
   productWalletHeal,
 }) {
   final fallbackAttention = _MockFallbackAttention();
-  when(
-    () => fallbackAttention.execute(),
-  ).thenAnswer((_) async => fallbackAttentionCount);
+  when(() => fallbackAttention.execute()).thenAnswer(
+    (_) async => fallbackAttentionLookup != null
+        ? fallbackAttentionLookup()
+        : fallbackAttentionCount == null
+        ? const GetPaidFallbackAttentionUnavailable()
+        : GetPaidFallbackAttentionKnown(fallbackAttentionCount),
+  );
 
   // The product-wallet self-heal defaults to a no-op "present" outcome.
   final ensureProductWallet = _MockEnsureProductWallet();
@@ -216,35 +231,55 @@ GetPaidDashboardCubit _cubit({
           ),
   );
 
-  // Only wire the (optional) fiat-settlement facade when a test opts in; the
-  // rest of the suite exercises the null / not-wired path unchanged.
-  FiatSettlementFacade? fiatFacade;
-  GetSettingsUsecase? getSettings;
-  if (fiatConfiguration != null) {
-    final facade = _MockFiatFacade();
-    when(() => facade.configuration()).thenAnswer((_) => fiatConfiguration());
-    fiatFacade = facade;
-    final settings = _MockSettings();
-    when(() => settings.environment).thenReturn(environment);
-    final settingsUsecase = _MockGetSettings();
-    when(() => settingsUsecase.execute()).thenAnswer((_) async => settings);
-    getSettings = settingsUsecase;
-  }
+  // The settlement summary is a REQUIRED dependency: a test that does not opt in
+  // gets one on testnet, where the use case itself reports that settlement does
+  // not apply — the same empty outcome, without a nullable dependency.
+  final fiatFacade = _MockFiatFacade();
+  when(() => fiatFacade.configuration()).thenAnswer(
+    (_) =>
+        fiatConfiguration?.call() ??
+        Future.value(const Err(FiatSettlementFailure.bullnymUnreachable())),
+  );
+  final settings = _MockSettings();
+  when(
+    () => settings.environment,
+  ).thenReturn(fiatConfiguration == null ? Environment.testnet : environment);
+  final settingsUsecase = _MockGetSettings();
+  when(() => settingsUsecase.execute()).thenAnswer((_) async => settings);
+  final fiatSettlementSummary = GetGetPaidFiatSettlementSummaryUsecase(
+    fiatSettlement: fiatFacade,
+    getSettings: settingsUsecase,
+  );
 
   return GetPaidDashboardCubit(
-    lightningAddress: _laFacade(lookup ?? () async => _status()),
-    paymentPage: _pageFacade(pageFind ?? ({required String nym}) async => null),
-    pos: _posFacade(posFind ?? ({required String nym}) async => null),
-    btcpay: _btcpayFacade(
-      connection ??
-          () async => const Ok<BtcpayConnection?, BtcpayFailure>(null),
+    loadProductOverview: LoadGetPaidProductOverviewUsecase(
+      lookUpRegistration: LookUpGetPaidLightningRegistrationUsecase(
+        lightningAddress: _laFacade(lookup ?? () async => _status()),
+      ),
+      findPaymentPage: FindGetPaidPaymentPageUsecase(
+        paymentPage: _pageFacade(
+          pageFind ?? ({required String nym}) async => null,
+        ),
+      ),
+      findPos: FindGetPaidPosTerminalUsecase(
+        pos: _posFacade(posFind ?? ({required String nym}) async => null),
+      ),
+      ensureAutomaticFallback: _fallbackUsecase(
+        ensureFallback ?? _fallbackReady,
+      ),
+      ensureProductWallet: ensureProductWallet,
     ),
-    getWallets: _getWallets(hasDefaultWallet: hasDefaultWallet),
-    ensureAutomaticFallback: _fallbackUsecase(ensureFallback ?? _fallbackReady),
-    ensureProductWallet: ensureProductWallet,
-    fallbackAttention: fallbackAttention,
-    fiatSettlement: fiatFacade,
-    getSettings: getSettings,
+    getBtcpayConnection: GetGetPaidBtcpayConnectionUsecase(
+      btcpay: _btcpayFacade(
+        connection ??
+            () async => const Ok<BtcpayConnection?, BtcpayFailure>(null),
+      ),
+    ),
+    loadInvoicesOverview: LoadGetPaidInvoicesOverviewUsecase(
+      getWallets: _getWallets(hasDefaultWallet: hasDefaultWallet),
+      fallbackAttention: fallbackAttention,
+    ),
+    fiatSettlementSummary: fiatSettlementSummary,
   );
 }
 
@@ -441,6 +476,31 @@ void main() {
     },
   );
 
+  test(
+    'an unavailable refresh clears stale invoice readiness and count',
+    () async {
+      var available = true;
+      final cubit = _cubit(
+        hasDefaultWallet: true,
+        fallbackAttentionLookup: () async => available
+            ? const GetPaidFallbackAttentionKnown(2)
+            : const GetPaidFallbackAttentionUnavailable(),
+      );
+
+      await cubit.refresh();
+      expect(cubit.state.fallbackAttentionCount, 2);
+      expect(cubit.state.invoicesWalletReady, isTrue);
+
+      available = false;
+      await cubit.refresh();
+
+      expect(cubit.state.invoicesUnavailable, isTrue);
+      expect(cubit.state.fallbackAttentionCount, isNull);
+      expect(cubit.state.invoicesWalletReady, isFalse);
+      await cubit.close();
+    },
+  );
+
   test('invoices tile is not ready without a default wallet', () async {
     final cubit = _cubit();
 
@@ -459,7 +519,7 @@ void main() {
     await cubit.refresh();
 
     expect(cubit.state.hasPaymentPage, isTrue);
-    expect(cubit.state.paymentPage!.enabled, isTrue);
+    expect(cubit.state.paymentPage!.publicUrl, isNotEmpty);
     await cubit.close();
   });
 
@@ -472,7 +532,7 @@ void main() {
     await cubit.refresh();
 
     expect(cubit.state.paymentPage, isNotNull);
-    expect(cubit.state.paymentPage!.enabled, isFalse);
+    expect(cubit.state.paymentPage!.publicUrl, isNotEmpty);
     await cubit.close();
   });
 
@@ -625,6 +685,8 @@ void main() {
     test('a late product response never overwrites a newer refresh', () async {
       final gate = Completer<PaymentPage?>();
       final reachedGate = Completer<void>();
+      final healed = <GetPaidWalletBackedProduct>[];
+      var fallbackCalls = 0;
       var calls = 0;
       final cubit = _cubit(
         lookup: () async => _status(active: true, address: 'a@b'),
@@ -638,18 +700,37 @@ void main() {
           // Generation 2 resolves immediately as archived.
           return Future.value(_page(archived: true));
         },
+        ensureFallback: () async {
+          fallbackCalls++;
+          return _fallbackReady();
+        },
+        productWalletHeal: (product) async {
+          healed.add(product);
+          return GetPaidProductWalletOutcome.present;
+        },
       );
 
       final first = cubit.refresh(); // generation 1 — page pending
       await reachedGate.future; // gen 1 is now awaiting the page query
       await cubit.refresh(); // generation 2 — page archived
+      expect(healed, [
+        GetPaidWalletBackedProduct.lightningAddress,
+        GetPaidWalletBackedProduct.lightningAddress,
+      ]);
+      expect(fallbackCalls, 2);
 
       // The stale generation-1 read now resolves as a live (active) page.
       gate.complete(_page());
       await first;
 
-      // The newer refresh wins; the stale response is dropped by the guard.
+      // The newer refresh wins. Work admitted while generation 1 was current
+      // may finish, but its late Page result cannot publish or trigger healing.
       expect(cubit.state.paymentPageStatus, GetPaidProductStatus.archived);
+      expect(healed, [
+        GetPaidWalletBackedProduct.lightningAddress,
+        GetPaidWalletBackedProduct.lightningAddress,
+      ]);
+      expect(fallbackCalls, 2);
       await cubit.close();
     });
   });
@@ -817,10 +898,11 @@ void main() {
 
       await cubit.refresh();
 
-      final config =
-          cubit.state.fiatSettlement?[FiatSettlementProduct.paymentPage];
+      final config = cubit
+          .state
+          .fiatSettlement?[GetPaidDashboardSettlementProduct.paymentPage];
       expect(config?.fiatPercentage, 50);
-      expect(config?.currency, FiatCurrency.cad);
+      expect(config?.currencyCode, 'CAD');
       expect(cubit.state.fiatSettlementUnavailable, isFalse);
       await cubit.close();
     },
@@ -889,7 +971,7 @@ void main() {
       expect(
         cubit
             .state
-            .fiatSettlement?[FiatSettlementProduct.paymentPage]
+            .fiatSettlement?[GetPaidDashboardSettlementProduct.paymentPage]
             ?.fiatPercentage,
         100,
       );
