@@ -24,7 +24,10 @@ void main() {
       updateWalletBehavior: updateWalletBehavior.execute,
     );
     return PaymentPageCubit(
-      facade: facade,
+      find: facade.find,
+      save: facade.save,
+      archive: facade.archive,
+      supportedCurrencies: facade.supportedCurrencies,
       getPermanentName: permanentName,
       claimNym: claimNym,
       getWalletBehavior: GetPaymentPageWalletBehaviorUsecase(
@@ -183,6 +186,13 @@ void main() {
       await cubit.load();
 
       expect(cubit.state.status, PaymentPageStatus.loadFailed);
+    });
+
+    test('programmer errors during load propagate', () async {
+      permanentName.error = StateError('broken permanent-name adapter');
+      final cubit = build();
+
+      await expectLater(cubit.load(), throwsA(isA<StateError>()));
     });
 
     test('keeps an unavailable wallet read distinct from absence', () async {

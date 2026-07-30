@@ -1,15 +1,51 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:async';
 
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_commands.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_results.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_quote.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_status_snapshot.dart';
+import 'package:bb_mobile/features/invoices/domain/invoices_failure.dart';
+import 'package:bb_mobile/features/invoices/domain/primitives/payment_method.dart';
+import 'package:bb_mobile/features/invoices/domain/value_objects/invoice_id.dart';
+import 'package:bb_mobile/features/invoices/domain/value_objects/private_invoice_link.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_detail_state.dart';
-import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+typedef GetPrivateInvoiceLink =
+    Future<PrivateInvoiceLink?> Function(InvoiceId invoiceId);
+typedef GetInvoiceStatus =
+    Future<Result<InvoiceStatusSnapshot, InvoicesFailure>> Function(
+      InvoiceId invoiceId,
+    );
+typedef GetMerchantInvoice =
+    Future<Result<Invoice?, InvoicesFailure>> Function(InvoiceId invoiceId);
+typedef GetInvoiceFallbackSupervision =
+    Future<Result<InvoiceFallbackOverview, InvoicesFailure>> Function();
+typedef GetInvoiceQuote =
+    Future<Result<InvoiceQuote, InvoicesFailure>> Function({
+      required InvoiceId invoiceId,
+      required PaymentMethod rail,
+    });
+typedef CancelMerchantInvoice =
+    Future<Result<CancelInvoiceResult, InvoicesFailure>> Function(
+      CancelInvoiceCommand command,
+    );
 
 /// Drives the invoice detail screen.
 /// Polling uses exponential backoff (3s → cap ~30s, DG-I4) and stops only after lifecycle and settlement supervision are complete or on dispose.
 /// Unpaid cancellation remains behind the screen's confirmation dialog, and its final status is stored separately from the polled snapshot (§3.11).
 class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
-  final InvoicesFacade _facade;
+  final GetPrivateInvoiceLink _getPrivateLink;
+  final GetInvoiceStatus _getStatus;
+  final GetMerchantInvoice _getMerchantInvoice;
+  final GetInvoiceFallbackSupervision _getFallbackSupervision;
+  final GetInvoiceQuote _getQuote;
+  final CancelMerchantInvoice _cancelInvoice;
   final InvoiceId _invoiceId;
   final Duration _pollInitialDelay;
   final Duration _pollMaxDelay;
@@ -23,13 +59,26 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
   final Map<PaymentMethod, String> _acceptedInstructionFingerprints = {};
 
   InvoiceDetailCubit({
-    required this._facade,
+    required GetPrivateInvoiceLink getPrivateLink,
+    required GetInvoiceStatus getStatus,
+    required GetMerchantInvoice getMerchantInvoice,
+    required GetInvoiceFallbackSupervision getFallbackSupervision,
+    required GetInvoiceQuote getQuote,
+    required CancelMerchantInvoice cancelInvoice,
     required this._invoiceId,
     Invoice? invoice,
     this._pollInitialDelay = const Duration(seconds: 3),
     this._pollMaxDelay = const Duration(seconds: 30),
     DateTime Function()? now,
-  }) : _now = now ?? (() => DateTime.now().toUtc()),
+  }) : _getPrivateLink = getPrivateLink,
+       _getStatus = getStatus,
+       _getMerchantInvoice = getMerchantInvoice,
+       _getFallbackSupervision = getFallbackSupervision,
+       _getQuote = getQuote,
+       _cancelInvoice = cancelInvoice,
+       _now = now ?? (() => DateTime.now().toUtc()),
+       assert(_pollInitialDelay > Duration.zero),
+       assert(_pollMaxDelay >= _pollInitialDelay),
        super(
          InvoiceDetailState(
            invoice: invoice,
@@ -57,7 +106,7 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
 
   Future<void> _loadPrivateLink() async {
     try {
-      final link = await _facade.privateLink(_invoiceId);
+      final link = await _getPrivateLink(_invoiceId);
       if (!isClosed) {
         emit(
           state.copyWith(privateLink: link, privateLinkLookupComplete: true),
@@ -100,7 +149,7 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
       ),
     );
 
-    final result = await _facade.quote(invoiceId: _invoiceId, rail: rail);
+    final result = await _getQuote(invoiceId: _invoiceId, rail: rail);
     if (isClosed || operation != _quoteOperation) return;
     switch (result) {
       case Ok(:final value):
@@ -155,7 +204,7 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
   Future<void> cancel() async {
     if (state.cancelling || !state.canCancel) return;
     emit(state.copyWith(cancelling: true, clearCancelFailure: true));
-    final result = await _facade.cancel(
+    final result = await _cancelInvoice(
       CancelInvoiceCommand(
         invoiceId: _invoiceId,
         nymOwner: state.invoice?.nymOwner,
@@ -183,8 +232,8 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
     if (state.invoice?.paymentSummary != null) {
       emit(state.copyWith(authenticatedInvoiceRefreshing: true));
     }
-    final statusFuture = _facade.status(_invoiceId);
-    final authenticatedFuture = _facade.merchantInvoice(_invoiceId);
+    final statusFuture = _getStatus(_invoiceId);
+    final authenticatedFuture = _getMerchantInvoice(_invoiceId);
     await Future.wait<void>([
       _applyPublicStatus(statusFuture, operation),
       _applyAuthenticatedInvoice(authenticatedFuture, operation),
@@ -287,7 +336,7 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
   }
 
   Future<void> _fetchFallbackSupervision(int operation) async {
-    final result = await _facade.fallbackSupervision();
+    final result = await _getFallbackSupervision();
     if (isClosed || operation != _fetchOperation) return;
     switch (result) {
       case Ok(:final value):
@@ -388,11 +437,11 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
       if (state.isTerminal) return;
       await _fetch();
       if (isClosed || state.isTerminal) return;
-      final next = delay.inSeconds * 2;
+      final nextMicros = delay.inMicroseconds * 2;
       delay = Duration(
-        seconds: next > _pollMaxDelay.inSeconds
-            ? _pollMaxDelay.inSeconds
-            : next,
+        microseconds: nextMicros > _pollMaxDelay.inMicroseconds
+            ? _pollMaxDelay.inMicroseconds
+            : nextMicros,
       );
     }
   }

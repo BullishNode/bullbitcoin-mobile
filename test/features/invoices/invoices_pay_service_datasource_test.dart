@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
-import 'package:bb_mobile/features/invoices/application/commands/invoice_commands.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_commands.dart';
 import 'package:bb_mobile/features/invoices/data/datasources/invoices_pay_service_datasource.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/encrypted_private_invoice.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';

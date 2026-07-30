@@ -135,7 +135,7 @@ class LightningAddressActivationCubit
               walletBehaviorRead is LightningAddressWalletBehaviorUnavailable,
         ),
       );
-    } catch (_) {
+    } on Exception catch (_) {
       if (_isStale(operationId)) return;
       // An old/unknown policy never enables claim or management controls. A
       // failed legacy lookup therefore degrades to a hidden, usable feature.
@@ -453,7 +453,7 @@ class LightningAddressActivationCubit
         walletBehaviorRead: walletBehaviorRead,
         failure: LightningAddressActivationFailure.alreadyAssigned,
       );
-    } catch (lookupError, stack) {
+    } on Exception catch (lookupError, stack) {
       log.warning(
         'Failed to reconcile owned permanent nym after conflict',
         error: lookupError,

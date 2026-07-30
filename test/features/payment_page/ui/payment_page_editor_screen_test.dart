@@ -5,9 +5,12 @@ import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
 import 'package:bb_mobile/features/payment_page/ui/screens/payment_page_editor_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
+import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../fiat_settlement/support/testnet_fiat_settlement_dependencies.dart';
 
 GetPaidWalletBehavior _behavior() => const GetPaidWalletBehavior(
   product: GetPaidWalletProduct.paymentPage,
@@ -58,6 +61,9 @@ PaymentPageState _createState({
 }
 
 void main() {
+  setUp(registerTestnetFiatSettlementDependencies);
+  tearDown(locator.reset);
+
   testWidgets('keeps wallet settings unavailability visibly stated', (
     tester,
   ) async {
@@ -324,6 +330,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(cubit.loadCalls, 2);
     expect(find.byKey(const Key('payment_page_edit_button')), findsOneWidget);
+  });
+
+  testWidgets('system back confirms before leaving a dirty editor', (
+    tester,
+  ) async {
+    final cubit = await _pump(tester, _editState(behavior: _behavior()));
+
+    await tester.tap(find.byKey(const Key('payment_page_edit_button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Changed header');
+    await tester.pump();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Discard changes?'), findsOneWidget);
+    expect(cubit.loadCalls, 1);
   });
 
   testWidgets('a failed save keeps the editor open', (tester) async {

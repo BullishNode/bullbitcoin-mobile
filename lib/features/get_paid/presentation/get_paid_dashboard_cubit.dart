@@ -50,6 +50,8 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         invoicesStatus: GetPaidDashboardCardStatus.loading,
         invoicesUnavailable: false,
         btcpayStatus: GetPaidDashboardCardStatus.loading,
+        clearBtcpayConnection: true,
+        btcpayUnavailable: false,
         // Settlement is server-read-only: drop any prior summary so a stale
         // badge is never shown while the fresh read is in flight.
         clearFiatSettlement: true,
@@ -108,6 +110,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
             state.copyWith(
               btcpayConnection: row,
               btcpayStatus: GetPaidDashboardCardStatus.loaded,
+              btcpayUnavailable: false,
             ),
           );
         case GetPaidProductAbsent():
@@ -115,13 +118,20 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
             state.copyWith(
               clearBtcpayConnection: true,
               btcpayStatus: GetPaidDashboardCardStatus.loaded,
+              btcpayUnavailable: false,
             ),
           );
         case GetPaidProductUnavailable():
           recordFailure(
             'Get Paid dashboard could not load the BTCPay connection',
           );
-          emit(state.copyWith(btcpayStatus: GetPaidDashboardCardStatus.loaded));
+          emit(
+            state.copyWith(
+              clearBtcpayConnection: true,
+              btcpayStatus: GetPaidDashboardCardStatus.loaded,
+              btcpayUnavailable: true,
+            ),
+          );
       }
     }();
 

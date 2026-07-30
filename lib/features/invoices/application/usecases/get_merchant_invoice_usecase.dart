@@ -1,7 +1,7 @@
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart'
     show BullnymAuthSigner;
-import 'package:bb_mobile/features/invoices/application/commands/invoice_commands.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_commands.dart';
 import 'package:bb_mobile/features/invoices/application/ports/invoices_identity_port.dart';
 import 'package:bb_mobile/features/invoices/application/ports/invoices_pay_service_port.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice.dart';

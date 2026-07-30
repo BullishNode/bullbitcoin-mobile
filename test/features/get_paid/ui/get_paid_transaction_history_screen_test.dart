@@ -43,8 +43,7 @@ class _StubHistoryCubit extends Cubit<GetPaidTransactionHistoryState>
   Future<void> loadMore() async => loadMoreCalls++;
 }
 
-// The screen's export action reads a GetPaidExportCubit; a no-op stub keeps the
-// history-rendering tests focused (the export flow has its own test).
+// The screen's export action reads a GetPaidExportCubit; a no-op stub keeps the history-rendering tests focused (the export flow has its own test).
 class _StubExportCubit extends Cubit<GetPaidExportState>
     implements GetPaidExportCubit {
   int exportCalls = 0;
@@ -55,8 +54,7 @@ class _StubExportCubit extends Cubit<GetPaidExportState>
   Future<void> exportCsv() async => exportCalls++;
 }
 
-// CurrencyText on the list rows reads the bitcoin unit and hide-amounts flag
-// from a SettingsCubit, so the rows need one in the tree.
+// CurrencyText on the list rows reads the bitcoin unit and hide-amounts flag from a SettingsCubit, so the rows need one in the tree.
 class _MockSettingsCubit extends Mock implements SettingsCubit {}
 
 SettingsCubit _settingsCubit() {
@@ -177,8 +175,7 @@ void main() {
     );
 
     expect(find.text('2,100 sats'), findsOneWidget);
-    // Source chip + network pill share the wallet-list grammar; the coarse
-    // "Lightning · Settled" status line is gone (settled rows are quiet).
+    // Source chip + network pill share the wallet-list grammar; the coarse "Lightning · Settled" status line is gone (settled rows are quiet).
     expect(find.text('Lightning Address'), findsOneWidget);
     expect(find.textContaining('Lightning'), findsWidgets);
     expect(find.text('Settled'), findsNothing);
@@ -288,8 +285,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('private payer note'), findsOneWidget);
-    // Both server ids are copyable rows of the card: the entry's receipt id and
-    // the invoice it belongs to. Long identifiers are truncated in place.
+    // Both server ids are copyable rows of the card: the entry's receipt id and the invoice it belongs to. Long identifiers are truncated in place.
     expect(
       find.text(StringFormatting.truncateMiddle(transaction.transactionId)),
       findsOneWidget,
@@ -298,8 +294,7 @@ void main() {
       find.text(StringFormatting.truncateMiddle(transaction.invoiceId!)),
       findsOneWidget,
     );
-    // The card IS the invoice: there is no action linking out to a second
-    // invoice screen, and that route is never reached.
+    // The card IS the invoice: there is no action linking out to a second invoice screen, and that route is never reached.
     expect(find.text('View invoice'), findsNothing);
     expect(find.text('invoice-${transaction.invoiceId}'), findsNothing);
     // Nothing resembling a private-link fragment is rendered.
@@ -427,8 +422,7 @@ void main() {
 
       // Incoming Lightning Address payments have no funding wallet (report #12).
       expect(find.textContaining('From wallet'), findsNothing);
-      // Nothing fabricated: no fees, sender, explorer links, chain txid, hashes,
-      // or confirmations — the entity carries none of these.
+      // Nothing fabricated: no fees, sender, explorer links, chain txid, hashes, or confirmations — the entity carries none of these.
       for (final forbidden in const [
         'Fee',
         'Sender',
@@ -440,9 +434,7 @@ void main() {
       ]) {
         expect(find.textContaining(forbidden), findsNothing);
       }
-      // The server's own id for the entry IS shown — labelled as the Bull
-      // Bitcoin receipt id, never as a chain transaction id (the forbidden
-      // 'Transaction ID' label above still finds nothing).
+      // The server's own id for the entry IS shown — labelled as the Bull Bitcoin receipt id, never as a chain transaction id (the forbidden 'Transaction ID' label above still finds nothing).
       expect(find.text('Receipt ID'), findsOneWidget);
       expect(
         find.text(StringFormatting.truncateMiddle(transaction.transactionId)),
@@ -462,9 +454,7 @@ void main() {
   });
 }
 
-/// The card reads its invoice state from a cubit. These tests never wire an
-/// invoice read, so it stays initial and the card renders exactly as it does for
-/// an entry that carries no invoice.
+/// The card reads its invoice state from a cubit. These tests never wire an invoice read, so it stays initial and the card renders exactly as it does for an entry that carries no invoice.
 Widget _detailCard(GetPaidTransaction transaction) => BlocProvider(
   create: (_) =>
       GetPaidInvoiceFactsCubit(lookUpInvoiceFacts: _UnreadInvoiceFacts()),

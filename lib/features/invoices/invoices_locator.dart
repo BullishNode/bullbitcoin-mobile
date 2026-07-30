@@ -23,6 +23,7 @@ import 'package:bb_mobile/features/invoices/data/datasources/invoices_identity_d
 import 'package:bb_mobile/features/invoices/data/datasources/invoices_pay_service_datasource.dart';
 import 'package:bb_mobile/features/invoices/domain/private_invoice_cipher.dart';
 import 'package:bb_mobile/features/invoices/domain/usecases/get_invoice_settlement_constraints_usecase.dart';
+import 'package:bb_mobile/features/invoices/domain/usecases/get_invoice_supported_currencies_usecase.dart';
 import 'package:bb_mobile/features/invoices/domain/repositories/private_invoice_link_repository.dart';
 import 'package:bb_mobile/features/invoices/domain/usecases/get_private_invoice_link_usecase.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_create_cubit.dart';
@@ -105,6 +106,9 @@ class InvoicesLocator {
         locator<FiatSettlementFacade>(),
       ),
     );
+    locator.registerFactory<GetInvoiceSupportedCurrenciesUsecase>(
+      () => GetInvoiceSupportedCurrenciesUsecase(locator<BullnymFacade>()),
+    );
     locator.registerFactory<InvoicesFacade>(
       () => InvoicesFacade(
         create: locator<CreateInvoiceUsecase>(),
@@ -115,7 +119,7 @@ class InvoicesLocator {
         getStatus: locator<GetInvoiceUsecase>(),
         getMerchantInvoice: locator<GetMerchantInvoiceUsecase>(),
         getPrivateLink: locator<GetPrivateInvoiceLinkUsecase>(),
-        bullnym: locator<BullnymFacade>(),
+        getSupportedCurrencies: locator<GetInvoiceSupportedCurrenciesUsecase>(),
       ),
     );
 
@@ -123,17 +127,20 @@ class InvoicesLocator {
     // detail cubit takes the invoice id at the route boundary, so it is built
     // there (not registered here).
     locator.registerFactory<InvoicesListCubit>(
-      () => InvoicesListCubit(facade: locator<InvoicesFacade>()),
+      () => InvoicesListCubit(list: locator<ListInvoicesUsecase>().execute),
     );
-    locator.registerFactory<InvoiceCreateCubit>(
-      () => InvoiceCreateCubit(
-        facade: locator<InvoicesFacade>(),
+    locator.registerFactory<InvoiceCreateCubit>(() {
+      return InvoiceCreateCubit(
+        create: locator<CreateInvoiceUsecase>().execute,
+        resumeCreate: locator<CreateInvoiceUsecase>().resumePending,
+        supportedCurrencies:
+            locator<GetInvoiceSupportedCurrenciesUsecase>().execute,
         settlementConstraints:
             locator<GetInvoiceSettlementConstraintsUsecase>(),
         getSettings: locator<GetSettingsUsecase>(),
         convertToSats: locator<ConvertCurrencyToSatsAmountUsecase>(),
         convertToFiat: locator<ConvertSatsToCurrencyAmountUsecase>(),
-      ),
-    );
+      );
+    });
   }
 }

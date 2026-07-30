@@ -431,5 +431,29 @@ void main() {
       expect(find.text('Wallet needs attention'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      'BTCPay refresh failure overrides a stale connection with unavailable',
+      (tester) async {
+        await _pump(
+          tester,
+          const GetPaidDashboardState(
+            btcpayConnection: GetPaidBtcpayConnectionSnapshot(
+              serverUrl: 'https://stale-btcpay.example',
+            ),
+            btcpayStatus: GetPaidDashboardCardStatus.loaded,
+            btcpayUnavailable: true,
+          ),
+        );
+
+        expect(find.text('UNAVAILABLE'), findsOneWidget);
+        expect(find.text('ACTIVE'), findsNothing);
+        expect(
+          find.byWidgetPredicate((w) => w is BullButton && w.label == 'Retry'),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

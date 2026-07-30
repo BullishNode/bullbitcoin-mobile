@@ -125,7 +125,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                 context,
                 context.loc.getPaidSettlementRateAtCreationLabel,
                 context.loc.getPaidSettlementRateAtCreationValue(
-                  FormatAmount.fiat(creationRate / 100, snapshot.fiatCurrency!),
+                  FormatAmount.fiatMinor(creationRate, snapshot.fiatCurrency!),
                 ),
               ),
           if (paymentSummary case final summary?) ...[

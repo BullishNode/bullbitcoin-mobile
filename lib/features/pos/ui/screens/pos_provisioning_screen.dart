@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_fa
 import 'package:bb_mobile/features/pos/domain/pos_error.dart';
 import 'package:bb_mobile/features/pos/domain/pos_validation.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
+import 'package:bb_mobile/features/pos/presentation/pos_exception_l10n.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
 import 'package:bb_mobile/features/pos/ui/widgets/pos_staff_instructions.dart';
 import 'package:flutter/material.dart';
@@ -93,14 +94,28 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
         },
         builder: (context, state) {
           _syncControllers(state);
+          final hasUnsavedChanges =
+              _editing && _snapshot != null && !_snapshot!.matches(state);
           return PopScope(
-            canPop: !state.submitting,
-            onPopInvokedWithResult: (didPop, _) {
-              if (didPop || !state.submitting) return;
-              SnackBarUtils.showSnackBar(
-                context,
-                context.loc.posOperationInProgress,
+            canPop: !state.submitting && !hasUnsavedChanges,
+            onPopInvokedWithResult: (didPop, _) async {
+              if (didPop) return;
+              if (state.submitting) {
+                SnackBarUtils.showSnackBar(
+                  context,
+                  context.loc.posOperationInProgress,
+                );
+                return;
+              }
+              if (!hasUnsavedChanges) return;
+              final discarded = await _cancelEdit(
+                context.read<PosCubit>(),
+                state,
               );
+              if (!discarded || !mounted) return;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) Navigator.of(context).pop();
+              });
             },
             child: Scaffold(
               appBar: AppBar(title: Text(context.loc.posScreenTitle)),
@@ -449,7 +464,7 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
   /// still open — the nym is claimed but no alias is. With both already claimed
   /// there is nothing to choose, so nothing is asked: offering "use my nym
   /// instead" needs the server's per-surface advertised-name preference
-  /// (BullishNode/bullnym#277) and is out of scope until then.
+  /// capability and is out of scope until that wire contract exists.
   Widget? _namingStep(BuildContext context, PosState state, PosCubit cubit) {
     if (state.status != PosStatus.create) return null;
     if (state.permanentAlias != null) return null;
@@ -577,7 +592,7 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
     });
   }
 
-  Future<void> _cancelEdit(PosCubit cubit, PosState state) async {
+  Future<bool> _cancelEdit(PosCubit cubit, PosState state) async {
     if (_snapshot != null && !_snapshot!.matches(state)) {
       final discard = await showDialog<bool>(
         context: context,
@@ -596,15 +611,16 @@ class _PosProvisioningScreenState extends State<PosProvisioningScreen> {
           ],
         ),
       );
-      if (!mounted || discard != true) return;
+      if (!mounted || discard != true) return false;
       // Reload restores the persisted values, discarding the unsaved edits.
       await cubit.load();
-      if (!mounted) return;
+      if (!mounted) return false;
     }
     setState(() {
       _editing = false;
       _snapshot = null;
     });
+    return true;
   }
 
   Future<void> _setOnline({

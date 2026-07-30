@@ -772,9 +772,35 @@ void main() {
 
     expect(cubit.state.hasLightningAddress, isTrue);
     expect(cubit.state.btcpayConnection, isNull);
+    expect(cubit.state.btcpayUnavailable, isTrue);
     expect(cubit.state.error, isNotNull);
     await cubit.close();
   });
+
+  test(
+    'a failed refresh clears a previously active BTCPay connection',
+    () async {
+      var available = true;
+      final cubit = _cubit(
+        connection: () async => available
+            ? Ok<BtcpayConnection?, BtcpayFailure>(_connection())
+            : const Err<BtcpayConnection?, BtcpayFailure>(
+                BtcpayStorageFailure(),
+              ),
+      );
+
+      await cubit.refresh();
+      expect(cubit.state.hasBtcpayConnection, isTrue);
+
+      available = false;
+      await cubit.refresh();
+
+      expect(cubit.state.btcpayConnection, isNull);
+      expect(cubit.state.hasBtcpayConnection, isFalse);
+      expect(cubit.state.btcpayUnavailable, isTrue);
+      await cubit.close();
+    },
+  );
 
   test('nym-keyed products are not probed without a nym', () async {
     var pageProbed = false;

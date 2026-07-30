@@ -68,6 +68,13 @@ void main() {
       expect(deactivate.nyms, isEmpty);
     });
 
+    test('programmer errors during legacy status lookup propagate', () async {
+      capability.supported = false;
+      lookup.error = StateError('broken readiness adapter');
+
+      await expectLater(cubit.load(), throwsA(isA<StateError>()));
+    });
+
     test('legacy active status stays visible but cannot be managed', () async {
       capability.supported = false;
       lookup.result = const LightningAddressReceiveReadiness(

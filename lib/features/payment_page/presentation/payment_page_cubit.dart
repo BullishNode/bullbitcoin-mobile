@@ -1,17 +1,30 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:bb_mobile/core/utils/logger.dart';
+import 'package:bb_mobile/features/payment_page/domain/display_currency.dart';
+import 'package:bb_mobile/features/payment_page/domain/payment_page.dart';
+import 'package:bb_mobile/features/payment_page/domain/payment_page_error.dart';
+import 'package:bb_mobile/features/payment_page/domain/payment_page_validation.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/update_payment_page_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/claim_payment_page_nym_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
-import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// Drives the Donation Page editor. Reaches other features only through the
-/// [PaymentPageFacade] plus the feature-owned permanent-name read usecase. An
+typedef FindPaymentPage = Future<PaymentPage?> Function({required String nym});
+typedef SavePaymentPage =
+    Future<PaymentPage> Function(SavePaymentPageCommand command);
+typedef ArchivePaymentPage = Future<PaymentPage?> Function();
+typedef GetPaymentPageCurrencies = Future<List<DisplayCurrency>> Function();
+
+/// Drives the Donation Page editor through its feature-owned use cases. An
 /// [_operationId] guard makes double-taps and stale async completions inert.
 class PaymentPageCubit extends Cubit<PaymentPageState> {
-  final PaymentPageFacade _facade;
+  final FindPaymentPage _find;
+  final SavePaymentPage _save;
+  final ArchivePaymentPage _archive;
+  final GetPaymentPageCurrencies _supportedCurrencies;
   final GetPaymentPagePermanentNameUsecase _getPermanentName;
   final ClaimPaymentPageNymUsecase _claimNym;
   final GetPaymentPageWalletBehaviorUsecase _getWalletBehavior;
@@ -19,12 +32,19 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
   int _operationId = 0;
 
   PaymentPageCubit({
-    required this._facade,
+    required FindPaymentPage find,
+    required SavePaymentPage save,
+    required ArchivePaymentPage archive,
+    required GetPaymentPageCurrencies supportedCurrencies,
     required this._getPermanentName,
     required this._claimNym,
     required this._getWalletBehavior,
     required this._updateWalletBehavior,
-  }) : super(const PaymentPageState());
+  }) : _find = find,
+       _save = save,
+       _archive = archive,
+       _supportedCurrencies = supportedCurrencies,
+       super(const PaymentPageState());
 
   Future<void> load() async {
     if (state.submitting) return;
@@ -48,7 +68,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
     final PaymentPagePermanentName permanentName;
     try {
       permanentName = await _getPermanentName.execute();
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning(
         'Donation Page permanent-name probe failed',
         error: e,
@@ -109,8 +129,8 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
     var currencies = const <DisplayCurrency>[];
     var currenciesUnavailable = false;
     try {
-      currencies = await _facade.supportedCurrencies();
-    } catch (e, stack) {
+      currencies = await _supportedCurrencies();
+    } on Exception catch (e, stack) {
       log.warning(
         'Donation Page currency fetch failed',
         error: e,
@@ -122,8 +142,8 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
 
     final PaymentPage? page;
     try {
-      page = await _facade.find(nym: nym);
-    } catch (e, stack) {
+      page = await _find(nym: nym);
+    } on Exception catch (e, stack) {
       log.warning('Donation Page probe failed', error: e, trace: stack);
       if (_isStale(op)) return;
       emit(
@@ -208,7 +228,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
 
   Future<void> retryCurrencies() async {
     try {
-      final currencies = await _facade.supportedCurrencies();
+      final currencies = await _supportedCurrencies();
       if (isClosed) return;
       emit(
         state.copyWith(
@@ -219,7 +239,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
               : state.displayCurrency,
         ),
       );
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning(
         'Donation Page currency retry failed',
         error: e,
@@ -272,7 +292,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       if (_isStale(op)) return;
       emit(state.copyWith(claimingNym: false, nymDraft: ''));
       await load();
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning('Donation Page nym claim failed', error: e, trace: stack);
       if (_isStale(op)) return;
       final failure = _asPaymentPageException(e);
@@ -391,7 +411,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
       ),
     );
     try {
-      final page = await _facade.save(command);
+      final page = await _save(command);
       if (isClosed || _isStale(op)) return;
       if (page.nym != state.nym || page.alias != expectedAlias) {
         throw PaymentPageSaveException.submission(
@@ -455,11 +475,11 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
     final op = ++_operationId;
     emit(state.copyWith(submitting: true, clearFailure: true));
     try {
-      await _facade.archive();
+      await _archive();
       if (isClosed || _isStale(op)) return;
       emit(state.copyWith(submitting: false));
       await load();
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning('Donation Page archive failed', error: e, trace: stack);
       if (isClosed || _isStale(op)) return;
       emit(

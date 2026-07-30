@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:bb_mobile/core/backup/authenticated_backup_cipher.dart';
+import 'package:bb_mobile/core/exchange/domain/entity/order.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/data/bullnym_get_paid_transaction_mapper.dart';
@@ -1408,6 +1409,32 @@ class BullnymHttpClient implements BullnymClientPort {
     );
   }
 
+  String _requiredSupportedFiatCurrency(Map<String, dynamic> json, String key) {
+    final code = _requiredNonEmptyString(json, key);
+    final currency = FiatCurrency.tryFromCode(code);
+    if (currency != null && currency.code == code) return code;
+    throw _BullnymClientException(
+      BullnymFailure.invalidServerResponse(
+        logMessage: 'Server response field $key is not a supported currency',
+      ),
+    );
+  }
+
+  String? _optionalSupportedFiatCurrency(
+    Map<String, dynamic> json,
+    String key,
+  ) {
+    final code = _optionalString(json, key);
+    if (code == null) return null;
+    final currency = FiatCurrency.tryFromCode(code);
+    if (currency != null && currency.code == code) return code;
+    throw _BullnymClientException(
+      BullnymFailure.invalidServerResponse(
+        logMessage: 'Server response field $key is not a supported currency',
+      ),
+    );
+  }
+
   int _requiredInt(Map<String, dynamic> json, String key) {
     final value = json[key];
     if (value is int && value >= 0) return value;
@@ -1583,6 +1610,7 @@ class BullnymHttpClient implements BullnymClientPort {
       );
     }
     final currencies = <BullnymSupportedCurrency>[];
+    final seen = <String>{};
     for (final raw in rawCurrencies) {
       if (raw is! Map<String, dynamic>) {
         throw const _BullnymClientException(
@@ -1591,11 +1619,18 @@ class BullnymHttpClient implements BullnymClientPort {
           ),
         );
       }
+      final code = _requiredSupportedFiatCurrency(raw, 'code');
+      final precision = _requiredInt(raw, 'precision');
+      final canonical = FiatCurrency.fromCode(code);
+      if (!seen.add(code) || precision != canonical.decimals) {
+        throw const _BullnymClientException(
+          BullnymFailure.invalidServerResponse(
+            logMessage: 'Server currency metadata is inconsistent',
+          ),
+        );
+      }
       currencies.add(
-        BullnymSupportedCurrency(
-          code: _requiredString(raw, 'code'),
-          precision: _requiredInt(raw, 'precision'),
-        ),
+        BullnymSupportedCurrency(code: code, precision: precision),
       );
     }
     return BullnymSupportedCurrencies(currencies: currencies);
@@ -1647,7 +1682,7 @@ class BullnymHttpClient implements BullnymClientPort {
       acceptingPayments: _optionalBool(json, 'accepting_payments'),
       topUpAllowed: _optionalBool(json, 'top_up_allowed'),
       fiatAmountMinor: _optionalInt(json, 'fiat_amount_minor'),
-      fiatCurrency: _optionalString(json, 'fiat_currency'),
+      fiatCurrency: _optionalSupportedFiatCurrency(json, 'fiat_currency'),
       memo: _optionalString(json, 'memo'),
       acceptBtc: _requiredBool(json, 'accept_btc'),
       acceptLn: _requiredBool(json, 'accept_ln'),
@@ -1743,7 +1778,7 @@ class BullnymHttpClient implements BullnymClientPort {
         ),
       );
     }
-    final currency = _requiredNonEmptyString(raw, 'currency');
+    final currency = _requiredSupportedFiatCurrency(raw, 'currency');
     return BullnymMerchantFiatPaymentSummary(
       currency: currency,
       targetAmountMinor: _requiredNonNegativeInt(raw, 'target_amount_minor'),
@@ -1906,7 +1941,7 @@ class BullnymHttpClient implements BullnymClientPort {
       settlementStatus: _requiredString(json, 'settlement_status'),
       amountSat: _requiredInt(json, 'amount_sat'),
       fiatAmountMinor: _optionalInt(json, 'fiat_amount_minor'),
-      fiatCurrency: _optionalString(json, 'fiat_currency'),
+      fiatCurrency: _optionalSupportedFiatCurrency(json, 'fiat_currency'),
       remainingAmountSat: _requiredInt(json, 'remaining_amount_sat'),
       acceptingPayments: _optionalBool(json, 'accepting_payments'),
       topUpAllowed: _optionalBool(json, 'top_up_allowed'),
@@ -2031,7 +2066,7 @@ class BullnymHttpClient implements BullnymClientPort {
       versionNumber: _requiredPositiveInt(rawQuote, 'version_number'),
       fiatFaceAmountMinor: fiatFaceAmountMinor,
       fiatTargetAmountMinor: fiatTargetAmountMinor,
-      fiatCurrency: _requiredNonEmptyString(rawQuote, 'fiat_currency'),
+      fiatCurrency: _requiredSupportedFiatCurrency(rawQuote, 'fiat_currency'),
       rateMinorPerBtc: _requiredPositiveInt(rawQuote, 'rate_minor_per_btc'),
       rateSource: _requiredNonEmptyString(rawQuote, 'rate_source'),
       rateObservedAtUnix: rateObservedAtUnix,

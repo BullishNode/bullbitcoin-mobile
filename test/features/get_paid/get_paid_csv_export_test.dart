@@ -93,6 +93,35 @@ void main() {
       );
     });
 
+    test('COP accounting values use the zero-decimal exponent', () {
+      final settlement = GetPaidSettlement(
+        kind: GetPaidSettlementKind.fiat,
+        fiatPercentage: 100,
+        creationRateMinorPerBtc: 250000000,
+        creationRateCurrency: 'COP',
+        bitcoin: const [],
+        fiat: const [
+          GetPaidFiatSettlementLeg(
+            amountMinor: 2500,
+            quotedAmountMinor: 2500,
+            executionRateMinorPerBtc: 249000000,
+            currency: 'COP',
+            orderId: _fiatOrderId,
+            status: GetPaidSettlementLegStatus.settled,
+          ),
+        ],
+      );
+
+      final fields = formatter
+          .format([_tx(settlement: settlement)])
+          .trim()
+          .split('\n')[1]
+          .split(',');
+      expect(fields[7], '250000000');
+      expect(fields[11], '2500');
+      expect(fields[13], '249000000');
+    });
+
     test('the _est column is empty when R1 is absent', () {
       final csv = formatter.format([
         _tx(
