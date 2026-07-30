@@ -28,9 +28,10 @@ abstract interface class GetPaidLinkQrSaver {
   });
 }
 
-/// `file_picker`-backed saver (the same `saveFile(bytes:)` idiom the CSV export
-/// uses). A null result means the user cancelled; a throw means the write
-/// failed. Nothing here is logged.
+/// `file_picker`-backed saver using the same `saveFile(bytes:)` idiom as CSV export.
+/// A null result means the user cancelled; a recoverable [Exception] means the write failed.
+/// Programmer [Error]s escape to the application's error reporting boundary.
+/// Nothing here is logged.
 class FilePickerGetPaidLinkQrSaver implements GetPaidLinkQrSaver {
   const FilePickerGetPaidLinkQrSaver();
 
@@ -45,10 +46,9 @@ class FilePickerGetPaidLinkQrSaver implements GetPaidLinkQrSaver {
   }
 }
 
-/// Runs a system save-dialog call and maps its result to an outcome: a null
-/// path is a NEUTRAL cancel, a throw is a failure. Extracted so the mapping is
-/// unit-tested without a platform-channel mock. Never logs (no URL / bytes /
-/// destination reaches here anyway).
+/// Runs a system save dialog and maps a null path to neutral cancellation and a recoverable [Exception] to failure.
+/// Programmer [Error]s escape instead of being converted into expected operational failures.
+/// This seam permits unit testing without a platform-channel mock and never logs the URL, bytes, or destination.
 @visibleForTesting
 Future<QrImageSaveOutcome> mapSaveDialogResult(
   Future<String?> Function() saveFile,

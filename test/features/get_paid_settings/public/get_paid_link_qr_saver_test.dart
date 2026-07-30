@@ -14,7 +14,7 @@ void main() {
     expect(outcome, QrImageSaveOutcome.cancelled);
   });
 
-  test('failed when the write throws', () async {
+  test('failed when the write throws a recoverable exception', () async {
     final outcome = await mapSaveDialogResult(
       () async => throw Exception('io error'),
     );
