@@ -12,11 +12,14 @@ class _StubDetailCubit extends Cubit<InvoiceDetailState>
     implements InvoiceDetailCubit {
   _StubDetailCubit(super.initialState);
 
-  @override
-  Future<void> load() async {}
+  int loadCalls = 0;
+  int refreshCalls = 0;
 
   @override
-  Future<void> refresh() async {}
+  Future<void> load() async => loadCalls++;
+
+  @override
+  Future<void> refresh() async => refreshCalls++;
 
   @override
   Future<void> cancel() async {}
@@ -173,7 +176,10 @@ InvoiceQuote _activeQuote() {
   );
 }
 
-Future<void> _pump(WidgetTester tester, InvoiceDetailState state) async {
+Future<_StubDetailCubit> _pump(
+  WidgetTester tester,
+  InvoiceDetailState state,
+) async {
   tester.view.physicalSize = const Size(1000, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -193,6 +199,7 @@ Future<void> _pump(WidgetTester tester, InvoiceDetailState state) async {
     ),
   );
   await tester.pump();
+  return cubit;
 }
 
 void main() {
@@ -424,7 +431,7 @@ void main() {
   );
 
   testWidgets('initial read failure offers an explicit retry', (tester) async {
-    await _pump(
+    final cubit = await _pump(
       tester,
       const InvoiceDetailState(
         status: InvoiceDetailStatus.error,
@@ -433,6 +440,10 @@ void main() {
     );
 
     expect(find.text('Retry'), findsOneWidget);
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(cubit.loadCalls, 1);
+    expect(cubit.refreshCalls, 0);
     expect(tester.takeException(), isNull);
   });
 

@@ -191,6 +191,69 @@ void main() {
   });
 
   test(
+    'retrying an initial failure restores polling and initial quote setup',
+    () async {
+      final now = DateTime.utc(2026, 1, 1, 12);
+      var statusCalls = 0;
+      when(() => facade.status(any())).thenAnswer((_) async {
+        statusCalls++;
+        if (statusCalls == 1) {
+          return const Err(InvoicesFailure.network());
+        }
+        return Ok(
+          _snapshot(
+            statusCalls == 2 ? InvoiceStatus.unpaid : InvoiceStatus.paid,
+            pricingMode: 'fiat_fixed',
+            expiresAt: now.add(const Duration(days: 30)),
+            quoteRailAvailability: const InvoiceQuoteRailAvailability(
+              lightning: true,
+              liquid: false,
+              bitcoin: false,
+            ),
+          ),
+        );
+      });
+      when(
+        () => facade.quote(
+          invoiceId: any(named: 'invoiceId'),
+          rail: any(named: 'rail'),
+        ),
+      ).thenAnswer((_) async => Ok(_quote(now)));
+
+      final cubit = InvoiceDetailCubit(
+        facade: facade,
+        invoiceId: InvoiceId('inv-1'),
+        pollInitialDelay: const Duration(milliseconds: 5),
+        pollMaxDelay: const Duration(milliseconds: 20),
+        now: () => now,
+      );
+
+      await cubit.load();
+      expect(cubit.state.status, InvoiceDetailStatus.error);
+      verifyNever(
+        () => facade.quote(
+          invoiceId: any(named: 'invoiceId'),
+          rail: any(named: 'rail'),
+        ),
+      );
+
+      await cubit.load();
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+
+      expect(cubit.state.status, InvoiceDetailStatus.loaded);
+      expect(cubit.state.isTerminal, isTrue);
+      verify(() => facade.status(any())).called(3);
+      verify(
+        () => facade.quote(
+          invoiceId: InvoiceId('inv-1'),
+          rail: PaymentMethod.lightning,
+        ),
+      ).called(1);
+      await cubit.close();
+    },
+  );
+
+  test(
     'refresh replaces authenticated accounting after a repeat payment',
     () async {
       var merchantCalls = 0;

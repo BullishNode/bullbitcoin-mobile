@@ -73,7 +73,9 @@ class InvoiceDetailScreen extends StatelessWidget {
             ),
             const Gap(12),
             TextButton(
-              onPressed: context.read<InvoiceDetailCubit>().refresh,
+              // An initial-load retry must restore the complete lifecycle:
+              // status polling, private-link lookup, and initial quote setup.
+              onPressed: context.read<InvoiceDetailCubit>().load,
               child: Text(context.loc.retry),
             ),
           ],
