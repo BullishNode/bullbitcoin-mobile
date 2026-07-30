@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/core/wallet/ui/wallet_behavior_switches.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
@@ -411,34 +412,33 @@ class _BtcpayWalletBehaviorTile extends StatelessWidget {
       BtcpayPairingWallet.bitcoin => context.loc.btcpayPairingWalletsBitcoin,
       BtcpayPairingWallet.liquid => context.loc.btcpayPairingWalletsLiquid,
     };
+    final cubit = context.read<BtcpayPairingCubit>();
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
           ListTile(title: Text(title)),
-          SwitchListTile(
-            value: behavior.hideOnHome,
-            onChanged: saving
-                ? null
-                : (value) {
-                    context.read<BtcpayPairingCubit>().updateWalletBehavior(
-                      walletId: behavior.walletId,
-                      hideOnHome: value,
-                    );
-                  },
-            title: Text(context.loc.btcpayHideWalletOnHome),
-          ),
-          SwitchListTile(
-            value: behavior.autoSweepEnabled,
-            onChanged: saving
-                ? null
-                : (value) {
-                    context.read<BtcpayPairingCubit>().updateWalletBehavior(
-                      walletId: behavior.walletId,
-                      autoSweepEnabled: value,
-                    );
-                  },
-            title: Text(context.loc.btcpayAutoSweepWallet),
+          WalletBehaviorSwitches(
+            autoSweepSwitchKey: Key(
+              'btcpay_auto_sweep_switch_${behavior.walletId}',
+            ),
+            hideOnHomeSwitchKey: Key(
+              'btcpay_hide_on_home_switch_${behavior.walletId}',
+            ),
+            hideOnHome: behavior.hideOnHome,
+            autoSweepEnabled: behavior.autoSweepEnabled,
+            canHideOnHome: behavior.canHideOnHome,
+            saving: saving,
+            autoSweepLabel: context.loc.btcpayAutoSweepWallet,
+            hideOnHomeLabel: context.loc.btcpayHideWalletOnHome,
+            onAutoSweepChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior.walletId,
+              autoSweepEnabled: value,
+            ),
+            onHideOnHomeChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior.walletId,
+              hideOnHome: value,
+            ),
           ),
         ],
       ),

@@ -143,7 +143,7 @@ class BtcpayPairingCubit extends Cubit<BtcpayPairingState> {
     final updated = previous
         .map((behavior) {
           if (behavior.walletId != walletId) return behavior;
-          return behavior.copyWith(
+          return behavior.withRequestedChange(
             hideOnHome: hideOnHome,
             autoSweepEnabled: autoSweepEnabled,
           );
