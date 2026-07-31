@@ -4,13 +4,13 @@ import 'package:bb_mobile/core/exchange/domain/usecases/convert_sats_to_currency
 import 'package:bb_mobile/core/exchange/domain/usecases/get_available_currencies_usecase.dart';
 import 'package:bb_mobile/core/utils/constants.dart';
 import 'package:bb_mobile/locator.dart';
-import 'package:bb_mobile/main.dart';
+import 'support/integration_test_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<void> main({bool isInitialized = false}) async {
   TestWidgetsFlutterBinding.ensureInitialized();
-  if (!isInitialized) await Bull.init();
+  await initializeIntegrationTestApp(isInitialized: isInitialized);
 
   final bitcoinPriceDatasource = locator<BullbitcoinApiDatasource>(
     instanceName: 'mainnetExchangeApiDatasource',

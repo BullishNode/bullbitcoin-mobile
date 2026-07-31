@@ -34,10 +34,15 @@ class ViewerActionButton extends StatelessWidget {
             children: [
               Icon(icon, size: 14, color: context.appColors.primary),
               const Gap(4),
-              BBText(
-                label,
-                style: context.font.bodySmall,
-                color: context.appColors.secondary,
+              Flexible(
+                child: BBText(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.font.bodySmall,
+                  color: context.appColors.secondary,
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),

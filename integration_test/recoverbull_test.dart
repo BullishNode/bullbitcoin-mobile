@@ -14,14 +14,14 @@ import 'package:bb_mobile/core/utils/recoverbull_bip85.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/locator.dart';
-import 'package:bb_mobile/main.dart';
+import 'support/integration_test_profile.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<void> main({bool isInitialized = false}) async {
   TestWidgetsFlutterBinding.ensureInitialized();
-  if (!isInitialized) await Bull.init();
+  await initializeIntegrationTestApp(isInitialized: isInitialized);
 
   final initializeTorUsecase = locator<InitTorUsecase>();
   final restoreVaultUsecase = locator<RestoreVaultUsecase>();
@@ -106,16 +106,23 @@ Future<void> main({bool isInitialized = false}) async {
         final restored = await restoreVaultUsecase.execute(
           decryptedVault: decryptedVault,
         );
-        expect(restored, isA<Ok<Null, RecoverBullCoreFailure>>());
+        expect(restored, isA<Ok<List<String>, RecoverBullCoreFailure>>());
+        final restoredWalletIds =
+            (restored as Ok<List<String>, RecoverBullCoreFailure>).value;
 
-        final wallets = await walletRepository.getWallets(
+        final defaultWallets = await walletRepository.getWallets(
           onlyDefaults: true,
-          onlyBitcoin: true,
           environment: Environment.mainnet,
         );
+        expect(defaultWallets, hasLength(2));
+        expect(
+          restoredWalletIds.toSet(),
+          defaultWallets.map((wallet) => wallet.id).toSet(),
+        );
 
-        expect(wallets.length, 1);
-        final wallet = wallets.first;
+        final wallet = defaultWallets.singleWhere(
+          (wallet) => wallet.network.isBitcoin,
+        );
         expect(wallet.masterFingerprint, isNotEmpty);
         final seed = await seedRepository.get(wallet.masterFingerprint);
         final seedModel = SeedModel.fromEntity(seed);

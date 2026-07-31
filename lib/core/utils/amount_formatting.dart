@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/exchange/domain/entity/order.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:intl/intl.dart';
 
@@ -47,13 +48,60 @@ class FormatAmount {
     String currencyCode, {
     bool simpleFormat = false,
   }) {
+    final decimals = FiatCurrency.tryFromCode(currencyCode)?.decimals ?? 2;
     final currencyFormatter = simpleFormat
-        ? NumberFormat.simpleCurrency(name: currencyCode)
+        ? NumberFormat.simpleCurrency(
+            name: currencyCode,
+            decimalDigits: decimals,
+          )
         : NumberFormat.currency(
             name: currencyCode,
-            customPattern: '#,##0.00 ¤',
+            decimalDigits: decimals,
+            customPattern: decimals == 0
+                ? '#,##0 ¤'
+                : '#,##0.${'0' * decimals} ¤',
           );
 
     return currencyFormatter.format(fiat);
+  }
+
+  /// Formats an integer minor-unit amount using the canonical exponent for the
+  /// supported currency.
+  static String fiatMinor(
+    int minor,
+    String currencyCode, {
+    bool simpleFormat = false,
+  }) {
+    final currency = FiatCurrency.tryFromCode(currencyCode);
+    if (currency == null) {
+      throw ArgumentError.value(currencyCode, 'currencyCode');
+    }
+    final factor = _pow10(currency.decimals);
+    return fiat(minor / factor, currency.code, simpleFormat: simpleFormat);
+  }
+
+  /// Integer-only, locale-independent minor-to-major formatting for CSV and
+  /// other wire-like output. It never rounds through binary floating point.
+  static String fiatMinorValue(int minor, String currencyCode) {
+    final currency = FiatCurrency.tryFromCode(currencyCode);
+    if (currency == null) {
+      throw ArgumentError.value(currencyCode, 'currencyCode');
+    }
+    final decimals = currency.decimals;
+    if (decimals == 0) return minor.toString();
+
+    final factor = _pow10(decimals);
+    final magnitude = minor.abs();
+    final major = magnitude ~/ factor;
+    final fraction = (magnitude % factor).toString().padLeft(decimals, '0');
+    return '${minor < 0 ? '-' : ''}$major.$fraction';
+  }
+
+  static int _pow10(int exponent) {
+    var result = 1;
+    for (var i = 0; i < exponent; i++) {
+      result *= 10;
+    }
+    return result;
   }
 }

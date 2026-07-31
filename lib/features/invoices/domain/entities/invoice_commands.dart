@@ -5,8 +5,8 @@ import 'package:bb_mobile/features/invoices/domain/value_objects/invoice_id.dart
 /// The intent to create a wallet-origin invoice. Amount is one-of: EITHER
 /// [amountSat] XOR ([fiatAmountMinor] + [fiatCurrency]).
 ///
-/// [linkToPageNym] stays null in v1 (DG-I1 unlinked-only); it is carried so the
-/// create path is linked-capable when the decision later flips.
+/// [linkToPageNym] is currently null for unlinked invoices; it is carried so
+/// the create path can also represent an explicitly linked invoice.
 class CreateInvoiceCommand {
   final int? amountSat;
   final int? fiatAmountMinor;
