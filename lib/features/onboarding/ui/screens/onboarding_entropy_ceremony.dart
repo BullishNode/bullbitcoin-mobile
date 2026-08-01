@@ -6,11 +6,14 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/text/text.dart';
 import 'package:bb_mobile/features/onboarding/presentation/bloc/onboarding_bloc.dart';
 import 'package:bb_mobile/features/onboarding/presentation/entropy_ceremony_cubit.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+
+const _entropyCaptureEnabled = bool.fromEnvironment('BB_ENTROPY_CAPTURE');
 
 /// Human-entropy ceremony: the user moves a finger around the screen and
 /// every qualified pointer sample is mixed into the entropy pool. Synthetic,
@@ -178,6 +181,7 @@ class _OnboardingEntropyCeremonyState extends State<OnboardingEntropyCeremony> {
                 context.loc.onboardingEntropyMilestone9,
                 sticky: true,
               );
+              if (kDebugMode && _entropyCaptureEnabled) return;
               // Let the final message land before the loading state takes
               // over the screen.
               Future.delayed(_completePause, () {

@@ -1,8 +1,14 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/entropy/domain/usecases/mix_entropy_usecase.dart';
+import 'package:flutter/foundation.dart'
+    show debugPrintSynchronously, kDebugMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+const _captureEnabled = bool.fromEnvironment('BB_ENTROPY_CAPTURE');
+const _capturePrefix = 'BB_ENTROPY_CAPTURE_V1 ';
 
 enum PointerSampleKind { down, move }
 
@@ -77,6 +83,10 @@ class EntropyCeremonyCubit extends Cubit<EntropyCeremonyState> {
     _started = true;
     _stopwatch.start();
     _mixEntropyUsecase.begin();
+    _capture('begin', {
+      'sampleBytes': serializedSampleBytes,
+      'requiredSamples': EntropyCeremonyState.targetEventCount,
+    });
   }
 
   /// Returns whether this sample was mixed and counted toward completion.
@@ -142,6 +152,11 @@ class EntropyCeremonyCubit extends Cubit<EntropyCeremonyState> {
 
     try {
       _mixEntropyUsecase.execute(bytes);
+      _capture('sample', {
+        'index': state.eventCount,
+        'elapsedMicros': elapsedMicros,
+        'bytes': base64Encode(bytes),
+      });
     } finally {
       _zero(bytes);
     }
@@ -178,6 +193,7 @@ class EntropyCeremonyCubit extends Cubit<EntropyCeremonyState> {
     );
     if (nextState.isComplete) {
       _mixEntropyUsecase.complete();
+      _capture('end', {'acceptedSamples': nextCount});
     }
     emit(nextState);
     return true;
@@ -187,5 +203,18 @@ class EntropyCeremonyCubit extends Cubit<EntropyCeremonyState> {
     for (var i = 0; i < bytes.length; i++) {
       bytes[i] = 0;
     }
+  }
+
+  static void _capture(String type, Map<String, Object> fields) {
+    if (!kDebugMode || !_captureEnabled) return;
+
+    // Deliberately bypasses the application logger: raw gesture traces are
+    // research data and must never enter support logs or Sentry. Capture is
+    // best-effort and must not be able to interrupt the entropy ceremony.
+    try {
+      debugPrintSynchronously(
+        '$_capturePrefix${jsonEncode({'type': type, ...fields})}',
+      );
+    } catch (_) {}
   }
 }

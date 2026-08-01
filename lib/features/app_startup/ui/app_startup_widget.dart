@@ -8,10 +8,13 @@ import 'package:bb_mobile/features/app_unlock/ui/app_unlock_router.dart';
 import 'package:bb_mobile/features/onboarding/ui/onboarding_router.dart';
 import 'package:bb_mobile/features/onboarding/ui/screens/onboarding_splash.dart';
 import 'package:bb_mobile/router.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+const _entropyCaptureEnabled = bool.fromEnvironment('BB_ENTROPY_CAPTURE');
 
 class AppStartupWidget extends StatefulWidget {
   const AppStartupWidget({super.key, required this.app});
@@ -74,7 +77,9 @@ class AppStartupListener extends StatelessWidget {
               AppRouter.router.go(AppUnlockRoute.appUnlock.path);
             }
 
-            if (state is AppStartupSuccess && !state.hasDefaultWallets) {
+            if (state is AppStartupSuccess &&
+                !state.hasDefaultWallets &&
+                !(kDebugMode && _entropyCaptureEnabled)) {
               AppRouter.router.go(OnboardingRoute.onboarding.path);
             }
           },

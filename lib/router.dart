@@ -46,10 +46,13 @@ import 'package:bb_mobile/features/wallet/ui/widgets/wallet_home_app_bar.dart';
 import 'package:bb_mobile/features/withdraw/ui/withdraw_router.dart';
 import 'package:bb_mobile/features/bitcoin_price/presentation/cubit/price_chart_cubit.dart';
 import 'package:bb_mobile/locator.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+
+const _entropyCaptureEnabled = bool.fromEnvironment('BB_ENTROPY_CAPTURE');
 
 /// The main router of the app. It is the root of the routing tree and contains
 /// all the entry-level routes.
@@ -59,7 +62,10 @@ class AppRouter {
 
   static final router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: WalletRoute.walletHome.path,
+    initialLocation: kDebugMode && _entropyCaptureEnabled
+        ? '${OnboardingRoute.onboarding.path}/'
+              '${OnboardingRoute.entropyCeremony.path}'
+        : WalletRoute.walletHome.path,
     // Breadcrumbs only — `enableAutoTransactions: false` skips the
     // performance/TTID instrumentation so we stay within the
     // error-reporting scope (consent-gated) rather than perf tracing.
