@@ -14,5 +14,7 @@ class MixEntropyUsecase {
 
   void execute(Uint8List data) => _entropyPool.mixTouchSample(data);
 
+  void mixMotion(Uint8List data) => _entropyPool.mixMotionSample(data);
+
   void complete() => _entropyPool.completeTouchCeremony();
 }

@@ -34,7 +34,8 @@ class OnboardingEntropyCeremony extends StatefulWidget {
       _OnboardingEntropyCeremonyState();
 }
 
-class _OnboardingEntropyCeremonyState extends State<OnboardingEntropyCeremony> {
+class _OnboardingEntropyCeremonyState extends State<OnboardingEntropyCeremony>
+    with WidgetsBindingObserver {
   static const _maxTrailPoints = 400;
   static const _milestoneFadeAfter = Duration(milliseconds: 2200);
   static const _completePause = Duration(milliseconds: 1200);
@@ -44,9 +45,26 @@ class _OnboardingEntropyCeremonyState extends State<OnboardingEntropyCeremony> {
   Timer? _milestoneTimer;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _milestoneTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final cubit = context.read<EntropyCeremonyCubit>();
+    if (state == AppLifecycleState.resumed) {
+      cubit.resumeMotionCapture();
+      return;
+    }
+    unawaited(cubit.pauseMotionCapture());
   }
 
   List<String> _milestoneMessages(BuildContext context) => [
@@ -70,10 +88,10 @@ class _OnboardingEntropyCeremonyState extends State<OnboardingEntropyCeremony> {
     }
   }
 
-  void _onPointerMove(PointerMoveEvent event) {
+  bool _addPointerSample(PointerEvent event, PointerSampleKind kind) {
     final canvasSize = _canvasSize;
-    final accepted = context.read<EntropyCeremonyCubit>().addPointerSample(
-      kind: PointerSampleKind.move,
+    return context.read<EntropyCeremonyCubit>().addPointerSample(
+      kind: kind,
       pointer: event.pointer,
       deviceKind: event.kind.index,
       x: event.localPosition.dx,
@@ -91,6 +109,10 @@ class _OnboardingEntropyCeremonyState extends State<OnboardingEntropyCeremony> {
       tilt: event.tilt,
       synthesized: event.synthesized,
     );
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    final accepted = _addPointerSample(event, PointerSampleKind.move);
     if (!accepted) return;
 
     setState(() {
@@ -104,26 +126,7 @@ class _OnboardingEntropyCeremonyState extends State<OnboardingEntropyCeremony> {
   // Taps remain a human-input path for users who cannot perform continuous
   // drag gestures. The counter is pacing, not an entropy measurement.
   void _onPointerDown(PointerDownEvent event) {
-    final canvasSize = _canvasSize;
-    final accepted = context.read<EntropyCeremonyCubit>().addPointerSample(
-      kind: PointerSampleKind.down,
-      pointer: event.pointer,
-      deviceKind: event.kind.index,
-      x: event.localPosition.dx,
-      y: event.localPosition.dy,
-      canvasWidth: canvasSize.width,
-      canvasHeight: canvasSize.height,
-      dx: 0,
-      dy: 0,
-      timestampMicros: event.timeStamp.inMicroseconds,
-      pressure: event.pressure,
-      radiusMajor: event.radiusMajor,
-      radiusMinor: event.radiusMinor,
-      size: event.size,
-      orientation: event.orientation,
-      tilt: event.tilt,
-      synthesized: event.synthesized,
-    );
+    final accepted = _addPointerSample(event, PointerSampleKind.down);
     if (!accepted) return;
 
     setState(() {
@@ -134,6 +137,12 @@ class _OnboardingEntropyCeremonyState extends State<OnboardingEntropyCeremony> {
   }
 
   void _onPointerUp(PointerUpEvent event) {
+    _addPointerSample(event, PointerSampleKind.up);
+    setState(() => _trail.add(null));
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _addPointerSample(event, PointerSampleKind.cancel);
     setState(() => _trail.add(null));
   }
 
@@ -221,6 +230,9 @@ class _OnboardingEntropyCeremonyState extends State<OnboardingEntropyCeremony> {
                           ? _onPointerMove
                           : null,
                       onPointerUp: acceptingPointerInput ? _onPointerUp : null,
+                      onPointerCancel: acceptingPointerInput
+                          ? _onPointerCancel
+                          : null,
                       behavior: HitTestBehavior.opaque,
                       child: CustomPaint(
                         size: Size.infinite,

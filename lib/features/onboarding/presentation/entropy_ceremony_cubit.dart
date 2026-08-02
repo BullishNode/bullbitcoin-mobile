@@ -1,16 +1,18 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:bb_mobile/core/entropy/domain/usecases/mix_entropy_usecase.dart';
+import 'package:bb_mobile/features/onboarding/domain/entropy_motion_port.dart';
 import 'package:flutter/foundation.dart'
     show debugPrintSynchronously, kDebugMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 const _captureEnabled = bool.fromEnvironment('BB_ENTROPY_CAPTURE');
-const _capturePrefix = 'BB_ENTROPY_CAPTURE_V1 ';
+const _capturePrefix = 'BB_ENTROPY_CAPTURE_V2 ';
 
-enum PointerSampleKind { down, move }
+enum PointerSampleKind { down, move, up, cancel }
 
 typedef ElapsedMicroseconds = int Function();
 
@@ -20,6 +22,7 @@ class EntropyCeremonyState {
     this.elapsedDurationMicros = 0,
     this.horizontalCoverage = 0,
     this.verticalCoverage = 0,
+    this.isComplete = false,
   });
 
   /// Qualified pointer samples collected so far. This is ceremony pacing only,
@@ -30,6 +33,7 @@ class EntropyCeremonyState {
   final int elapsedDurationMicros;
   final double horizontalCoverage;
   final double verticalCoverage;
+  final bool isComplete;
 
   static const targetEventCount = MixEntropyUsecase.requiredSampleCount;
   static const minimumElapsedDuration = Duration(seconds: 10);
@@ -47,7 +51,7 @@ class EntropyCeremonyState {
         .toDouble();
   }
 
-  bool get isComplete =>
+  bool get gatesSatisfied =>
       eventCount >= targetEventCount &&
       elapsedDurationMicros >= minimumElapsedDuration.inMicroseconds &&
       horizontalCoverage >= minimumAxisCoverage &&
@@ -62,17 +66,26 @@ class EntropyCeremonyState {
 class EntropyCeremonyCubit extends Cubit<EntropyCeremonyState> {
   EntropyCeremonyCubit({
     required this._mixEntropyUsecase,
+    this.motionPort,
+    this.motionCaptureEnabled = _captureEnabled,
     this.elapsedMicroseconds,
   }) : super(const EntropyCeremonyState());
 
   static const serializedSampleBytes = 128;
+  static const serializedMotionSampleBytes = 80;
 
   final MixEntropyUsecase _mixEntropyUsecase;
+  final EntropyMotionPort? motionPort;
+  final bool motionCaptureEnabled;
   final ElapsedMicroseconds? elapsedMicroseconds;
   final Stopwatch _stopwatch = Stopwatch();
+  StreamSubscription<EntropyMotionSample>? _motionSubscription;
   bool _started = false;
+  bool _motionShouldRun = false;
   (double, double)? _lastAcceptedPosition;
   int? _firstAcceptedMicros;
+  int _motionSampleCount = 0;
+  int _motionSegment = 0;
   double? _minimumNormalizedX;
   double? _maximumNormalizedX;
   double? _minimumNormalizedY;
@@ -84,9 +97,24 @@ class EntropyCeremonyCubit extends Cubit<EntropyCeremonyState> {
     _stopwatch.start();
     _mixEntropyUsecase.begin();
     _capture('begin', {
-      'sampleBytes': serializedSampleBytes,
+      'version': 2,
+      'pointerSampleBytes': serializedSampleBytes,
+      'motionSampleBytes': serializedMotionSampleBytes,
       'requiredSamples': EntropyCeremonyState.targetEventCount,
     });
+    _motionShouldRun = true;
+    _startMotionCapture();
+  }
+
+  Future<void> pauseMotionCapture() async {
+    _motionShouldRun = false;
+    await _stopMotionCapture();
+  }
+
+  void resumeMotionCapture() {
+    if (!_started || state.isComplete) return;
+    _motionShouldRun = true;
+    _startMotionCapture();
   }
 
   /// Returns whether this sample was mixed and counted toward completion.
@@ -123,7 +151,21 @@ class EntropyCeremonyCubit extends Cubit<EntropyCeremonyState> {
         !canvasHeight.isFinite ||
         canvasWidth <= 0 ||
         canvasHeight <= 0 ||
-        position == _lastAcceptedPosition) {
+        !pressure.isFinite ||
+        !radiusMajor.isFinite ||
+        !radiusMinor.isFinite ||
+        !size.isFinite ||
+        !orientation.isFinite ||
+        !tilt.isFinite ||
+        pointer < 0 ||
+        deviceKind < 0 ||
+        timestampMicros < 0 ||
+        pressure < 0 ||
+        radiusMajor < 0 ||
+        radiusMinor < 0 ||
+        size < 0 ||
+        tilt < 0 ||
+        (kind == PointerSampleKind.move && position == _lastAcceptedPosition)) {
       return false;
     }
 
@@ -190,13 +232,95 @@ class EntropyCeremonyCubit extends Cubit<EntropyCeremonyState> {
       elapsedDurationMicros: math.max(0, elapsedMicros - firstAcceptedMicros),
       horizontalCoverage: _maximumNormalizedX! - _minimumNormalizedX!,
       verticalCoverage: _maximumNormalizedY! - _minimumNormalizedY!,
+      isComplete: false,
     );
-    if (nextState.isComplete) {
+    final completesOnLift =
+        kind == PointerSampleKind.up && nextState.gatesSatisfied;
+    final emittedState = completesOnLift
+        ? EntropyCeremonyState(
+            eventCount: nextState.eventCount,
+            elapsedDurationMicros: nextState.elapsedDurationMicros,
+            horizontalCoverage: nextState.horizontalCoverage,
+            verticalCoverage: nextState.verticalCoverage,
+            isComplete: true,
+          )
+        : nextState;
+    if (completesOnLift) {
       _mixEntropyUsecase.complete();
-      _capture('end', {'acceptedSamples': nextCount});
+      _capture('end', {
+        'acceptedSamples': nextCount,
+        'motionSamples': _motionSampleCount,
+      });
+      _motionShouldRun = false;
+      unawaited(_stopMotionCapture());
     }
-    emit(nextState);
+    emit(emittedState);
     return true;
+  }
+
+  @override
+  Future<void> close() async {
+    _motionShouldRun = false;
+    await _stopMotionCapture();
+    await super.close();
+  }
+
+  void _startMotionCapture() {
+    if (!motionCaptureEnabled ||
+        !_motionShouldRun ||
+        motionPort == null ||
+        _motionSubscription != null) {
+      return;
+    }
+
+    final segment = ++_motionSegment;
+    _capture('motion_start', {'segment': segment});
+    _motionSubscription = motionPort!.samples().listen(
+      _mixMotionSample,
+      onError: (_) => _capture('motion_error', {'segment': segment}),
+      onDone: () {
+        if (_motionSegment == segment) _motionSubscription = null;
+        _capture('motion_done', {'segment': segment});
+      },
+    );
+  }
+
+  Future<void> _stopMotionCapture() async {
+    final subscription = _motionSubscription;
+    _motionSubscription = null;
+    await subscription?.cancel();
+  }
+
+  void _mixMotionSample(EntropyMotionSample sample) {
+    if (!_started || state.isComplete || !_motionShouldRun) return;
+
+    final bytes = Uint8List(serializedMotionSampleBytes);
+    final view = ByteData.view(bytes.buffer);
+    final sampleIndex = _motionSampleCount;
+    view.setUint64(0, sample.kind.index);
+    view.setUint64(8, sampleIndex);
+    view.setUint64(16, sample.nativeSequence);
+    view.setUint64(24, sample.sensorTimestampNanos);
+    view.setUint64(32, sample.nativeArrivalTimestampNanos);
+    view.setUint64(40, _stopwatch.elapsedTicks);
+    view.setFloat64(48, sample.x);
+    view.setFloat64(56, sample.y);
+    view.setFloat64(64, sample.z);
+    view.setInt64(72, sample.accuracy);
+
+    final elapsedMicros =
+        elapsedMicroseconds?.call() ?? _stopwatch.elapsedMicroseconds;
+    try {
+      _mixEntropyUsecase.mixMotion(bytes);
+      _capture('motion', {
+        'index': sampleIndex,
+        'elapsedMicros': elapsedMicros,
+        'bytes': base64Encode(bytes),
+      });
+      _motionSampleCount++;
+    } finally {
+      _zero(bytes);
+    }
   }
 
   static void _zero(Uint8List bytes) {

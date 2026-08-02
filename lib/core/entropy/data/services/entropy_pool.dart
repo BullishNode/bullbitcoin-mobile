@@ -22,6 +22,7 @@ class EntropyPool {
 
   static const _touchBeginDomain = 'touch-ceremony-begin-v1';
   static const _touchSampleDomain = 'touch-sample-v1';
+  static const _motionSampleDomain = 'motion-sample-v1';
   static const _touchCompleteDomain = 'touch-ceremony-complete-v1';
   static const _osRngDomain = 'os-rng-v1';
 
@@ -57,6 +58,21 @@ class EntropyPool {
 
     _mixInternal(_touchSampleDomain, data);
     _touchSamples++;
+  }
+
+  /// Mixes supplemental motion data without advancing the mandatory touch
+  /// sample gate. Motion input is optional and receives no entropy credit.
+  void mixMotionSample(Uint8List data) {
+    if (!_ceremonyActive || _ceremonyComplete) {
+      throw TouchEntropyCeremonyStateException(
+        'Motion entropy requires an active, incomplete touch ceremony',
+      );
+    }
+    if (data.isEmpty) {
+      throw ArgumentError.value(data, 'data', 'must not be empty');
+    }
+
+    _mixInternal(_motionSampleDomain, data);
   }
 
   /// Marks the active ceremony ready for one extraction.

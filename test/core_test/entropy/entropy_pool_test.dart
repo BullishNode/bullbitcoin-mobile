@@ -86,6 +86,32 @@ void main() {
       );
     });
 
+    test('motion samples require an active incomplete ceremony', () {
+      final pool = EntropyPool();
+      expect(
+        () => pool.mixMotionSample(touchSample(0)),
+        throwsA(isA<TouchEntropyCeremonyStateException>()),
+      );
+
+      completeCeremony(pool);
+      expect(
+        () => pool.mixMotionSample(touchSample(0)),
+        throwsA(isA<TouchEntropyCeremonyStateException>()),
+      );
+    });
+
+    test('motion samples cannot satisfy the mandatory touch gate', () {
+      final pool = EntropyPool()..beginTouchCeremony();
+      for (var i = 0; i < 1000; i++) {
+        pool.mixMotionSample(touchSample(i));
+      }
+
+      expect(
+        pool.completeTouchCeremony,
+        throwsA(isA<TouchEntropyCeremonyIncompleteException>()),
+      );
+    });
+
     test('a short OS draw fails without consuming the ceremony', () {
       final pool = EntropyPool();
       completeCeremony(pool);
@@ -135,6 +161,23 @@ void main() {
 
     test('different OS draws change the output', () {
       expect(run(), isNot(equals(run(osVariant: 1))));
+    });
+
+    test('supplemental motion changes the output', () {
+      Uint8List runWithMotion({required bool includeMotion}) {
+        final pool = EntropyPool()..beginTouchCeremony();
+        for (var i = 0; i < EntropyPool.requiredTouchSamples; i++) {
+          pool.mixTouchSample(touchSample(i));
+          if (includeMotion) pool.mixMotionSample(touchSample(i, variant: 1));
+        }
+        pool.completeTouchCeremony();
+        return pool.extractWithOsEntropy(osBytes, 16);
+      }
+
+      expect(
+        runWithMotion(includeMotion: true),
+        isNot(equals(runWithMotion(includeMotion: false))),
+      );
     });
 
     test('retained state separates repeated input across ceremonies', () {
