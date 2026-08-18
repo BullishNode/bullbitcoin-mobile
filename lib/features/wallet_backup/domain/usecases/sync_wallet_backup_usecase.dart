@@ -1,6 +1,5 @@
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
-import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_encryption.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_envelope.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_remote.dart';
@@ -8,6 +7,7 @@ import 'package:bb_mobile/features/wallet_backup/domain/repositories/wallet_back
 import 'package:bb_mobile/features/wallet_backup/domain/repositories/wallet_backup_remote_repository.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/build_wallet_backup_envelope_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_encryption_key_usecase.dart';
+import 'package:bb_mobile/features/wallet_backup/domain/usecases/derive_wallet_backup_signer_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_failure.dart';
 import 'package:meta/meta.dart';
 
@@ -17,7 +17,7 @@ final class SyncWalletBackupUsecase {
   final WalletBackupEncryptionRepository _encryption;
   final WalletBackupRemoteRepository _remote;
   final KeychainManifestFacade _keychainManifest;
-  final NostrIdentityFacade _identity;
+  final DeriveWalletBackupSignerUsecase _deriveSigner;
 
   const SyncWalletBackupUsecase({
     required this._buildEnvelope,
@@ -25,7 +25,7 @@ final class SyncWalletBackupUsecase {
     required this._encryption,
     required this._remote,
     required this._keychainManifest,
-    required this._identity,
+    required this._deriveSigner,
   });
 
   @useResult
@@ -47,6 +47,7 @@ final class SyncWalletBackupUsecase {
 
     final localResult = await _buildEnvelope.execute(
       parentFingerprint: parentFingerprint,
+      allowEmpty: true,
     );
     final WalletBackupEnvelope local;
     switch (localResult) {
@@ -56,7 +57,10 @@ final class SyncWalletBackupUsecase {
         return Err(failure);
     }
 
-    final signerResult = _deriveSigner(xprvBase58);
+    final signerResult = _deriveSigner.execute(
+      xprvBase58: xprvBase58,
+      expectedParentFingerprint: parentFingerprint,
+    );
     final WalletBackupSigner signer;
     switch (signerResult) {
       case Ok(:final value):
@@ -201,28 +205,6 @@ final class SyncWalletBackupUsecase {
       return Err(WalletBackupManifestFailure(error.runtimeType.toString()));
     } on Exception catch (error) {
       return Err(WalletBackupUnexpectedFailure(error.runtimeType.toString()));
-    }
-  }
-
-  Result<WalletBackupSigner, WalletBackupFailure> _deriveSigner(
-    String xprvBase58,
-  ) {
-    try {
-      return Ok(
-        WalletBackupSigner(
-          publicKeyHex: _identity.deriveWalletBackupPublicKeyFromXprv(
-            xprvBase58,
-          ),
-          signHashHex: (hash) => _identity.signWalletBackupHashFromXprv(
-            xprvBase58: xprvBase58,
-            messageHashHex: hash,
-          ),
-        ),
-      );
-    } on Exception catch (error) {
-      return Err(
-        WalletBackupKeyDerivationFailure(error.runtimeType.toString()),
-      );
     }
   }
 }
