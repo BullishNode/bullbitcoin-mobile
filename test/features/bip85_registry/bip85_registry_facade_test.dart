@@ -74,7 +74,7 @@ void main() {
     }
   });
 
-  test('models Nostr role keys as index-free reserved policy only', () {
+  test('models x-only signing roles as index-free reserved policy', () {
     final reservations = [
       _keyReservation('nostr_wallet_backup_key'),
       _keyReservation('nostr_bullnym_server_auth_key'),
@@ -92,7 +92,7 @@ void main() {
       ),
       [100, 101, 102],
     );
-    for (final reservation in reservations) {
+    for (final reservation in reservations.take(3)) {
       expect(reservation.owner, Bip85ReservationOwner.nostr);
       expect(reservation.purpose, Bip85ReservationPurpose.nonWalletNostrKey);
       expect(reservation.application.number, 128002);

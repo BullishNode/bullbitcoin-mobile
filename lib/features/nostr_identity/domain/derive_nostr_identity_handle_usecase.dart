@@ -44,26 +44,28 @@ class DeriveNostrIdentityHandleUsecase {
     if (reservation == null) {
       throw StateError('Unknown Nostr BIP85 reservation: $reservationId');
     }
-    _validateNostrReservation(reservation);
+    _validateReservation(reservation, reservationId);
     return NostrKeychainHandle.deriveFromBip85Path(
       xprvBase58: xprvBase58,
       hardenedPath: reservation.scope.exactPath,
     );
   }
 
-  void _validateNostrReservation(Bip85Reservation reservation) {
-    // Nostr identity keys are non-wallet key material; the registry models
-    // them with the key reservation shape, which carries no wallet index.
+  void _validateReservation(
+    Bip85Reservation reservation,
+    String reservationId,
+  ) {
     if (reservation is! Bip85KeyReservation) {
-      throw StateError('Expected a key-shaped Nostr BIP85 reservation');
+      throw StateError('Expected a key-shaped BIP85 signing reservation');
     }
     if (reservation.application.number != nostrBip85Application) {
       throw StateError(
-        'Expected Nostr BIP85 application $nostrBip85Application, '
+        'Expected BIP340 application $nostrBip85Application, '
         'got ${reservation.application.number}',
       );
     }
-    if (reservation.owner != Bip85ReservationOwner.nostr) {
+    if (reservation.owner != Bip85ReservationOwner.nostr ||
+        reservation.purpose != Bip85ReservationPurpose.nonWalletNostrKey) {
       throw StateError('Expected a Nostr-owned BIP85 reservation');
     }
   }
