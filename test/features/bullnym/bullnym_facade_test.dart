@@ -468,7 +468,7 @@ BullnymFacade _facadeForClient(
 NostrKeychainHandle _bullnymAuthHandle() {
   return NostrKeychainHandle.deriveFromBip85Path(
     xprvBase58: _zeroMnemonicXprv(),
-    hardenedPath: "9000'/2'/1'",
+    hardenedPath: "128002'/101'/1'",
   );
 }
 
