@@ -1,18 +1,24 @@
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration.dart';
 
 enum LightningAddressActivationStatus {
   loading,
+  unsupported,
   idle,
   active,
   activeLocalSetupFailed,
   inactive,
+  addressUnavailable,
   submitting,
-  registered,
   failure,
 }
 
 enum LightningAddressActivationFailure {
   invalidNym,
+  reservedNym,
+  nameTaken,
+  alreadyAssigned,
+  capabilityUnavailable,
   lookupFailed,
   noDefaultBitcoinWallet,
   setupFailed,
@@ -20,6 +26,7 @@ enum LightningAddressActivationFailure {
   rejected,
   serverTemporary,
   network,
+  toggleUncertain,
   generic,
 }
 
@@ -29,6 +36,10 @@ class LightningAddressActivationState {
   final String nym;
   final String? registeredAddress;
   final bool localSetupRetryable;
+  final bool permanentNamesSupported;
+  final bool hasPermanentNym;
+  final LightningAddressPermanentNameQuota? permanentNameQuota;
+  final bool onlineSaving;
 
   /// Whether the receive wallet's persisted autosweep behavior is confirmed
   /// enabled. Only true when a readiness lookup has read the actual metadata
@@ -48,23 +59,28 @@ class LightningAddressActivationState {
     this.nym = '',
     this.registeredAddress,
     this.localSetupRetryable = false,
+    this.permanentNamesSupported = false,
+    this.hasPermanentNym = false,
+    this.permanentNameQuota,
+    this.onlineSaving = false,
     this.autoSweepConfirmed = false,
     this.walletBehavior,
     this.walletBehaviorSaving = false,
   });
 
   bool get isLoading => status == LightningAddressActivationStatus.loading;
+  bool get isUnsupported =>
+      status == LightningAddressActivationStatus.unsupported;
   bool get isSubmitting =>
       status == LightningAddressActivationStatus.submitting;
-  bool get isRegistered =>
-      status == LightningAddressActivationStatus.registered;
   bool get isActive => status == LightningAddressActivationStatus.active;
   bool get isActiveLocalSetupFailed =>
       status == LightningAddressActivationStatus.activeLocalSetupFailed;
   bool get isInactive => status == LightningAddressActivationStatus.inactive;
-  bool get receiveReady =>
-      status == LightningAddressActivationStatus.active ||
-      status == LightningAddressActivationStatus.registered;
+  bool get isAddressUnavailable =>
+      status == LightningAddressActivationStatus.addressUnavailable;
+  bool get isBusy => isSubmitting || onlineSaving;
+  bool get receiveReady => status == LightningAddressActivationStatus.active;
 
   LightningAddressActivationState copyWith({
     LightningAddressActivationStatus? status,
@@ -72,12 +88,17 @@ class LightningAddressActivationState {
     String? nym,
     String? registeredAddress,
     bool? localSetupRetryable,
+    bool? permanentNamesSupported,
+    bool? hasPermanentNym,
+    LightningAddressPermanentNameQuota? permanentNameQuota,
+    bool? onlineSaving,
     bool? autoSweepConfirmed,
     GetPaidWalletBehavior? walletBehavior,
     bool? walletBehaviorSaving,
     bool clearFailure = false,
     bool clearRegisteredAddress = false,
     bool clearWalletBehavior = false,
+    bool clearPermanentNameQuota = false,
   }) {
     return LightningAddressActivationState(
       status: status ?? this.status,
@@ -87,6 +108,13 @@ class LightningAddressActivationState {
           ? null
           : registeredAddress ?? this.registeredAddress,
       localSetupRetryable: localSetupRetryable ?? this.localSetupRetryable,
+      permanentNamesSupported:
+          permanentNamesSupported ?? this.permanentNamesSupported,
+      hasPermanentNym: hasPermanentNym ?? this.hasPermanentNym,
+      permanentNameQuota: clearPermanentNameQuota
+          ? null
+          : permanentNameQuota ?? this.permanentNameQuota,
+      onlineSaving: onlineSaving ?? this.onlineSaving,
       autoSweepConfirmed: autoSweepConfirmed ?? this.autoSweepConfirmed,
       walletBehavior: clearWalletBehavior
           ? null
