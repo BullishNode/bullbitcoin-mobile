@@ -5,6 +5,8 @@ import 'package:flutter/widgets.dart';
 extension OnboardingFailureL10n on OnboardingFailure {
   String toTranslated(BuildContext context) => switch (this) {
     OnboardingUnexpectedFailure() => context.loc.walletSetupErrorTryAgain,
+    OnboardingInconsistentWalletStateFailure() =>
+      context.loc.walletDataIncompleteRestoreMessage,
     OnboardingBackupVerificationPersistenceFailure() =>
       context.loc.onboardingBackupVerificationSaveFailed,
   };

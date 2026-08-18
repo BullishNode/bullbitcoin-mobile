@@ -3,6 +3,7 @@ import 'package:bb_mobile/core/settings/data/settings_repository.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/inconsistent_wallet_state_exception.dart';
 
 class CheckForExistingDefaultWalletsUsecase {
   final SettingsRepository _settingsRepository;
@@ -85,21 +86,26 @@ class CheckForExistingDefaultWalletsUsecase {
     }
 
     log.fine('FINE: found default wallet');
-    await Future.wait(
-      defaultWallets.map((wallet) async {
-        try {
-          await _seedRepository.get(wallet.masterFingerprint);
-          log.fine('FINE: Seed Found');
-        } catch (e) {
-          log.severe(
-            message: 'Seed not found for default wallet ',
-            error: e,
-            trace: StackTrace.current,
-          );
-          rethrow;
-        }
-      }),
-    );
+    // Presence check only — never reads seed material. Records whose seed is
+    // gone are an inconsistent wallet state named here, at the point the
+    // records are reused, instead of a SeedNotFoundException deep inside the
+    // first flow that derives the xprv (#137). `exists` still propagates
+    // KeychainLockedException, which AppStartupBloc treats as transient.
+    final fingerprints = defaultWallets
+        .map((wallet) => wallet.masterFingerprint)
+        .toSet();
+    for (final fingerprint in fingerprints) {
+      if (await _seedRepository.exists(fingerprint)) continue;
+      final inconsistent = InconsistentWalletStateException(
+        fingerprint: fingerprint,
+      );
+      log.severe(
+        message: 'Seed not found for default wallet',
+        error: inconsistent,
+        trace: StackTrace.current,
+      );
+      throw inconsistent;
+    }
     return true;
   }
 }
