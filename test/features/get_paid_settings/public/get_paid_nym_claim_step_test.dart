@@ -1,5 +1,5 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_nym_claim_step.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

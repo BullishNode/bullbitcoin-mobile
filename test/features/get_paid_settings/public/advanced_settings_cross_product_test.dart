@@ -1,6 +1,5 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_cubit.dart';
 import 'package:bb_mobile/features/lightning_address/presentation/lightning_address_activation_state.dart';
@@ -213,6 +212,8 @@ class _LaCubit extends Cubit<LightningAddressActivationState>
   @override
   Future<void> load() async {}
   @override
+  Future<void> retryWalletBehavior() async {}
+  @override
   void nymChanged(String value) {}
   @override
   void showRegistrationForm() {}
@@ -248,6 +249,8 @@ class _PageCubit extends Cubit<PaymentPageState> implements PaymentPageCubit {
 
   @override
   Future<void> load() async {}
+  @override
+  Future<void> retryWalletBehavior() async {}
   @override
   Future<void> save() async {}
   @override
@@ -298,6 +301,8 @@ class _PosCubit extends Cubit<PosState> implements PosCubit {
 
   @override
   Future<void> load() async {}
+  @override
+  Future<void> retryWalletBehavior() async {}
   @override
   Future<void> provision() async {}
   @override

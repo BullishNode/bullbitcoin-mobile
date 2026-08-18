@@ -86,3 +86,16 @@ Lookup reflects the Bullnym public lookup contract: with the exact permanent-nam
 Lightning Address does not synthesize a copyable address from a hardcoded domain.
 
 The local nym validator trims surrounding whitespace, lowercases before confirmation/signing, enforces the shared 1–32 ASCII lowercase-letter/digit/internal-hyphen grammar, and applies Bullnym's reserved-nym prefilter. The server remains authoritative for races and stable conflict codes; presentation never displays its diagnostic reason strings.
+
+## Wallet Behavior Boundary
+
+Lightning Address's auto-sweep and hide-on-home controls read and write the reserved wallet (101)'s behavior
+through Get Paid Settings. That is a foreign boundary, so this feature owns the
+wrapper: `GetLightningAddressWalletBehaviorUsecase` and
+`UpdateLightningAddressWalletBehaviorUsecase` call `GetPaidSettingsFacade`, and the
+Cubit calls only those. The read wrapper owns a found/absent/unavailable result:
+found carries the stable public behavior value, confirmed absence hides the
+controls, and unavailability hides the controls while keeping a persistent
+settings warning visible. A write that fails is `false` (restore what was
+optimistically shown). The settings failure family never reaches presentation,
+and programmer `Error`s are not converted into unavailability.

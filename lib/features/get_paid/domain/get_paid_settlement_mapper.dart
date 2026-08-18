@@ -1,4 +1,4 @@
-import 'package:bb_mobile/features/bullnym/domain/bullnym_fiat_settlement.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 
 /// Maps the validated Bullnym settlement projection into the Get Paid-owned

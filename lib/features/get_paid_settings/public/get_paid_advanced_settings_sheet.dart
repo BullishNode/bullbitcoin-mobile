@@ -1,7 +1,7 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_wallet_behavior_card.dart';
+import 'package:bb_mobile/features/get_paid_settings/domain/get_paid_wallet_behavior.dart';
+import 'package:bb_mobile/features/get_paid_settings/public/get_paid_wallet_behavior_card.dart';
 import 'package:flutter/material.dart';
 
 /// The shared Advanced Settings sheet for every Get Paid product (Lightning
@@ -9,6 +9,10 @@ import 'package:flutter/material.dart';
 /// on/off, Hide on Home, Auto-Sweep — driven purely by values + callbacks, so
 /// each product wires its own turn-on/off action and wallet-behavior writes
 /// without any product-specific branching inside this widget.
+///
+/// It lives in `public/` because it is the UI face of this feature's
+/// wallet-behavior contract and the product features render it directly — the
+/// same shape as `fiat_settlement/public/fiat_settlement_entry_tile.dart`.
 class GetPaidAdvancedSettingsSheet extends StatelessWidget {
   const GetPaidAdvancedSettingsSheet({
     super.key,

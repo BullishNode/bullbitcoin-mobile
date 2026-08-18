@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_wallet_behavior_usecase.dart';
+import 'package:bb_mobile/features/payment_page/domain/usecases/update_payment_page_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/claim_payment_page_nym_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
@@ -13,14 +14,16 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
   final PaymentPageFacade _facade;
   final GetPaymentPagePermanentNameUsecase _getPermanentName;
   final ClaimPaymentPageNymUsecase _claimNym;
-  final GetPaidSettingsFacade _getPaidSettings;
+  final GetPaymentPageWalletBehaviorUsecase _getWalletBehavior;
+  final UpdatePaymentPageWalletBehaviorUsecase _updateWalletBehavior;
   int _operationId = 0;
 
   PaymentPageCubit({
     required this._facade,
     required this._getPermanentName,
     required this._claimNym,
-    required this._getPaidSettings,
+    required this._getWalletBehavior,
+    required this._updateWalletBehavior,
   }) : super(const PaymentPageState());
 
   Future<void> load() async {
@@ -36,7 +39,10 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
 
     // Resolve the reserved wallet locally FIRST (label-match, no server) so the
     // behavior controls stay reachable even when the server load below fails.
-    final walletBehavior = await _resolveWalletBehavior();
+    final walletBehaviorRead = await _resolveWalletBehavior();
+    final walletBehavior = _behaviorFrom(walletBehaviorRead);
+    final walletBehaviorUnavailable =
+        walletBehaviorRead is PaymentPageWalletBehaviorUnavailable;
     if (_isStale(op)) return;
 
     final PaymentPagePermanentName permanentName;
@@ -55,6 +61,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           failure: _asPaymentPageException(e),
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -72,6 +79,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           clearFailure: true,
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -90,6 +98,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           clearFailure: true,
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -124,6 +133,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           failure: _asPaymentPageException(e),
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -138,6 +148,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           failure: const PaymentPageException.invalidServerResponse(),
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -163,6 +174,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           clearFailure: true,
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -189,6 +201,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
         clearFailure: true,
         walletBehavior: walletBehavior,
         clearWalletBehavior: walletBehavior == null,
+        walletBehaviorUnavailable: walletBehaviorUnavailable,
       ),
     );
   }
@@ -386,7 +399,8 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
         );
       }
       // Saving provisions wallet 102, so refresh its resolved behavior.
-      final walletBehavior = await _resolveWalletBehavior();
+      final walletBehaviorRead = await _resolveWalletBehavior();
+      final walletBehavior = _behaviorFrom(walletBehaviorRead);
       if (isClosed || _isStale(op)) return;
       emit(
         state.copyWith(
@@ -407,6 +421,8 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           clearFailure: true,
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable:
+              walletBehaviorRead is PaymentPageWalletBehaviorUnavailable,
         ),
       );
     } on PaymentPageSaveException catch (e) {
@@ -482,51 +498,61 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
         walletBehaviorSaving: true,
       ),
     );
-    try {
-      await _getPaidSettings.updateWalletBehavior(
-        walletId: walletId,
-        hideOnHome: hideOnHome,
-        autoSweepEnabled: autoSweepEnabled,
-      );
-      if (isClosed) return;
-      final refreshed = await _resolveWalletBehavior();
-      if (isClosed) return;
-      emit(
-        state.copyWith(
-          walletBehavior: refreshed,
-          clearWalletBehavior: refreshed == null,
-          walletBehaviorSaving: false,
-        ),
-      );
-    } catch (e, stack) {
-      log.warning(
-        'Donation Page wallet behavior update failed',
-        error: e,
-        trace: stack,
-      );
-      if (isClosed) return;
+    final saved = await _updateWalletBehavior.execute(
+      walletId: walletId,
+      hideOnHome: hideOnHome,
+      autoSweepEnabled: autoSweepEnabled,
+    );
+    if (isClosed) return;
+    if (!saved) {
+      // The write did not land: restore what was optimistically shown.
       emit(
         state.copyWith(walletBehavior: previous, walletBehaviorSaving: false),
       );
+      return;
     }
+    final refreshed = await _resolveWalletBehavior();
+    final refreshedBehavior = _behaviorFrom(refreshed);
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        walletBehavior: refreshedBehavior,
+        clearWalletBehavior: refreshedBehavior == null,
+        walletBehaviorSaving: false,
+        walletBehaviorUnavailable:
+            refreshed is PaymentPageWalletBehaviorUnavailable,
+      ),
+    );
   }
 
-  // Read-only resolution of the reserved wallet (102); null until it exists.
-  Future<GetPaidWalletBehavior?> _resolveWalletBehavior() async {
-    try {
-      final behaviors = await _getPaidSettings.walletBehaviors(
-        only: GetPaidWalletProduct.paymentPage,
-      );
-      return behaviors.isEmpty ? null : behaviors.first;
-    } catch (e, stack) {
-      log.warning(
-        'Failed to load Donation Page wallet behavior',
-        error: e,
-        trace: stack,
-      );
-      return null;
-    }
+  /// Retries only the reserved-wallet settings read. Product form edits stay
+  /// untouched, and the shared guard prevents overlapping reads or writes.
+  Future<void> retryWalletBehavior() async {
+    if (state.walletBehaviorSaving) return;
+    emit(state.copyWith(walletBehaviorSaving: true));
+    final refreshed = await _resolveWalletBehavior();
+    if (isClosed) return;
+    final behavior = _behaviorFrom(refreshed);
+    emit(
+      state.copyWith(
+        walletBehavior: behavior,
+        clearWalletBehavior: behavior == null,
+        walletBehaviorUnavailable:
+            refreshed is PaymentPageWalletBehaviorUnavailable,
+        walletBehaviorSaving: false,
+      ),
+    );
   }
+
+  Future<PaymentPageWalletBehaviorRead> _resolveWalletBehavior() =>
+      _getWalletBehavior.execute();
+
+  GetPaidWalletBehavior? _behaviorFrom(PaymentPageWalletBehaviorRead read) =>
+      switch (read) {
+        PaymentPageWalletBehaviorFound(:final behavior) => behavior,
+        PaymentPageWalletBehaviorAbsent() ||
+        PaymentPageWalletBehaviorUnavailable() => null,
+      };
 
   bool _isStale(int op) => isClosed || op != _operationId;
 

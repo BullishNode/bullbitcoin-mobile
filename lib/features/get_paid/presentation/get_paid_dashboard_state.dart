@@ -1,7 +1,4 @@
-import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
-import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
-import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
-import 'package:bb_mobile/features/pos/public/pos_facade.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
 
 enum GetPaidDashboardCardStatus { loading, loaded }
 
@@ -41,13 +38,14 @@ class GetPaidDashboardState {
   /// inactive (subtitle shows the address; the status dot stays muted).
   final bool lightningActive;
   final String? nym;
-  final PaymentPage? paymentPage;
-  final PosTerminal? posTerminal;
-  final BtcpayConnection? btcpayConnection;
+  final GetPaidPaymentPageSnapshot? paymentPage;
+  final GetPaidPosTerminalSnapshot? posTerminal;
+  final GetPaidBtcpayConnectionSnapshot? btcpayConnection;
 
   /// True when the user has a default wallet created — the Invoices product
   /// issues payouts from the default wallet, so this gates its "Active" status.
   final bool invoicesWalletReady;
+  final bool invoicesUnavailable;
 
   /// Authenticated automatic-fallback rows that are not yet settled. `null`
   /// means unavailable or not applicable; zero is a successful empty result.
@@ -71,7 +69,11 @@ class GetPaidDashboardState {
   /// mainnet read FAILURE this is cleared and [fiatSettlementUnavailable] is
   /// set so active slots show an honest "unavailable" badge, never a stale or
   /// guessed (e.g. Bitcoin-only) state.
-  final Map<FiatSettlementProduct, FiatSettlementProductConfig>? fiatSettlement;
+  final Map<
+    GetPaidDashboardSettlementProduct,
+    GetPaidDashboardSettlementConfig
+  >?
+  fiatSettlement;
 
   /// True when a mainnet fiat-settlement read was attempted and failed; active
   /// product slots then render the settlement badge as "unavailable".
@@ -86,6 +88,7 @@ class GetPaidDashboardState {
     this.posTerminal,
     this.btcpayConnection,
     this.invoicesWalletReady = false,
+    this.invoicesUnavailable = false,
     this.fallbackAttentionCount,
     this.error,
     this.lightningStatus = GetPaidProductStatus.loading,
@@ -114,13 +117,14 @@ class GetPaidDashboardState {
     bool? lightningActive,
     String? nym,
     bool clearNym = false,
-    PaymentPage? paymentPage,
+    GetPaidPaymentPageSnapshot? paymentPage,
     bool clearPaymentPage = false,
-    PosTerminal? posTerminal,
+    GetPaidPosTerminalSnapshot? posTerminal,
     bool clearPos = false,
-    BtcpayConnection? btcpayConnection,
+    GetPaidBtcpayConnectionSnapshot? btcpayConnection,
     bool clearBtcpayConnection = false,
     bool? invoicesWalletReady,
+    bool? invoicesUnavailable,
     int? fallbackAttentionCount,
     bool clearFallbackAttention = false,
     String? error,
@@ -130,7 +134,8 @@ class GetPaidDashboardState {
     GetPaidProductStatus? posStatus,
     GetPaidDashboardCardStatus? invoicesStatus,
     GetPaidDashboardCardStatus? btcpayStatus,
-    Map<FiatSettlementProduct, FiatSettlementProductConfig>? fiatSettlement,
+    Map<GetPaidDashboardSettlementProduct, GetPaidDashboardSettlementConfig>?
+    fiatSettlement,
     bool clearFiatSettlement = false,
     bool? fiatSettlementUnavailable,
     bool? lightningWalletWarning,
@@ -150,6 +155,7 @@ class GetPaidDashboardState {
           ? null
           : btcpayConnection ?? this.btcpayConnection,
       invoicesWalletReady: invoicesWalletReady ?? this.invoicesWalletReady,
+      invoicesUnavailable: invoicesUnavailable ?? this.invoicesUnavailable,
       fallbackAttentionCount: clearFallbackAttention
           ? null
           : fallbackAttentionCount ?? this.fallbackAttentionCount,

@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/get_lightning_address_wallet_behavior_usecase.dart';
+import 'package:bb_mobile/features/lightning_address/domain/usecases/update_lightning_address_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_error.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_nym_validation.dart';
 import 'package:bb_mobile/features/lightning_address/domain/usecases/activate_wallet_owned_lightning_address_usecase.dart';
@@ -15,7 +16,8 @@ class LightningAddressActivationCubit
   final ActivateWalletOwnedLightningAddressUsecase _activate;
   final DeactivateWalletOwnedLightningAddressUsecase _deactivate;
   final LookupLightningAddressReceiveReadinessUsecase _lookupReadiness;
-  final GetPaidSettingsFacade _getPaidSettings;
+  final GetLightningAddressWalletBehaviorUsecase _getWalletBehavior;
+  final UpdateLightningAddressWalletBehaviorUsecase _updateWalletBehavior;
   int _operationId = 0;
 
   LightningAddressActivationCubit(
@@ -23,7 +25,8 @@ class LightningAddressActivationCubit
     this._activate,
     this._deactivate,
     this._lookupReadiness,
-    this._getPaidSettings,
+    this._getWalletBehavior,
+    this._updateWalletBehavior,
   ) : super(const LightningAddressActivationState());
 
   Future<void> load() async {
@@ -45,7 +48,7 @@ class LightningAddressActivationCubit
 
     // Resolve the local wallet independently so its behavior controls remain
     // available if a later read fails. This never authorizes a name mutation.
-    final walletBehavior = await _resolveWalletBehavior();
+    final walletBehaviorRead = await _resolveWalletBehavior();
     if (_isStale(operationId)) return;
 
     late final bool permanentNamesSupported;
@@ -64,8 +67,10 @@ class LightningAddressActivationCubit
           failure: LightningAddressActivationFailure.capabilityUnavailable,
           permanentNamesSupported: false,
           onlineSaving: false,
-          walletBehavior: walletBehavior,
-          clearWalletBehavior: walletBehavior == null,
+          walletBehavior: _behaviorFrom(walletBehaviorRead),
+          clearWalletBehavior: _behaviorFrom(walletBehaviorRead) == null,
+          walletBehaviorUnavailable:
+              walletBehaviorRead is LightningAddressWalletBehaviorUnavailable,
           clearRegisteredAddress: true,
           clearPermanentNameQuota: true,
         ),
@@ -77,14 +82,14 @@ class LightningAddressActivationCubit
     if (!permanentNamesSupported) {
       await _loadLegacyStatus(
         operationId: operationId,
-        walletBehavior: walletBehavior,
+        walletBehaviorRead: walletBehaviorRead,
       );
       return;
     }
 
     await _loadPermanentNameStatus(
       operationId: operationId,
-      walletBehavior: walletBehavior,
+      walletBehaviorRead: walletBehaviorRead,
       hadPermanentNym: hadPermanentNym,
       preserveSubmissionUncertain: wasSubmissionUncertain,
     );
@@ -92,19 +97,19 @@ class LightningAddressActivationCubit
 
   Future<void> _loadLegacyStatus({
     required int operationId,
-    required GetPaidWalletBehavior? walletBehavior,
+    required LightningAddressWalletBehaviorRead walletBehaviorRead,
   }) async {
     try {
       final readiness = await _lookupReadiness.execute();
       if (_isStale(operationId)) return;
       if (readiness.registration.permanentNameStatus != null) {
-        _emitCapabilityInconsistency(walletBehavior);
+        _emitCapabilityInconsistency(walletBehaviorRead);
         return;
       }
       final registration = readiness.registration;
       if (!registration.active) {
         _emitUnsupported(
-          walletBehavior: walletBehavior,
+          walletBehaviorRead: walletBehaviorRead,
           legacyNym: registration.nym,
         );
         return;
@@ -124,28 +129,33 @@ class LightningAddressActivationCubit
           clearFailure: true,
           clearRegisteredAddress: registration.lightningAddress == null,
           clearPermanentNameQuota: true,
-          walletBehavior: walletBehavior,
-          clearWalletBehavior: walletBehavior == null,
+          walletBehavior: _behaviorFrom(walletBehaviorRead),
+          clearWalletBehavior: _behaviorFrom(walletBehaviorRead) == null,
+          walletBehaviorUnavailable:
+              walletBehaviorRead is LightningAddressWalletBehaviorUnavailable,
         ),
       );
     } catch (_) {
       if (_isStale(operationId)) return;
       // An old/unknown policy never enables claim or management controls. A
       // failed legacy lookup therefore degrades to a hidden, usable feature.
-      _emitUnsupported(walletBehavior: walletBehavior);
+      _emitUnsupported(walletBehaviorRead: walletBehaviorRead);
     }
   }
 
   Future<void> _loadPermanentNameStatus({
     required int operationId,
-    required GetPaidWalletBehavior? walletBehavior,
+    required LightningAddressWalletBehaviorRead walletBehaviorRead,
     required bool hadPermanentNym,
     required bool preserveSubmissionUncertain,
   }) async {
     try {
       final readiness = await _lookupReadiness.execute();
       if (_isStale(operationId)) return;
-      _emitPermanentNameReadiness(readiness, walletBehavior: walletBehavior);
+      _emitPermanentNameReadiness(
+        readiness,
+        walletBehaviorRead: walletBehaviorRead,
+      );
     } catch (error, stack) {
       if (_isStale(operationId)) return;
       final cause = _lightningAddressCause(error);
@@ -162,8 +172,10 @@ class LightningAddressActivationCubit
             clearFailure: true,
             clearRegisteredAddress: true,
             clearPermanentNameQuota: true,
-            walletBehavior: walletBehavior,
-            clearWalletBehavior: walletBehavior == null,
+            walletBehavior: _behaviorFrom(walletBehaviorRead),
+            clearWalletBehavior: _behaviorFrom(walletBehaviorRead) == null,
+            walletBehaviorUnavailable:
+                walletBehaviorRead is LightningAddressWalletBehaviorUnavailable,
           ),
         );
         return;
@@ -193,8 +205,10 @@ class LightningAddressActivationCubit
           onlineSaving: false,
           localSetupRetryable: false,
           clearRegisteredAddress: true,
-          walletBehavior: walletBehavior,
-          clearWalletBehavior: walletBehavior == null,
+          walletBehavior: _behaviorFrom(walletBehaviorRead),
+          clearWalletBehavior: _behaviorFrom(walletBehaviorRead) == null,
+          walletBehaviorUnavailable:
+              walletBehaviorRead is LightningAddressWalletBehaviorUnavailable,
         ),
       );
     }
@@ -291,11 +305,11 @@ class LightningAddressActivationCubit
           permanentNamesSupported: true,
         ),
       );
-      final walletBehavior = await _resolveWalletBehavior();
+      final walletBehaviorRead = await _resolveWalletBehavior();
       if (_isStale(operationId)) return;
       await _refreshAfterMutation(
         operationId: operationId,
-        walletBehavior: walletBehavior,
+        walletBehaviorRead: walletBehaviorRead,
       );
     } catch (error, stack) {
       log.warning(
@@ -360,11 +374,11 @@ class LightningAddressActivationCubit
       }
       mutationSucceeded = true;
       if (_isStale(operationId)) return;
-      final walletBehavior = await _resolveWalletBehavior();
+      final walletBehaviorRead = await _resolveWalletBehavior();
       if (_isStale(operationId)) return;
       await _refreshAfterMutation(
         operationId: operationId,
-        walletBehavior: walletBehavior,
+        walletBehaviorRead: walletBehaviorRead,
       );
     } catch (error, stack) {
       log.warning(
@@ -403,11 +417,14 @@ class LightningAddressActivationCubit
 
   Future<void> _refreshAfterMutation({
     required int operationId,
-    required GetPaidWalletBehavior? walletBehavior,
+    required LightningAddressWalletBehaviorRead walletBehaviorRead,
   }) async {
     final readiness = await _lookupReadiness.execute();
     if (_isStale(operationId)) return;
-    _emitPermanentNameReadiness(readiness, walletBehavior: walletBehavior);
+    _emitPermanentNameReadiness(
+      readiness,
+      walletBehaviorRead: walletBehaviorRead,
+    );
   }
 
   Future<void> _reconcileAlreadyAssigned(int operationId, Object error) async {
@@ -427,13 +444,13 @@ class LightningAddressActivationCubit
       ),
     );
     try {
-      final walletBehavior = await _resolveWalletBehavior();
+      final walletBehaviorRead = await _resolveWalletBehavior();
       if (_isStale(operationId)) return;
       final readiness = await _lookupReadiness.execute();
       if (_isStale(operationId)) return;
       _emitPermanentNameReadiness(
         readiness,
-        walletBehavior: walletBehavior,
+        walletBehaviorRead: walletBehaviorRead,
         failure: LightningAddressActivationFailure.alreadyAssigned,
       );
     } catch (lookupError, stack) {
@@ -447,13 +464,13 @@ class LightningAddressActivationCubit
 
   void _emitPermanentNameReadiness(
     LightningAddressReceiveReadiness readiness, {
-    required GetPaidWalletBehavior? walletBehavior,
+    required LightningAddressWalletBehaviorRead walletBehaviorRead,
     LightningAddressActivationFailure? failure,
   }) {
     final registration = readiness.registration;
     final permanentName = registration.permanentNameStatus;
     if (permanentName == null) {
-      _emitCapabilityInconsistency(walletBehavior);
+      _emitCapabilityInconsistency(walletBehaviorRead);
       return;
     }
     final lightningAddress = registration.lightningAddress;
@@ -477,13 +494,17 @@ class LightningAddressActivationCubit
         onlineSaving: false,
         clearFailure: failure == null,
         clearRegisteredAddress: lightningAddress == null,
-        walletBehavior: walletBehavior,
-        clearWalletBehavior: walletBehavior == null,
+        walletBehavior: _behaviorFrom(walletBehaviorRead),
+        clearWalletBehavior: _behaviorFrom(walletBehaviorRead) == null,
+        walletBehaviorUnavailable:
+            walletBehaviorRead is LightningAddressWalletBehaviorUnavailable,
       ),
     );
   }
 
-  void _emitCapabilityInconsistency(GetPaidWalletBehavior? walletBehavior) {
+  void _emitCapabilityInconsistency(
+    LightningAddressWalletBehaviorRead walletBehaviorRead,
+  ) {
     emit(
       state.copyWith(
         status: LightningAddressActivationStatus.failure,
@@ -493,14 +514,16 @@ class LightningAddressActivationCubit
         onlineSaving: false,
         clearRegisteredAddress: true,
         clearPermanentNameQuota: true,
-        walletBehavior: walletBehavior,
-        clearWalletBehavior: walletBehavior == null,
+        walletBehavior: _behaviorFrom(walletBehaviorRead),
+        clearWalletBehavior: _behaviorFrom(walletBehaviorRead) == null,
+        walletBehaviorUnavailable:
+            walletBehaviorRead is LightningAddressWalletBehaviorUnavailable,
       ),
     );
   }
 
   void _emitUnsupported({
-    required GetPaidWalletBehavior? walletBehavior,
+    required LightningAddressWalletBehaviorRead walletBehaviorRead,
     String legacyNym = '',
   }) {
     emit(
@@ -513,8 +536,10 @@ class LightningAddressActivationCubit
         clearFailure: true,
         clearRegisteredAddress: true,
         clearPermanentNameQuota: true,
-        walletBehavior: walletBehavior,
-        clearWalletBehavior: walletBehavior == null,
+        walletBehavior: _behaviorFrom(walletBehaviorRead),
+        clearWalletBehavior: _behaviorFrom(walletBehaviorRead) == null,
+        walletBehaviorUnavailable:
+            walletBehaviorRead is LightningAddressWalletBehaviorUnavailable,
       ),
     );
   }
@@ -538,50 +563,61 @@ class LightningAddressActivationCubit
         walletBehaviorSaving: true,
       ),
     );
-    try {
-      await _getPaidSettings.updateWalletBehavior(
-        walletId: walletId,
-        hideOnHome: hideOnHome,
-        autoSweepEnabled: autoSweepEnabled,
-      );
-      if (isClosed) return;
-      final refreshed = await _resolveWalletBehavior();
-      if (isClosed) return;
-      emit(
-        state.copyWith(
-          walletBehavior: refreshed,
-          clearWalletBehavior: refreshed == null,
-          walletBehaviorSaving: false,
-        ),
-      );
-    } catch (error, stack) {
-      log.warning(
-        'Lightning Address wallet behavior update failed',
-        error: error,
-        trace: stack,
-      );
-      if (isClosed) return;
+    final saved = await _updateWalletBehavior.execute(
+      walletId: walletId,
+      hideOnHome: hideOnHome,
+      autoSweepEnabled: autoSweepEnabled,
+    );
+    if (isClosed) return;
+    if (!saved) {
+      // The write did not land: restore what was optimistically shown.
       emit(
         state.copyWith(walletBehavior: previous, walletBehaviorSaving: false),
       );
+      return;
     }
+    final refreshed = await _resolveWalletBehavior();
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        walletBehavior: _behaviorFrom(refreshed),
+        clearWalletBehavior: _behaviorFrom(refreshed) == null,
+        walletBehaviorUnavailable:
+            refreshed is LightningAddressWalletBehaviorUnavailable,
+        walletBehaviorSaving: false,
+      ),
+    );
   }
 
-  Future<GetPaidWalletBehavior?> _resolveWalletBehavior() async {
-    try {
-      final behaviors = await _getPaidSettings.walletBehaviors(
-        only: GetPaidWalletProduct.lightningAddress,
-      );
-      return behaviors.isEmpty ? null : behaviors.first;
-    } catch (error, stack) {
-      log.warning(
-        'Failed to load Lightning Address wallet behavior',
-        error: error,
-        trace: stack,
-      );
-      return null;
-    }
+  /// Retries only the reserved-wallet settings read. Registration drafts stay
+  /// untouched, and the shared guard prevents overlapping reads or writes.
+  Future<void> retryWalletBehavior() async {
+    if (state.walletBehaviorSaving) return;
+    emit(state.copyWith(walletBehaviorSaving: true));
+    final refreshed = await _resolveWalletBehavior();
+    if (isClosed) return;
+    final behavior = _behaviorFrom(refreshed);
+    emit(
+      state.copyWith(
+        walletBehavior: behavior,
+        clearWalletBehavior: behavior == null,
+        walletBehaviorUnavailable:
+            refreshed is LightningAddressWalletBehaviorUnavailable,
+        walletBehaviorSaving: false,
+      ),
+    );
   }
+
+  Future<LightningAddressWalletBehaviorRead> _resolveWalletBehavior() =>
+      _getWalletBehavior.execute();
+
+  GetPaidWalletBehavior? _behaviorFrom(
+    LightningAddressWalletBehaviorRead result,
+  ) => switch (result) {
+    LightningAddressWalletBehaviorFound(:final behavior) => behavior,
+    LightningAddressWalletBehaviorAbsent() => null,
+    LightningAddressWalletBehaviorUnavailable() => null,
+  };
 
   LightningAddressActivationFailure _registrationFailureFor(Object error) {
     final cause = _lightningAddressCause(error);

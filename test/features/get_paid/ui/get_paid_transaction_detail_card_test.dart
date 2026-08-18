@@ -1,14 +1,18 @@
+import 'dart:async';
+
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/core/widgets/tables/details_table.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
+import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_invoice_facts_usecase.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_detail_screen.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
-import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -126,25 +130,55 @@ Widget _app(Widget home) => MaterialApp(
   home: home,
 );
 
-Future<void> _pump(WidgetTester tester, GetPaidTransaction transaction) async {
+/// The invoices boundary a test opted into, if any. Null means no invoice read
+/// is wired at all, so the cubit stays initial — the card then renders exactly as
+/// it does for an entry that carries no invoice.
+InvoicesFacade? _invoices;
+
+Future<void> _pump(
+  WidgetTester tester,
+  GetPaidTransaction transaction, {
+  bool settle = true,
+}) async {
   // A tall surface so every section of the scrolling card is built and findable.
   await tester.binding.setSurfaceSize(const Size(1000, 4000));
   addTearDown(() => tester.binding.setSurfaceSize(null));
+  final invoices = _invoices;
   await tester.pumpWidget(
-    _app(GetPaidTransactionDetailScreen(transaction: transaction)),
+    _app(
+      BlocProvider(
+        create: (_) {
+          final cubit = GetPaidInvoiceFactsCubit(
+            lookUpInvoiceFacts: LookUpGetPaidInvoiceFactsUsecase(
+              invoices: invoices ?? _MockInvoicesFacade(),
+            ),
+          );
+          if (invoices != null) cubit.load(invoiceId: transaction.invoiceId);
+          return cubit;
+        },
+        child: GetPaidTransactionDetailScreen(transaction: transaction),
+      ),
+    ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
 }
 
-/// Registers a facade whose status read returns [snapshot].
+/// Wires a facade whose status read returns [snapshot]. The next [_pump] builds
+/// the card's cubit over it through the same constructor production uses.
 _MockInvoicesFacade _registerFacade(InvoiceStatusSnapshot snapshot) {
   final facade = _MockInvoicesFacade();
   when(() => facade.status(any())).thenAnswer(
     (_) async => Ok<InvoiceStatusSnapshot, InvoicesFailure>(snapshot),
   );
-  locator.registerSingleton<InvoicesFacade>(facade);
+  _registerInvoiceFacts(facade);
   return facade;
 }
+
+void _registerInvoiceFacts(InvoicesFacade facade) => _invoices = facade;
 
 final _payerSection = find.byKey(
   const ValueKey('get-paid-payer-instructions-section'),
@@ -158,7 +192,7 @@ Finder _inside(Finder section, Finder matching) =>
 
 void main() {
   setUpAll(() => registerFallbackValue(InvoiceId(_invoiceId)));
-  tearDown(() => locator.reset());
+  tearDown(() => _invoices = null);
 
   group('the card replaces the invoice screen', () {
     testWidgets('an invoice-backed entry offers no View invoice action', (
@@ -557,7 +591,7 @@ void main() {
   });
 
   group('no invoice facts: the card renders exactly as before', () {
-    testWidgets('with the invoices facade not registered', (tester) async {
+    testWidgets('with no invoice read wired at all', (tester) async {
       await _pump(tester, _tx());
 
       // Only the core-facts section (this entry carries no settlement).
@@ -570,34 +604,80 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('when the status read fails', (tester) async {
+    testWidgets('a rejected status read is STATED, not hidden', (tester) async {
       final facade = _MockInvoicesFacade();
       when(() => facade.status(any())).thenAnswer(
         (_) async => const Err<InvoiceStatusSnapshot, InvoicesFailure>(
           InvoicesFailure.notFound(),
         ),
       );
-      locator.registerSingleton<InvoicesFacade>(facade);
+      _registerInvoiceFacts(facade);
 
       await _pump(tester, _tx());
 
+      // An entry that HAS an invoice must never read as invoice-less: the
+      // section stays and says the state could not be read.
+      final section = find.byKey(const ValueKey('get-paid-invoice-section'));
+      expect(section, findsOneWidget);
       expect(
-        find.byKey(const ValueKey('get-paid-invoice-section')),
-        findsNothing,
+        _inside(section, find.text('Invoice details unavailable')),
+        findsOneWidget,
       );
+      expect(_inside(section, find.text('Retry')), findsOneWidget);
+      // No half-rendered invoice facts alongside the notice.
+      expect(_eventSection, findsNothing);
+      expect(_payerSection, findsNothing);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('when the status read throws', (tester) async {
+    testWidgets('an invoice read shows progress and recovers through Retry', (
+      tester,
+    ) async {
+      final first = Completer<Result<InvoiceStatusSnapshot, InvoicesFailure>>();
       final facade = _MockInvoicesFacade();
-      when(() => facade.status(any())).thenThrow(StateError('boom'));
-      locator.registerSingleton<InvoicesFacade>(facade);
+      var calls = 0;
+      when(() => facade.status(any())).thenAnswer((_) {
+        calls++;
+        if (calls == 1) return first.future;
+        return Future.value(
+          Ok<InvoiceStatusSnapshot, InvoicesFailure>(_snapshot()),
+        );
+      });
+      _registerInvoiceFacts(facade);
+
+      await _pump(tester, _tx(), settle: false);
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      first.complete(
+        const Err<InvoiceStatusSnapshot, InvoicesFailure>(
+          InvoicesFailure.network(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Invoice details unavailable'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(calls, 2);
+      expect(find.text('Invoice details unavailable'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a thrown status read is STATED, not hidden', (tester) async {
+      final facade = _MockInvoicesFacade();
+      // An operational throw (a programming Error stays visible by design).
+      when(() => facade.status(any())).thenThrow(Exception('boom'));
+      _registerInvoiceFacts(facade);
 
       await _pump(tester, _tx());
 
+      final section = find.byKey(const ValueKey('get-paid-invoice-section'));
+      expect(section, findsOneWidget);
       expect(
-        find.byKey(const ValueKey('get-paid-invoice-section')),
-        findsNothing,
+        _inside(section, find.text('Invoice details unavailable')),
+        findsOneWidget,
       );
       expect(tester.takeException(), isNull);
     });

@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/wallet/ui/wallet_behavior_switches.dart';
-import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/get_paid_settings/domain/get_paid_wallet_behavior.dart';
 import 'package:flutter/material.dart';
 
 /// The reserved product wallet's two behavior switches — auto-sweep and
@@ -10,6 +10,9 @@ import 'package:flutter/material.dart';
 /// Settings sheet or inline on a screen whose online product is unavailable, so
 /// the labels, the ordering and the rule coupling the two switches are stated in
 /// one place. It is presentational: the caller owns the writes.
+///
+/// It lives in `public/` because it is typed on this feature's published
+/// [GetPaidWalletBehavior] and the product features render it directly.
 class GetPaidWalletBehaviorCard extends StatelessWidget {
   const GetPaidWalletBehaviorCard({
     super.key,

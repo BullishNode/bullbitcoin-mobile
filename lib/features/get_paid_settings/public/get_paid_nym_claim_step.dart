@@ -11,6 +11,10 @@ import 'package:gap/gap.dart';
 /// exactly this step with exactly this copy. It is presentational: the caller
 /// owns the claim call, the validation, and the reserved-name prefilter, so each
 /// product keeps its own error mapping and capability gating.
+///
+/// It lives in this feature's `public/` surface because it is shared Get Paid
+/// product UI — business copy and affordances, not core infrastructure — and the
+/// three product features render it directly.
 class GetPaidNymClaimStep extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController controller;

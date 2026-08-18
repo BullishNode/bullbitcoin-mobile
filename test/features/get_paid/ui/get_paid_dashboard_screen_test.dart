@@ -1,13 +1,11 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
 import 'package:bb_mobile/features/get_paid/ui/widgets/get_paid_slot_card.dart';
-import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
-import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
-import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:bull_ui/bull_ui.dart' show BullButton, BullTopBar;
 import 'package:flutter/material.dart';
@@ -19,10 +17,12 @@ import 'package:go_router/go_router.dart';
 // state renders without a locator or the real facades.
 class _StubCubit extends Cubit<GetPaidDashboardState>
     implements GetPaidDashboardCubit {
+  int refreshCalls = 0;
+
   _StubCubit(super.initialState);
 
   @override
-  Future<void> refresh() async {}
+  Future<void> refresh() async => refreshCalls++;
 }
 
 Future<void> _pump(WidgetTester tester, GetPaidDashboardState state) async {
@@ -181,6 +181,62 @@ void main() {
     expect(find.text('invoice-list-destination'), findsOneWidget);
   });
 
+  testWidgets(
+    'unavailable invoice supervision keeps navigation and retry separate',
+    (tester) async {
+      final cubit = _StubCubit(
+        const GetPaidDashboardState(
+          invoicesUnavailable: true,
+          invoicesWalletReady: true,
+          fallbackAttentionCount: 2,
+          invoicesStatus: GetPaidDashboardCardStatus.loaded,
+        ),
+      );
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) =>
+                BlocProvider<GetPaidDashboardCubit>.value(
+                  value: cubit,
+                  child: const GetPaidDashboardScreen(),
+                ),
+          ),
+          GoRoute(
+            name: InvoicesRoute.list.name,
+            path: '/invoices',
+            builder: (context, state) =>
+                const Scaffold(body: Text('invoice-list-destination')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: router,
+          theme: AppTheme.themeData(AppThemeType.light),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('UNAVAILABLE'), findsOneWidget);
+      expect(find.text('2 SETTLEMENTS PENDING'), findsNothing);
+      final priorRefreshes = cubit.refreshCalls;
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      expect(cubit.refreshCalls, priorRefreshes + 1);
+
+      await tester.tap(find.text('Invoices'));
+      await tester.pumpAndSettle();
+      expect(find.text('invoice-list-destination'), findsOneWidget);
+    },
+  );
+
   testWidgets('Transactions card opens received Get Paid history', (
     tester,
   ) async {
@@ -224,37 +280,25 @@ void main() {
   });
 
   group('settlement badges', () {
-    PaymentPage activePage() => PaymentPage(
-      nym: 'satoshi',
-      header: 'Donate',
-      description: 'desc',
-      displayCurrency: 'CAD',
-      enabled: true,
-      isArchived: false,
+    GetPaidPaymentPageSnapshot activePage() => const GetPaidPaymentPageSnapshot(
       publicUrl: 'https://pay.example/satoshi',
-    );
-
-    PosTerminal activePos() => PosTerminal(
-      nym: 'satoshi',
-      label: 'Till',
-      displayCurrency: 'CAD',
-      enabled: true,
       isArchived: false,
-      terminalUrl: 'https://pos.example/satoshi/pos',
     );
 
-    FiatSettlementProductConfig config(
-      FiatSettlementProduct product,
-      int pct, {
-      FiatCurrency? currency,
-    }) => FiatSettlementProductConfig(
-      product: product,
-      fiatPercentage: pct,
-      currency: currency,
+    GetPaidPosTerminalSnapshot activePos() => const GetPaidPosTerminalSnapshot(
+      terminalUrl: 'https://pos.example/satoshi/pos',
+      isArchived: false,
     );
+
+    GetPaidDashboardSettlementConfig config(int pct, {String? currency}) =>
+        GetPaidDashboardSettlementConfig(
+          fiatPercentage: pct,
+          currencyCode: currency,
+        );
 
     GetPaidDashboardState activeState({
-      Map<FiatSettlementProduct, FiatSettlementProductConfig>? settlement,
+      Map<GetPaidDashboardSettlementProduct, GetPaidDashboardSettlementConfig>?
+      settlement,
       bool unavailable = false,
     }) => GetPaidDashboardState(
       lightningAddress: 'satoshi@bull.money',
@@ -272,20 +316,12 @@ void main() {
         tester,
         activeState(
           settlement: {
-            FiatSettlementProduct.lightningAddress: config(
-              FiatSettlementProduct.lightningAddress,
-              0,
-            ),
-            FiatSettlementProduct.paymentPage: config(
-              FiatSettlementProduct.paymentPage,
+            GetPaidDashboardSettlementProduct.lightningAddress: config(0),
+            GetPaidDashboardSettlementProduct.paymentPage: config(
               100,
-              currency: FiatCurrency.cad,
+              currency: 'CAD',
             ),
-            FiatSettlementProduct.pos: config(
-              FiatSettlementProduct.pos,
-              50,
-              currency: FiatCurrency.cad,
-            ),
+            GetPaidDashboardSettlementProduct.pos: config(50, currency: 'CAD'),
           },
         ),
       );
@@ -336,14 +372,9 @@ void main() {
       await _pump(
         tester,
         GetPaidDashboardState(
-          paymentPage: PaymentPage(
-            nym: 'satoshi',
-            header: 'Donate',
-            description: 'desc',
-            displayCurrency: 'CAD',
-            enabled: false,
-            isArchived: true,
+          paymentPage: const GetPaidPaymentPageSnapshot(
             publicUrl: 'https://pay.example/satoshi',
+            isArchived: true,
           ),
           paymentPageStatus: GetPaidProductStatus.archived,
         ),
@@ -388,13 +419,9 @@ void main() {
       await _pump(
         tester,
         GetPaidDashboardState(
-          posTerminal: PosTerminal(
-            nym: 'satoshi',
-            label: 'Till',
-            displayCurrency: 'CAD',
-            enabled: true,
-            isArchived: false,
+          posTerminal: const GetPaidPosTerminalSnapshot(
             terminalUrl: 'https://pos.example/satoshi/pos',
+            isArchived: false,
           ),
           posStatus: GetPaidProductStatus.active,
           posWalletWarning: true,

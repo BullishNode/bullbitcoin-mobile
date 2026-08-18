@@ -1,16 +1,18 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/core/utils/amount_formatting.dart';
 import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/core/widgets/tables/details_table.dart';
 import 'package:bb_mobile/core/widgets/tables/details_table_item.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_creation_rate.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_invoice_facts.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_state.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_history_screen.dart';
-import 'package:bb_mobile/features/invoices/public/invoice_copy.dart';
-import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
-import 'package:bb_mobile/locator.dart';
 import 'package:bull_ui/bull_ui.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 /// The one detail screen for a Get Paid entry. There is no such thing as a
@@ -23,51 +25,17 @@ import 'package:go_router/go_router.dart';
 /// belongs to, and bulky payer payloads stay collapsed behind the details
 /// table's expand affordance so the card remains scannable while withholding
 /// nothing.
-class GetPaidTransactionDetailScreen extends StatefulWidget {
+class GetPaidTransactionDetailScreen extends StatelessWidget {
   final GetPaidTransaction transaction;
 
   const GetPaidTransactionDetailScreen({super.key, required this.transaction});
 
   @override
-  State<GetPaidTransactionDetailScreen> createState() =>
-      _GetPaidTransactionDetailScreenState();
-}
-
-class _GetPaidTransactionDetailScreenState
-    extends State<GetPaidTransactionDetailScreen> {
-  /// The entry's own invoice state, once read. Null means there are no invoice
-  /// facts to show: no invoice id, the invoices feature is not registered
-  /// (isolated widget tests), or the read failed. The card then renders exactly
-  /// as it did before the invoice sections existed — no placeholders, no error.
-  InvoiceStatusSnapshot? _invoice;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadInvoice();
-  }
-
-  Future<void> _loadInvoice() async {
-    final invoiceId = widget.transaction.invoiceId;
-    if (invoiceId == null) return;
-    // Locator-guarded like FiatSettlementEntryTile: the screen depends only on
-    // the service locator and stays inert where it is not registered.
-    if (!locator.isRegistered<InvoicesFacade>()) return;
-    try {
-      final result = await locator<InvoicesFacade>().status(
-        InvoiceId(invoiceId),
-      );
-      if (!mounted) return;
-      if (result case Ok(:final value)) setState(() => _invoice = value);
-    } catch (_) {
-      // A read that throws leaves the card invoice-less; never an error dump.
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final transaction = widget.transaction;
-    final invoice = _invoice;
+    final invoiceFacts = context.watch<GetPaidInvoiceFactsCubit>().state;
+    final invoice = invoiceFacts is GetPaidInvoiceFactsData
+        ? invoiceFacts.invoice
+        : null;
     return BullScaffold(
       body: SafeArea(
         bottom: false,
@@ -104,13 +72,19 @@ class _GetPaidTransactionDetailScreenState
                     rows: _settlementRows(context, transaction.settlement),
                   ),
                   // The invoice's own state, merged into this card rather than
-                  // hidden behind a second screen.
+                  // hidden behind a second screen. A failed read states itself
+                  // in the section's own place, mirroring how an uninterpretable
+                  // settlement says so.
                   ..._section(
                     context,
                     title: context.loc.invoiceDetailTitle,
                     sectionKey: const ValueKey('get-paid-invoice-section'),
                     rows: invoice == null
-                        ? const []
+                        ? _invoiceStatusRows(
+                            context,
+                            invoiceFacts,
+                            transaction.invoiceId,
+                          )
                         : _invoiceRows(context, invoice, transaction),
                   ),
                   // Everything that happened, one compact row per observation.
@@ -144,6 +118,52 @@ class _GetPaidTransactionDetailScreenState
       ),
     );
   }
+}
+
+/// The invoice section without a snapshot. An entry without an invoice stays
+/// absent, while an in-flight or failed authenticated read remains visible and
+/// retryable instead of making the invoice-backed card look incomplete.
+List<DetailsTableItem> _invoiceStatusRows(
+  BuildContext context,
+  GetPaidInvoiceFactsState state,
+  String? invoiceId,
+) {
+  return switch (state) {
+    GetPaidInvoiceFactsLoading() => [
+      DetailsTableItem(
+        label: context.loc.invoiceDetailTitle,
+        displayWidget: Semantics(
+          liveRegion: true,
+          label: context.loc.getPaidCardInvoiceDetailsLoading,
+          child: const SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+    ],
+    GetPaidInvoiceFactsFailure() when invoiceId != null => [
+      DetailsTableItem(
+        label: context.loc.invoiceDetailTitle,
+        displayWidget: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              context.loc.getPaidCardInvoiceDetailsUnavailable,
+              textAlign: TextAlign.end,
+            ),
+            TextButton(
+              onPressed: () => context.read<GetPaidInvoiceFactsCubit>().load(
+                invoiceId: invoiceId,
+              ),
+              child: Text(context.loc.retry),
+            ),
+          ],
+        ),
+      ),
+    ],
+    _ => const [],
+  };
 }
 
 /// A titled section of the card: a muted title above its own details table.
@@ -238,7 +258,7 @@ List<DetailsTableItem> _coreFactRows(
 /// differs from the headline (a partial or over payment).
 List<DetailsTableItem> _invoiceRows(
   BuildContext context,
-  InvoiceStatusSnapshot invoice,
+  GetPaidInvoiceFacts invoice,
   GetPaidTransaction transaction,
 ) {
   final rows = <DetailsTableItem>[];
@@ -248,13 +268,13 @@ List<DetailsTableItem> _invoiceRows(
   final settlementText =
       _settlementStateMatches(invoice.settlementState, transaction)
       ? null
-      : invoiceSettlementSupportingText(context, invoice.settlementState);
+      : _invoiceSettlementSupportingText(context, invoice.settlementState);
   rows.add(
     _row(
       context,
       key: const ValueKey('get-paid-invoice-status'),
       label: context.loc.invoiceStatusLabel,
-      value: invoiceStatusText(context, invoice.status),
+      value: _invoiceStatusText(context, invoice.status),
       subLines: [
         if (invoice.isAwaitingConfirmation)
           context.loc.invoiceAwaitingConfirmation,
@@ -275,7 +295,7 @@ List<DetailsTableItem> _invoiceRows(
         label: context.loc.invoiceAmountLabel,
         value: satFace
             ? getPaidTransactionAmountText(context, invoice.amountSat)
-            : invoiceFaceAmountText(context, invoice),
+            : _invoiceFaceAmountText(context, invoice),
       ),
     );
   }
@@ -378,7 +398,7 @@ List<DetailsTableItem> _invoiceRows(
       _row(
         context,
         label: context.loc.getPaidInvoicePaidViaLabel,
-        value: invoiceRailName(context, paidVia),
+        value: _invoiceRailName(context, paidVia),
       ),
     );
   }
@@ -414,7 +434,7 @@ List<DetailsTableItem> _invoiceRows(
 /// one table and duplicate sibling keys are illegal.
 List<DetailsTableItem> _paymentEventRows(
   BuildContext context,
-  List<InvoicePaymentEvent> events,
+  List<GetPaidInvoicePaymentEvent> events,
 ) {
   final rows = <DetailsTableItem>[];
   for (final event in events) {
@@ -422,9 +442,9 @@ List<DetailsTableItem> _paymentEventRows(
     rows.add(
       _row(
         context,
-        label: invoicePaymentRailTitle(context, event.rail),
+        label: _invoicePaymentRailTitle(context, event.rail),
         value: getPaidTransactionAmountText(context, event.amountSat),
-        subLines: [invoicePaymentEventStateText(context, event)],
+        subLines: [_invoicePaymentEventStateText(context, event)],
         copyValue: transactionId,
         expandableChild: _facts(context, [
           (
@@ -462,7 +482,7 @@ List<DetailsTableItem> _paymentEventRows(
 /// copyable in full, and expandable — present, but never in the way.
 List<DetailsTableItem> _payerInstructionRows(
   BuildContext context,
-  InvoiceStatusSnapshot invoice,
+  GetPaidInvoiceFacts invoice,
 ) {
   final rows = <DetailsTableItem>[];
   void addPayload(String label, String? payload) {
@@ -502,7 +522,7 @@ List<DetailsTableItem> _payerInstructionRows(
     rows.add(
       _row(
         context,
-        label: invoiceRailName(context, amount.rail),
+        label: _invoiceRailName(context, amount.rail),
         value: getPaidTransactionAmountText(context, amount.payerAmountSat),
         subLines: [context.loc.invoiceQuotePayerAmountLabel],
         expandableChild: _facts(context, [
@@ -606,19 +626,108 @@ Widget _facts(
   );
 }
 
+String _invoiceStatusText(BuildContext context, GetPaidInvoiceStatus status) =>
+    switch (status) {
+      GetPaidInvoiceStatus.unpaid => context.loc.invoiceStatusUnpaid,
+      GetPaidInvoiceStatus.inProgress => context.loc.invoiceStatusInProgress,
+      GetPaidInvoiceStatus.partiallyPaid =>
+        context.loc.invoiceStatusPartiallyPaid,
+      GetPaidInvoiceStatus.paid => context.loc.invoiceStatusPaid,
+      GetPaidInvoiceStatus.underpaid => context.loc.invoiceStatusUnderpaid,
+      GetPaidInvoiceStatus.overpaid => context.loc.invoiceStatusOverpaid,
+      GetPaidInvoiceStatus.expired => context.loc.invoiceStatusExpired,
+      GetPaidInvoiceStatus.cancelled => context.loc.invoiceStatusCancelled,
+      GetPaidInvoiceStatus.unsupported => context.loc.invoiceStatusUnsupported,
+    };
+
+String? _invoiceSettlementSupportingText(
+  BuildContext context,
+  GetPaidInvoiceSettlementState state,
+) => switch (state) {
+  GetPaidInvoiceSettlementState.none => null,
+  GetPaidInvoiceSettlementState.pending => context.loc.invoiceSettlementPending,
+  GetPaidInvoiceSettlementState.settled =>
+    context.loc.invoiceSettlementComplete,
+  GetPaidInvoiceSettlementState.problem => context.loc.invoiceSettlementProblem,
+};
+
+String _invoiceFaceAmountText(
+  BuildContext context,
+  GetPaidInvoiceFacts invoice,
+) {
+  if (invoice.hasFiatFace) {
+    return FormatAmount.fiat(
+      invoice.fiatAmountMinor! / 100,
+      invoice.fiatCurrency!,
+    );
+  }
+  if (invoice.amountSat > 0) {
+    return context.loc.invoiceAmountSats(invoice.amountSat);
+  }
+  return context.loc.invoiceAmountUnavailable;
+}
+
+String _invoicePaymentRailTitle(
+  BuildContext context,
+  GetPaidInvoiceRail rail,
+) => switch (rail) {
+  GetPaidInvoiceRail.bitcoin => context.loc.invoicePaymentEventBitcoinTitle,
+  GetPaidInvoiceRail.lightning => context.loc.invoicePaymentEventLightningTitle,
+  GetPaidInvoiceRail.liquid => context.loc.invoicePaymentEventLiquidTitle,
+};
+
+String _invoiceRailName(BuildContext context, GetPaidInvoiceRail rail) =>
+    switch (rail) {
+      GetPaidInvoiceRail.bitcoin => context.loc.invoiceAcceptBtc,
+      GetPaidInvoiceRail.lightning => context.loc.invoiceAcceptLn,
+      GetPaidInvoiceRail.liquid => context.loc.invoiceAcceptLiquid,
+    };
+
+String _invoicePaymentEventStateText(
+  BuildContext context,
+  GetPaidInvoicePaymentEvent payment,
+) {
+  if (payment.state == GetPaidInvoicePaymentEventState.problem) {
+    return switch (payment.problem) {
+      GetPaidInvoicePaymentProblem.evicted =>
+        context.loc.invoicePaymentProblemEvicted,
+      GetPaidInvoicePaymentProblem.reorged =>
+        context.loc.invoicePaymentProblemReorged,
+      GetPaidInvoicePaymentProblem.conflicted =>
+        context.loc.invoicePaymentProblemConflicted,
+      GetPaidInvoicePaymentProblem.replaced =>
+        context.loc.invoicePaymentProblemReplaced,
+      GetPaidInvoicePaymentProblem.unknown ||
+      null => context.loc.invoicePaymentProblemUnknown,
+    };
+  }
+  return switch (payment.state) {
+    GetPaidInvoicePaymentEventState.pending =>
+      payment.rail == GetPaidInvoiceRail.bitcoin
+          ? context.loc.invoicePaymentSeenMempool
+          : context.loc.invoiceSettlementPending,
+    GetPaidInvoicePaymentEventState.confirming =>
+      context.loc.invoicePaymentConfirmations(payment.confirmations),
+    GetPaidInvoicePaymentEventState.settled =>
+      context.loc.invoiceSettlementComplete,
+    GetPaidInvoicePaymentEventState.problem =>
+      context.loc.invoicePaymentProblemUnknown,
+  };
+}
+
 /// True when the invoice's settlement supervision says the same thing as the
 /// entry's own Status row, in which case repeating it adds nothing.
 bool _settlementStateMatches(
-  InvoiceSettlementState state,
+  GetPaidInvoiceSettlementState state,
   GetPaidTransaction transaction,
 ) {
   return switch (state) {
-    InvoiceSettlementState.none => true,
-    InvoiceSettlementState.pending =>
+    GetPaidInvoiceSettlementState.none => true,
+    GetPaidInvoiceSettlementState.pending =>
       transaction.settlementState == GetPaidSettlementState.pending,
-    InvoiceSettlementState.settled =>
+    GetPaidInvoiceSettlementState.settled =>
       transaction.settlementState == GetPaidSettlementState.settled,
-    InvoiceSettlementState.problem =>
+    GetPaidInvoiceSettlementState.problem =>
       transaction.settlementState == GetPaidSettlementState.problem,
   };
 }

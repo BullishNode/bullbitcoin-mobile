@@ -83,6 +83,10 @@ class PaymentPageState {
   /// True while a wallet-behavior toggle write is in flight.
   final bool walletBehaviorSaving;
 
+  /// The wallet exists status could not be read, so controls must not silently
+  /// disappear as though wallet 102 were confirmed absent.
+  final bool walletBehaviorUnavailable;
+
   const PaymentPageState({
     this.status = PaymentPageStatus.loading,
     this.submitting = false,
@@ -105,6 +109,7 @@ class PaymentPageState {
     this.invalidField,
     this.walletBehavior,
     this.walletBehaviorSaving = false,
+    this.walletBehaviorUnavailable = false,
   });
 
   bool get isLoading => status == PaymentPageStatus.loading;
@@ -156,6 +161,7 @@ class PaymentPageState {
     PaymentPageField? invalidField,
     GetPaidWalletBehavior? walletBehavior,
     bool? walletBehaviorSaving,
+    bool? walletBehaviorUnavailable,
     bool clearFailure = false,
     bool clearPage = false,
     bool clearPermanentAlias = false,
@@ -191,6 +197,8 @@ class PaymentPageState {
           ? null
           : walletBehavior ?? this.walletBehavior,
       walletBehaviorSaving: walletBehaviorSaving ?? this.walletBehaviorSaving,
+      walletBehaviorUnavailable:
+          walletBehaviorUnavailable ?? this.walletBehaviorUnavailable,
     );
   }
 }

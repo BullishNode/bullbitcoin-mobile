@@ -1,6 +1,5 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
-import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -20,6 +19,7 @@ GetPaidWalletBehavior _behavior() => const GetPaidWalletBehavior(
 PaymentPageState _editState({
   bool archived = false,
   GetPaidWalletBehavior? behavior,
+  bool walletBehaviorUnavailable = false,
 }) {
   return PaymentPageState(
     status: archived ? PaymentPageStatus.archived : PaymentPageStatus.edit,
@@ -38,6 +38,7 @@ PaymentPageState _editState({
     description: 'Description',
     displayCurrency: 'CAD',
     walletBehavior: behavior,
+    walletBehaviorUnavailable: walletBehaviorUnavailable,
   );
 }
 
@@ -57,6 +58,32 @@ PaymentPageState _createState({
 }
 
 void main() {
+  testWidgets('keeps wallet settings unavailability visibly stated', (
+    tester,
+  ) async {
+    final cubit = await _pump(
+      tester,
+      _editState(walletBehaviorUnavailable: true),
+    );
+
+    expect(
+      find.byKey(const Key('get_paid_wallet_behavior_unavailable_warning')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Wallet settings are temporarily unavailable. '
+        'Try again.',
+      ),
+      findsOneWidget,
+    );
+    final priorLoads = cubit.loadCalls;
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(cubit.loadCalls, priorLoads);
+    expect(cubit.retryWalletBehaviorCalls, 1);
+  });
+
   testWidgets('creation collects no display currency (payer picks on the '
       'hosted page)', (tester) async {
     await _pump(tester, _createState());
@@ -405,6 +432,7 @@ class _StubPageCubit extends Cubit<PaymentPageState>
   _StubPageCubit(super.initialState);
 
   int loadCalls = 0;
+  int retryWalletBehaviorCalls = 0;
   int saveCalls = 0;
   int claimNymCalls = 0;
   bool failOnSave = false;
@@ -414,6 +442,11 @@ class _StubPageCubit extends Cubit<PaymentPageState>
   @override
   Future<void> load() async {
     loadCalls += 1;
+  }
+
+  @override
+  Future<void> retryWalletBehavior() async {
+    retryWalletBehaviorCalls += 1;
   }
 
   @override

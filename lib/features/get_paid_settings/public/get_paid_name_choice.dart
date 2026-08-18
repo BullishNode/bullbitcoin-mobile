@@ -12,6 +12,10 @@ import 'package:gap/gap.dart';
 ///
 /// Shared by the Donation Page and Point of Sale so the wording, ordering, and
 /// affordances stay identical; only [body] differs, because it names the product.
+///
+/// It lives in this feature's `public/` surface because it is shared Get Paid
+/// product UI — business copy and affordances, not core infrastructure — and both
+/// product features render it directly.
 class GetPaidNameChoice extends StatelessWidget {
   final String nym;
   final String body;

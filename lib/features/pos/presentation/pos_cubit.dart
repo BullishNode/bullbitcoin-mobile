@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/pos/domain/usecases/get_pos_wallet_behavior_usecase.dart';
+import 'package:bb_mobile/features/pos/domain/usecases/update_pos_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/claim_pos_nym_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_pos_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
@@ -14,14 +15,16 @@ class PosCubit extends Cubit<PosState> {
   final PosFacade _facade;
   final GetPosPermanentNameUsecase _getPermanentName;
   final ClaimPosNymUsecase _claimNym;
-  final GetPaidSettingsFacade _getPaidSettings;
+  final GetPosWalletBehaviorUsecase _getWalletBehavior;
+  final UpdatePosWalletBehaviorUsecase _updateWalletBehavior;
   int _operationId = 0;
 
   PosCubit({
     required this._facade,
     required this._getPermanentName,
     required this._claimNym,
-    required this._getPaidSettings,
+    required this._getWalletBehavior,
+    required this._updateWalletBehavior,
   }) : super(const PosState());
 
   Future<void> load() async {
@@ -37,7 +40,10 @@ class PosCubit extends Cubit<PosState> {
 
     // Resolve the reserved wallet locally FIRST (label-match, no server) so the
     // behavior controls stay reachable even when the server load below fails.
-    final walletBehavior = await _resolveWalletBehavior();
+    final walletBehaviorRead = await _resolveWalletBehavior();
+    final walletBehavior = _behaviorFrom(walletBehaviorRead);
+    final walletBehaviorUnavailable =
+        walletBehaviorRead is PosWalletBehaviorUnavailable;
     if (_isStale(op)) return;
 
     final PosPermanentName permanentName;
@@ -56,6 +62,7 @@ class PosCubit extends Cubit<PosState> {
           failure: _asPosException(e),
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -73,6 +80,7 @@ class PosCubit extends Cubit<PosState> {
           clearFailure: true,
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -91,6 +99,7 @@ class PosCubit extends Cubit<PosState> {
           clearFailure: true,
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -125,6 +134,7 @@ class PosCubit extends Cubit<PosState> {
           failure: _asPosException(e),
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -140,6 +150,7 @@ class PosCubit extends Cubit<PosState> {
           failure: const PosException.invalidServerResponse(),
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -161,6 +172,7 @@ class PosCubit extends Cubit<PosState> {
           clearFailure: true,
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable: walletBehaviorUnavailable,
         ),
       );
       return;
@@ -181,6 +193,7 @@ class PosCubit extends Cubit<PosState> {
         clearFailure: true,
         walletBehavior: walletBehavior,
         clearWalletBehavior: walletBehavior == null,
+        walletBehaviorUnavailable: walletBehaviorUnavailable,
       ),
     );
   }
@@ -326,7 +339,8 @@ class PosCubit extends Cubit<PosState> {
         );
       }
       // Provisioning creates wallet 103, so refresh its resolved behavior.
-      final walletBehavior = await _resolveWalletBehavior();
+      final walletBehaviorRead = await _resolveWalletBehavior();
+      final walletBehavior = _behaviorFrom(walletBehaviorRead);
       if (isClosed || _isStale(op)) return;
       emit(
         state.copyWith(
@@ -341,6 +355,8 @@ class PosCubit extends Cubit<PosState> {
           clearFailure: true,
           walletBehavior: walletBehavior,
           clearWalletBehavior: walletBehavior == null,
+          walletBehaviorUnavailable:
+              walletBehaviorRead is PosWalletBehaviorUnavailable,
         ),
       );
     } on PosProvisionException catch (e) {
@@ -412,51 +428,58 @@ class PosCubit extends Cubit<PosState> {
         walletBehaviorSaving: true,
       ),
     );
-    try {
-      await _getPaidSettings.updateWalletBehavior(
-        walletId: walletId,
-        hideOnHome: hideOnHome,
-        autoSweepEnabled: autoSweepEnabled,
-      );
-      if (isClosed) return;
-      final refreshed = await _resolveWalletBehavior();
-      if (isClosed) return;
-      emit(
-        state.copyWith(
-          walletBehavior: refreshed,
-          clearWalletBehavior: refreshed == null,
-          walletBehaviorSaving: false,
-        ),
-      );
-    } catch (e, stack) {
-      log.warning(
-        'Point of Sale wallet behavior update failed',
-        error: e,
-        trace: stack,
-      );
-      if (isClosed) return;
+    final saved = await _updateWalletBehavior.execute(
+      walletId: walletId,
+      hideOnHome: hideOnHome,
+      autoSweepEnabled: autoSweepEnabled,
+    );
+    if (isClosed) return;
+    if (!saved) {
+      // The write did not land: restore what was optimistically shown.
       emit(
         state.copyWith(walletBehavior: previous, walletBehaviorSaving: false),
       );
+      return;
     }
+    final refreshed = await _resolveWalletBehavior();
+    final refreshedBehavior = _behaviorFrom(refreshed);
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        walletBehavior: refreshedBehavior,
+        clearWalletBehavior: refreshedBehavior == null,
+        walletBehaviorSaving: false,
+        walletBehaviorUnavailable: refreshed is PosWalletBehaviorUnavailable,
+      ),
+    );
   }
 
-  // Read-only resolution of the reserved wallet (103); null until it exists.
-  Future<GetPaidWalletBehavior?> _resolveWalletBehavior() async {
-    try {
-      final behaviors = await _getPaidSettings.walletBehaviors(
-        only: GetPaidWalletProduct.pos,
-      );
-      return behaviors.isEmpty ? null : behaviors.first;
-    } catch (e, stack) {
-      log.warning(
-        'Failed to load Point of Sale wallet behavior',
-        error: e,
-        trace: stack,
-      );
-      return null;
-    }
+  /// Retries only the reserved-wallet settings read. Product form edits stay
+  /// untouched, and the shared guard prevents overlapping reads or writes.
+  Future<void> retryWalletBehavior() async {
+    if (state.walletBehaviorSaving) return;
+    emit(state.copyWith(walletBehaviorSaving: true));
+    final refreshed = await _resolveWalletBehavior();
+    if (isClosed) return;
+    final behavior = _behaviorFrom(refreshed);
+    emit(
+      state.copyWith(
+        walletBehavior: behavior,
+        clearWalletBehavior: behavior == null,
+        walletBehaviorUnavailable: refreshed is PosWalletBehaviorUnavailable,
+        walletBehaviorSaving: false,
+      ),
+    );
   }
+
+  Future<PosWalletBehaviorRead> _resolveWalletBehavior() =>
+      _getWalletBehavior.execute();
+
+  GetPaidWalletBehavior? _behaviorFrom(PosWalletBehaviorRead read) =>
+      switch (read) {
+        PosWalletBehaviorFound(:final behavior) => behavior,
+        PosWalletBehaviorAbsent() || PosWalletBehaviorUnavailable() => null,
+      };
 
   bool _isStale(int op) => isClosed || op != _operationId;
 

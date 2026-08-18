@@ -17,10 +17,12 @@ import 'package:bb_mobile/features/pos/domain/usecases/ensure_pos_live_usecase.d
 import 'package:bb_mobile/features/pos/domain/usecases/find_pos_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_pos_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_pos_permanent_name_usecase.dart';
+import 'package:bb_mobile/features/pos/domain/usecases/get_pos_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_supported_display_currencies_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/prepare_pos_wallet_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/provision_pos_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/resolve_pos_identity_usecase.dart';
+import 'package:bb_mobile/features/pos/domain/usecases/update_pos_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:get_it/get_it.dart';
@@ -110,12 +112,31 @@ class PosLocator {
         prepareWallet: prepareWallet.execute,
       );
     });
+    locator.registerFactory<GetPosWalletBehaviorUsecase>(
+      () => GetPosWalletBehaviorUsecase(
+        getPaidSettings: locator<GetPaidSettingsFacade>(),
+      ),
+    );
+    locator.registerFactory<UpdatePosWalletBehaviorUsecase>(
+      () => UpdatePosWalletBehaviorUsecase(
+        getPaidSettings: locator<GetPaidSettingsFacade>(),
+      ),
+    );
     locator.registerFactory<PosCubit>(
       () => PosCubit(
-        facade: locator<PosFacade>(),
+        find: ({required nym}) => locator<FindPosUsecase>().execute(nym: nym),
+        provision: (command) => locator<ProvisionPosUsecase>().execute(
+          label: command.label,
+          displayCurrency: command.displayCurrency,
+          aliasClaim: command.aliasClaim,
+        ),
+        archive: locator<ArchivePosUsecase>().execute,
+        supportedCurrencies:
+            locator<GetSupportedDisplayCurrenciesUsecase>().execute,
         getPermanentName: locator<GetPosPermanentNameUsecase>(),
         claimNym: locator<ClaimPosNymUsecase>(),
-        getPaidSettings: locator<GetPaidSettingsFacade>(),
+        getWalletBehavior: locator<GetPosWalletBehaviorUsecase>(),
+        updateWalletBehavior: locator<UpdatePosWalletBehaviorUsecase>(),
       ),
     );
   }
