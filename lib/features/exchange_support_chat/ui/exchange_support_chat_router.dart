@@ -1,13 +1,8 @@
+export 'package:bb_mobile/features/exchange_support_chat/public/exchange_support_chat_routes.dart';
+
+import 'package:bb_mobile/features/exchange_support_chat/public/exchange_support_chat_routes.dart';
 import 'package:bb_mobile/features/exchange_support_chat/ui/screens/exchange_support_chat_screen.dart';
 import 'package:go_router/go_router.dart';
-
-enum ExchangeSupportChatRoute {
-  supportChat('/exchange/support-chat');
-
-  final String path;
-
-  const ExchangeSupportChatRoute(this.path);
-}
 
 class ExchangeSupportChatRouter {
   static final route = GoRoute(

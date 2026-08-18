@@ -13,15 +13,21 @@ import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
 import 'package:bb_mobile/features/pos/ui/screens/pos_provisioning_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
+import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../fiat_settlement/support/testnet_fiat_settlement_dependencies.dart';
 
 /// The three Get Paid products (Lightning Address, Donation Page, POS) must
 /// each expose the SAME Advanced Settings surface — turn on/off + Auto-Sweep +
 /// Hide-on-Home — driven by the one shared widget, with the wallet-behavior
 /// toggles targeting that product's own manifest-resolved reserved wallet.
 void main() {
+  setUp(registerTestnetFiatSettlementDependencies);
+  tearDown(locator.reset);
+
   Future<void> harness(WidgetTester tester, Widget child, Cubit cubit) async {
     await tester.binding.setSurfaceSize(const Size(1200, 3000));
     addTearDown(() => tester.binding.setSurfaceSize(null));

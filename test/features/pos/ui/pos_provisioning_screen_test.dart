@@ -6,9 +6,12 @@ import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
 import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/features/pos/ui/screens/pos_provisioning_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
+import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../fiat_settlement/support/testnet_fiat_settlement_dependencies.dart';
 
 const _terminalUrl = 'https://pay2.bull-wallet.com/pos/alice?ref=Shop%20One';
 
@@ -51,6 +54,9 @@ PosState _createState() => const PosState(
 );
 
 void main() {
+  setUp(registerTestnetFiatSettlementDependencies);
+  tearDown(locator.reset);
+
   testWidgets('keeps wallet settings unavailability visibly stated', (
     tester,
   ) async {
@@ -264,6 +270,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(cubit.loadCalls, 2); // initial load + discard reload
     expect(find.byKey(const Key('pos_edit_button')), findsOneWidget);
+  });
+
+  testWidgets('system back confirms before leaving a dirty editor', (
+    tester,
+  ) async {
+    final cubit = await _pump(tester, _editState(behavior: _behavior()));
+
+    await tester.tap(find.byKey(const Key('pos_edit_button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Changed label');
+    await tester.pump();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Discard changes?'), findsOneWidget);
+    expect(cubit.loadCalls, 1);
   });
 
   testWidgets('a failed provision keeps the editor open', (tester) async {

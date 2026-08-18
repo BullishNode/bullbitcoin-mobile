@@ -1,10 +1,10 @@
 import 'dart:io';
 
+import 'package:bb_mobile/core/storage/app_data_directory.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_model.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/wallet_error.dart';
 import 'package:bull_sdk/bdk.dart' as bdk;
-import 'package:path_provider/path_provider.dart';
 
 class BdkFacade {
   // Standard lookahead value for address discovery
@@ -191,7 +191,7 @@ class BdkFacade {
   }
 
   static Future<String> _getDbPath(String walletIdHex) async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await AppDataDirectory.resolve();
     // Add since bdk_dart might not migrate old bdk_flutter db we suffix the db name with `_bdk_dart` to avoid conflicts
     return '${dir.path}/${'${walletIdHex}_bdk_dart'}';
   }

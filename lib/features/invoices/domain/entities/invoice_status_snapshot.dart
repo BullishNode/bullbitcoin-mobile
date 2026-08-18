@@ -16,6 +16,8 @@ class InvoiceStatusSnapshot {
   final int? fiatAmountMinor;
   final String? fiatCurrency;
   final int remainingAmountSat;
+  final bool? acceptingPayments;
+  final bool topUpAllowed;
   final int paymentToleranceSat;
   final int? rateMinorPerBtc;
 
@@ -54,6 +56,8 @@ class InvoiceStatusSnapshot {
     this.fiatAmountMinor,
     this.fiatCurrency,
     required this.remainingAmountSat,
+    this.acceptingPayments,
+    this.topUpAllowed = false,
     required this.paymentToleranceSat,
     this.rateMinorPerBtc,
     this.creationRateMinorPerBtc,
@@ -111,7 +115,15 @@ class InvoiceStatusSnapshot {
   /// quote-unavailability messaging) is only meaningful in this window; payer
   /// quotes carry a 5-minute TTL, so a later re-read shows no rails even though
   /// nothing is wrong.
-  bool get isAwaitingPayer => !hasPaymentEvidence && !status.isTerminal;
+  bool get isAwaitingPayer =>
+      status == InvoiceStatus.unpaid &&
+      !hasPaymentEvidence &&
+      (acceptingPayments ?? true);
+
+  /// Whether payer-facing instructions may be shown now. A contradictory
+  /// server admission flag never overrides positive evidence.
+  bool acceptsInitialPayment(DateTime now) =>
+      isAwaitingPayer && expiresAt.isAfter(now);
 
   bool get hasProvisionalPaymentEvidence =>
       paymentEvents.any((event) => event.isProvisional);
@@ -161,7 +173,7 @@ class InvoiceStatusSnapshot {
       settlementState != InvoiceSettlementState.pending &&
       settlementState != InvoiceSettlementState.problem;
 
-  bool get isCancellable => status == InvoiceStatus.unpaid;
+  bool get isCancellable => isAwaitingPayer;
 
   Duration timeUntilExpiry(DateTime now) {
     final remaining = expiresAt.difference(now);

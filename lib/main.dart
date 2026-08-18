@@ -7,6 +7,7 @@ import 'package:bb_mobile/core/background_tasks/tasks.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/settings/domain/repositories/settings_repository.dart';
 import 'package:bb_mobile/core/screens/app_init_error_screen.dart';
+import 'package:bb_mobile/core/storage/app_data_directory.dart';
 import 'package:bb_mobile/core/storage/sqlite_database.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/constants.dart';
@@ -25,9 +26,9 @@ import 'package:bb_mobile/features/wizard/data/datasource/wizard_local_datasourc
 import 'package:bb_mobile/features/wizard/data/repository/wizard_repository_impl.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/apply_pending_wizard_choices_usecase.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/is_wizard_complete_usecase.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/read_pending_wizard_choices_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/apply_pending_wizard_choices_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/is_wizard_complete_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/read_pending_wizard_choices_usecase.dart';
 import 'package:bb_mobile/features/wizard/ui/wizard_app.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:bb_mobile/locator.dart';
@@ -39,7 +40,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show appFlavor;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:workmanager/workmanager.dart';
 
 /// Builds a [WizardRepository] without going through the locator. Used
@@ -105,7 +105,7 @@ class Bull {
   /// inside the same iOS process when iOS spawns the app to fire a
   /// periodic task).
   static Future<void> initLogs({bool background = false}) async {
-    final logDirectory = await getApplicationDocumentsDirectory();
+    final logDirectory = await AppDataDirectory.resolve();
     log = Logger.replace(directory: logDirectory, background: background);
     await log.ensureLogsExist();
     if (!background) {

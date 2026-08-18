@@ -8,23 +8,26 @@ import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid/data/get_paid_default_wallet_xprv_adapter.dart';
-import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/export_get_paid_transactions_csv_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/find_get_paid_payment_page_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/find_get_paid_pos_terminal_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_get_paid_btcpay_connection_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_get_paid_fiat_settlement_summary_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_default_wallet_xprv_port.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/list_get_paid_transactions_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/load_get_paid_invoices_overview_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/load_get_paid_product_overview_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_invoice_facts_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_lightning_registration_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/ensure_get_paid_automatic_fallback_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/ensure_get_paid_product_wallet_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/export_get_paid_transactions_csv_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/find_get_paid_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/find_get_paid_pos_terminal_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_get_paid_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_get_paid_fiat_settlement_summary_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_paid_fallback_attention_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/list_get_paid_transactions_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/load_get_paid_invoices_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/load_get_paid_product_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_invoice_facts_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_lightning_registration_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_transaction_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_detail_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
@@ -114,6 +117,21 @@ class GetPaidLocator {
         defaultWalletXprv: locator<GetPaidDefaultWalletXprvPort>(),
         bullnym: locator<BullnymFacade>(),
         nostrIdentity: locator<NostrIdentityFacade>(),
+      ),
+    );
+    locator.registerFactory<LookUpGetPaidTransactionUsecase>(
+      () => LookUpGetPaidTransactionUsecase(
+        locator<ListGetPaidTransactionsUsecase>(),
+      ),
+    );
+    locator.registerFactoryParam<
+      GetPaidTransactionDetailCubit,
+      GetPaidTransaction,
+      void
+    >(
+      (transaction, _) => GetPaidTransactionDetailCubit(
+        locator<LookUpGetPaidTransactionUsecase>(),
+        initialTransaction: transaction,
       ),
     );
     locator.registerFactory<GetPaidTransactionHistoryCubit>(

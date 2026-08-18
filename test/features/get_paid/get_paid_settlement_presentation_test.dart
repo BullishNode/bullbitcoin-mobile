@@ -1,19 +1,21 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/utils/string_formatting.dart';
 import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/tables/details_table.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_invoice_facts.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_invoice_facts_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_transaction_usecase.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_detail_cubit.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_detail_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_paid_failure.dart';
-import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_invoice_facts_usecase.dart';
-import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 GetPaidTransaction _tx({
   GetPaidSettlement? settlement,
@@ -69,6 +71,10 @@ Future<void> _pumpDetail(
   WidgetTester tester,
   GetPaidTransaction transaction,
 ) async {
+  // Dispose the previous providers so each case owns a fresh initial
+  // transaction rather than reusing an existing BlocProvider element.
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
   await tester.pumpWidget(_app(_detailCard(transaction)));
   await tester.pump();
 }
@@ -464,15 +470,33 @@ void main() {
 /// The card reads its invoice state from a cubit. These tests never wire an
 /// invoice read, so it stays initial and the card renders exactly as it does for
 /// an entry that carries no invoice.
-Widget _detailCard(GetPaidTransaction transaction) => BlocProvider(
-  create: (_) =>
-      GetPaidInvoiceFactsCubit(lookUpInvoiceFacts: _UnreadInvoiceFacts()),
-  child: GetPaidTransactionDetailScreen(transaction: transaction),
+Widget _detailCard(GetPaidTransaction transaction) => MultiBlocProvider(
+  providers: [
+    BlocProvider(
+      create: (_) => GetPaidTransactionDetailCubit(
+        _UnreadTransaction(),
+        initialTransaction: transaction,
+      ),
+    ),
+    BlocProvider(
+      create: (_) =>
+          GetPaidInvoiceFactsCubit(lookUpInvoiceFacts: _UnreadInvoiceFacts()),
+    ),
+  ],
+  child: const GetPaidTransactionDetailScreen(),
 );
 
 class _UnreadInvoiceFacts implements LookUpGetPaidInvoiceFactsUsecase {
   @override
   Future<Result<GetPaidInvoiceFacts, GetPaidFailure>> execute({
     required String invoiceId,
+  }) => throw UnimplementedError();
+}
+
+class _UnreadTransaction implements LookUpGetPaidTransactionUsecase {
+  @override
+  Future<Result<GetPaidTransaction, GetPaidFailure>> execute({
+    required GetPaidTransactionSource source,
+    required String transactionId,
   }) => throw UnimplementedError();
 }

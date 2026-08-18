@@ -243,10 +243,15 @@ class _GetPaidDashboardScreenState extends State<GetPaidDashboardScreen>
             loc.getPaidDashboardBtcpaySubtitle,
         isLoading: state.btcpayStatus == GetPaidDashboardCardStatus.loading,
         // Active green when a BTCPay connection exists.
-        statusLabel: state.hasBtcpayConnection
+        statusLabel: state.btcpayUnavailable
+            ? loc.getPaidDashboardUnavailable
+            : state.hasBtcpayConnection
             ? loc.getPaidDashboardActive
             : null,
-        statusActive: state.hasBtcpayConnection,
+        statusActive: state.hasBtcpayConnection && !state.btcpayUnavailable,
+        retry: state.btcpayUnavailable
+            ? (label: loc.getPaidDashboardRetry, onTap: refresh)
+            : null,
         onTap: () => _open(BtcpayRoute.btcpaySettings.name),
       ),
     ];

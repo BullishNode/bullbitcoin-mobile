@@ -63,10 +63,22 @@ class InvoiceDetailScreen extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Text(
-          state.failure?.toTranslated(context) ??
-              context.loc.invoiceErrorUnexpected,
-          textAlign: TextAlign.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              state.failure?.toTranslated(context) ??
+                  context.loc.invoiceErrorUnexpected,
+              textAlign: TextAlign.center,
+            ),
+            const Gap(12),
+            TextButton(
+              // An initial-load retry must restore the complete lifecycle:
+              // status polling, private-link lookup, and initial quote setup.
+              onPressed: context.read<InvoiceDetailCubit>().load,
+              child: Text(context.loc.retry),
+            ),
+          ],
         ),
       ),
     );
@@ -75,6 +87,7 @@ class InvoiceDetailScreen extends StatelessWidget {
   Widget _loaded(BuildContext context, InvoiceDetailState state) {
     final cubit = context.read<InvoiceDetailCubit>();
     final snapshot = state.snapshot!;
+    final paymentSummary = state.invoice?.paymentSummary;
     final status = state.effectiveStatus ?? snapshot.status;
     final unsupported = status.isUnsupported;
     return RefreshIndicator(
@@ -82,6 +95,8 @@ class InvoiceDetailScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (state.failure != null)
+            _notice(context, context.loc.invoiceDetailRefreshFailed),
           _row(
             context,
             context.loc.invoiceStatusLabel,
@@ -110,27 +125,64 @@ class InvoiceDetailScreen extends StatelessWidget {
                 context,
                 context.loc.getPaidSettlementRateAtCreationLabel,
                 context.loc.getPaidSettlementRateAtCreationValue(
-                  FormatAmount.fiat(creationRate / 100, snapshot.fiatCurrency!),
+                  FormatAmount.fiatMinor(creationRate, snapshot.fiatCurrency!),
                 ),
               ),
-          if (snapshot.paidAmountSat case final paidAmountSat?)
+          if (paymentSummary case final summary?) ...[
             _row(
               context,
-              context.loc.invoicePaymentReceivedLabel,
-              context.loc.invoiceAmountSats(paidAmountSat),
+              context.loc.invoicePaymentObservedLabel,
+              context.loc.invoiceAmountSats(summary.observedAmountSat),
             ),
-          if (snapshot.hasPaymentEvidence && snapshot.remainingAmountSat > 0)
             _row(
               context,
-              context.loc.invoicePaymentRemainingLabel,
-              context.loc.invoiceAmountSats(snapshot.remainingAmountSat),
+              context.loc.invoicePaymentCreditedLabel,
+              context.loc.invoiceAmountSats(summary.creditedAmountSat),
             ),
-          if (snapshot.overpaidAmountSat case final overpaidAmountSat?)
-            _row(
-              context,
-              context.loc.invoicePaymentOverpaidByLabel,
-              context.loc.invoiceAmountSats(overpaidAmountSat),
-            ),
+            if (summary.remainingAmountSat > 0)
+              _row(
+                context,
+                context.loc.invoicePaymentDifferenceLabel,
+                context.loc.invoiceAmountSats(summary.remainingAmountSat),
+              ),
+            if (summary.excessAmountSat > 0)
+              _row(
+                context,
+                context.loc.invoicePaymentOverpaidByLabel,
+                context.loc.invoiceAmountSats(summary.excessAmountSat),
+              ),
+            if (summary.logicalPaymentCount > 1)
+              _row(
+                context,
+                context.loc.invoicePaymentCountLabel,
+                '${summary.logicalPaymentCount}',
+              ),
+          ] else ...[
+            if (snapshot.paidAmountSat case final paidAmountSat?)
+              _row(
+                context,
+                context.loc.invoicePaymentReceivedLabel,
+                context.loc.invoiceAmountSats(paidAmountSat),
+              ),
+            if (snapshot.hasPaymentEvidence && snapshot.remainingAmountSat > 0)
+              _row(
+                context,
+                context.loc.invoicePaymentDifferenceLabel,
+                context.loc.invoiceAmountSats(snapshot.remainingAmountSat),
+              ),
+            if (snapshot.overpaidAmountSat case final overpaidAmountSat?)
+              _row(
+                context,
+                context.loc.invoicePaymentOverpaidByLabel,
+                context.loc.invoiceAmountSats(overpaidAmountSat),
+              ),
+          ],
+          if (paymentSummary != null &&
+              (state.authenticatedInvoiceRefreshing ||
+                  state.authenticatedInvoiceFailure != null))
+            _notice(context, context.loc.invoicePaymentSummaryStale)
+          else if (state.hasPaymentEvidence && paymentSummary == null)
+            _notice(context, context.loc.invoicePaymentSummaryUnavailable),
           const Divider(),
           _expiry(context, snapshot),
           const Divider(),
@@ -139,7 +191,7 @@ class InvoiceDetailScreen extends StatelessWidget {
           // A payer quote (and its unavailability) is only meaningful while the
           // invoice is genuinely awaiting a payer; once payment evidence exists
           // or the invoice is terminal the quote is irrelevant.
-          else if (snapshot.isFiatFixed && snapshot.isAwaitingPayer) ...[
+          else if (cubit.canRequestQuote(snapshot)) ...[
             _quoteBlock(context, state, cubit, snapshot),
             const Divider(),
           ],
@@ -159,7 +211,8 @@ class InvoiceDetailScreen extends StatelessWidget {
             for (final fallback in state.fallbackSupervisions)
               _fallbackBlock(context, fallback),
           ],
-          if (!unsupported) ...[
+          if (!unsupported &&
+              state.acceptsInitialPayment(DateTime.now().toUtc())) ...[
             const Gap(20),
             Text(
               context.loc.invoicePrivateLinkSection,

@@ -37,6 +37,7 @@ import 'package:bb_mobile/features/send/domain/usecases/preview_bitcoin_fee_usec
 import 'package:bb_mobile/features/send/domain/usecases/select_best_wallet_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_bitcoin_tx_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/sign_liquid_tx_usecase.dart';
+import 'package:bb_mobile/features/send/domain/usecases/try_liquid_direct_pay_usecase.dart';
 import 'package:bb_mobile/features/send/domain/usecases/update_paid_send_swap_usecase.dart';
 import 'package:bb_mobile/core/utils/payment_request.dart';
 import 'package:bb_mobile/core/utils/result.dart';
@@ -137,6 +138,9 @@ class _MockPreviewBitcoinFeePresetsUsecase extends Mock
 class _MockCheckLiquidConsolidationUsecase extends Mock
     implements CheckLiquidConsolidationUsecase {}
 
+class _MockTryLiquidDirectPayUsecase extends Mock
+    implements TryLiquidDirectPayUsecase {}
+
 class _FakeNewLabel extends Fake implements NewLabel {}
 
 /// Test seam: [SendCubit]'s payjoin watcher ([_watchPayjoin]) is private and
@@ -181,6 +185,7 @@ class _TestableSendCubit extends SendCubit {
     required super.previewBitcoinFeeUsecase,
     required super.previewBitcoinFeePresetsUsecase,
     required super.checkLiquidConsolidationUsecase,
+    required super.tryLiquidDirectPayUsecase,
   });
 
   void setStateForTest(SendState state) => emit(state);
@@ -266,6 +271,7 @@ void main() {
   late _MockPreviewBitcoinFeeUsecase previewBitcoinFeeUsecase;
   late _MockPreviewBitcoinFeePresetsUsecase previewBitcoinFeePresetsUsecase;
   late _MockCheckLiquidConsolidationUsecase checkLiquidConsolidationUsecase;
+  late _MockTryLiquidDirectPayUsecase tryLiquidDirectPayUsecase;
 
   late StreamController<Payjoin> payjoinEvents;
 
@@ -304,6 +310,7 @@ void main() {
     previewBitcoinFeeUsecase: previewBitcoinFeeUsecase,
     previewBitcoinFeePresetsUsecase: previewBitcoinFeePresetsUsecase,
     checkLiquidConsolidationUsecase: checkLiquidConsolidationUsecase,
+    tryLiquidDirectPayUsecase: tryLiquidDirectPayUsecase,
   );
 
   /// Precondition state that makes [SendState.willAttemptPayjoin] true and
@@ -367,6 +374,7 @@ void main() {
     previewBitcoinFeeUsecase = _MockPreviewBitcoinFeeUsecase();
     previewBitcoinFeePresetsUsecase = _MockPreviewBitcoinFeePresetsUsecase();
     checkLiquidConsolidationUsecase = _MockCheckLiquidConsolidationUsecase();
+    tryLiquidDirectPayUsecase = _MockTryLiquidDirectPayUsecase();
 
     payjoinEvents = StreamController<Payjoin>.broadcast();
 

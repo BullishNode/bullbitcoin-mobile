@@ -84,6 +84,17 @@ void main() {
       expect(FormatAmount.fiat(1000, 'USD'), '1,000.00 USD');
       expect(FormatAmount.fiat(1000.50, 'USD'), '1,000.50 USD');
       expect(FormatAmount.fiat(1234.56, 'EUR'), '1,234.56 EUR');
+      expect(FormatAmount.fiat(1000, 'COP'), '1,000 COP');
+    });
+
+    test('formats canonical minor units without assuming two decimals', () {
+      expect(FormatAmount.fiatMinor(1234, 'CAD'), '12.34 CAD');
+      expect(FormatAmount.fiatMinor(1234, 'CRC'), '1,234 CRC');
+      expect(FormatAmount.fiatMinor(1234, 'COP'), '1,234 COP');
+      expect(FormatAmount.fiatMinorValue(1234, 'CAD'), '12.34');
+      expect(FormatAmount.fiatMinorValue(1234, 'CRC'), '1234');
+      expect(FormatAmount.fiatMinorValue(1234, 'COP'), '1234');
+      expect(FormatAmount.fiatMinorValue(-5, 'CAD'), '-0.05');
     });
   });
 }

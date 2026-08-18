@@ -8,17 +8,17 @@ import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/automatic_fallback/public/automatic_fallback_facade.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
-import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/find_get_paid_payment_page_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/find_get_paid_pos_terminal_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_get_paid_btcpay_connection_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_get_paid_fiat_settlement_summary_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/ensure_get_paid_automatic_fallback_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/ensure_get_paid_product_wallet_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/find_get_paid_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/find_get_paid_pos_terminal_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_get_paid_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_get_paid_fiat_settlement_summary_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_lightning_registration_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/load_get_paid_invoices_overview_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/load_get_paid_product_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_paid_fallback_attention_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_lightning_registration_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/load_get_paid_invoices_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/load_get_paid_product_overview_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
@@ -772,9 +772,35 @@ void main() {
 
     expect(cubit.state.hasLightningAddress, isTrue);
     expect(cubit.state.btcpayConnection, isNull);
+    expect(cubit.state.btcpayUnavailable, isTrue);
     expect(cubit.state.error, isNotNull);
     await cubit.close();
   });
+
+  test(
+    'a failed refresh clears a previously active BTCPay connection',
+    () async {
+      var available = true;
+      final cubit = _cubit(
+        connection: () async => available
+            ? Ok<BtcpayConnection?, BtcpayFailure>(_connection())
+            : const Err<BtcpayConnection?, BtcpayFailure>(
+                BtcpayStorageFailure(),
+              ),
+      );
+
+      await cubit.refresh();
+      expect(cubit.state.hasBtcpayConnection, isTrue);
+
+      available = false;
+      await cubit.refresh();
+
+      expect(cubit.state.btcpayConnection, isNull);
+      expect(cubit.state.hasBtcpayConnection, isFalse);
+      expect(cubit.state.btcpayUnavailable, isTrue);
+      await cubit.close();
+    },
+  );
 
   test('nym-keyed products are not probed without a nym', () async {
     var pageProbed = false;

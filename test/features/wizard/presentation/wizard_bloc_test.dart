@@ -4,9 +4,9 @@ import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
 import 'package:bb_mobile/features/wizard/domain/wizard_failure.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/mark_wizard_complete_usecase.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/save_metadata_backup_choice_usecase.dart';
-import 'package:bb_mobile/features/wizard/domain/usecase/save_pending_wizard_choices_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/mark_wizard_complete_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/save_metadata_backup_choice_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecases/save_pending_wizard_choices_usecase.dart';
 import 'package:bb_mobile/features/wizard/presentation/bloc/wizard_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 

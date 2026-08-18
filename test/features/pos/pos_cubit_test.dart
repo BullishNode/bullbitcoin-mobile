@@ -24,7 +24,10 @@ void main() {
       updateWalletBehavior: updateWalletBehavior.execute,
     );
     return PosCubit(
-      facade: facade,
+      find: facade.find,
+      provision: facade.provision,
+      archive: facade.archive,
+      supportedCurrencies: facade.supportedCurrencies,
       getPermanentName: permanentName,
       claimNym: claimNym,
       getWalletBehavior: GetPosWalletBehaviorUsecase(getPaidSettings: settings),
@@ -179,6 +182,13 @@ void main() {
       await cubit.load();
 
       expect(cubit.state.status, PosStatus.loadFailed);
+    });
+
+    test('programmer errors during load propagate', () async {
+      permanentName.error = StateError('broken permanent-name adapter');
+      final cubit = build();
+
+      await expectLater(cubit.load(), throwsA(isA<StateError>()));
     });
 
     test('keeps an unavailable wallet read distinct from absence', () async {
@@ -364,6 +374,21 @@ void main() {
       expect(cubit.state.submitting, isFalse);
       expect(cubit.state.terminalUrl, 'https://bullpay.ca/alice/pos');
     });
+
+    test(
+      'does not convert a post-provision programmer error into UI failure',
+      () async {
+        facade.terminal = null;
+        final cubit = build();
+        await cubit.load();
+        cubit.labelChanged('My Till');
+        facade.provisionedTerminal = buildTerminal();
+        walletBehaviors.error = StateError('broken wallet behavior adapter');
+
+        await expectLater(cubit.provision(), throwsA(isA<StateError>()));
+        expect(facade.provisionCallCount, 1);
+      },
+    );
 
     test('surfaces an uncertain submission failure', () async {
       facade.terminal = null;

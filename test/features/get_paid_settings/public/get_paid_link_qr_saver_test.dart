@@ -14,10 +14,18 @@ void main() {
     expect(outcome, QrImageSaveOutcome.cancelled);
   });
 
-  test('failed when the write throws', () async {
+  test('failed when the write throws a recoverable exception', () async {
     final outcome = await mapSaveDialogResult(
       () async => throw Exception('io error'),
     );
     expect(outcome, QrImageSaveOutcome.failed);
+  });
+
+  test('does not convert programmer errors into save failures', () async {
+    final future = mapSaveDialogResult(
+      () async => throw StateError('broken save adapter'),
+    );
+
+    await expectLater(future, throwsA(isA<StateError>()));
   });
 }

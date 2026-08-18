@@ -2,13 +2,14 @@ import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_config.dart';
-import 'package:bb_mobile/features/invoices/application/commands/invoice_commands.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_commands.dart';
 import 'package:bb_mobile/features/invoices/application/ports/invoices_pay_service_port.dart';
-import 'package:bb_mobile/features/invoices/application/results/invoice_results.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_results.dart';
 import 'package:bb_mobile/features/invoices/domain/bullnym_failure_mapping.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_fallback_supervision.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_payment_event.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_payment_summary.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_payer_amount.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_quote.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/invoice_status_snapshot.dart';
@@ -199,6 +200,15 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
           status.paidAtUnix != null ||
           status.paidAmountSat != null ||
           _statusCarriesPaymentEvidence(invoiceStatus);
+      final acceptsInitialPayment =
+          !hasPaymentEvidence &&
+          (status.acceptingPayments ?? invoiceStatus == InvoiceStatus.unpaid);
+      if (hasPaymentEvidence && status.acceptingPayments == true) {
+        log.warning(
+          'Bullnym invoice status admitted payment after positive evidence; '
+          'hiding payer instructions',
+        );
+      }
       final mappedSettlementState = invoiceSettlementStateFromWire(
         settlementStatus: status.settlementStatus,
         presentationStatus: status.presentationStatus,
@@ -247,6 +257,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
           fiatAmountMinor: status.fiatAmountMinor,
           fiatCurrency: status.fiatCurrency,
           remainingAmountSat: status.remainingAmountSat,
+          acceptingPayments: status.acceptingPayments,
+          topUpAllowed: status.topUpAllowed ?? false,
           paymentToleranceSat: status.paymentToleranceSat,
           rateMinorPerBtc: status.rateMinorPerBtc,
           creationRateMinorPerBtc: status.creationRateMinorPerBtc,
@@ -257,32 +269,42 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
               ? null
               : _fromUnix(status.paidAtUnix!),
           paidAmountSat: status.paidAmountSat,
-          lightningPr: status.lightningPr,
+          lightningPr: acceptsInitialPayment ? status.lightningPr : null,
           lightningPayerAmount: _toPayerAmount(
             PaymentMethod.lightning,
-            payerAmountSat: status.lightningAmountSat,
+            payerAmountSat: acceptsInitialPayment
+                ? status.lightningAmountSat
+                : null,
             merchantTargetAmountSat: status.remainingAmountSat,
           ),
-          liquidAddress: status.liquidAddress,
+          liquidAddress: acceptsInitialPayment ? status.liquidAddress : null,
           liquidPayerAmount: _toPayerAmount(
             PaymentMethod.liquid,
-            payerAmountSat: status.liquidAmountSat,
+            payerAmountSat: acceptsInitialPayment
+                ? status.liquidAmountSat
+                : null,
             merchantTargetAmountSat: status.remainingAmountSat,
           ),
-          bitcoinAddress: status.bitcoinAddress,
-          bitcoinChainAddress: status.bitcoinChainAddress,
-          bitcoinChainBip21: status.bitcoinChainBip21,
+          bitcoinAddress: acceptsInitialPayment ? status.bitcoinAddress : null,
+          bitcoinChainAddress: acceptsInitialPayment
+              ? status.bitcoinChainAddress
+              : null,
+          bitcoinChainBip21: acceptsInitialPayment
+              ? status.bitcoinChainBip21
+              : null,
           bitcoinChainPayerAmount: _toPayerAmount(
             PaymentMethod.btc,
-            payerAmountSat: status.bitcoinChainAmountSat,
+            payerAmountSat: acceptsInitialPayment
+                ? status.bitcoinChainAmountSat
+                : null,
             merchantTargetAmountSat: status.remainingAmountSat,
           ),
           acceptBtc: status.acceptBtc,
           acceptLn: status.acceptLn,
           acceptLiquid: status.acceptLiquid,
-          quoteRailAvailability: _toQuoteRailAvailability(
-            status.quoteRailAvailability,
-          ),
+          quoteRailAvailability: acceptsInitialPayment
+              ? _toQuoteRailAvailability(status.quoteRailAvailability)
+              : null,
           paymentEvents: paymentEvents,
           presentationMarksLatePayment: invoicePresentationMarksLate(
             status.presentationStatus,
@@ -298,11 +320,21 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
 
   Invoice _toInvoice(BullnymInvoiceListItem item) {
     final status = _invoiceStatus(item.status, operation: 'list');
+    final paymentSummary = _toPaymentSummary(item.paymentSummary);
     final hasPaymentEvidence =
+        (paymentSummary?.hasPaymentEvidence ?? false) ||
         item.paidVia != null ||
         item.paidAtUnix != null ||
         item.paidAmountSat != null ||
         _statusCarriesPaymentEvidence(status);
+    if (hasPaymentEvidence &&
+        (item.acceptingPayments == true ||
+            paymentSummary?.acceptingPayments == true)) {
+      log.warning(
+        'Bullnym invoice list admitted payment after positive evidence; '
+        'closing admission locally',
+      );
+    }
     return Invoice(
       id: _invoiceId(item.id),
       nymOwner: item.nymOwner,
@@ -318,6 +350,10 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       ),
       amountSat: item.amountSat,
       remainingAmountSat: item.remainingAmountSat,
+      acceptingPayments:
+          item.acceptingPayments ?? paymentSummary?.acceptingPayments,
+      topUpAllowed: item.topUpAllowed ?? paymentSummary?.topUpAllowed ?? false,
+      paymentSummary: paymentSummary,
       fiatAmountMinor: item.fiatAmountMinor,
       fiatCurrency: item.fiatCurrency,
       memo: item.memo,
@@ -331,6 +367,41 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
       paidVia: PaymentMethod.fromWire(item.paidVia),
       paidAt: item.paidAtUnix == null ? null : _fromUnix(item.paidAtUnix!),
       paidAmountSat: item.paidAmountSat,
+    );
+  }
+
+  InvoicePaymentSummary? _toPaymentSummary(
+    BullnymMerchantPaymentSummary? summary,
+  ) {
+    if (summary == null) return null;
+    final fiat = summary.fiat;
+    return InvoicePaymentSummary(
+      observedAmountSat: summary.observedAmountSat,
+      creditedAmountSat: summary.creditedAmountSat,
+      remainingAmountSat: summary.remainingAmountSat,
+      excessAmountSat: summary.excessAmountSat,
+      logicalPaymentCount: summary.logicalPaymentCount,
+      multiplePayments: summary.multiplePayments,
+      latePaymentCount: summary.latePaymentCount,
+      hasLatePayment: summary.hasLatePayment,
+      firstPaymentAt: summary.firstPaymentAtUnix == null
+          ? null
+          : _fromUnix(summary.firstPaymentAtUnix!),
+      lastPaymentAt: summary.lastPaymentAtUnix == null
+          ? null
+          : _fromUnix(summary.lastPaymentAtUnix!),
+      acceptingPayments: summary.acceptingPayments,
+      topUpAllowed: summary.topUpAllowed,
+      requiresMerchantAction: summary.requiresMerchantAction,
+      attentionReasons: summary.attentionReasons,
+      fiat: fiat == null
+          ? null
+          : InvoiceFiatPaymentSummary(
+              currency: fiat.currency,
+              targetAmountMinor: fiat.targetAmountMinor,
+              creditedAmountMinor: fiat.creditedAmountMinor,
+              remainingAmountMinor: fiat.remainingAmountMinor,
+            ),
     );
   }
 

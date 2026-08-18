@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:bb_mobile/core/wallet/ui/wallet_behavior_switches.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/get_paid_wallet_behavior.dart';
+import 'package:bull_ui/bull_ui.dart';
 import 'package:flutter/material.dart';
 
 /// The reserved product wallet's two behavior switches — auto-sweep and
@@ -38,7 +38,7 @@ class GetPaidWalletBehaviorCard extends StatelessWidget {
       child: Column(
         children: [
           ListTile(title: Text(loc.getPaidWalletSettingsSectionTitle)),
-          WalletBehaviorSwitches(
+          BullWalletBehaviorSwitches(
             autoSweepSwitchKey: const Key('get_paid_auto_sweep_switch'),
             hideOnHomeSwitchKey: const Key('get_paid_hide_on_home_switch'),
             hideOnHome: behavior.hideOnHome,
@@ -49,6 +49,8 @@ class GetPaidWalletBehaviorCard extends StatelessWidget {
             autoSweepInfo: loc.getPaidWalletAutoSweepInfo,
             hideOnHomeLabel: loc.getPaidWalletHideOnHomeLabel,
             hideOnHomeInfo: loc.getPaidWalletHideOnHomeInfo,
+            hideOnHomeUnavailableInfo:
+                loc.getPaidWalletHideOnHomeNeedsAutoSweep,
             onAutoSweepChanged: onAutoSweepChanged,
             onHideOnHomeChanged: onHideOnHomeChanged,
           ),

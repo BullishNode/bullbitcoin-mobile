@@ -1,18 +1,12 @@
+export 'package:bb_mobile/features/wallet/public/wallet_routes.dart';
+
 import 'package:bb_mobile/features/onboarding/ui/onboarding_router.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
+import 'package:bb_mobile/features/wallet/public/wallet_routes.dart';
 import 'package:bb_mobile/features/wallet/ui/screens/wallet_detail_screen.dart';
 import 'package:bb_mobile/features/wallet/ui/screens/wallet_home_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-
-enum WalletRoute {
-  walletHome('/wallet'),
-  walletDetail('/wallet/:walletId');
-
-  const WalletRoute(this.path);
-
-  final String path;
-}
 
 class WalletRouter {
   static final walletHomeRoute = GoRoute(

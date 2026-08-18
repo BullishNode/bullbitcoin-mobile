@@ -7,17 +7,20 @@ import 'package:bb_mobile/features/automatic_fallback/public/automatic_fallback_
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
-import 'package:bb_mobile/features/get_paid/domain/find_get_paid_payment_page_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/find_get_paid_pos_terminal_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_get_paid_btcpay_connection_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_get_paid_fiat_settlement_summary_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/load_get_paid_invoices_overview_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/load_get_paid_product_overview_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_invoice_facts_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/look_up_get_paid_lightning_registration_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/find_get_paid_payment_page_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/find_get_paid_pos_terminal_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_get_paid_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_get_paid_fiat_settlement_summary_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/load_get_paid_invoices_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/load_get_paid_product_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_invoice_facts_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_lightning_registration_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/look_up_get_paid_transaction_usecase.dart';
 import 'package:bb_mobile/features/get_paid/get_paid_locator.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_invoice_facts_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_detail_cubit.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
@@ -101,9 +104,24 @@ void main() {
   });
 
   test('the detail card cubit resolves', () {
+    final transaction = GetPaidTransaction(
+      transactionId: '10000000-0000-4000-8000-000000000001',
+      source: GetPaidTransactionSource.lightningAddress,
+      invoiceId: null,
+      amountSat: 1000,
+      receivedAt: DateTime.utc(2026),
+      rail: GetPaidTransactionRail.lightning,
+      settlementState: GetPaidSettlementState.pending,
+      late: false,
+      comment: null,
+    );
     expect(
       locator<GetPaidInvoiceFactsCubit>(),
       isA<GetPaidInvoiceFactsCubit>(),
+    );
+    expect(
+      locator<GetPaidTransactionDetailCubit>(param1: transaction),
+      isA<GetPaidTransactionDetailCubit>(),
     );
   });
 
@@ -131,6 +149,10 @@ void main() {
     expect(
       locator<LookUpGetPaidInvoiceFactsUsecase>(),
       isA<LookUpGetPaidInvoiceFactsUsecase>(),
+    );
+    expect(
+      locator<LookUpGetPaidTransactionUsecase>(),
+      isA<LookUpGetPaidTransactionUsecase>(),
     );
     expect(
       locator<LoadGetPaidProductOverviewUsecase>(),

@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade
 import 'package:bb_mobile/features/payment_page/domain/payment_page_error.dart';
 import 'package:bb_mobile/features/payment_page/domain/payment_page_validation.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
+import 'package:bb_mobile/features/payment_page/presentation/payment_page_exception_l10n.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -103,14 +104,28 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
         },
         builder: (context, state) {
           _syncControllers(state);
+          final hasUnsavedChanges =
+              _editing && _snapshot != null && !_snapshot!.matches(state);
           return PopScope(
-            canPop: !state.submitting,
-            onPopInvokedWithResult: (didPop, _) {
-              if (didPop || !state.submitting) return;
-              SnackBarUtils.showSnackBar(
-                context,
-                context.loc.paymentPageOperationInProgress,
+            canPop: !state.submitting && !hasUnsavedChanges,
+            onPopInvokedWithResult: (didPop, _) async {
+              if (didPop) return;
+              if (state.submitting) {
+                SnackBarUtils.showSnackBar(
+                  context,
+                  context.loc.paymentPageOperationInProgress,
+                );
+                return;
+              }
+              if (!hasUnsavedChanges) return;
+              final discarded = await _cancelEdit(
+                context.read<PaymentPageCubit>(),
+                state,
               );
+              if (!discarded || !mounted) return;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) Navigator.of(context).pop();
+              });
             },
             child: Scaffold(
               appBar: AppBar(title: Text(context.loc.paymentPageScreenTitle)),
@@ -517,7 +532,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
   /// still open — the nym is claimed but no alias is. With both already claimed
   /// there is nothing to choose, so nothing is asked: offering "use my nym
   /// instead" needs the server's per-surface advertised-name preference
-  /// (BullishNode/bullnym#277) and is out of scope until then.
+  /// capability and is out of scope until that wire contract exists.
   Widget? _namingStep(
     BuildContext context,
     PaymentPageState state,
@@ -689,7 +704,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     });
   }
 
-  Future<void> _cancelEdit(
+  Future<bool> _cancelEdit(
     PaymentPageCubit cubit,
     PaymentPageState state,
   ) async {
@@ -711,15 +726,16 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           ],
         ),
       );
-      if (!mounted || discard != true) return;
+      if (!mounted || discard != true) return false;
       // Reload restores the persisted values, discarding the unsaved edits.
       await cubit.load();
-      if (!mounted) return;
+      if (!mounted) return false;
     }
     setState(() {
       _editing = false;
       _snapshot = null;
     });
+    return true;
   }
 
   Future<void> _setOnline({

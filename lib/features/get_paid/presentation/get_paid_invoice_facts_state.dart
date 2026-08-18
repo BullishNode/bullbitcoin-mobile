@@ -25,8 +25,14 @@ final class GetPaidInvoiceFactsLoading extends GetPaidInvoiceFactsState {
 /// The invoice state, as the invoices boundary reported it.
 final class GetPaidInvoiceFactsData extends GetPaidInvoiceFactsState {
   final GetPaidInvoiceFacts invoice;
+  final bool isRefreshing;
+  final bool refreshFailed;
 
-  const GetPaidInvoiceFactsData(this.invoice);
+  const GetPaidInvoiceFactsData(
+    this.invoice, {
+    this.isRefreshing = false,
+    this.refreshFailed = false,
+  });
 }
 
 /// The read was attempted and failed; the card says so.

@@ -54,7 +54,7 @@ class LightningAddressActivationCubit
     late final bool permanentNamesSupported;
     try {
       permanentNamesSupported = await _getCapability.execute();
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       log.warning(
         'Failed to load Bullnym permanent-name capability',
         error: error,
@@ -135,7 +135,7 @@ class LightningAddressActivationCubit
               walletBehaviorRead is LightningAddressWalletBehaviorUnavailable,
         ),
       );
-    } catch (_) {
+    } on Exception catch (_) {
       if (_isStale(operationId)) return;
       // An old/unknown policy never enables claim or management controls. A
       // failed legacy lookup therefore degrades to a hidden, usable feature.
@@ -156,7 +156,7 @@ class LightningAddressActivationCubit
         readiness,
         walletBehaviorRead: walletBehaviorRead,
       );
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       if (_isStale(operationId)) return;
       final cause = _lightningAddressCause(error);
       if (cause?.code == 'NymNotFound' && !hadPermanentNym) {
@@ -311,7 +311,7 @@ class LightningAddressActivationCubit
         operationId: operationId,
         walletBehaviorRead: walletBehaviorRead,
       );
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       log.warning(
         'Failed to claim permanent Lightning Address nym',
         error: error,
@@ -380,7 +380,7 @@ class LightningAddressActivationCubit
         operationId: operationId,
         walletBehaviorRead: walletBehaviorRead,
       );
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       log.warning(
         online
             ? 'Failed to reactivate permanent Lightning Address'
@@ -453,7 +453,7 @@ class LightningAddressActivationCubit
         walletBehaviorRead: walletBehaviorRead,
         failure: LightningAddressActivationFailure.alreadyAssigned,
       );
-    } catch (lookupError, stack) {
+    } on Exception catch (lookupError, stack) {
       log.warning(
         'Failed to reconcile owned permanent nym after conflict',
         error: lookupError,

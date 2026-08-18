@@ -56,6 +56,7 @@ class GetPaidDashboardState {
   final GetPaidProductStatus posStatus;
   final GetPaidDashboardCardStatus invoicesStatus;
   final GetPaidDashboardCardStatus btcpayStatus;
+  final bool btcpayUnavailable;
 
   /// True when a product is ACTIVE but its fixed-derivation wallet could not be
   /// re-derived locally (contract #4 Q9/Q9b self-heal failed) — the card shows a
@@ -96,6 +97,7 @@ class GetPaidDashboardState {
     this.posStatus = GetPaidProductStatus.loading,
     this.invoicesStatus = GetPaidDashboardCardStatus.loading,
     this.btcpayStatus = GetPaidDashboardCardStatus.loading,
+    this.btcpayUnavailable = false,
     this.fiatSettlement,
     this.fiatSettlementUnavailable = false,
     this.lightningWalletWarning = false,
@@ -134,6 +136,7 @@ class GetPaidDashboardState {
     GetPaidProductStatus? posStatus,
     GetPaidDashboardCardStatus? invoicesStatus,
     GetPaidDashboardCardStatus? btcpayStatus,
+    bool? btcpayUnavailable,
     Map<GetPaidDashboardSettlementProduct, GetPaidDashboardSettlementConfig>?
     fiatSettlement,
     bool clearFiatSettlement = false,
@@ -165,6 +168,7 @@ class GetPaidDashboardState {
       posStatus: posStatus ?? this.posStatus,
       invoicesStatus: invoicesStatus ?? this.invoicesStatus,
       btcpayStatus: btcpayStatus ?? this.btcpayStatus,
+      btcpayUnavailable: btcpayUnavailable ?? this.btcpayUnavailable,
       fiatSettlement: clearFiatSettlement
           ? null
           : fiatSettlement ?? this.fiatSettlement,

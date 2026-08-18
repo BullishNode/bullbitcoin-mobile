@@ -5,6 +5,7 @@ import 'package:bb_mobile/core/seed/data/models/seed_store_type_model.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed_store_type.dart';
 import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/seed/domain/usecases/get_all_seeds_usecase.dart';
+import 'package:bb_mobile/core/storage/app_data_directory.dart';
 import 'package:bb_mobile/core/storage/data/datasources/key_value_storage/impl/secure_storage_data_source_impl.dart';
 import 'package:bb_mobile/core/storage/data/datasources/key_value_storage/impl/secure_storage_legacy_datasource_impl.dart';
 import 'package:bb_mobile/core/storage/data/datasources/key_value_storage/key_value_storage_datasource.dart';
@@ -25,7 +26,6 @@ import 'package:flutter_secure_storage_legacy/flutter_secure_storage.dart'
     as fss9;
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 class StorageLocator {
   static Future<void> registerDatasources(GetIt locator) async {
@@ -34,14 +34,19 @@ class StorageLocator {
       () => seedStoreTypeDatasource,
     );
 
-    final seedStoreModel = await seedStoreTypeDatasource.read();
+    final isolatedTestProfile = AppDataDirectory.isIsolatedTestProfile;
+    final seedStoreModel = isolatedTestProfile
+        ? null
+        : await seedStoreTypeDatasource.read();
     final existingLibrary = seedStoreModel?.toEntity().storageLibrary;
 
     log.info('SeedStoreType flag on startup: $existingLibrary');
 
     late final KeyValueStorageDatasource<String> secureStorageDatasource;
 
-    if (Platform.isAndroid) {
+    if (isolatedTestProfile) {
+      secureStorageDatasource = _EphemeralSecureStorageDatasource();
+    } else if (Platform.isAndroid) {
       // The FSS9/FSS10 hybrid fallback chain below exists solely to
       // recover 6.5.2 Android users whose wallet data lives in Jetpack
       // Security's EncryptedSharedPreferences (ESP, Tink-backed). ESP
@@ -93,7 +98,7 @@ class StorageLocator {
             // from a prior install exists, treat it as a silent failure and
             // route to FSS9.
             if (data.isEmpty) {
-              final docsDir = await getApplicationDocumentsDirectory();
+              final docsDir = await AppDataDirectory.resolve();
               final dbFile = File(
                 p.join(docsDir.path, 'bullbitcoin_sqlite.sqlite'),
               );
@@ -297,5 +302,37 @@ class StorageLocator {
         locator<WalletRepository>(),
       ),
     );
+  }
+}
+
+/// Process-local secure storage for the explicitly isolated integration
+/// profile. It is unreachable in normal builds because the profile define is
+/// absent, and prevents integration cleanup from deleting the OS keychain.
+final class _EphemeralSecureStorageDatasource
+    implements KeyValueStorageDatasource<String> {
+  final Map<String, String> _values = {};
+
+  @override
+  Future<void> saveValue({required String key, required String value}) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<Map<String, String>> getAll() async => Map.unmodifiable(_values);
+
+  @override
+  Future<String?> getValue(String key) async => _values[key];
+
+  @override
+  Future<bool> hasValue(String key) async => _values.containsKey(key);
+
+  @override
+  Future<void> deleteValue(String key) async {
+    _values.remove(key);
+  }
+
+  @override
+  Future<void> deleteAll() async {
+    _values.clear();
   }
 }

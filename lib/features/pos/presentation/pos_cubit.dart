@@ -1,18 +1,31 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:bb_mobile/core/utils/logger.dart';
+import 'package:bb_mobile/features/pos/domain/display_currency.dart';
+import 'package:bb_mobile/features/pos/domain/pos_error.dart';
+import 'package:bb_mobile/features/pos/domain/pos_terminal.dart';
+import 'package:bb_mobile/features/pos/domain/pos_validation.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_pos_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/update_pos_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/claim_pos_nym_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_pos_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
-import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// Drives the Point of Sale provisioning screen through the [PosFacade] and
-/// the feature-owned permanent-name read usecase. An [_operationId] guard makes
-/// double-taps and stale async completions inert. Holds no secrets or
-/// descriptor.
+typedef FindPosTerminal = Future<PosTerminal?> Function({required String nym});
+typedef ProvisionPosTerminal =
+    Future<PosTerminal> Function(PosProvisionCommand command);
+typedef ArchivePosTerminal = Future<PosTerminal?> Function();
+typedef GetPosCurrencies = Future<List<DisplayCurrency>> Function();
+
+/// Drives the Point of Sale provisioning screen through its feature-owned use
+/// cases. An [_operationId] guard makes double-taps and stale async completions
+/// inert. Holds no secrets or descriptor.
 class PosCubit extends Cubit<PosState> {
-  final PosFacade _facade;
+  final FindPosTerminal _find;
+  final ProvisionPosTerminal _provision;
+  final ArchivePosTerminal _archive;
+  final GetPosCurrencies _supportedCurrencies;
   final GetPosPermanentNameUsecase _getPermanentName;
   final ClaimPosNymUsecase _claimNym;
   final GetPosWalletBehaviorUsecase _getWalletBehavior;
@@ -20,12 +33,19 @@ class PosCubit extends Cubit<PosState> {
   int _operationId = 0;
 
   PosCubit({
-    required this._facade,
+    required FindPosTerminal find,
+    required ProvisionPosTerminal provision,
+    required ArchivePosTerminal archive,
+    required GetPosCurrencies supportedCurrencies,
     required this._getPermanentName,
     required this._claimNym,
     required this._getWalletBehavior,
     required this._updateWalletBehavior,
-  }) : super(const PosState());
+  }) : _find = find,
+       _provision = provision,
+       _archive = archive,
+       _supportedCurrencies = supportedCurrencies,
+       super(const PosState());
 
   Future<void> load() async {
     if (state.submitting) return;
@@ -49,7 +69,7 @@ class PosCubit extends Cubit<PosState> {
     final PosPermanentName permanentName;
     try {
       permanentName = await _getPermanentName.execute();
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning(
         'Point of Sale permanent-name probe failed',
         error: e,
@@ -110,8 +130,8 @@ class PosCubit extends Cubit<PosState> {
     var currencies = const <DisplayCurrency>[];
     var currenciesUnavailable = false;
     try {
-      currencies = await _facade.supportedCurrencies();
-    } catch (e, stack) {
+      currencies = await _supportedCurrencies();
+    } on Exception catch (e, stack) {
       log.warning(
         'Point of Sale currency fetch failed',
         error: e,
@@ -123,8 +143,8 @@ class PosCubit extends Cubit<PosState> {
 
     final PosTerminal? terminal;
     try {
-      terminal = await _facade.find(nym: nym);
-    } catch (e, stack) {
+      terminal = await _find(nym: nym);
+    } on Exception catch (e, stack) {
       log.warning('Point of Sale probe failed', error: e, trace: stack);
       if (_isStale(op)) return;
       emit(
@@ -200,7 +220,7 @@ class PosCubit extends Cubit<PosState> {
 
   Future<void> retryCurrencies() async {
     try {
-      final currencies = await _facade.supportedCurrencies();
+      final currencies = await _supportedCurrencies();
       if (isClosed) return;
       emit(
         state.copyWith(
@@ -211,7 +231,7 @@ class PosCubit extends Cubit<PosState> {
               : state.displayCurrency,
         ),
       );
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning(
         'Point of Sale currency retry failed',
         error: e,
@@ -264,7 +284,7 @@ class PosCubit extends Cubit<PosState> {
       if (_isStale(op)) return;
       emit(state.copyWith(claimingNym: false, nymDraft: ''));
       await load();
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning('Point of Sale nym claim failed', error: e, trace: stack);
       if (_isStale(op)) return;
       emit(
@@ -331,7 +351,7 @@ class PosCubit extends Cubit<PosState> {
       ),
     );
     try {
-      final terminal = await _facade.provision(command);
+      final terminal = await _provision(command);
       if (isClosed || _isStale(op)) return;
       if (terminal.nym != state.nym || terminal.alias != expectedAlias) {
         throw PosProvisionException.submission(
@@ -375,7 +395,7 @@ class PosCubit extends Cubit<PosState> {
           clearInvalidField: e.kind != PosErrorKind.aliasTaken,
         ),
       );
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning('Point of Sale provision failed', error: e, trace: stack);
       if (isClosed || _isStale(op)) return;
       emit(state.copyWith(submitting: false, failure: _asPosException(e)));
@@ -387,11 +407,11 @@ class PosCubit extends Cubit<PosState> {
     final op = ++_operationId;
     emit(state.copyWith(submitting: true, clearFailure: true));
     try {
-      await _facade.archive();
+      await _archive();
       if (isClosed || _isStale(op)) return;
       emit(state.copyWith(submitting: false));
       await load();
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       log.warning('Point of Sale archive failed', error: e, trace: stack);
       if (isClosed || _isStale(op)) return;
       emit(state.copyWith(submitting: false, failure: _asPosException(e)));

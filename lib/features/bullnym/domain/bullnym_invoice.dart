@@ -65,6 +65,60 @@ class BullnymCancelInvoiceResponse {
   });
 }
 
+/// The optional fiat sub-projection inside the authenticated merchant payment
+/// summary. Values use the invoice face currency's minor unit.
+class BullnymMerchantFiatPaymentSummary {
+  final String currency;
+  final int targetAmountMinor;
+  final int creditedAmountMinor;
+  final int remainingAmountMinor;
+
+  const BullnymMerchantFiatPaymentSummary({
+    required this.currency,
+    required this.targetAmountMinor,
+    required this.creditedAmountMinor,
+    required this.remainingAmountMinor,
+  });
+}
+
+/// Authenticated, merchant-only payment accounting from Bullnym. Mobile
+/// preserves this projection and never reconstructs it from settlement rows.
+class BullnymMerchantPaymentSummary {
+  final int observedAmountSat;
+  final int creditedAmountSat;
+  final int remainingAmountSat;
+  final int excessAmountSat;
+  final int logicalPaymentCount;
+  final bool multiplePayments;
+  final int latePaymentCount;
+  final bool hasLatePayment;
+  final int? firstPaymentAtUnix;
+  final int? lastPaymentAtUnix;
+  final bool acceptingPayments;
+  final bool topUpAllowed;
+  final bool requiresMerchantAction;
+  final List<String> attentionReasons;
+  final BullnymMerchantFiatPaymentSummary? fiat;
+
+  const BullnymMerchantPaymentSummary({
+    required this.observedAmountSat,
+    required this.creditedAmountSat,
+    required this.remainingAmountSat,
+    required this.excessAmountSat,
+    required this.logicalPaymentCount,
+    required this.multiplePayments,
+    required this.latePaymentCount,
+    required this.hasLatePayment,
+    this.firstPaymentAtUnix,
+    this.lastPaymentAtUnix,
+    required this.acceptingPayments,
+    required this.topUpAllowed,
+    required this.requiresMerchantAction,
+    required this.attentionReasons,
+    this.fiat,
+  });
+}
+
 /// One row of the npub-keyed list (`InvoiceListItem`). `nymOwner` is null for
 /// unlinked invoices; the `paid*` fields are populated only once paid.
 class BullnymInvoiceListItem {
@@ -77,6 +131,8 @@ class BullnymInvoiceListItem {
   final String settlementStatus;
   final int amountSat;
   final int remainingAmountSat;
+  final bool? acceptingPayments;
+  final bool? topUpAllowed;
   final int? fiatAmountMinor;
   final String? fiatCurrency;
   final String? memo;
@@ -90,6 +146,7 @@ class BullnymInvoiceListItem {
   final String? paidVia;
   final int? paidAtUnix;
   final int? paidAmountSat;
+  final BullnymMerchantPaymentSummary? paymentSummary;
 
   const BullnymInvoiceListItem({
     required this.id,
@@ -101,6 +158,8 @@ class BullnymInvoiceListItem {
     required this.settlementStatus,
     required this.amountSat,
     required this.remainingAmountSat,
+    this.acceptingPayments,
+    this.topUpAllowed,
     this.fiatAmountMinor,
     this.fiatCurrency,
     this.memo,
@@ -114,6 +173,7 @@ class BullnymInvoiceListItem {
     this.paidVia,
     this.paidAtUnix,
     this.paidAmountSat,
+    this.paymentSummary,
   });
 }
 
@@ -176,6 +236,8 @@ class BullnymInvoiceStatus {
   final int? fiatAmountMinor;
   final String? fiatCurrency;
   final int remainingAmountSat;
+  final bool? acceptingPayments;
+  final bool? topUpAllowed;
   final int paymentToleranceSat;
   final int? rateMinorPerBtc;
   final int? creationRateMinorPerBtc;
@@ -207,6 +269,8 @@ class BullnymInvoiceStatus {
     this.fiatAmountMinor,
     this.fiatCurrency,
     required this.remainingAmountSat,
+    this.acceptingPayments,
+    this.topUpAllowed,
     required this.paymentToleranceSat,
     this.rateMinorPerBtc,
     this.creationRateMinorPerBtc,

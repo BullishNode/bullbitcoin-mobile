@@ -6,7 +6,7 @@ part 'order.freezed.dart';
 enum FiatCurrency {
   usd('USD', decimals: 2, symbol: '\$'),
   cad('CAD', decimals: 2, symbol: '\$'),
-  crc('CRC', decimals: 2, symbol: '₡'),
+  crc('CRC', decimals: 0, symbol: '₡'),
   eur('EUR', decimals: 2, symbol: '€'),
   mxn('MXN', decimals: 2, symbol: '\$'),
   ars('ARS', decimals: 2, symbol: '\$'),
@@ -17,25 +17,18 @@ enum FiatCurrency {
   final int decimals;
   final String symbol;
 
-  static FiatCurrency fromCode(String code) {
-    switch (code.toUpperCase()) {
-      case 'USD':
-        return FiatCurrency.usd;
-      case 'CAD':
-        return FiatCurrency.cad;
-      case 'CRC':
-        return FiatCurrency.crc;
-      case 'EUR':
-        return FiatCurrency.eur;
-      case 'MXN':
-        return FiatCurrency.mxn;
-      case 'ARS':
-        return FiatCurrency.ars;
-      case 'COP':
-        return FiatCurrency.cop;
-      default:
-        throw Exception('Unknown FiatCurrency: $code');
+  static FiatCurrency? tryFromCode(String code) {
+    final normalized = code.toUpperCase();
+    for (final currency in values) {
+      if (currency.code == normalized) return currency;
     }
+    return null;
+  }
+
+  static FiatCurrency fromCode(String code) {
+    final currency = tryFromCode(code);
+    if (currency != null) return currency;
+    throw Exception('Unknown FiatCurrency: $code');
   }
 }
 

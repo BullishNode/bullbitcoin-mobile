@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
-import 'package:bb_mobile/features/get_paid/domain/list_get_paid_transactions_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/list_get_paid_transactions_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 

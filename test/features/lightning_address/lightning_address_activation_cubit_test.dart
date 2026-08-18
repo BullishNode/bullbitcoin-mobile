@@ -68,6 +68,13 @@ void main() {
       expect(deactivate.nyms, isEmpty);
     });
 
+    test('programmer errors during legacy status lookup propagate', () async {
+      capability.supported = false;
+      lookup.error = StateError('broken readiness adapter');
+
+      await expectLater(cubit.load(), throwsA(isA<StateError>()));
+    });
+
     test('legacy active status stays visible but cannot be managed', () async {
       capability.supported = false;
       lookup.result = const LightningAddressReceiveReadiness(
@@ -254,6 +261,18 @@ void main() {
       expect(cubit.state.autoSweepConfirmed, isTrue);
       expect(lookup.calls, 2, reason: 'initial lookup plus post-claim refresh');
     });
+
+    test(
+      'does not convert a post-claim programmer error into UI failure',
+      () async {
+        await _loadFirstClaim(cubit, lookup);
+        cubit.nymChanged('alice');
+        walletBehaviors.error = StateError('broken wallet behavior adapter');
+
+        await expectLater(cubit.submit(), throwsA(isA<StateError>()));
+        expect(activate.nyms, ['alice']);
+      },
+    );
 
     test('invalid and reserved nyms never reach registration', () async {
       await _loadFirstClaim(cubit, lookup);

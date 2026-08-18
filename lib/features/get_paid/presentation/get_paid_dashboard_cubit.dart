@@ -1,11 +1,11 @@
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_get_paid_btcpay_connection_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/get_get_paid_fiat_settlement_summary_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/ensure_get_paid_product_wallet_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_get_paid_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/get_get_paid_fiat_settlement_summary_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_dashboard_snapshot.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_product_probe.dart';
-import 'package:bb_mobile/features/get_paid/domain/load_get_paid_invoices_overview_usecase.dart';
-import 'package:bb_mobile/features/get_paid/domain/load_get_paid_product_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/load_get_paid_invoices_overview_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/usecases/load_get_paid_product_overview_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -50,6 +50,8 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
         invoicesStatus: GetPaidDashboardCardStatus.loading,
         invoicesUnavailable: false,
         btcpayStatus: GetPaidDashboardCardStatus.loading,
+        clearBtcpayConnection: true,
+        btcpayUnavailable: false,
         // Settlement is server-read-only: drop any prior summary so a stale
         // badge is never shown while the fresh read is in flight.
         clearFiatSettlement: true,
@@ -108,6 +110,7 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
             state.copyWith(
               btcpayConnection: row,
               btcpayStatus: GetPaidDashboardCardStatus.loaded,
+              btcpayUnavailable: false,
             ),
           );
         case GetPaidProductAbsent():
@@ -115,13 +118,20 @@ class GetPaidDashboardCubit extends Cubit<GetPaidDashboardState> {
             state.copyWith(
               clearBtcpayConnection: true,
               btcpayStatus: GetPaidDashboardCardStatus.loaded,
+              btcpayUnavailable: false,
             ),
           );
         case GetPaidProductUnavailable():
           recordFailure(
             'Get Paid dashboard could not load the BTCPay connection',
           );
-          emit(state.copyWith(btcpayStatus: GetPaidDashboardCardStatus.loaded));
+          emit(
+            state.copyWith(
+              clearBtcpayConnection: true,
+              btcpayStatus: GetPaidDashboardCardStatus.loaded,
+              btcpayUnavailable: true,
+            ),
+          );
       }
     }();
 

@@ -23,6 +23,7 @@ class GetPaidTransactionHistoryScreen extends StatefulWidget {
   State<GetPaidTransactionHistoryScreen> createState() =>
       _GetPaidTransactionHistoryScreenState();
 }
+
 class _GetPaidTransactionHistoryScreenState
     extends State<GetPaidTransactionHistoryScreen> {
   @override
