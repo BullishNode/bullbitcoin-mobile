@@ -1057,6 +1057,10 @@
   "@invoiceRailsLabel": {
     "description": "Section header for the invoice payment-rail toggles"
   },
+  "invoiceEditRailsButton": "Edit accepted payment methods",
+  "@invoiceEditRailsButton": {
+    "description": "Button that reveals the collapsed invoice payment-rail toggles on the create page"
+  },
   "invoiceAcceptLn": "Lightning",
   "@invoiceAcceptLn": {
     "description": "Toggle to accept Lightning payment"
@@ -1121,6 +1125,10 @@
   "invoiceAmountLabel": "Amount",
   "@invoiceAmountLabel": {
     "description": "Label for the invoice amount row on the detail screen"
+  },
+  "invoiceAmountUnavailable": "Amount unavailable",
+  "@invoiceAmountUnavailable": {
+    "description": "Fallback shown when an invoice carries no fiat face value and no positive satoshi target to headline."
   },
   "invoiceExpiresLabel": "Expires in",
   "@invoiceExpiresLabel": {
@@ -16811,6 +16819,10 @@
       }
     }
   },
+  "invoiceAwaitingConfirmation": "Payment detected — waiting for confirmation",
+  "@invoiceAwaitingConfirmation": {
+    "description": "Supporting text shown while on-chain payment evidence exists but the invoice has not yet reached its first confirmation."
+  },
   "invoiceSettlementPending": "Settlement pending",
   "@invoiceSettlementPending": {
     "description": "Supporting text shown while a received payment is not yet final."
@@ -17036,5 +17048,545 @@
         "type": "String"
       }
     }
+  },
+  "getPaidFiatSettlementChooserTitle": "How do you want to receive the funds?",
+  "@getPaidFiatSettlementChooserTitle": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementChooserBitcoin": "Bitcoin in your wallet",
+  "@getPaidFiatSettlementChooserBitcoin": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementChooserFiat": "Fiat in your Bull Bitcoin account",
+  "@getPaidFiatSettlementChooserFiat": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementChooserMix": "A mix of Bitcoin and fiat",
+  "@getPaidFiatSettlementChooserMix": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementSliderBitcoin": "{percent}% Bitcoin",
+  "@getPaidFiatSettlementSliderBitcoin": {
+    "description": "Fiat settlement UI",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "getPaidFiatSettlementSliderFiat": "{percent}% fiat",
+  "@getPaidFiatSettlementSliderFiat": {
+    "description": "Fiat settlement UI",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "getPaidFiatSettlementCurrencyTitle": "Choose your fiat currency",
+  "@getPaidFiatSettlementCurrencyTitle": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementCurrencyLabel": "Fiat currency",
+  "@getPaidFiatSettlementCurrencyLabel": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementUnderstandCheckbox": "I understand",
+  "@getPaidFiatSettlementUnderstandCheckbox": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementSave": "Save",
+  "@getPaidFiatSettlementSave": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementFallbackDisclosure": "If a full or partial fiat conversion is below Bull Bitcoin's minimum amount, fiat conversion will be overridden and the entire payment will be sent to your Bitcoin wallet.",
+  "@getPaidFiatSettlementFallbackDisclosure": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisclosureCad": "When converting funds to CAD, you will be able to withdraw your CAD balance to your own bank account via Interac e-Transfer, EFT, or Domestic Wire Transfer.",
+  "@getPaidFiatSettlementDisclosureCad": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisclosureEur": "When converting funds to EUR, you will be able to withdraw your EUR balance to your own bank account via SEPA.",
+  "@getPaidFiatSettlementDisclosureEur": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisclosureMxn": "When converting funds to MXN, you will be able to withdraw your MXN balance to your own Mexican bank account via SPEI.",
+  "@getPaidFiatSettlementDisclosureMxn": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisclosureCrc": "When converting funds to CRC, you will be able to withdraw your CRC balance to your own Costa Rican bank account via SINPE bank transfer or SINPE Móvil.",
+  "@getPaidFiatSettlementDisclosureCrc": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisclosureCop": "When converting funds to COP, you will be able to withdraw your COP balance to your own Colombian bank account or Nequi account.",
+  "@getPaidFiatSettlementDisclosureCop": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisclosureArs": "When converting funds to ARS, you will be able to withdraw your ARS balance to your own Argentine bank account via CBU/CVU bank transfer.",
+  "@getPaidFiatSettlementDisclosureArs": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisclosureUsd": "You can only withdraw USD to a Costa Rican bank account via SINPE or to a Canadian bank account via Domestic Wire Transfer. Do not select USD if you do not agree to these withdrawal options. If you select USD and cannot use these withdrawal options, you can still convert your USD balance to Bitcoin.",
+  "@getPaidFiatSettlementDisclosureUsd": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementKycRequired": "To activate fiat conversion, your account needs the right KYC permissions. Please complete your KYC to enable unlimited trading. You can continue with Bitcoin only and enable fiat conversion later.",
+  "@getPaidFiatSettlementKycRequired": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementCompleteKyc": "Complete KYC",
+  "@getPaidFiatSettlementCompleteKyc": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementContactSupport": "Contact support",
+  "@getPaidFiatSettlementContactSupport": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementContinueBitcoinOnly": "Continue with Bitcoin only",
+  "@getPaidFiatSettlementContinueBitcoinOnly": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementReconnect": "Reconnect Bull Bitcoin",
+  "@getPaidFiatSettlementReconnect": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementCredentialProblem": "We couldn't use your Bull Bitcoin credentials. Reconnect your Bull Bitcoin account and try again.",
+  "@getPaidFiatSettlementCredentialProblem": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDependencyUnavailable": "Bull Bitcoin is temporarily unavailable. Please try again in a moment.",
+  "@getPaidFiatSettlementDependencyUnavailable": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementRetry": "Retry",
+  "@getPaidFiatSettlementRetry": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementUnreachable": "Couldn't reach Bull Bitcoin. Check your connection and try again.",
+  "@getPaidFiatSettlementUnreachable": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementGenericError": "Something went wrong. Your previous settings were kept.",
+  "@getPaidFiatSettlementGenericError": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementConnectPrompt": "Log in to your Bull Bitcoin account to receive fiat.",
+  "@getPaidFiatSettlementConnectPrompt": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementLogin": "Log in to Bull Bitcoin",
+  "@getPaidFiatSettlementLogin": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementSummaryBitcoinOnly": "Bitcoin only",
+  "@getPaidFiatSettlementSummaryBitcoinOnly": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementSummaryFiatOnly": "100% fiat · {currency}",
+  "@getPaidFiatSettlementSummaryFiatOnly": {
+    "description": "Fiat settlement UI",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "getPaidFiatSettlementSummaryMixed": "{bitcoinPercent}% Bitcoin · {fiatPercent}% fiat · {currency}",
+  "@getPaidFiatSettlementSummaryMixed": {
+    "description": "Fiat settlement UI",
+    "placeholders": {
+      "bitcoinPercent": {
+        "type": "int"
+      },
+      "fiatPercent": {
+        "type": "int"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "getPaidFiatSettlementSectionTitle": "Fiat conversion",
+  "@getPaidFiatSettlementSectionTitle": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementTurnOff": "Turn off fiat conversion",
+  "@getPaidFiatSettlementTurnOff": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementLabelBitcoin": "Bitcoin",
+  "@getPaidSettlementLabelBitcoin": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementLabelFiat": "Fiat",
+  "@getPaidSettlementLabelFiat": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementLabelMixed": "Mixed",
+  "@getPaidSettlementLabelMixed": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementFiatAmount": "{amount} {currency}",
+  "@getPaidSettlementFiatAmount": {
+    "description": "Fiat settlement UI",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "getPaidSettlementFiatPending": "Fiat conversion pending",
+  "@getPaidSettlementFiatPending": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementOrderId": "Bull Bitcoin order ID",
+  "@getPaidSettlementOrderId": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementStatus": "Status",
+  "@getPaidSettlementStatus": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementOverridden": "This payment was kept entirely in Bitcoin because fiat conversion could not be applied.",
+  "@getPaidSettlementOverridden": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementBitcoinPortion": "Bitcoin",
+  "@getPaidSettlementBitcoinPortion": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementDetailsUnavailable": "Settlement details unavailable",
+  "@getPaidSettlementDetailsUnavailable": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementSaving": "Saving…",
+  "@getPaidFiatSettlementSaving": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisableConfirmTitle": "Switch to Bitcoin only?",
+  "@getPaidFiatSettlementDisableConfirmTitle": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisableConfirmBody": "New payments will stay entirely in Bitcoin. Conversions already in progress are not affected.",
+  "@getPaidFiatSettlementDisableConfirmBody": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisableConfirmCancel": "Keep fiat conversion",
+  "@getPaidFiatSettlementDisableConfirmCancel": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidFiatSettlementDisableConfirmSubmit": "Switch to Bitcoin only",
+  "@getPaidFiatSettlementDisableConfirmSubmit": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementStatusPending": "Pending",
+  "@getPaidSettlementStatusPending": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementStatusSettled": "Settled",
+  "@getPaidSettlementStatusSettled": {
+    "description": "Fiat settlement UI"
+  },
+  "getPaidSettlementLbtcAmountLabel": "L-BTC amount",
+  "@getPaidSettlementLbtcAmountLabel": {
+    "description": "Detail screen: label for the bitcoin (L-BTC) leg amount of a mixed settlement."
+  },
+  "getPaidSettlementLbtcStatusLabel": "L-BTC settlement status",
+  "@getPaidSettlementLbtcStatusLabel": {
+    "description": "Detail screen: label for the per-leg status of the bitcoin (L-BTC) leg of a mixed settlement."
+  },
+  "getPaidSettlementFiatAmountLabel": "Fiat amount",
+  "@getPaidSettlementFiatAmountLabel": {
+    "description": "Detail screen: label for the fiat leg amount (or expected currency before settlement)."
+  },
+  "getPaidSettlementFiatStatusLabel": "Fiat settlement status",
+  "@getPaidSettlementFiatStatusLabel": {
+    "description": "Detail screen: label for the per-leg status of the fiat settlement leg."
+  },
+  "getPaidSettlementFiatAmountQuotedLabel": "Fiat amount (quoted)",
+  "@getPaidSettlementFiatAmountQuotedLabel": {
+    "description": "Detail screen: label for a pending fiat leg's amount, marking it as the locked quote that can reprice for a late payment (not final)."
+  },
+  "getPaidSettlementSplitLabel": "Split",
+  "@getPaidSettlementSplitLabel": {
+    "description": "Detail screen: label for the captured fiat/Bitcoin split of a fiat or mixed settlement."
+  },
+  "getPaidSettlementSplitFiatOnly": "100% fiat",
+  "@getPaidSettlementSplitFiatOnly": {
+    "description": "Detail screen: split value for a 100% fiat settlement."
+  },
+  "getPaidSettlementSplitMixed": "{bitcoinPercent}% Bitcoin · {fiatPercent}% fiat",
+  "@getPaidSettlementSplitMixed": {
+    "description": "Detail screen: split value for a mixed settlement (Bitcoin and fiat portions).",
+    "placeholders": {
+      "bitcoinPercent": {
+        "type": "int"
+      },
+      "fiatPercent": {
+        "type": "int"
+      }
+    }
+  },
+  "getPaidTransactionsInvoiceIdLabel": "Invoice ID",
+  "@getPaidTransactionsInvoiceIdLabel": {
+    "description": "Detail screen: label for the copyable invoice id of an invoice-sourced Get Paid payment."
+  },
+  "getPaidSettlementKindMixed": "Mixed Fiat-BTC",
+  "@getPaidSettlementKindMixed": {
+    "description": "History list: settlement-kind pill for a mixed fiat-and-Bitcoin settlement."
+  },
+  "getPaidFiatSettlementActivatedTitleLightningAddress": "Your Lightning Address has been activated",
+  "@getPaidFiatSettlementActivatedTitleLightningAddress": {
+    "description": "Fiat settlement activation success header (Lightning Address)"
+  },
+  "getPaidFiatSettlementActivatedTitlePaymentPage": "Your Payment Page has been activated",
+  "@getPaidFiatSettlementActivatedTitlePaymentPage": {
+    "description": "Fiat settlement activation success header (Payment Page)"
+  },
+  "getPaidFiatSettlementActivatedTitlePos": "Your Point of Sale has been activated",
+  "@getPaidFiatSettlementActivatedTitlePos": {
+    "description": "Fiat settlement activation success header (Point of Sale)"
+  },
+  "getPaidFiatSettlementCurrentlyActive": "Currently active",
+  "@getPaidFiatSettlementCurrentlyActive": {
+    "description": "Label marking the currently-active settlement option in the fiat chooser"
+  },
+  "getPaidSettlementOverriddenBelowMinimum": "This payment was kept entirely in Bitcoin because the fiat conversion was below Bull Bitcoin's minimum amount.",
+  "@getPaidSettlementOverriddenBelowMinimum": {
+    "description": "Detail screen: fiat conversion overridden to Bitcoin because the amount was below the minimum."
+  },
+  "getPaidSettlementOverriddenInvalidSplit": "This payment was kept entirely in Bitcoin because the fiat split could not be applied.",
+  "@getPaidSettlementOverriddenInvalidSplit": {
+    "description": "Detail screen: fiat conversion overridden to Bitcoin because the configured split was invalid."
+  },
+  "getPaidSettlementOverriddenConversionUnavailable": "This payment was kept entirely in Bitcoin because fiat conversion was unavailable.",
+  "@getPaidSettlementOverriddenConversionUnavailable": {
+    "description": "Detail screen: fiat conversion overridden to Bitcoin because conversion was unavailable."
+  },
+  "getPaidFiatSettlementStatusUnavailable": "Fiat settlement — status unavailable",
+  "@getPaidFiatSettlementStatusUnavailable": {
+    "description": "Get Paid entry tile: shown when the fiat settlement configuration could not be loaded; tapping still opens the editor."
+  },
+  "invoiceLiquidUnavailableForMixedSettlement": "Direct Liquid payments are unavailable when this invoice is split between Bitcoin and fiat.",
+  "@invoiceLiquidUnavailableForMixedSettlement": {
+    "description": "Explains why the Liquid payment-method switch is disabled for an invoice with mixed Bitcoin and fiat settlement"
+  },
+  "getPaidDashboardSettlementUnavailable": "Settlement unavailable",
+  "@getPaidDashboardSettlementUnavailable": {
+    "description": "Dashboard product-card settlement badge shown when the fiat-settlement configuration read failed."
+  },
+  "getPaidDashboardArchived": "Archived",
+  "@getPaidDashboardArchived": {
+    "description": "Get Paid dashboard product card status chip: the product exists but is archived."
+  },
+  "getPaidDashboardNotSetUp": "Not set up",
+  "@getPaidDashboardNotSetUp": {
+    "description": "Get Paid dashboard product card status chip: no product configured yet."
+  },
+  "getPaidDashboardUnavailable": "Unavailable",
+  "@getPaidDashboardUnavailable": {
+    "description": "Get Paid dashboard product card status chip: the product query failed or timed out."
+  },
+  "getPaidDashboardRetry": "Retry",
+  "@getPaidDashboardRetry": {
+    "description": "Get Paid dashboard product card action to re-query an unavailable product."
+  },
+  "getPaidDashboardWalletWarning": "Wallet needs attention",
+  "@getPaidDashboardWalletWarning": {
+    "description": "Get Paid dashboard product card notice: the product wallet could not be re-derived."
+  },
+  "posTerminalQrDownloadButton": "Download QR",
+  "@posTerminalQrDownloadButton": {
+    "description": "POS terminal QR: label for the button that saves the QR code as a PNG image."
+  },
+  "posTerminalQrDownloadSaved": "QR code saved",
+  "@posTerminalQrDownloadSaved": {
+    "description": "POS terminal QR: confirmation shown after the QR PNG is saved via the system Files dialog."
+  },
+  "posTerminalQrDownloadFailed": "Could not save the QR code. Please try again.",
+  "@posTerminalQrDownloadFailed": {
+    "description": "POS terminal QR: shown when saving the QR PNG failed."
+  },
+  "posStaffInstructionsButton": "Instructions for staff",
+  "@posStaffInstructionsButton": {
+    "description": "POS: label for the button that expands the staff instructions."
+  },
+  "posStaffInstructionsHeading": "Two ways for your staff to accept Bitcoin payments",
+  "@posStaffInstructionsHeading": {
+    "description": "POS staff instructions: section heading (owner verbatim, report #16)."
+  },
+  "posStaffInstructionsTabletLine": "If your cashiers already have a tablet, scan this QR code with the tablet. It will open up the web Point of Sale page for your business.",
+  "@posStaffInstructionsTabletLine": {
+    "description": "POS staff instructions: tablet line (owner verbatim)."
+  },
+  "posStaffInstructionsPrintLine": "You can print this QR code and your staff can scan it with their personal phones. There is no security risk.",
+  "@posStaffInstructionsPrintLine": {
+    "description": "POS staff instructions: print line (owner verbatim)."
+  },
+  "posStaffInstructionsStaffSteps": "Your staff simply need to enter the amount of the sale in the web page. It will generate a payment request with a QR code. They must show the QR code to the client that wants to pay with Bitcoin. They can enter a description for the payment if you wish.",
+  "@posStaffInstructionsStaffSteps": {
+    "description": "POS staff instructions: staff steps paragraph (owner verbatim)."
+  },
+  "posStaffInstructionsProTip": "Pro tip: Lightning and Liquid payments are instant. Bitcoin on-chain payments can take up to an hour to confirm. You should not accept Bitcoin on-chain payments in a physical store unless the client insists and is willing to wait.",
+  "@posStaffInstructionsProTip": {
+    "description": "POS staff instructions: pro-tip paragraph (owner verbatim)."
+  },
+  "posStaffInstructionsOwnerCloser": "You, the business owner that set up the point of sale, will receive the funds. Your staff will never have access to the funds if you follow these instructions.",
+  "@posStaffInstructionsOwnerCloser": {
+    "description": "POS staff instructions: owner-receives-funds closer (owner verbatim)."
+  },
+  "getPaidAdvancedSettingsTitle": "Advanced settings",
+  "@getPaidAdvancedSettingsTitle": {
+    "description": "Shared Get Paid product Advanced Settings section title / button label."
+  },
+  "getPaidEditButton": "Edit details",
+  "@getPaidEditButton": {
+    "description": "Button that reveals the collapsed product edit form on a Get Paid product screen."
+  },
+  "getPaidAdvancedSettingsButton": "Advanced settings",
+  "@getPaidAdvancedSettingsButton": {
+    "description": "Button that opens the shared Get Paid Advanced Settings sheet."
+  },
+  "getPaidDiscardChangesTitle": "Discard changes?",
+  "@getPaidDiscardChangesTitle": {
+    "description": "Title of the confirm dialog shown when cancelling an edit with unsaved changes."
+  },
+  "getPaidDiscardChangesBody": "Your unsaved changes will be lost.",
+  "@getPaidDiscardChangesBody": {
+    "description": "Body of the discard-changes confirm dialog."
+  },
+  "getPaidDiscardChangesKeep": "Keep editing",
+  "@getPaidDiscardChangesKeep": {
+    "description": "Dismissive action on the discard-changes dialog; returns to the editor."
+  },
+  "getPaidDiscardChangesDiscard": "Discard",
+  "@getPaidDiscardChangesDiscard": {
+    "description": "Confirming action on the discard-changes dialog; discards unsaved edits."
+  },
+  "getPaidCancelButton": "Cancel",
+  "@getPaidCancelButton": {
+    "description": "Cancel action that collapses the Get Paid product edit form."
+  },
+  "invoicePayerDescription": "Information about who is paying you.",
+  "@invoicePayerDescription": {
+    "description": "Owner-verbatim description under the New Invoice Payer section header."
+  },
+  "invoicePayeeDescription": "Information about you.",
+  "@invoicePayeeDescription": {
+    "description": "Owner-verbatim description under the New Invoice Payee section header."
+  },
+  "invoiceRailLastEnabledHint": "At least one payment method is required.",
+  "@invoiceRailLastEnabledHint": {
+    "description": "Hint on the last remaining enabled invoice rail, whose toggle is locked on."
+  },
+  "getPaidTransactionsDayToday": "Today",
+  "@getPaidTransactionsDayToday": {
+    "description": "Get Paid history day-group header for today."
+  },
+  "getPaidTransactionsDayYesterday": "Yesterday",
+  "@getPaidTransactionsDayYesterday": {
+    "description": "Get Paid history day-group header for yesterday."
+  },
+  "getPaidTransactionsAssetLabel": "Asset",
+  "@getPaidTransactionsAssetLabel": {
+    "description": "Label for the asset row on a Get Paid transaction detail."
+  },
+  "getPaidTransactionsAssetBitcoin": "BTC",
+  "@getPaidTransactionsAssetBitcoin": {
+    "description": "Asset ticker for a Bitcoin (on-chain or Lightning) Get Paid receipt."
+  },
+  "getPaidTransactionsAssetLiquid": "L-BTC",
+  "@getPaidTransactionsAssetLiquid": {
+    "description": "Asset ticker for a Liquid Get Paid receipt."
+  },
+  "getPaidSettlementAwaitingExplainer": "Awaiting settlement — the final {currency} amount is confirmed once settlement completes.",
+  "@getPaidSettlementAwaitingExplainer": {
+    "description": "Pending fiat settlement explainer on the Get Paid transaction detail.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "metadataBackupStateOff": "Automatic backup is off",
+  "@metadataBackupStateOff": {
+    "description": "Metadata backup page: off state title"
+  },
+  "metadataBackupStateOffBody": "Your Get Paid wallets and products are not being backed up. Turn on automatic backup to protect them.",
+  "@metadataBackupStateOffBody": {
+    "description": "Metadata backup page: off state explanation"
+  },
+  "metadataBackupStateCurrent": "Backed up",
+  "@metadataBackupStateCurrent": {
+    "description": "Metadata backup page: current state title"
+  },
+  "metadataBackupStateCurrentBody": "Your encrypted backup is up to date. Last backed up {when}.",
+  "@metadataBackupStateCurrentBody": {
+    "description": "Metadata backup page: current state explanation",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "metadataBackupStateBackingUp": "Backing up automatically",
+  "@metadataBackupStateBackingUp": {
+    "description": "Metadata backup page: pending publication title"
+  },
+  "metadataBackupStateBackingUpBody": "Recent changes will be published to your encrypted backup shortly.",
+  "@metadataBackupStateBackingUpBody": {
+    "description": "Metadata backup page: pending publication explanation"
+  },
+  "metadataBackupStateRetryable": "Last backup attempt failed",
+  "@metadataBackupStateRetryable": {
+    "description": "Metadata backup page: retryable failure title"
+  },
+  "metadataBackupStateRetryableBody": "The most recent automatic backup did not complete. You can retry now; the app will also keep retrying automatically.",
+  "@metadataBackupStateRetryableBody": {
+    "description": "Metadata backup page: retryable failure explanation"
+  },
+  "metadataBackupStateNewerFormat": "Backup from a newer app version",
+  "@metadataBackupStateNewerFormat": {
+    "description": "Metadata backup page: newer-format title"
+  },
+  "metadataBackupStateNewerFormatBody": "Your backup was written by a newer version of the app. Update the app to keep backing up. Nothing will be overwritten.",
+  "@metadataBackupStateNewerFormatBody": {
+    "description": "Metadata backup page: newer-format explanation"
+  },
+  "metadataBackupStateRecoveryApplying": "Restoring wallets",
+  "@metadataBackupStateRecoveryApplying": {
+    "description": "Metadata backup page: recovery applying title"
+  },
+  "metadataBackupStateRecoveryApplyingBody": "Wallet recovery is running. This usually takes a few seconds.",
+  "@metadataBackupStateRecoveryApplyingBody": {
+    "description": "Metadata backup page: recovery applying explanation"
+  },
+  "metadataBackupStateRecoveryIncomplete": "Wallet recovery incomplete",
+  "@metadataBackupStateRecoveryIncomplete": {
+    "description": "Metadata backup page: recovery incomplete title"
+  },
+  "metadataBackupStateRecoveryIncompleteBody": "The last restore did not recover everything. Backup is paused to protect the remaining data. Retry the recovery when you have a good connection.",
+  "@metadataBackupStateRecoveryIncompleteBody": {
+    "description": "Metadata backup page: recovery incomplete explanation"
+  },
+  "metadataBackupStateUnavailable": "Backup status unavailable",
+  "@metadataBackupStateUnavailable": {
+    "description": "Metadata backup page: unavailable state title"
+  },
+  "metadataBackupStateUnavailableBody": "The backup status could not be loaded. Pull to refresh or try again later.",
+  "@metadataBackupStateUnavailableBody": {
+    "description": "Metadata backup page: unavailable explanation"
+  },
+  "metadataBackupRetryRecovery": "Retry wallet recovery",
+  "@metadataBackupRetryRecovery": {
+    "description": "Metadata backup page: manual recovery retry action"
+  },
+  "metadataBackupRetryBackup": "Retry backup",
+  "@metadataBackupRetryBackup": {
+    "description": "Metadata backup page: retry failed publication action"
   }
 }

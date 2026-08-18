@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/repositories/remote_recovery_outcome_repository.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
+import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_recovery_outcome.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_facade.dart';
 
@@ -19,6 +21,7 @@ final class RecoverRemoteWalletBackupsUsecase {
   final WalletBackupFacade _walletBackup;
   final WalletMetadataBackupFacade _metadataBackup;
   final Clock clock;
+  final RemoteRecoveryOutcomeRepository? outcomeRepository;
   final Duration budget;
 
   const RecoverRemoteWalletBackupsUsecase(
@@ -26,10 +29,59 @@ final class RecoverRemoteWalletBackupsUsecase {
     this._walletBackup,
     this._metadataBackup, {
     this.clock = const SystemClock(),
+    this.outcomeRepository,
     this.budget = defaultRecoveryBudget,
   });
 
   Future<RemoteKeychainRecoveryResult> execute({
+    required Set<String> defaultCreatedWalletIds,
+  }) async {
+    try {
+      final result = await _executeWithinBudget(
+        defaultCreatedWalletIds: defaultCreatedWalletIds,
+      );
+      _persistOutcome(result);
+      return result;
+    } on Exception catch (error, stack) {
+      log.warning(
+        'Remote wallet recovery failed before producing an outcome',
+        error: error,
+        trace: stack,
+      );
+      _persistOutcome(
+        const RemoteKeychainRecoveryResult(
+          status: RemoteKeychainRecoveryStatus.localFailure,
+        ),
+      );
+      rethrow;
+    }
+  }
+
+  /// Best-effort record for the unified wallet-backup settings surface.
+  void _persistOutcome(RemoteKeychainRecoveryResult result) {
+    final repository = outcomeRepository;
+    if (repository == null) return;
+    unawaited(
+      repository
+          .save(
+            RemoteRecoveryOutcome(
+              status: result.status,
+              atUnix: clock.nowUtc().millisecondsSinceEpoch ~/ 1000,
+              restoredCount: result.restoredCount,
+              failedCount: result.failedCount,
+            ),
+          )
+          .catchError((Object error, StackTrace stack) {
+            log.warning(
+              'Could not persist the remote recovery outcome',
+              error: error,
+              trace: stack,
+            );
+          }),
+    );
+  }
+
+  Future<RemoteKeychainRecoveryResult> _executeWithinBudget({
     required Set<String> defaultCreatedWalletIds,
   }) async {
     final deadline = clock.nowUtc().add(budget);

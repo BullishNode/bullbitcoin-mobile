@@ -4,9 +4,12 @@ import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_stat
 import 'package:bb_mobile/features/get_paid/public/get_paid_routes.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_dashboard_screen.dart';
 import 'package:bb_mobile/features/get_paid/ui/widgets/get_paid_slot_card.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
+import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
+import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
-import 'package:bull_ui/bull_ui.dart' show BullTopBar;
+import 'package:bull_ui/bull_ui.dart' show BullButton, BullTopBar;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,7 +69,7 @@ void main() {
     await _pump(
       tester,
       const GetPaidDashboardState(
-        lightningStatus: GetPaidDashboardCardStatus.loaded,
+        lightningStatus: GetPaidProductStatus.absent,
         invoicesStatus: GetPaidDashboardCardStatus.loaded,
         btcpayStatus: GetPaidDashboardCardStatus.loaded,
       ),
@@ -218,5 +221,188 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('transactions-destination'), findsOneWidget);
+  });
+
+  group('settlement badges', () {
+    PaymentPage activePage() => PaymentPage(
+      nym: 'satoshi',
+      header: 'Donate',
+      description: 'desc',
+      displayCurrency: 'CAD',
+      enabled: true,
+      isArchived: false,
+      publicUrl: 'https://pay.example/satoshi',
+    );
+
+    PosTerminal activePos() => PosTerminal(
+      nym: 'satoshi',
+      label: 'Till',
+      displayCurrency: 'CAD',
+      enabled: true,
+      isArchived: false,
+      terminalUrl: 'https://pos.example/satoshi/pos',
+    );
+
+    FiatSettlementProductConfig config(
+      FiatSettlementProduct product,
+      int pct, {
+      FiatCurrency? currency,
+    }) => FiatSettlementProductConfig(
+      product: product,
+      fiatPercentage: pct,
+      currency: currency,
+    );
+
+    GetPaidDashboardState activeState({
+      Map<FiatSettlementProduct, FiatSettlementProductConfig>? settlement,
+      bool unavailable = false,
+    }) => GetPaidDashboardState(
+      lightningAddress: 'satoshi@bull.money',
+      lightningActive: true,
+      nym: 'satoshi',
+      paymentPage: activePage(),
+      posTerminal: activePos(),
+      fiatSettlement: settlement,
+      fiatSettlementUnavailable: unavailable,
+    );
+
+    testWidgets('each active product card shows its confirmed settlement '
+        'summary as a dedicated badge', (tester) async {
+      await _pump(
+        tester,
+        activeState(
+          settlement: {
+            FiatSettlementProduct.lightningAddress: config(
+              FiatSettlementProduct.lightningAddress,
+              0,
+            ),
+            FiatSettlementProduct.paymentPage: config(
+              FiatSettlementProduct.paymentPage,
+              100,
+              currency: FiatCurrency.cad,
+            ),
+            FiatSettlementProduct.pos: config(
+              FiatSettlementProduct.pos,
+              50,
+              currency: FiatCurrency.cad,
+            ),
+          },
+        ),
+      );
+
+      // Bitcoin-only IS shown (owner report #6), plus fiat-only and mixed.
+      expect(find.text('Bitcoin only'), findsOneWidget);
+      expect(find.text('100% fiat · CAD'), findsOneWidget);
+      expect(find.text('50% Bitcoin · 50% fiat · CAD'), findsOneWidget);
+      // The URL subtitle stays a separate line — the badge is not concatenated.
+      expect(find.text('https://pay.example/satoshi'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a settlement read failure renders the unavailable badge on '
+        'active cards, never a Bitcoin-only guess', (tester) async {
+      await _pump(tester, activeState(unavailable: true));
+
+      expect(find.text('Settlement unavailable'), findsNWidgets(3));
+      expect(find.text('Bitcoin only'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('inactive products show no settlement badge', (tester) async {
+      await _pump(
+        tester,
+        const GetPaidDashboardState(fiatSettlementUnavailable: true),
+      );
+
+      expect(find.text('Settlement unavailable'), findsNothing);
+      expect(find.text('Bitcoin only'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('UX-2 product states', () {
+    testWidgets('the Get Paid settings gear is removed from the top bar', (
+      tester,
+    ) async {
+      await _pump(tester, const GetPaidDashboardState());
+
+      expect(find.byIcon(Icons.settings), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an archived product shows an Archived status chip', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        GetPaidDashboardState(
+          paymentPage: PaymentPage(
+            nym: 'satoshi',
+            header: 'Donate',
+            description: 'desc',
+            displayCurrency: 'CAD',
+            enabled: false,
+            isArchived: true,
+            publicUrl: 'https://pay.example/satoshi',
+          ),
+          paymentPageStatus: GetPaidProductStatus.archived,
+        ),
+      );
+
+      expect(find.text('ARCHIVED'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an unavailable product shows Unavailable and a Retry action', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const GetPaidDashboardState(
+          posStatus: GetPaidProductStatus.unavailable,
+        ),
+      );
+
+      expect(find.text('UNAVAILABLE'), findsOneWidget);
+      // Retry is a BullButton (RichText label) inside the still-tappable card.
+      expect(
+        find.byWidgetPredicate((w) => w is BullButton && w.label == 'Retry'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an absent product shows a Not set up chip', (tester) async {
+      await _pump(
+        tester,
+        const GetPaidDashboardState(posStatus: GetPaidProductStatus.absent),
+      );
+
+      expect(find.text('NOT SET UP'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a self-heal failure shows the missing-wallet warning', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        GetPaidDashboardState(
+          posTerminal: PosTerminal(
+            nym: 'satoshi',
+            label: 'Till',
+            displayCurrency: 'CAD',
+            enabled: true,
+            isArchived: false,
+            terminalUrl: 'https://pos.example/satoshi/pos',
+          ),
+          posStatus: GetPaidProductStatus.active,
+          posWalletWarning: true,
+        ),
+      );
+
+      expect(find.text('Wallet needs attention'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

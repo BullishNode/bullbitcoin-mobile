@@ -12,7 +12,13 @@ class LabelExchangeOrdersUsecase {
     required this._listAllOrdersUsecase,
   });
 
-  Future<void> execute() async {
+  /// [walletFundedTxIds] holds the txids of OUTGOING wallet transactions. A
+  /// non-buy order's payin can be funded by any source, so its transaction is
+  /// only this wallet's sell when the wallet actually funded it. The "Sell" tx
+  /// label is therefore stamped only for a txid in this set — otherwise the
+  /// wallet merely received a sibling output of a transaction it did not fund
+  /// (e.g. a Get Paid mixed settlement) and must not be labelled a sell.
+  Future<void> execute({required Set<String> walletFundedTxIds}) async {
     try {
       final hasExchangeLabels = await _hasExistingExchangeSystemLabels();
       if (hasExchangeLabels) return; // orders likely already labeled
@@ -39,7 +45,8 @@ class LabelExchangeOrdersUsecase {
             labels.add(label);
           }
 
-          if (order.transactionId != null) {
+          if (order.transactionId != null &&
+              (isBuyOrder || walletFundedTxIds.contains(order.transactionId))) {
             final label = NewLabel.tx(
               transactionId: order.transactionId!,
               label: systemLabel,

@@ -1,20 +1,68 @@
+// ignore_for_file: prefer_initializing_formals
+
+import 'dart:async';
+
+import 'package:bb_mobile/core/exchange/domain/usecases/convert_currency_to_sats_amount_usecase.dart';
+import 'package:bb_mobile/core/exchange/domain/usecases/convert_sats_to_currency_amount_usecase.dart';
+import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/utils/amount_formatting.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_commands.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_results.dart';
+import 'package:bb_mobile/features/invoices/domain/entities/invoice_supported_currency.dart';
 import 'package:bb_mobile/features/invoices/domain/entities/private_invoice_presentation.dart';
+import 'package:bb_mobile/features/invoices/domain/invoices_failure.dart';
+import 'package:bb_mobile/features/invoices/domain/usecases/get_invoice_settlement_constraints_usecase.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_create_state.dart';
-import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+typedef CreateMerchantInvoice =
+    Future<Result<CreateInvoiceResult, InvoicesFailure>> Function(
+      CreateInvoiceCommand command,
+    );
+typedef ResumeMerchantInvoiceCreate =
+    Future<Result<CreateInvoiceResult?, InvoicesFailure>> Function();
+typedef GetInvoiceSupportedCurrencies =
+    Future<Result<InvoiceSupportedCurrencies, InvoicesFailure>> Function();
+
 class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
-  final InvoicesFacade _facade;
+  final CreateMerchantInvoice _create;
+  final ResumeMerchantInvoiceCreate _resumeCreate;
+  final GetInvoiceSupportedCurrencies _supportedCurrencies;
+  final GetInvoiceSettlementConstraintsUsecase _settlementConstraints;
+  final GetSettingsUsecase _getSettings;
+  final ConvertCurrencyToSatsAmountUsecase _convertToSats;
+  final ConvertSatsToCurrencyAmountUsecase _convertToFiat;
   int _operationId = 0;
+  int _equivalentOp = 0;
 
-  InvoiceCreateCubit({required InvoicesFacade facade}) : this._(facade);
+  /// The user's default fiat currency, captured at init. The cross-denomination
+  /// equivalent is only computed against it (the conversion services resolve
+  /// the rate for the user's default currency), so a non-default invoice
+  /// currency simply hides the approximate line rather than showing a wrong one.
+  String _defaultCurrency = '';
 
-  InvoiceCreateCubit._(this._facade) : super(const InvoiceCreateState());
+  InvoiceCreateCubit({
+    required CreateMerchantInvoice create,
+    required ResumeMerchantInvoiceCreate resumeCreate,
+    required GetInvoiceSupportedCurrencies supportedCurrencies,
+    required GetInvoiceSettlementConstraintsUsecase settlementConstraints,
+    required GetSettingsUsecase getSettings,
+    required ConvertCurrencyToSatsAmountUsecase convertToSats,
+    required ConvertSatsToCurrencyAmountUsecase convertToFiat,
+  }) : _create = create,
+       _resumeCreate = resumeCreate,
+       _supportedCurrencies = supportedCurrencies,
+       _settlementConstraints = settlementConstraints,
+       _getSettings = getSettings,
+       _convertToSats = convertToSats,
+       _convertToFiat = convertToFiat,
+       super(const InvoiceCreateState());
 
   Future<void> initialize() async {
-    final result = await _facade.resumeCreate();
+    final result = await _resumeCreate();
     if (isClosed) return;
     switch (result) {
       case Ok(:final value):
@@ -32,15 +80,41 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
         );
         return;
     }
-    emit(state.copyWith(initializing: false));
+    // Seed the fiat-first defaults and load currencies + the settlement
+    // constraints BEFORE clearing `initializing`, so the rail toggles render
+    // once with the correct Liquid state (a mixed merchant never sees Liquid
+    // flip on-then-off) and the amount card opens in the user's fiat.
+    await _seedDefaults();
     await _loadCurrencies();
+    await refreshFiatSettlement();
+    if (isClosed) return;
+    emit(state.copyWith(initializing: false));
+    await _recomputeEquivalent();
+  }
+
+  Future<void> _seedDefaults() async {
+    try {
+      final settings = await _getSettings.execute();
+      if (isClosed) return;
+      _defaultCurrency = settings.currencyCode;
+      emit(
+        state.copyWith(
+          bitcoinUnit: settings.bitcoinUnit,
+          fiatCurrency: state.fiatCurrency.isEmpty
+              ? settings.currencyCode
+              : state.fiatCurrency,
+        ),
+      );
+    } on Exception {
+      log.warning('Invoice default-currency lookup failed');
+    }
   }
 
   Future<void> retryPending() async {
     if (state.submitting || !state.pendingRetry) return;
     final op = ++_operationId;
     emit(state.copyWith(submitting: true, clearFailure: true));
-    final result = await _facade.resumeCreate();
+    final result = await _resumeCreate();
     if (isClosed || op != _operationId) return;
     switch (result) {
       case Ok(:final value):
@@ -53,6 +127,7 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
             ),
           );
           await _loadCurrencies();
+          await refreshFiatSettlement();
         } else {
           emit(state.copyWith(submitting: false, result: value));
         }
@@ -62,18 +137,21 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
   }
 
   Future<void> _loadCurrencies() async {
-    final result = await _facade.supportedCurrencies();
+    final result = await _supportedCurrencies();
     if (isClosed) return;
     switch (result) {
       case Ok(:final value):
         final currencies = value.currencies;
+        final selectedSupported = currencies.any(
+          (currency) => currency.code == state.fiatCurrency,
+        );
         emit(
           state.copyWith(
             currencies: currencies,
             currenciesUnavailable: false,
-            fiatCurrency: state.fiatCurrency.isEmpty && currencies.isNotEmpty
-                ? currencies.first.code
-                : state.fiatCurrency,
+            fiatCurrency: selectedSupported || currencies.isEmpty
+                ? state.fiatCurrency
+                : currencies.first.code,
           ),
         );
       case Err(:final failure):
@@ -85,28 +163,71 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
     }
   }
 
-  void amountModeChanged(InvoiceAmountMode value) => _emit(
-    state.copyWith(
-      amountMode: value,
-      clearInvalidField: state.invalidField == InvoiceCreateField.amount,
-    ),
-  );
-  void amountChanged(String value) => _emit(
-    state.copyWith(
-      amountInput: value,
-      clearInvalidField: state.invalidField == InvoiceCreateField.amount,
-    ),
-  );
-  void fiatCurrencyChanged(String value) => _emit(
-    state.copyWith(
-      fiatCurrency: value,
-      clearInvalidField: state.invalidField == InvoiceCreateField.currency,
-    ),
-  );
-  void acceptBtcChanged(bool value) => _emit(state.copyWith(acceptBtc: value));
-  void acceptLnChanged(bool value) => _emit(state.copyWith(acceptLn: value));
-  void acceptLiquidChanged(bool value) =>
-      _emit(state.copyWith(acceptLiquid: value));
+  Future<void> retryCurrencies() => _loadCurrencies();
+
+  void amountModeChanged(InvoiceAmountMode value) {
+    // Switching denomination clears the input: the formatters and unit differ,
+    // and carrying a stale number across would misrepresent the new mode.
+    _emit(
+      state.copyWith(
+        amountMode: value,
+        amountInput: '',
+        clearInvalidField: state.invalidField == InvoiceCreateField.amount,
+      ),
+    );
+    unawaited(_recomputeEquivalent());
+  }
+
+  void amountChanged(String value) {
+    _emit(
+      state.copyWith(
+        amountInput: value,
+        clearInvalidField: state.invalidField == InvoiceCreateField.amount,
+      ),
+    );
+    unawaited(_recomputeEquivalent());
+  }
+
+  void fiatCurrencyChanged(String value) {
+    _emit(
+      state.copyWith(
+        fiatCurrency: value,
+        clearInvalidField: state.invalidField == InvoiceCreateField.currency,
+      ),
+    );
+    unawaited(_recomputeEquivalent());
+  }
+
+  // Rail toggles never permit disabling the last enabled rail (Q19): the UI
+  // locks that toggle on, and this guard keeps the invariant if reached anyway.
+  void acceptBtcChanged(bool value) {
+    if (!value && state.isLastEnabledRail(state.acceptBtc)) return;
+    _emit(state.copyWith(acceptBtc: value));
+  }
+
+  void acceptLnChanged(bool value) {
+    if (!value && state.isLastEnabledRail(state.acceptLn)) return;
+    _emit(state.copyWith(acceptLn: value));
+  }
+
+  void acceptLiquidChanged(bool value) {
+    if (!state.directLiquidAvailable) return;
+    if (!value && state.isLastEnabledRail(state.acceptLiquid)) return;
+    _emit(state.copyWith(acceptLiquid: value));
+  }
+
+  Future<void> refreshFiatSettlement() async {
+    final constraints = await _settlementConstraints.execute();
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        directLiquidAvailable: constraints.directLiquidAvailable,
+        acceptLiquid: constraints.directLiquidAvailable
+            ? (state.initializing ? true : state.acceptLiquid)
+            : false,
+      ),
+    );
+  }
 
   void detailChanged(InvoiceCreateField field, String value) {
     final next = switch (field) {
@@ -203,7 +324,7 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
         clearInvalidField: true,
       ),
     );
-    final result = await _facade.create(
+    final result = await _create(
       CreateInvoiceCommand(
         amountSat: amount.$1,
         fiatAmountMinor: amount.$2,
@@ -211,7 +332,7 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
         presentation: presentation,
         acceptBtc: state.acceptBtc,
         acceptLn: state.acceptLn,
-        acceptLiquid: state.acceptLiquid,
+        acceptLiquid: state.directLiquidAvailable && state.acceptLiquid,
       ),
     );
     if (isClosed || op != _operationId) return;
@@ -233,25 +354,96 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
   }
 
   (int?, int?, String?)? _parseAmount() {
-    if (state.amountMode == InvoiceAmountMode.sats) {
-      final value = int.tryParse(state.amountInput.trim());
-      if (value == null || value <= 0) {
+    if (state.amountMode == InvoiceAmountMode.bitcoin) {
+      final sats = _bitcoinInputToSats(state.amountInput.trim());
+      if (sats == null || sats <= 0) {
         _emitInvalid(InvoiceCreateField.amount, 'AmountInvalid');
         return null;
       }
-      return (value, null, null);
+      return (sats, null, null);
     }
     if (state.fiatCurrency.isEmpty) {
       _emitInvalid(InvoiceCreateField.currency, 'CurrencyRequired');
       return null;
     }
-    final value = double.tryParse(state.amountInput.trim());
-    if (value == null || value <= 0) {
+    final precision = _precisionFor(state.fiatCurrency);
+    if (precision == null) {
+      _emitInvalid(InvoiceCreateField.currency, 'CurrencyUnavailable');
+      return null;
+    }
+    final minor = _fiatInputToMinor(state.amountInput.trim(), precision);
+    if (minor == null || minor <= 0) {
       _emitInvalid(InvoiceCreateField.amount, 'AmountInvalid');
       return null;
     }
-    final factor = _pow10(_precisionFor(state.fiatCurrency));
-    return (null, (value * factor).round(), state.fiatCurrency);
+    return (null, minor, state.fiatCurrency);
+  }
+
+  /// Exact bitcoin-entry → satoshis. Integer sats parse directly; a BTC decimal
+  /// string is converted digit-by-digit (never through a binary double) so the
+  /// satoshi value is preserved precisely.
+  int? _bitcoinInputToSats(String input) {
+    if (input.isEmpty) return null;
+    if (state.bitcoinUnit == BitcoinUnit.sats) {
+      return int.tryParse(input);
+    }
+    final match = RegExp(r'^(\d+)(?:\.(\d{1,8}))?$').firstMatch(input);
+    if (match == null) return null;
+    final whole = int.parse(match.group(1)!);
+    final fraction = (match.group(2) ?? '').padRight(8, '0');
+    return whole * 100000000 + int.parse('0$fraction');
+  }
+
+  Future<void> _recomputeEquivalent() async {
+    final op = ++_equivalentOp;
+    final input = state.amountInput.trim();
+    if (input.isEmpty) {
+      _emitEquivalent(op, null);
+      return;
+    }
+    try {
+      if (state.amountMode == InvoiceAmountMode.fiat) {
+        // The conversion resolves the rate for the user's default currency, so
+        // a non-default invoice currency hides the line rather than misstating.
+        if (state.fiatCurrency.isEmpty ||
+            state.fiatCurrency != _defaultCurrency) {
+          _emitEquivalent(op, null);
+          return;
+        }
+        final value = double.tryParse(input);
+        if (value == null || value <= 0) {
+          _emitEquivalent(op, null);
+          return;
+        }
+        final sats = await _convertToSats.execute(
+          amountFiat: value,
+          currencyCode: state.fiatCurrency,
+        );
+        _emitEquivalent(op, '≈ ${FormatAmount.sats(sats.toInt())}');
+      } else {
+        final sats = _bitcoinInputToSats(input);
+        if (sats == null || sats <= 0 || _defaultCurrency.isEmpty) {
+          _emitEquivalent(op, null);
+          return;
+        }
+        final fiat = await _convertToFiat.execute(
+          amountSat: BigInt.from(sats),
+          currencyCode: _defaultCurrency,
+        );
+        _emitEquivalent(op, '≈ ${FormatAmount.fiat(fiat, _defaultCurrency)}');
+      }
+    } on Exception {
+      _emitEquivalent(op, null);
+    }
+  }
+
+  void _emitEquivalent(int op, String? label) {
+    if (isClosed || op != _equivalentOp) return;
+    emit(
+      label == null
+          ? state.copyWith(clearEquivalent: true)
+          : state.copyWith(equivalentLabel: label),
+    );
   }
 
   PrivateInvoiceContact _contact({
@@ -324,11 +516,28 @@ class InvoiceCreateCubit extends Cubit<InvoiceCreateState> {
     );
   }
 
-  int _precisionFor(String currency) {
+  int? _precisionFor(String currency) {
     for (final item in state.currencies) {
       if (item.code == currency) return item.precision;
     }
-    return 2;
+    return null;
+  }
+
+  int? _fiatInputToMinor(String input, int precision) {
+    final pattern = precision == 0
+        ? RegExp(r'^\d+$')
+        : RegExp('^\\d+(?:\\.(\\d{0,$precision}))?\$');
+    if (!pattern.hasMatch(input)) return null;
+
+    final parts = input.split('.');
+    final whole = int.tryParse(parts.first);
+    if (whole == null) return null;
+    final fraction = parts.length == 1 ? '' : parts[1];
+    final fractionMinor = fraction.isEmpty
+        ? 0
+        : int.tryParse(fraction.padRight(precision, '0'));
+    if (fractionMinor == null) return null;
+    return whole * _pow10(precision) + fractionMinor;
   }
 
   int _pow10(int exponent) {

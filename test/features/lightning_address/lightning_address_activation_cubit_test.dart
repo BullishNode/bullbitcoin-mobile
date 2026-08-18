@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
+import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_error.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration.dart';
@@ -32,8 +33,7 @@ void main() {
         activate,
         deactivate,
         lookup,
-        walletBehaviors,
-        updateWalletBehavior,
+        _FakeGetPaidSettings(walletBehaviors, updateWalletBehavior),
       );
     });
 
@@ -550,4 +550,31 @@ class _FakeUpdateWalletBehavior implements UpdateWalletBehaviorUsecase {
     bool? hideOnHome,
     bool? autoSweepEnabled,
   }) async {}
+}
+
+/// Thin fake of the public facade the cubit now depends on, delegating the two
+/// wallet-behavior methods to the existing fakes.
+class _FakeGetPaidSettings implements GetPaidSettingsFacade {
+  _FakeGetPaidSettings(this._behaviors, this._update);
+  final _FakeWalletBehaviors _behaviors;
+  final _FakeUpdateWalletBehavior _update;
+
+  @override
+  Future<List<GetPaidWalletBehavior>> walletBehaviors({
+    GetPaidWalletProduct? only,
+  }) => _behaviors.execute(only: only);
+
+  @override
+  Future<void> updateWalletBehavior({
+    required String walletId,
+    bool? hideOnHome,
+    bool? autoSweepEnabled,
+  }) => _update.execute(
+    walletId: walletId,
+    hideOnHome: hideOnHome,
+    autoSweepEnabled: autoSweepEnabled,
+  );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

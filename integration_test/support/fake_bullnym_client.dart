@@ -16,6 +16,7 @@ import 'package:bb_mobile/features/bullnym/domain/bullnym_invoice_quote.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_public_names.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_recovery_address.dart';
 import 'package:bb_mobile/features/bullnym/domain/bullnym_registration.dart';
+import 'package:bb_mobile/features/bullnym/public/bullnym_config.dart';
 
 enum FakeBullnymMode {
   live,
@@ -42,7 +43,7 @@ enum FakePosMode {
   /// GET returns the stored pos row marked archived.
   archived,
 
-  /// A kind=pos save/archive fails with AuthError - the pre-release pay2
+  /// A kind=pos save/archive fails with AuthError - a legacy server
   /// fail-closed emulation (KR-2/DG-P7): the old server rebuilds the signed
   /// message without `kind`, so the signature never verifies.
   saveAuthError,
@@ -51,19 +52,20 @@ enum FakePosMode {
   serverUnreachable,
 }
 
-/// Fiat-settlement fault modes (BullishNode/bullnym#196 contract). Independent
-/// of the other modes so a live page/POS can coexist with any fiat behavior.
+/// Fiat-settlement fault modes for the scoped-credential delivery contract.
+/// Independent of the other modes so a live page/POS can coexist with any
+/// fiat behavior.
 enum FakeFiatSettlementMode {
   /// Server holds an active scoped credential: PUTs succeed without api_key.
   normal,
 
   /// Server has NO stored credential: a PUT without api_key answers
-  /// BULL_BITCOIN_CREDENTIAL_REQUIRED; a retry carrying a key succeeds and activates
+  /// FIAT_CREDENTIAL_REQUIRED; a retry carrying a key succeeds and activates
   /// the credential (the optimistic-save / key-on-demand path).
   credentialRequired,
 
-  /// Any delivered key is rejected as BULL_BITCOIN_CREDENTIAL_INVALID; a PUT without
-  /// a key still answers BULL_BITCOIN_CREDENTIAL_REQUIRED.
+  /// Any delivered key is rejected as FIAT_CREDENTIAL_INVALID; a PUT without
+  /// a key still answers FIAT_CREDENTIAL_REQUIRED.
   credentialInvalid,
 
   /// Fiat conversion needs more KYC: FIAT_CONVERSION_KYC_REQUIRED.
@@ -106,7 +108,7 @@ enum FakeInvoiceMode {
   /// Every call fails with a retryable server error.
   serverUnreachable,
 
-  /// The signed routes are absent (`features.invoices=false` / pre-flag pay2):
+  /// The signed routes are absent (`features.invoices=false`):
   /// create/cancel/list 404 so the feature fails CLOSED, never silent success.
   featureDisabled,
 }
@@ -858,7 +860,7 @@ class FakeBullnymClient implements BullnymClientPort {
       case FakeFiatSettlementMode.kycRequired:
         return const Err(
           BullnymFailure.serverRejectedRequest(
-            // Stable wire code per BullishNode/bullnym#196.
+            // Stable wire code in the scoped-credential contract.
             code: 'FIAT_CONVERSION_KYC_REQUIRED',
             logMessage: 'fake: KYC required for fiat conversion',
             statusCode: 403,
@@ -869,8 +871,8 @@ class FakeBullnymClient implements BullnymClientPort {
         return Err(
           BullnymFailure.serverRejectedRequest(
             code: apiKey == null
-                ? 'BULL_BITCOIN_CREDENTIAL_REQUIRED'
-                : 'BULL_BITCOIN_CREDENTIAL_INVALID',
+                ? 'FIAT_CREDENTIAL_REQUIRED'
+                : 'FIAT_CREDENTIAL_INVALID',
             logMessage: 'fake: scoped credential rejected',
             statusCode: 403,
             retryable: false,
@@ -880,7 +882,7 @@ class FakeBullnymClient implements BullnymClientPort {
         if (apiKey == null && fiatPercentage > 0) {
           return const Err(
             BullnymFailure.serverRejectedRequest(
-              code: 'BULL_BITCOIN_CREDENTIAL_REQUIRED',
+              code: 'FIAT_CREDENTIAL_REQUIRED',
               logMessage: 'fake: no stored scoped credential',
               statusCode: 403,
               retryable: false,
@@ -950,8 +952,8 @@ class FakeBullnymClient implements BullnymClientPort {
   }
 
   String _invoiceUrl(String invoiceId, String? nym) => nym == null
-      ? 'https://example.invalid/invoice/$invoiceId'
-      : 'https://example.invalid/$nym/i/$invoiceId';
+      ? '$bullnymDefaultBaseUrl/invoice/$invoiceId'
+      : '$bullnymDefaultBaseUrl/$nym/i/$invoiceId';
 
   BullnymFailure _invoiceNotFound() =>
       const BullnymFailure.serverRejectedRequest(

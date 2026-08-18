@@ -1,12 +1,15 @@
 import 'dart:async';
 
+import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/automatic_fallback/public/automatic_fallback_facade.dart';
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_state.dart';
@@ -22,6 +25,32 @@ class _MockWallet extends Mock implements Wallet {}
 
 class _MockFallbackAttention extends Mock
     implements GetPaidFallbackAttentionUsecase {}
+
+class _MockFiatFacade extends Mock implements FiatSettlementFacade {}
+
+class _MockEnsureProductWallet extends Mock
+    implements EnsureGetPaidProductWalletUsecase {}
+
+class _MockGetSettings extends Mock implements GetSettingsUsecase {}
+
+class _MockSettings extends Mock implements SettingsEntity {}
+
+FiatSettlementConfigurationView _fiatView(
+  FiatSettlementProduct product,
+  int pct, {
+  FiatCurrency? currency,
+}) {
+  return FiatSettlementConfigurationView(
+    products: [
+      FiatSettlementProductConfig(
+        product: product,
+        fiatPercentage: pct,
+        currency: currency,
+      ),
+    ],
+    credentialActive: true,
+  );
+}
 
 // The public facades are callback-injected, so the tests wire real facade
 // instances to plain closures — no mocking framework needed.
@@ -165,11 +194,43 @@ GetPaidDashboardCubit _cubit({
   ensureFallback,
   bool hasDefaultWallet = false,
   int? fallbackAttentionCount = 0,
+  Future<Result<FiatSettlementConfigurationView, FiatSettlementFailure>>
+  Function()?
+  fiatConfiguration,
+  Environment environment = Environment.mainnet,
+  Future<GetPaidProductWalletOutcome> Function(GetPaidWalletBackedProduct)?
+  productWalletHeal,
 }) {
   final fallbackAttention = _MockFallbackAttention();
   when(
     () => fallbackAttention.execute(),
   ).thenAnswer((_) async => fallbackAttentionCount);
+
+  // The product-wallet self-heal defaults to a no-op "present" outcome.
+  final ensureProductWallet = _MockEnsureProductWallet();
+  when(() => ensureProductWallet.execute(any())).thenAnswer(
+    (invocation) async => productWalletHeal == null
+        ? GetPaidProductWalletOutcome.present
+        : productWalletHeal(
+            invocation.positionalArguments.first as GetPaidWalletBackedProduct,
+          ),
+  );
+
+  // Only wire the (optional) fiat-settlement facade when a test opts in; the
+  // rest of the suite exercises the null / not-wired path unchanged.
+  FiatSettlementFacade? fiatFacade;
+  GetSettingsUsecase? getSettings;
+  if (fiatConfiguration != null) {
+    final facade = _MockFiatFacade();
+    when(() => facade.configuration()).thenAnswer((_) => fiatConfiguration());
+    fiatFacade = facade;
+    final settings = _MockSettings();
+    when(() => settings.environment).thenReturn(environment);
+    final settingsUsecase = _MockGetSettings();
+    when(() => settingsUsecase.execute()).thenAnswer((_) async => settings);
+    getSettings = settingsUsecase;
+  }
+
   return GetPaidDashboardCubit(
     lightningAddress: _laFacade(lookup ?? () async => _status()),
     paymentPage: _pageFacade(pageFind ?? ({required String nym}) async => null),
@@ -180,11 +241,18 @@ GetPaidDashboardCubit _cubit({
     ),
     getWallets: _getWallets(hasDefaultWallet: hasDefaultWallet),
     ensureAutomaticFallback: _fallbackUsecase(ensureFallback ?? _fallbackReady),
+    ensureProductWallet: ensureProductWallet,
     fallbackAttention: fallbackAttention,
+    fiatSettlement: fiatFacade,
+    getSettings: getSettings,
   );
 }
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(GetPaidWalletBackedProduct.lightningAddress);
+  });
+
   test('all products unset after refresh', () async {
     final cubit = _cubit();
 
@@ -224,9 +292,11 @@ void main() {
     expect(cubit.state.error, isNull);
     expect(cubit.state.nym, isNull);
     expect(cubit.state.hasLightningAddress, isFalse);
-    expect(cubit.state.lightningStatus, GetPaidDashboardCardStatus.loaded);
-    expect(cubit.state.paymentPageStatus, GetPaidDashboardCardStatus.loaded);
-    expect(cubit.state.posStatus, GetPaidDashboardCardStatus.loaded);
+    // UX-2: a confirmed empty account is ABSENT for all three products (never a
+    // guessed "active" and never "unavailable"); the manifest creates no card.
+    expect(cubit.state.lightningStatus, GetPaidProductStatus.absent);
+    expect(cubit.state.paymentPageStatus, GetPaidProductStatus.absent);
+    expect(cubit.state.posStatus, GetPaidProductStatus.absent);
     expect(pageProbed, isFalse);
     expect(posProbed, isFalse);
     await cubit.close();
@@ -246,7 +316,7 @@ void main() {
       final refresh = cubit.refresh();
       await Future<void>.delayed(Duration.zero);
 
-      expect(cubit.state.lightningStatus, GetPaidDashboardCardStatus.loading);
+      expect(cubit.state.lightningStatus, GetPaidProductStatus.loading);
       expect(cubit.state.invoicesStatus, GetPaidDashboardCardStatus.loaded);
       expect(cubit.state.btcpayStatus, GetPaidDashboardCardStatus.loaded);
       expect(cubit.state.invoicesWalletReady, isTrue);
@@ -275,15 +345,53 @@ void main() {
       await posResolved.future;
       await Future<void>.delayed(Duration.zero);
 
-      expect(cubit.state.posStatus, GetPaidDashboardCardStatus.loaded);
+      expect(cubit.state.posStatus, GetPaidProductStatus.active);
       expect(cubit.state.hasPos, isTrue);
-      expect(cubit.state.paymentPageStatus, GetPaidDashboardCardStatus.loading);
+      expect(cubit.state.paymentPageStatus, GetPaidProductStatus.loading);
 
       page.complete(null);
       await refresh;
       await cubit.close();
     },
   );
+
+  test('Page and POS queries run concurrently: both dispatch before either '
+      'resolves, and POS updates while Page is still loading (Q10)', () async {
+    final pageGate = Completer<PaymentPage?>();
+    final posGate = Completer<PosTerminal?>();
+    var pageCalled = false;
+    var posCalled = false;
+    final cubit = _cubit(
+      lookup: () async => _status(active: true, address: 'a@b'),
+      pageFind: ({required String nym}) {
+        pageCalled = true;
+        return pageGate.future;
+      },
+      posFind: ({required String nym}) {
+        posCalled = true;
+        return posGate.future;
+      },
+    );
+
+    final refresh = cubit.refresh();
+    await Future<void>.delayed(Duration.zero);
+
+    // Both queries are in flight together — POS did not wait for Page.
+    expect(pageCalled, isTrue);
+    expect(posCalled, isTrue);
+    expect(cubit.state.paymentPageStatus, GetPaidProductStatus.loading);
+    expect(cubit.state.posStatus, GetPaidProductStatus.loading);
+
+    // Resolve POS FIRST; its card updates while Page is still loading.
+    posGate.complete(_pos());
+    await Future<void>.delayed(Duration.zero);
+    expect(cubit.state.posStatus, GetPaidProductStatus.active);
+    expect(cubit.state.paymentPageStatus, GetPaidProductStatus.loading);
+
+    pageGate.complete(_page());
+    await refresh;
+    await cubit.close();
+  });
 
   test('active Lightning Address populates address + nym', () async {
     final cubit = _cubit(
@@ -368,7 +476,8 @@ void main() {
     await cubit.close();
   });
 
-  test('archived Donation Page is treated as unset', () async {
+  test('archived Donation Page is a distinct archived state (UX-2), not '
+      'unset', () async {
     final cubit = _cubit(
       lookup: () async => _status(active: true, address: 'satoshi@bull.money'),
       pageFind: ({required String nym}) async => _page(archived: true),
@@ -376,8 +485,173 @@ void main() {
 
     await cubit.refresh();
 
-    expect(cubit.state.paymentPage, isNull);
+    // UX-2: archived is its own status-only state — the object is kept for the
+    // card, and it is NOT active (no green/settlement affordances).
+    expect(cubit.state.paymentPageStatus, GetPaidProductStatus.archived);
+    expect(cubit.state.paymentPage, isNotNull);
+    expect(cubit.state.hasPaymentPage, isFalse);
     await cubit.close();
+  });
+
+  group('UX-2 product truth', () {
+    test('a Lightning Address lookup failure leaves ALL three products '
+        'unavailable, never absent', () async {
+      final cubit = _cubit(lookup: () async => throw Exception('boom'));
+
+      await cubit.refresh();
+
+      expect(cubit.state.lightningStatus, GetPaidProductStatus.unavailable);
+      expect(cubit.state.paymentPageStatus, GetPaidProductStatus.unavailable);
+      expect(cubit.state.posStatus, GetPaidProductStatus.unavailable);
+      await cubit.close();
+    });
+
+    test(
+      'a Donation Page lookup failure is unavailable, never absent',
+      () async {
+        final cubit = _cubit(
+          lookup: () async => _status(active: true, address: 'a@b'),
+          pageFind: ({required String nym}) async => throw Exception('boom'),
+        );
+
+        await cubit.refresh();
+
+        expect(cubit.state.paymentPageStatus, GetPaidProductStatus.unavailable);
+        await cubit.close();
+      },
+    );
+
+    test('a confirmed-absent product stays absent (the manifest never '
+        'promotes it to a card)', () async {
+      final cubit = _cubit(
+        lookup: () async => _status(active: true, address: 'a@b'),
+        pageFind: ({required String nym}) async => null,
+        posFind: ({required String nym}) async => null,
+      );
+
+      await cubit.refresh();
+
+      expect(cubit.state.paymentPageStatus, GetPaidProductStatus.absent);
+      expect(cubit.state.posStatus, GetPaidProductStatus.absent);
+      await cubit.close();
+    });
+
+    test('every refresh re-queries every product (no cache)', () async {
+      var lookups = 0;
+      var pageFinds = 0;
+      var posFinds = 0;
+      final cubit = _cubit(
+        lookup: () async {
+          lookups++;
+          return _status(active: true, address: 'a@b');
+        },
+        pageFind: ({required String nym}) async {
+          pageFinds++;
+          return _page();
+        },
+        posFind: ({required String nym}) async {
+          posFinds++;
+          return _pos();
+        },
+      );
+
+      await cubit.refresh();
+      await cubit.refresh();
+
+      expect(lookups, 2);
+      expect(pageFinds, 2);
+      expect(posFinds, 2);
+      await cubit.close();
+    });
+
+    test('an active product with a missing wallet is re-derived, and no '
+        'warning is raised on success', () async {
+      final healed = <GetPaidWalletBackedProduct>[];
+      final cubit = _cubit(
+        lookup: () async => _status(active: true, address: 'a@b'),
+        posFind: ({required String nym}) async => _pos(),
+        productWalletHeal: (product) async {
+          healed.add(product);
+          return GetPaidProductWalletOutcome.rederived;
+        },
+      );
+
+      await cubit.refresh();
+
+      expect(healed, contains(GetPaidWalletBackedProduct.pos));
+      expect(cubit.state.posWalletWarning, isFalse);
+      await cubit.close();
+    });
+
+    test(
+      'a re-derivation failure raises the product missing-wallet warning',
+      () async {
+        final cubit = _cubit(
+          lookup: () async => _status(active: true, address: 'a@b'),
+          posFind: ({required String nym}) async => _pos(),
+          productWalletHeal: (product) async =>
+              product == GetPaidWalletBackedProduct.pos
+              ? GetPaidProductWalletOutcome.failed
+              : GetPaidProductWalletOutcome.present,
+        );
+
+        await cubit.refresh();
+
+        expect(cubit.state.posWalletWarning, isTrue);
+        await cubit.close();
+      },
+    );
+
+    test('archived and absent products are NOT self-healed', () async {
+      final healed = <GetPaidWalletBackedProduct>[];
+      final cubit = _cubit(
+        // Inactive Lightning Address (present but not active) => not healed.
+        lookup: () async => _status(active: false, address: 'a@b'),
+        pageFind: ({required String nym}) async => _page(archived: true),
+        posFind: ({required String nym}) async => null,
+        productWalletHeal: (product) async {
+          healed.add(product);
+          return GetPaidProductWalletOutcome.present;
+        },
+      );
+
+      await cubit.refresh();
+
+      expect(healed, isEmpty);
+      expect(cubit.state.paymentPageWalletWarning, isFalse);
+      await cubit.close();
+    });
+
+    test('a late product response never overwrites a newer refresh', () async {
+      final gate = Completer<PaymentPage?>();
+      final reachedGate = Completer<void>();
+      var calls = 0;
+      final cubit = _cubit(
+        lookup: () async => _status(active: true, address: 'a@b'),
+        pageFind: ({required String nym}) {
+          calls++;
+          if (calls == 1) {
+            // Generation 1 reaches the page query and then hangs.
+            reachedGate.complete();
+            return gate.future;
+          }
+          // Generation 2 resolves immediately as archived.
+          return Future.value(_page(archived: true));
+        },
+      );
+
+      final first = cubit.refresh(); // generation 1 — page pending
+      await reachedGate.future; // gen 1 is now awaiting the page query
+      await cubit.refresh(); // generation 2 — page archived
+
+      // The stale generation-1 read now resolves as a live (active) page.
+      gate.complete(_page());
+      await first;
+
+      // The newer refresh wins; the stale response is dropped by the guard.
+      expect(cubit.state.paymentPageStatus, GetPaidProductStatus.archived);
+      await cubit.close();
+    });
   });
 
   test('active Point of Sale populates the terminal', () async {
@@ -527,4 +801,99 @@ void main() {
     expect(cubit.state.hasLightningAddress, isTrue);
     await cubit.close();
   });
+
+  test(
+    'a confirmed fiat-settlement read populates the per-product config',
+    () async {
+      final cubit = _cubit(
+        fiatConfiguration: () async => Ok(
+          _fiatView(
+            FiatSettlementProduct.paymentPage,
+            50,
+            currency: FiatCurrency.cad,
+          ),
+        ),
+      );
+
+      await cubit.refresh();
+
+      final config =
+          cubit.state.fiatSettlement?[FiatSettlementProduct.paymentPage];
+      expect(config?.fiatPercentage, 50);
+      expect(config?.currency, FiatCurrency.cad);
+      expect(cubit.state.fiatSettlementUnavailable, isFalse);
+      await cubit.close();
+    },
+  );
+
+  test('a fiat-settlement read failure is unavailable, never Bitcoin-only, and '
+      'does not fail the dashboard', () async {
+    final cubit = _cubit(
+      fiatConfiguration: () async =>
+          const Err(FiatSettlementFailure.bullnymUnreachable()),
+    );
+
+    await cubit.refresh();
+
+    // No config map (so no card can render a guessed Bitcoin-only), the
+    // unavailable flag is set, and the rest of the dashboard still succeeds.
+    expect(cubit.state.fiatSettlement, isNull);
+    expect(cubit.state.fiatSettlementUnavailable, isTrue);
+    expect(cubit.state.error, isNull);
+    expect(cubit.state.isLoading, isFalse);
+    await cubit.close();
+  });
+
+  test('a non-mainnet environment shows no settlement state', () async {
+    final cubit = _cubit(
+      environment: Environment.testnet,
+      fiatConfiguration: () async =>
+          Ok(_fiatView(FiatSettlementProduct.paymentPage, 100)),
+    );
+
+    await cubit.refresh();
+
+    expect(cubit.state.fiatSettlement, isNull);
+    expect(cubit.state.fiatSettlementUnavailable, isFalse);
+    await cubit.close();
+  });
+
+  test(
+    'a late fiat-settlement response never overwrites a newer refresh',
+    () async {
+      final gate =
+          Completer<
+            Result<FiatSettlementConfigurationView, FiatSettlementFailure>
+          >();
+      var calls = 0;
+      final cubit = _cubit(
+        fiatConfiguration: () {
+          calls++;
+          // Gen 1 hangs; gen 2 resolves immediately with a different config.
+          return calls == 1
+              ? gate.future
+              : Future.value(
+                  Ok(_fiatView(FiatSettlementProduct.paymentPage, 100)),
+                );
+        },
+      );
+
+      final first = cubit.refresh(); // generation 1 — fiat read pending
+      await cubit.refresh(); // generation 2 — resolves with fiatPercentage 100
+
+      // The stale generation-1 read now resolves with a DIFFERENT value.
+      gate.complete(Ok(_fiatView(FiatSettlementProduct.paymentPage, 25)));
+      await first;
+
+      // The newer refresh wins; the late gen-1 response is dropped by the guard.
+      expect(
+        cubit
+            .state
+            .fiatSettlement?[FiatSettlementProduct.paymentPage]
+            ?.fiatPercentage,
+        100,
+      );
+      await cubit.close();
+    },
+  );
 }

@@ -1,4 +1,7 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/core/widgets/tables/details_table.dart';
+import 'package:bb_mobile/core/widgets/tables/details_table_item.dart';
+import 'package:bb_mobile/features/get_paid/domain/get_paid_settlement.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_transaction.dart';
 import 'package:bb_mobile/features/get_paid/ui/screens/get_paid_transaction_history_screen.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
@@ -36,60 +39,73 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
                     style: context.bullText.headlineLarge,
                   ),
                   const Gap(24),
-                  _DetailRow(
-                    label: context.loc.getPaidTransactionsSourceLabel,
-                    value: getPaidTransactionSourceText(
-                      context,
-                      transaction.source,
-                    ),
-                  ),
-                  const Divider(),
-                  _DetailRow(
-                    label: context.loc.getPaidTransactionsReceivedLabel,
-                    value: getPaidTransactionDateText(
-                      context,
-                      transaction.receivedAt,
-                    ),
-                  ),
-                  const Divider(),
-                  _DetailRow(
-                    label: context.loc.getPaidTransactionsRailLabel,
-                    value: getPaidTransactionRailText(
-                      context,
-                      transaction.rail,
-                    ),
-                  ),
-                  const Divider(),
-                  _DetailRow(
-                    label: context.loc.getPaidTransactionsStatusLabel,
-                    value: getPaidSettlementStateText(
-                      context,
-                      transaction.settlementState,
-                    ),
-                  ),
-                  if (transaction.late) ...[
-                    const Divider(),
-                    _DetailRow(
-                      label: context.loc.getPaidTransactionsTimingLabel,
-                      value: context.loc.getPaidTransactionsLate,
-                      valueColor: colors.warning,
-                    ),
-                  ],
-                  if (transaction.comment case final comment?) ...[
-                    const Gap(24),
-                    Text(
-                      context.loc.getPaidTransactionsCommentLabel,
-                      style: context.bullText.labelMedium?.copyWith(
-                        color: colors.textMuted,
+                  DetailsTable(
+                    items: [
+                      DetailsTableItem(
+                        label: context.loc.getPaidTransactionsSourceLabel,
+                        displayValue: getPaidTransactionSourceText(
+                          context,
+                          transaction.source,
+                        ),
                       ),
-                    ),
-                    const Gap(6),
-                    Text(
-                      comment,
-                      key: const ValueKey('get-paid-transaction-comment'),
-                      style: context.bullText.bodyLarge,
-                    ),
-                  ],
+                      DetailsTableItem(
+                        label: context.loc.getPaidTransactionsReceivedLabel,
+                        displayValue: getPaidTransactionDateText(
+                          context,
+                          transaction.receivedAt,
+                        ),
+                      ),
+                      DetailsTableItem(
+                        label: context.loc.getPaidTransactionsRailLabel,
+                        displayValue: getPaidTransactionRailText(
+                          context,
+                          transaction.rail,
+                        ),
+                      ),
+                      DetailsTableItem(
+                        label: context.loc.getPaidTransactionsStatusLabel,
+                        displayValue: getPaidSettlementStateText(
+                          context,
+                          transaction.settlementState,
+                        ),
+                      ),
+                      if (transaction.late)
+                        DetailsTableItem(
+                          label: context.loc.getPaidTransactionsTimingLabel,
+                          displayWidget: Text(
+                            context.loc.getPaidTransactionsLate,
+                            textAlign: TextAlign.end,
+                            style: context.bullText.bodyLarge?.copyWith(
+                              color: colors.warning,
+                            ),
+                          ),
+                        ),
+                      // Invoice-sourced payments expose a copyable invoice id
+                      // (same copy idiom as the order-id row); Lightning Address
+                      // payments have none and show no row.
+                      if (transaction.invoiceId case final invoiceId?)
+                        DetailsTableItem(
+                          key: const ValueKey(
+                            'get-paid-transaction-invoice-id',
+                          ),
+                          label: context.loc.getPaidTransactionsInvoiceIdLabel,
+                          displayValue: invoiceId,
+                          copyValue: invoiceId,
+                        ),
+                      // The private, merchant-only fiat settlement breakdown
+                      // shares the same table: no rows for a plain Bitcoin
+                      // payment, the override explanation when kept in Bitcoin,
+                      // and an explicit "unavailable" row for anything
+                      // uninterpretable — never a misleading Bitcoin-only view.
+                      ..._settlementRows(context, transaction.settlement),
+                      if (transaction.comment case final comment?)
+                        DetailsTableItem(
+                          key: const ValueKey('get-paid-transaction-comment'),
+                          label: context.loc.getPaidTransactionsCommentLabel,
+                          displayValue: comment,
+                        ),
+                    ],
+                  ),
                   if (transaction.invoiceId case final invoiceId?) ...[
                     const Gap(32),
                     BullButton.big(
@@ -114,39 +130,221 @@ class GetPaidTransactionDetailScreen extends StatelessWidget {
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  const _DetailRow({required this.label, required this.value, this.valueColor});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.bull;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: context.bullText.bodyMedium?.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
+/// Settlement rows for the single details table. Empty for a no-data row or an
+/// ordinary Bitcoin settlement with no override to explain.
+List<DetailsTableItem> _settlementRows(
+  BuildContext context,
+  GetPaidSettlement? settlement,
+) {
+  final s = settlement;
+  if (s == null ||
+      (s.kind == GetPaidSettlementKind.bitcoin && s.overrideReason == null)) {
+    return const [];
+  }
+  final colors = context.bull;
+  final rows = <DetailsTableItem>[];
+  switch (s.kind) {
+    case GetPaidSettlementKind.unavailable:
+      rows.add(
+        DetailsTableItem(
+          label: context.loc.getPaidFiatSettlementSectionTitle,
+          displayValue: context.loc.getPaidSettlementDetailsUnavailable,
+        ),
+      );
+    case GetPaidSettlementKind.bitcoin:
+      rows.add(
+        DetailsTableItem(
+          label: context.loc.getPaidFiatSettlementSectionTitle,
+          displayWidget: Text(
+            _overrideText(context, s.overrideReason),
+            textAlign: TextAlign.end,
+            style: context.bullText.bodyMedium?.copyWith(color: colors.warning),
           ),
-          const Gap(16),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: context.bullText.bodyLarge?.copyWith(color: valueColor),
-            ),
-          ),
-        ],
+        ),
+      );
+    case GetPaidSettlementKind.mixed:
+      // A mixed settlement is shown per-leg in the one table: the captured
+      // split (when present), then the bitcoin (L-BTC) leg's amount and its own
+      // status, then the fiat leg's amount and status.
+      _addSplitRow(context, rows, s.fiatPercentage);
+      rows.addAll(_bitcoinLegRows(context, s.bitcoin));
+      rows.addAll(_fiatLegRows(context, s.fiat));
+    case GetPaidSettlementKind.fiat:
+      _addSplitRow(context, rows, s.fiatPercentage);
+      rows.addAll(_fiatLegRows(context, s.fiat));
+  }
+  return rows;
+}
+
+/// The captured fiat/Bitcoin split row, rendered directly above the leg rows.
+/// Absent for a legacy row (null percentage). Worded like the dashboard badge:
+/// `100` → "100% fiat"; `40` → "60% Bitcoin · 40% fiat".
+void _addSplitRow(
+  BuildContext context,
+  List<DetailsTableItem> rows,
+  int? fiatPercentage,
+) {
+  if (fiatPercentage == null) return;
+  final value = fiatPercentage >= 100
+      ? context.loc.getPaidSettlementSplitFiatOnly
+      : context.loc.getPaidSettlementSplitMixed(
+          100 - fiatPercentage,
+          fiatPercentage,
+        );
+  rows.add(
+    DetailsTableItem(
+      key: const ValueKey('get-paid-settlement-split'),
+      label: context.loc.getPaidSettlementSplitLabel,
+      displayValue: value,
+    ),
+  );
+}
+
+/// The bitcoin (L-BTC) leg rows of a mixed settlement: the on-Liquid amount and
+/// the leg's own lifecycle. The bitcoin leg uses pending/settled/problem, and a
+/// `problem` reuses the history list's needs-attention wording — this per-leg
+/// status is distinct from the top payment-lifecycle Status row.
+List<DetailsTableItem> _bitcoinLegRows(
+  BuildContext context,
+  List<GetPaidBitcoinSettlementLeg> legs,
+) {
+  final rows = <DetailsTableItem>[];
+  for (final leg in legs) {
+    rows.add(
+      DetailsTableItem(
+        label: context.loc.getPaidSettlementLbtcAmountLabel,
+        displayValue: getPaidTransactionAmountText(context, leg.amountSat),
+      ),
+    );
+    rows.add(
+      DetailsTableItem(
+        label: context.loc.getPaidSettlementLbtcStatusLabel,
+        displayValue: _legStatusText(context, leg.status),
       ),
     );
   }
+  return rows;
+}
+
+List<DetailsTableItem> _fiatLegRows(
+  BuildContext context,
+  List<GetPaidFiatSettlementLeg> legs,
+) {
+  final colors = context.bull;
+  final rows = <DetailsTableItem>[];
+  for (final leg in legs) {
+    final settled =
+        leg.status == GetPaidSettlementLegStatus.settled &&
+        leg.amountMinor != null;
+    // A still-pending leg that carries a locked quote shows it, labelled as a
+    // quote — it can reprice for a late payment, so it must not read as final.
+    final quotedPending =
+        leg.status == GetPaidSettlementLegStatus.pending &&
+        leg.quotedAmountMinor != null;
+    // Once settled the value carries the final credited fiat amount; a pending
+    // leg with a quote shows the quoted amount; otherwise the expected
+    // settlement currency only (v1 server / legacy row).
+    rows.add(
+      DetailsTableItem(
+        label: quotedPending
+            ? context.loc.getPaidSettlementFiatAmountQuotedLabel
+            : context.loc.getPaidSettlementFiatAmountLabel,
+        displayValue: settled
+            ? context.loc.getPaidSettlementFiatAmount(
+                _formatMinor(leg.amountMinor!),
+                leg.currency,
+              )
+            : quotedPending
+            ? context.loc.getPaidSettlementFiatAmount(
+                _formatMinor(leg.quotedAmountMinor!),
+                leg.currency,
+              )
+            : leg.currency,
+      ),
+    );
+    if (leg.status == GetPaidSettlementLegStatus.pending) {
+      // A still-pending leg names the expected currency and explains that the
+      // fiat amount is not final until settlement completes — never a guessed
+      // amount.
+      rows.add(
+        DetailsTableItem(
+          label: context.loc.getPaidSettlementFiatStatusLabel,
+          displayWidget: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _legStatusText(context, leg.status),
+                textAlign: TextAlign.end,
+                style: context.bullText.bodyLarge,
+              ),
+              const Gap(4),
+              Text(
+                context.loc.getPaidSettlementAwaitingExplainer(leg.currency),
+                textAlign: TextAlign.end,
+                style: context.bullText.bodySmall?.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      rows.add(
+        DetailsTableItem(
+          label: context.loc.getPaidSettlementFiatStatusLabel,
+          displayValue: _legStatusText(context, leg.status),
+        ),
+      );
+    }
+    if (leg.orderId.isNotEmpty) {
+      rows.add(
+        DetailsTableItem(
+          label: context.loc.getPaidSettlementOrderId,
+          displayValue: leg.orderId,
+          copyValue: leg.orderId,
+        ),
+      );
+    }
+  }
+  return rows;
+}
+
+/// Concise, per-reason explanation for a Bitcoin-only override. An unrecognized
+/// reason falls back to the generic override copy.
+String _overrideText(BuildContext context, GetPaidFiatOverrideReason? reason) {
+  switch (reason) {
+    case GetPaidFiatOverrideReason.belowMinimum:
+      return context.loc.getPaidSettlementOverriddenBelowMinimum;
+    case GetPaidFiatOverrideReason.invalidSplit:
+      return context.loc.getPaidSettlementOverriddenInvalidSplit;
+    case GetPaidFiatOverrideReason.conversionUnavailable:
+      return context.loc.getPaidSettlementOverriddenConversionUnavailable;
+    case GetPaidFiatOverrideReason.unknown:
+    case null:
+      return context.loc.getPaidSettlementOverridden;
+  }
+}
+
+String _legStatusText(BuildContext context, GetPaidSettlementLegStatus status) {
+  switch (status) {
+    case GetPaidSettlementLegStatus.pending:
+      return context.loc.getPaidSettlementStatusPending;
+    case GetPaidSettlementLegStatus.settled:
+      return context.loc.getPaidSettlementStatusSettled;
+    case GetPaidSettlementLegStatus.problem:
+      // The bitcoin (L-BTC) leg's `problem` reuses the history list's
+      // needs-attention wording.
+      return context.loc.getPaidTransactionsStateProblem;
+    case GetPaidSettlementLegStatus.unavailable:
+      return context.loc.getPaidSettlementDetailsUnavailable;
+  }
+}
+
+// Fiat minor units → major.minor with integer arithmetic (never floating
+// point). The seven supported currencies are all 2-decimal.
+String _formatMinor(int minor) {
+  final major = minor ~/ 100;
+  final cents = (minor % 100).toString().padLeft(2, '0');
+  return '$major.$cents';
 }

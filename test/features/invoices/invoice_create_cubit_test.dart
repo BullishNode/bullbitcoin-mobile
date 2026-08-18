@@ -1,5 +1,9 @@
+import 'package:bb_mobile/core/exchange/domain/usecases/convert_currency_to_sats_amount_usecase.dart';
+import 'package:bb_mobile/core/exchange/domain/usecases/convert_sats_to_currency_amount_usecase.dart';
+import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
+import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/invoices/domain/entities/private_invoice_presentation.dart';
+import 'package:bb_mobile/features/invoices/domain/usecases/get_invoice_settlement_constraints_usecase.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_create_state.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
@@ -7,6 +11,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockFacade extends Mock implements InvoicesFacade {}
+
+class _MockSettlementConstraints extends Mock
+    implements GetInvoiceSettlementConstraintsUsecase {}
+
+class _MockGetSettings extends Mock implements GetSettingsUsecase {}
+
+class _MockConvertToSats extends Mock
+    implements ConvertCurrencyToSatsAmountUsecase {}
+
+class _MockConvertToFiat extends Mock
+    implements ConvertSatsToCurrencyAmountUsecase {}
+
+SettingsEntity _settings({
+  BitcoinUnit bitcoinUnit = BitcoinUnit.sats,
+  String currencyCode = 'CAD',
+}) => SettingsEntity(
+  environment: Environment.mainnet,
+  bitcoinUnit: bitcoinUnit,
+  currencyCode: currencyCode,
+);
 
 void main() {
   final invoiceId = InvoiceId('inv-1');
@@ -42,43 +66,97 @@ void main() {
     );
     when(() => facade.supportedCurrencies()).thenAnswer(
       (_) async => const Ok(
-        BullnymSupportedCurrencies(
+        InvoiceSupportedCurrencies(
           currencies: [
-            BullnymSupportedCurrency(code: 'CAD', precision: 2),
-            BullnymSupportedCurrency(code: 'COP', precision: 0),
+            InvoiceSupportedCurrency(code: 'CAD', precision: 2),
+            InvoiceSupportedCurrency(code: 'COP', precision: 0),
+            InvoiceSupportedCurrency(code: 'USD', precision: 2),
           ],
         ),
       ),
     );
   });
 
+  InvoiceCreateCubit buildCubit({
+    GetInvoiceSettlementConstraintsUsecase? settlementConstraints,
+    GetSettingsUsecase? getSettings,
+    ConvertCurrencyToSatsAmountUsecase? convertToSats,
+    ConvertSatsToCurrencyAmountUsecase? convertToFiat,
+  }) {
+    final effectiveConstraints =
+        settlementConstraints ?? _MockSettlementConstraints();
+    if (settlementConstraints == null) {
+      when(() => effectiveConstraints.execute()).thenAnswer(
+        (_) async =>
+            const InvoiceSettlementConstraints(directLiquidAvailable: false),
+      );
+    }
+    final effectiveSettings = getSettings ?? _MockGetSettings();
+    if (getSettings == null) {
+      when(
+        () => effectiveSettings.execute(),
+      ).thenAnswer((_) async => _settings());
+    }
+    final effectiveToSats = convertToSats ?? _MockConvertToSats();
+    if (convertToSats == null) {
+      when(
+        () => effectiveToSats.execute(
+          amountFiat: any(named: 'amountFiat'),
+          currencyCode: any(named: 'currencyCode'),
+        ),
+      ).thenThrow(Exception('rate unavailable'));
+    }
+    final effectiveToFiat = convertToFiat ?? _MockConvertToFiat();
+    if (convertToFiat == null) {
+      when(
+        () => effectiveToFiat.execute(
+          amountSat: any(named: 'amountSat'),
+          currencyCode: any(named: 'currencyCode'),
+        ),
+      ).thenThrow(Exception('rate unavailable'));
+    }
+    return InvoiceCreateCubit(
+      create: facade.create,
+      resumeCreate: facade.resumeCreate,
+      supportedCurrencies: facade.supportedCurrencies,
+      settlementConstraints: effectiveConstraints,
+      getSettings: effectiveSettings,
+      convertToSats: effectiveToSats,
+      convertToFiat: effectiveToFiat,
+    );
+  }
+
   Future<InvoiceCreateCubit> initialized() async {
-    final cubit = InvoiceCreateCubit(facade: facade);
+    final cubit = buildCubit();
     await cubit.initialize();
     return cubit;
   }
 
-  test('sats submit builds encrypted presentation domain data', () async {
-    when(() => facade.create(any())).thenAnswer((_) async => Ok(result));
-    final cubit = await initialized();
-    cubit.amountChanged('25000');
-    cubit.detailChanged(InvoiceCreateField.payerName, ' Jane ');
-    cubit.detailChanged(InvoiceCreateField.description, ' Design work ');
-    cubit.detailChanged(InvoiceCreateField.invoiceDate, '2026-07-18');
+  test(
+    'bitcoin (sats) submit builds encrypted presentation domain data',
+    () async {
+      when(() => facade.create(any())).thenAnswer((_) async => Ok(result));
+      final cubit = await initialized();
+      cubit.amountModeChanged(InvoiceAmountMode.bitcoin);
+      cubit.amountChanged('25000');
+      cubit.detailChanged(InvoiceCreateField.payerName, ' Jane ');
+      cubit.detailChanged(InvoiceCreateField.description, ' Design work ');
+      cubit.detailChanged(InvoiceCreateField.invoiceDate, '2026-07-18');
 
-    await cubit.submit();
+      await cubit.submit();
 
-    expect(cubit.state.result?.privateLink.value, contains('#v1.'));
-    final sent =
-        verify(() => facade.create(captureAny())).captured.single
-            as CreateInvoiceCommand;
-    expect(sent.amountSat, 25000);
-    expect(sent.fiatAmountMinor, isNull);
-    expect(sent.presentation.payer?.name, 'Jane');
-    expect(sent.presentation.invoice?.description, 'Design work');
-    expect(sent.presentation.invoice?.invoiceDate, '2026-07-18');
-    await cubit.close();
-  });
+      expect(cubit.state.result?.privateLink.value, contains('#v1.'));
+      final sent =
+          verify(() => facade.create(captureAny())).captured.single
+              as CreateInvoiceCommand;
+      expect(sent.amountSat, 25000);
+      expect(sent.fiatAmountMinor, isNull);
+      expect(sent.presentation.payer?.name, 'Jane');
+      expect(sent.presentation.invoice?.description, 'Design work');
+      expect(sent.presentation.invoice?.invoiceDate, '2026-07-18');
+      await cubit.close();
+    },
+  );
 
   test('fiat submit converts to minor units by currency precision', () async {
     when(() => facade.create(any())).thenAnswer((_) async => Ok(result));
@@ -98,6 +176,65 @@ void main() {
     await cubit.close();
   });
 
+  test('zero-decimal COP is not multiplied by 100', () async {
+    when(() => facade.create(any())).thenAnswer((_) async => Ok(result));
+    final cubit = await initialized();
+    cubit.fiatCurrencyChanged('COP');
+    cubit.amountChanged('1000');
+
+    await cubit.submit();
+
+    final sent =
+        verify(() => facade.create(captureAny())).captured.single
+            as CreateInvoiceCommand;
+    expect(sent.fiatAmountMinor, 1000);
+    expect(sent.fiatCurrency, 'COP');
+    await cubit.close();
+  });
+
+  test(
+    'fiat creation fails closed when currency metadata is unavailable',
+    () async {
+      when(
+        () => facade.supportedCurrencies(),
+      ).thenAnswer((_) async => const Err(InvoicesFailure.network()));
+      final cubit = await initialized();
+      cubit.amountChanged('12.34');
+
+      await cubit.submit();
+
+      expect(cubit.state.invalidField, InvoiceCreateField.currency);
+      verifyNever(() => facade.create(any()));
+      await cubit.close();
+    },
+  );
+
+  test('currency metadata can be retried after a transient failure', () async {
+    var calls = 0;
+    when(() => facade.supportedCurrencies()).thenAnswer((_) async {
+      calls += 1;
+      if (calls == 1) {
+        return const Err<InvoiceSupportedCurrencies, InvoicesFailure>(
+          InvoicesFailure.network(),
+        );
+      }
+      return const Ok<InvoiceSupportedCurrencies, InvoicesFailure>(
+        InvoiceSupportedCurrencies(
+          currencies: [InvoiceSupportedCurrency(code: 'CAD', precision: 2)],
+        ),
+      );
+    });
+    final cubit = await initialized();
+    expect(cubit.state.currenciesUnavailable, isTrue);
+
+    await cubit.retryCurrencies();
+
+    expect(cubit.state.currenciesUnavailable, isFalse);
+    expect(cubit.state.currencies.single.code, 'CAD');
+    expect(calls, 2);
+    await cubit.close();
+  });
+
   test('invalid private date identifies the exact form field', () async {
     final cubit = await initialized();
     cubit.amountChanged('1000');
@@ -111,16 +248,20 @@ void main() {
     await cubit.close();
   });
 
-  test('no rail selected is refused locally', () async {
+  test('the last enabled rail cannot be turned off (Q19)', () async {
     final cubit = await initialized();
-    cubit.amountChanged('1000');
+    // Without a verified settlement constraint, direct Liquid fails closed.
+    expect(cubit.state.acceptBtc, isTrue);
+    expect(cubit.state.acceptLn, isTrue);
+    expect(cubit.state.acceptLiquid, isFalse);
+
+    cubit.acceptBtcChanged(false);
+    // Only Lightning remains; the guard refuses to empty the last rail.
     cubit.acceptLnChanged(false);
-    cubit.acceptLiquidChanged(false);
 
-    await cubit.submit();
-
-    expect(cubit.state.failure?.kind, InvoicesFailureKind.invalidInput);
-    verifyNever(() => facade.create(any()));
+    expect(cubit.state.acceptLn, isTrue);
+    expect(cubit.state.enabledRailCount, 1);
+    expect(cubit.state.hasAnyRail, isTrue);
     await cubit.close();
   });
 
@@ -135,7 +276,7 @@ void main() {
           ? const Ok<CreateInvoiceResult?, InvoicesFailure>(null)
           : Ok<CreateInvoiceResult?, InvoicesFailure>(result);
     });
-    final cubit = InvoiceCreateCubit(facade: facade);
+    final cubit = buildCubit();
     await cubit.initialize();
     cubit.amountChanged('1000');
 
@@ -154,7 +295,7 @@ void main() {
       when(() => facade.resumeCreate()).thenAnswer(
         (_) async => Ok<CreateInvoiceResult?, InvoicesFailure>(result),
       );
-      final cubit = InvoiceCreateCubit(facade: facade);
+      final cubit = buildCubit();
 
       await cubit.initialize();
 
@@ -173,6 +314,212 @@ void main() {
     await cubit.submit();
 
     verify(() => facade.create(any())).called(1);
+    await cubit.close();
+  });
+
+  test('mixed invoice settlement disables direct Liquid', () async {
+    final settlementConstraints = _MockSettlementConstraints();
+    when(() => settlementConstraints.execute()).thenAnswer(
+      (_) async =>
+          const InvoiceSettlementConstraints(directLiquidAvailable: false),
+    );
+    final cubit = buildCubit(settlementConstraints: settlementConstraints);
+
+    await cubit.initialize();
+
+    expect(cubit.state.directLiquidAvailable, isFalse);
+    expect(cubit.state.acceptLiquid, isFalse);
+    cubit.acceptLiquidChanged(true);
+    expect(cubit.state.acceptLiquid, isFalse);
+    await cubit.close();
+  });
+
+  test('fiat-only invoice settlement keeps direct Liquid available', () async {
+    final settlementConstraints = _MockSettlementConstraints();
+    when(() => settlementConstraints.execute()).thenAnswer(
+      (_) async =>
+          const InvoiceSettlementConstraints(directLiquidAvailable: true),
+    );
+    final cubit = buildCubit(settlementConstraints: settlementConstraints);
+
+    await cubit.initialize();
+
+    expect(cubit.state.directLiquidAvailable, isTrue);
+    expect(cubit.state.acceptLiquid, isTrue);
+    await cubit.close();
+  });
+
+  test('defaults to fiat entry in the user\'s currency (Q16)', () async {
+    final getSettings = _MockGetSettings();
+    when(
+      () => getSettings.execute(),
+    ).thenAnswer((_) async => _settings(currencyCode: 'USD'));
+    final cubit = buildCubit(getSettings: getSettings);
+
+    await cubit.initialize();
+
+    expect(cubit.state.amountMode, InvoiceAmountMode.fiat);
+    expect(cubit.state.fiatCurrency, 'USD');
+    await cubit.close();
+  });
+
+  test(
+    'an unwired settlement constraint fails closed for direct Liquid',
+    () async {
+      final cubit = await initialized();
+      expect(cubit.state.acceptBtc, isTrue);
+      expect(cubit.state.acceptLn, isTrue);
+      expect(cubit.state.acceptLiquid, isFalse);
+      expect(cubit.state.directLiquidAvailable, isFalse);
+      await cubit.close();
+    },
+  );
+
+  test(
+    'BTC-unit entry converts to exact satoshis (submitted command)',
+    () async {
+      when(() => facade.create(any())).thenAnswer((_) async => Ok(result));
+      final getSettings = _MockGetSettings();
+      when(
+        () => getSettings.execute(),
+      ).thenAnswer((_) async => _settings(bitcoinUnit: BitcoinUnit.btc));
+      final cubit = buildCubit(getSettings: getSettings);
+      await cubit.initialize();
+
+      cubit.amountModeChanged(InvoiceAmountMode.bitcoin);
+      cubit.amountChanged('0.00012345');
+      await cubit.submit();
+
+      final sent =
+          verify(() => facade.create(captureAny())).captured.single
+              as CreateInvoiceCommand;
+      expect(sent.amountSat, 12345);
+      expect(sent.fiatAmountMinor, isNull);
+      await cubit.close();
+    },
+  );
+
+  test('toggling denomination clears the amount input', () async {
+    final cubit = await initialized();
+    cubit.amountChanged('123');
+    expect(cubit.state.amountInput, '123');
+
+    cubit.amountModeChanged(InvoiceAmountMode.bitcoin);
+    expect(cubit.state.amountInput, '');
+    await cubit.close();
+  });
+
+  test('a fiat entry publishes a live sats equivalent', () async {
+    final getSettings = _MockGetSettings();
+    when(
+      () => getSettings.execute(),
+    ).thenAnswer((_) async => _settings(currencyCode: 'CAD'));
+    final convertToSats = _MockConvertToSats();
+    when(
+      () => convertToSats.execute(
+        amountFiat: any(named: 'amountFiat'),
+        currencyCode: any(named: 'currencyCode'),
+      ),
+    ).thenAnswer((_) async => BigInt.from(54321));
+    final cubit = buildCubit(
+      getSettings: getSettings,
+      convertToSats: convertToSats,
+    );
+    await cubit.initialize();
+
+    cubit.amountChanged('10');
+    // Let the async equivalent computation settle.
+    await Future<void>.delayed(Duration.zero);
+
+    expect(cubit.state.equivalentLabel, contains('54,321'));
+    await cubit.close();
+  });
+
+  test('a bitcoin entry publishes a live fiat equivalent', () async {
+    final getSettings = _MockGetSettings();
+    when(
+      () => getSettings.execute(),
+    ).thenAnswer((_) async => _settings(currencyCode: 'CAD'));
+    final convertToFiat = _MockConvertToFiat();
+    when(
+      () => convertToFiat.execute(
+        amountSat: any(named: 'amountSat'),
+        currencyCode: any(named: 'currencyCode'),
+      ),
+    ).thenAnswer((_) async => 12.34);
+    final cubit = buildCubit(
+      getSettings: getSettings,
+      convertToFiat: convertToFiat,
+    );
+    await cubit.initialize();
+
+    cubit.amountModeChanged(InvoiceAmountMode.bitcoin);
+    cubit.amountChanged('50000');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(cubit.state.equivalentLabel, contains('12.34'));
+    await cubit.close();
+  });
+
+  test(
+    'initialize derives no invoice (addresses are a submit-only concern)',
+    () async {
+      final cubit = await initialized();
+      // Nothing that could derive an address runs on screen open.
+      verifyNever(() => facade.create(any()));
+
+      when(() => facade.create(any())).thenAnswer((_) async => Ok(result));
+      cubit.amountModeChanged(InvoiceAmountMode.bitcoin);
+      cubit.amountChanged('1000');
+      await cubit.submit();
+      verify(() => facade.create(any())).called(1);
+      await cubit.close();
+    },
+  );
+
+  test('payer and payee ride only the encrypted presentation', () async {
+    when(() => facade.create(any())).thenAnswer((_) async => Ok(result));
+    final cubit = await initialized();
+    cubit.amountModeChanged(InvoiceAmountMode.bitcoin);
+    cubit.amountChanged('1000');
+    cubit.detailChanged(InvoiceCreateField.payerName, 'Alice Payer');
+    cubit.detailChanged(InvoiceCreateField.payeeName, 'Bob Payee');
+
+    await cubit.submit();
+
+    final sent =
+        verify(() => facade.create(captureAny())).captured.single
+            as CreateInvoiceCommand;
+    // The command's only text channel is the client-encrypted presentation;
+    // there is no plaintext note/memo field for the free text to leak into.
+    expect(sent.presentation.payer?.name, 'Alice Payer');
+    expect(sent.presentation.payee?.name, 'Bob Payee');
+    expect(sent.amountSat, 1000);
+    expect(sent.fiatAmountMinor, isNull);
+    expect(sent.fiatCurrency, isNull);
+    await cubit.close();
+  });
+
+  test('a mixed merchant never renders Liquid on before it is disabled', () async {
+    final settlementConstraints = _MockSettlementConstraints();
+    when(() => settlementConstraints.execute()).thenAnswer(
+      (_) async =>
+          const InvoiceSettlementConstraints(directLiquidAvailable: false),
+    );
+    final cubit = buildCubit(settlementConstraints: settlementConstraints);
+    final seen = <InvoiceCreateState>[];
+    final sub = cubit.stream.listen(seen.add);
+
+    await cubit.initialize();
+    await pumpEventQueue();
+
+    // Every state the form is ever shown in (initializing == false) already has
+    // Liquid disabled — the toggles never render Liquid on-then-off (no flicker).
+    final visible = seen.where((s) => !s.initializing).toList();
+    expect(visible, isNotEmpty);
+    expect(visible.every((s) => !s.acceptLiquid), isTrue);
+    expect(visible.every((s) => !s.directLiquidAvailable), isTrue);
+    await sub.cancel();
     await cubit.close();
   });
 }

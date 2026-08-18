@@ -2,7 +2,6 @@ import 'package:bb_mobile/core/seed/data/repository/seed_repository.dart';
 import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
-import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
@@ -113,8 +112,7 @@ class PaymentPageLocator {
       () => PaymentPageCubit(
         facade: locator<PaymentPageFacade>(),
         getPermanentName: locator<GetPaymentPagePermanentNameUsecase>(),
-        getWalletBehaviors: locator<GetGetPaidWalletBehaviorsUsecase>(),
-        updateWalletBehavior: locator<UpdateWalletBehaviorUsecase>(),
+        getPaidSettings: locator<GetPaidSettingsFacade>(),
       ),
     );
   }

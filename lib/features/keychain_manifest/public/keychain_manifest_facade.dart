@@ -31,6 +31,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_er
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/get_keychain_manifest_reservation_wallet_ids_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/merge_keychain_manifest_file_payloads_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
@@ -42,6 +43,7 @@ class KeychainManifestFacade {
   final BuildKeychainManifestFileUsecase _buildManifestFile;
   final MergeKeychainManifestFilePayloadsUsecase _mergeManifestFiles;
   final ParseKeychainManifestFileUsecase _parseManifestFile;
+  final GetKeychainManifestReservationWalletIdsUsecase _reservationWalletIds;
   final StreamController<void> _committedChanges =
       StreamController<void>.broadcast();
 
@@ -50,7 +52,19 @@ class KeychainManifestFacade {
     required this._buildManifestFile,
     required this._mergeManifestFiles,
     required this._parseManifestFile,
+    required this._reservationWalletIds,
   });
+
+  /// Returns the wallet ids durably recorded for a reservation.
+  ///
+  /// An empty result means callers must not guess a wallet from its label.
+  Future<List<String>> reservationWalletIds({
+    required String parentFingerprint,
+    required String reservationId,
+  }) => _reservationWalletIds.execute(
+    parentFingerprint: parentFingerprint,
+    reservationId: reservationId,
+  );
 
   Future<void> recordReservedDerivation(
     KeychainManifestReservedDerivationRequest request, {
