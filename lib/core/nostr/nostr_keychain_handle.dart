@@ -4,8 +4,8 @@ import 'package:convert/convert.dart';
 
 /// BIP85 application number for direct Nostr key derivation.
 ///
-/// Path suffix: `9000'/{identity}'/{account_index}'`.
-const int nostrBip85Application = 9000;
+/// Path suffix: `128002'/{identity}'/{account_index}'`.
+const int nostrBip85Application = 128002;
 
 /// In-memory handle for a Nostr signing key.
 ///
@@ -24,6 +24,7 @@ final class NostrKeychainHandle {
     required String xprvBase58,
     required String hardenedPath,
   }) {
+    _validateNostrBip85Path(hardenedPath);
     final path = bip85.Bip85HardenedPath(hardenedPath);
     final entropyHex = bip85.Bip85Entropy.deriveFromHardenedPath(
       xprvBase58: xprvBase58,
@@ -48,4 +49,50 @@ final class NostrKeychainHandle {
 
   @override
   String toString() => 'NostrKeychainHandle(publicKeyHex: $publicKeyHex)';
+}
+
+void _validateNostrBip85Path(String hardenedPath) {
+  final match = RegExp(r"^(\d+)'/(\d+)'/(\d+)'$").firstMatch(hardenedPath);
+  if (match == null) {
+    throw ArgumentError.value(
+      hardenedPath,
+      'hardenedPath',
+      "Expected a Nostr BIP85 path shaped as 128002'/identity'/account'",
+    );
+  }
+
+  final application = int.parse(match.group(1)!);
+  final identity = int.parse(match.group(2)!);
+  final account = int.parse(match.group(3)!);
+  const maxHardenedChild = 0x7fffffff;
+  if (application > maxHardenedChild ||
+      identity > maxHardenedChild ||
+      account > maxHardenedChild) {
+    throw ArgumentError.value(
+      hardenedPath,
+      'hardenedPath',
+      'Nostr BIP85 path components exceed the hardened child range',
+    );
+  }
+  if (application != nostrBip85Application) {
+    throw ArgumentError.value(
+      hardenedPath,
+      'hardenedPath',
+      'Expected Nostr BIP85 application $nostrBip85Application',
+    );
+  }
+  if (identity == 0) {
+    throw ArgumentError.value(
+      hardenedPath,
+      'hardenedPath',
+      'Nostr identity zero is reserved by BIP85',
+    );
+  }
+  if (account == 0) {
+    throw ArgumentError.value(
+      hardenedPath,
+      'hardenedPath',
+      'Nostr account zero is reserved by BIP85',
+    );
+  }
 }

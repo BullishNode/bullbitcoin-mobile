@@ -21,14 +21,14 @@ accounts.
 Nostr keys use the BIP85 Nostr application path:
 
 ```text
-m/83696968'/9000'/{identity}'/{account_index}'
+m/83696968'/128002'/{identity}'/{account_index}'
 ```
 
 Reserved roles:
 
-- `1'/1'` => wallet manifest publishing and recovery;
-- `2'/1'` => Bullnym server authentication;
-- `3'/1'` => reserved for future public nym verification.
+- `100'/1'` => unified Bull backup signing;
+- `101'/1'` => Bullnym server authentication;
+- `102'/1'` => NIP-05 public nym verification.
 
 Product features must use role-named helpers and must not pass raw
 identity/account integers at call sites.
@@ -38,9 +38,9 @@ identity/account integers at call sites.
 `core/nostr` remains generic: path derivation, hash signing, and public-key
 access. Product role semantics live here, not in `core/nostr` and not inside
 later receive/Bullnym product features. The concrete reservation paths stay in
-`features/bip85_registry`; this feature consumes the current wallet-manifest and
+`features/bip85_registry`; this feature consumes the current wallet-backup and
 Bullnym-auth reservations through its public facade.
 
-These roles are reserved for future Bullnym auth, public nym verification, and
-wallet manifest consumers. This PR exposes only wallet-manifest and Bullnym-auth
+These roles are reserved for Bullnym backup signing, Bullnym auth, and public
+nym verification. This PR exposes only wallet-backup and Bullnym-auth
 public-key/signing helpers; it does not implement those protocols or events.
