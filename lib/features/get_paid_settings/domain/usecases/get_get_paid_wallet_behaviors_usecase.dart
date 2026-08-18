@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/wallet_behavior_rule.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 
@@ -119,4 +120,26 @@ class GetPaidWalletBehavior {
       autoSweepEnabled: autoSweepEnabled ?? this.autoSweepEnabled,
     );
   }
+
+  /// The behavior a requested toggle actually produces, with the auto-sweep /
+  /// hide-on-home rule applied — what the write will persist, so an optimistic
+  /// UI update shows the truth instead of a combination the store will refuse.
+  GetPaidWalletBehavior withRequestedChange({
+    bool? hideOnHome,
+    bool? autoSweepEnabled,
+  }) {
+    final resolved = resolveWalletBehaviorChange(
+      hideOnHome: this.hideOnHome,
+      autoSweepEnabled: this.autoSweepEnabled,
+      requestedHideOnHome: hideOnHome,
+      requestedAutoSweepEnabled: autoSweepEnabled,
+    );
+    return copyWith(
+      hideOnHome: resolved.hideOnHome,
+      autoSweepEnabled: resolved.autoSweepEnabled,
+    );
+  }
+
+  /// Hiding this wallet from home is only offered while auto-sweep empties it.
+  bool get canHideOnHome => autoSweepEnabled;
 }

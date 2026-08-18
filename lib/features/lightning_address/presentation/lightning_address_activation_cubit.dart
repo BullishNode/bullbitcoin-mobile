@@ -531,7 +531,7 @@ class LightningAddressActivationCubit
     if (previous == null || previous.walletId != walletId) return;
     emit(
       state.copyWith(
-        walletBehavior: previous.copyWith(
+        walletBehavior: previous.withRequestedChange(
           hideOnHome: hideOnHome,
           autoSweepEnabled: autoSweepEnabled,
         ),
