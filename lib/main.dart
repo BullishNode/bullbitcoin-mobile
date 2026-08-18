@@ -71,7 +71,19 @@ class Bull {
     await initLocator();
     // Flush wizard pending values (if any) to SQLite now that the
     // settings repository is available, then mark the wizard complete.
-    await locator<ApplyPendingWizardChoicesUsecase>().execute();
+    // This must never block startup: the wizard choices and their dirty
+    // markers are already durable, so a flush failure (e.g. a backup
+    // publication failure) only defers application to the next launch.
+    // Letting it throw here used to crash-loop the app before runApp.
+    try {
+      await locator<ApplyPendingWizardChoicesUsecase>().execute();
+    } on Exception catch (error, stackTrace) {
+      log.severe(
+        message: 'Pending wizard choices could not be applied; continuing startup',
+        error: error,
+        trace: stackTrace,
+      );
+    }
     final settings = locator<SettingsRepository>();
     Report.consent = (await settings.fetch()).isErrorReportingEnabled;
     if (Platform.isAndroid || Platform.isIOS) {

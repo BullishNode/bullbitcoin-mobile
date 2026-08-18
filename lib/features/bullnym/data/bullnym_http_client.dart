@@ -213,11 +213,17 @@ class BullnymHttpClient implements BullnymClientPort {
   @override
   Future<Result<BullnymLookupResult, BullnymFailure>> lookupRegistration({
     required String npubHex,
+    required int timestamp,
+    required String signatureHex,
   }) {
     return _guard(() async {
       final response = await _getMap(
         '/register/lookup',
-        queryParameters: {'npub': npubHex},
+        queryParameters: {
+          'npub': npubHex,
+          'timestamp': timestamp,
+          'signature': signatureHex,
+        },
       );
       return _parseLookupResponse(response);
     });
@@ -1985,10 +1991,21 @@ class BullnymHttpClient implements BullnymClientPort {
       );
     }
     if (!requiredForFiat) {
-      throw const _BullnymClientException(
-        BullnymFailure.invalidServerResponse(
-          logMessage: 'Sat invoice status unexpectedly contains quote rails',
-        ),
+      // The server also sends this object for sat-fixed invoices that carry
+      // a captured fiat-settlement policy. It is informational on this
+      // pricing mode (payer quotes are only requested for fiat-fixed
+      // invoices), so tolerate it instead of failing the whole status read.
+      if (raw is! Map<String, dynamic>) return null;
+      final lightning = raw['lightning'];
+      final liquid = raw['liquid'];
+      final bitcoin = raw['bitcoin'];
+      if (lightning is! bool || liquid is! bool || bitcoin is! bool) {
+        return null;
+      }
+      return BullnymPayerQuoteRailAvailability(
+        lightning: lightning,
+        liquid: liquid,
+        bitcoin: bitcoin,
       );
     }
     if (raw is! Map<String, dynamic>) {
@@ -2104,6 +2121,12 @@ class BullnymHttpClient implements BullnymClientPort {
           pr: _requiredNonEmptyString(json, 'pr'),
           payerAmountSat: payerAmountSat,
         ),
+      'lightning_direct'
+          when selectedRail == BullnymPayerQuoteRail.lightning =>
+        BullnymLightningDirectQuoteInstruction(
+          pr: _requiredNonEmptyString(json, 'pr'),
+          payerAmountSat: payerAmountSat,
+        ),
       'liquid_direct' when selectedRail == BullnymPayerQuoteRail.liquid =>
         BullnymLiquidQuoteInstruction(
           address: _requiredNonEmptyString(json, 'address'),
@@ -2131,6 +2154,7 @@ class BullnymHttpClient implements BullnymClientPort {
     };
     final direct =
         instruction is BullnymLiquidQuoteInstruction ||
+        instruction is BullnymLightningDirectQuoteInstruction ||
         instruction is BullnymBitcoinDirectQuoteInstruction;
     if ((direct && payerAmountSat != merchantAmountSat) ||
         (!direct && payerAmountSat <= merchantAmountSat)) {

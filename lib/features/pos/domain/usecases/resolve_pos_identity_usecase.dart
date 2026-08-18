@@ -45,9 +45,18 @@ class ResolvePosIdentityUsecase {
       );
     }
 
+    final signer = BullnymAuthSigner(
+      npubHex: npubHex,
+      signHashHex: (messageHashHex) =>
+          _nostrIdentity.signBullnymServerAuthHashFromXprv(
+            xprvBase58: xprvBase58,
+            messageHashHex: messageHashHex,
+          ),
+    );
+
     final LightningAddressStatus status;
     try {
-      status = await _lightningAddress.lookupRegistration(npubHex: npubHex);
+      status = await _lightningAddress.lookupRegistration(signer: signer);
     } on LightningAddressException catch (e) {
       if (e.code == _nymNotFoundCode) {
         throw const PosException.noNym();
@@ -57,14 +66,6 @@ class ResolvePosIdentityUsecase {
       throw const PosException.unexpected();
     }
 
-    final signer = BullnymAuthSigner(
-      npubHex: npubHex,
-      signHashHex: (messageHashHex) =>
-          _nostrIdentity.signBullnymServerAuthHashFromXprv(
-            xprvBase58: xprvBase58,
-            messageHashHex: messageHashHex,
-          ),
-    );
     return ResolvedPosIdentity(nym: status.nym, signer: signer);
   }
 

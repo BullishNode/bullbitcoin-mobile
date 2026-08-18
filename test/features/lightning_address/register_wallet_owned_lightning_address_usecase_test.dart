@@ -315,9 +315,9 @@ void main() {
         _FakeLookupWalletOwnedLightningAddressRegistrationUsecase();
     final facade = LightningAddressFacade(
       prepareWallet: _FakePrepareLightningAddressWalletUsecase().execute,
-      lookupRegistration: ({required npubHex}) =>
+      lookupRegistration: ({required signer}) =>
           _FakeLookupLightningAddressRegistrationUsecase().execute(
-            npubHex: npubHex,
+            signer: signer,
           ),
       registerWalletOwned: ({required nym}) => walletOwned.execute(nym: nym),
       lookupWalletOwnedRegistration: lookupWalletOwned.execute,
@@ -339,9 +339,9 @@ void main() {
         _FakeLookupWalletOwnedLightningAddressRegistrationUsecase();
     final facade = LightningAddressFacade(
       prepareWallet: _FakePrepareLightningAddressWalletUsecase().execute,
-      lookupRegistration: ({required npubHex}) =>
+      lookupRegistration: ({required signer}) =>
           _FakeLookupLightningAddressRegistrationUsecase().execute(
-            npubHex: npubHex,
+            signer: signer,
           ),
       registerWalletOwned: ({required nym}) =>
           _FakeRegisterWalletOwnedLightningAddressUsecase().execute(nym: nym),
@@ -544,9 +544,11 @@ class _FakeLookupLightningAddressRegistrationUsecase
   String? npubHex;
 
   @override
-  Future<LightningAddressStatus> execute({required String npubHex}) async {
+  Future<LightningAddressStatus> execute({
+    required BullnymAuthSigner signer,
+  }) async {
     executeCalls += 1;
-    this.npubHex = npubHex;
+    npubHex = signer.npubHex;
     return const LightningAddressStatus(nym: 'alice', active: true);
   }
 }

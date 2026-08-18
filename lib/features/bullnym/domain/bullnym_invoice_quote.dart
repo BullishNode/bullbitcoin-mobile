@@ -77,6 +77,19 @@ final class BullnymLightningQuoteInstruction
   });
 }
 
+/// Server `lightning_direct` instruction: a plain BOLT11 issued under a
+/// 100% fiat-settlement policy. There is no provider swap and therefore no
+/// quote offer id; the payer amount equals the merchant target amount.
+final class BullnymLightningDirectQuoteInstruction
+    extends BullnymVersionedPayerInstruction {
+  final String pr;
+
+  const BullnymLightningDirectQuoteInstruction({
+    required this.pr,
+    required super.payerAmountSat,
+  });
+}
+
 final class BullnymLiquidQuoteInstruction
     extends BullnymVersionedPayerInstruction {
   final String address;

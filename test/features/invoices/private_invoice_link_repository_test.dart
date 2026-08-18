@@ -63,44 +63,36 @@ void main() {
     },
   );
 
-  test('corrupt pending state fails with a redacted format error', () async {
+  test('corrupt pending state is quarantined and treated as absent', () async {
     final storage = _MemoryStorage()
       ..values['private_invoice_pending_v1'] = '{}';
     final repository = _repository(storage);
 
-    expect(
-      repository.getPending,
-      throwsA(
-        isA<FormatException>().having(
-          (error) => error.message,
-          'message',
-          'invalid private invoice pending state',
-        ),
-      ),
-    );
+    // An unreadable blob must not brick every future create: it is moved to
+    // the quarantine key for forensics and the store reads as empty.
+    expect(await repository.getPending(), isNull);
+    expect(storage.values.containsKey('private_invoice_pending_v1'), isFalse);
+    expect(storage.values['private_invoice_pending_v1_corrupt'], '{}');
+
+    // The next create path starts clean.
+    await repository.savePending(_operation());
+    expect(await repository.getPending(), isNotNull);
   });
 
-  test('invalid persisted reservation ids fail closed', () async {
+  test('invalid persisted reservation ids are quarantined and treated as absent', () async {
     final storage = _MemoryStorage();
     final repository = _repository(storage);
     await repository.savePending(_operation());
-    storage.values['private_invoice_pending_v1'] = storage
-        .values['private_invoice_pending_v1']!
+    final corrupted = storage.values['private_invoice_pending_v1']!
         .replaceFirst(
           '"reservation_label_ids":[41]',
           '"reservation_label_ids":[-1]',
         );
+    storage.values['private_invoice_pending_v1'] = corrupted;
 
-    expect(
-      repository.getPending,
-      throwsA(
-        isA<FormatException>().having(
-          (error) => error.message,
-          'message',
-          'invalid private invoice pending state',
-        ),
-      ),
-    );
+    expect(await repository.getPending(), isNull);
+    expect(storage.values.containsKey('private_invoice_pending_v1'), isFalse);
+    expect(storage.values['private_invoice_pending_v1_corrupt'], corrupted);
   });
 
   test('retained link rejects a different origin', () async {

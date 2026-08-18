@@ -110,8 +110,8 @@ class LightningAddressLocator {
 
       return LightningAddressFacade(
         prepareWallet: prepareWallet.execute,
-        lookupRegistration: ({required npubHex}) =>
-            lookupRegistration.execute(npubHex: npubHex),
+        lookupRegistration: ({required signer}) =>
+            lookupRegistration.execute(signer: signer),
         registerWalletOwned: ({required nym}) =>
             registerWalletOwned.execute(nym: nym),
         lookupWalletOwnedRegistration: lookupWalletOwnedRegistration.execute,

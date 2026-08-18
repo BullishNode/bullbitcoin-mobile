@@ -70,7 +70,7 @@ LightningAddressFacade _laFacade(
 ) {
   return LightningAddressFacade(
     prepareWallet: () async => throw UnimplementedError(),
-    lookupRegistration: ({required String npubHex}) async =>
+    lookupRegistration: ({required signer}) async =>
         throw UnimplementedError(),
     registerWalletOwned: ({required String nym}) async =>
         throw UnimplementedError(),

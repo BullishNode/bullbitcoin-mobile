@@ -9,9 +9,11 @@ class LookupLightningAddressRegistrationUsecase {
 
   const LookupLightningAddressRegistrationUsecase(this._bullnym);
 
-  Future<LightningAddressStatus> execute({required String npubHex}) async {
+  Future<LightningAddressStatus> execute({
+    required BullnymAuthSigner signer,
+  }) async {
     try {
-      final result = await _bullnym.lookupRegistration(npubHex: npubHex);
+      final result = await _bullnym.lookupRegistration(signer: signer);
       return switch (result) {
         Ok(:final value) => LightningAddressStatus(
           nym: value.publicNameStatus?.nym.value ?? value.nym,

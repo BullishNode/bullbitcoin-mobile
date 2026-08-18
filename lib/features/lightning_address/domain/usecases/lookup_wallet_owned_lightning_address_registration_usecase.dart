@@ -1,3 +1,4 @@
+import 'package:bb_mobile/features/bullnym/domain/bullnym_auth_signer.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_error.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration.dart';
@@ -18,7 +19,15 @@ class LookupWalletOwnedLightningAddressRegistrationUsecase {
   Future<LightningAddressStatus> execute() async {
     final xprvBase58 = await _deriveDefaultWalletXprv();
     final npubHex = _deriveBullnymPublicKey(xprvBase58);
-    return _lookupRegistration.execute(npubHex: npubHex);
+    final signer = BullnymAuthSigner(
+      npubHex: npubHex,
+      signHashHex: (messageHashHex) =>
+          _nostrIdentity.signBullnymServerAuthHashFromXprv(
+            xprvBase58: xprvBase58,
+            messageHashHex: messageHashHex,
+          ),
+    );
+    return _lookupRegistration.execute(signer: signer);
   }
 
   String _deriveBullnymPublicKey(String xprvBase58) {

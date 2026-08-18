@@ -267,6 +267,8 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
           // Fresh public evidence immediately supersedes any quote request
           // started from an older admission snapshot. Do not wait for the
           // slower authenticated accounting scan before closing payment UI.
+          // The invalidated request exits without emitting, so the refreshing
+          // flag must be cleared here or the rail chips stay disabled forever.
           _quoteOperation++;
         }
         emit(
@@ -275,6 +277,7 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
             snapshot: value,
             clearFailure: true,
             clearQuote: quoteUnavailable,
+            quoteRefreshing: quoteUnavailable ? false : null,
           ),
         );
       case Err(:final failure):
@@ -321,6 +324,8 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
         (authenticatedInvoice?.hasPaymentEvidence ?? false);
     if (authenticatedEvidenceSeen) {
       _quoteExpiryTimer?.cancel();
+      // Same invalidation contract as the public-status path: the superseded
+      // quote request will not emit, so clear the refreshing flag with it.
       _quoteOperation++;
     }
     emit(
@@ -331,6 +336,7 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
         authenticatedPaymentEvidenceSeen: authenticatedEvidenceSeen,
         clearAuthenticatedInvoiceFailure: clearAuthenticatedFailure,
         clearQuote: authenticatedEvidenceSeen,
+        quoteRefreshing: authenticatedEvidenceSeen ? false : null,
       ),
     );
   }
@@ -407,7 +413,7 @@ class InvoiceDetailCubit extends Cubit<InvoiceDetailState> {
       :final pr,
       :final amount,
     ) =>
-      '${amount.payerAmountSat}\u0000$quoteOfferId\u0000$pr',
+      '${amount.payerAmountSat}\u0000${quoteOfferId ?? ''}\u0000$pr',
     InvoiceLiquidQuoteInstruction(:final address, :final amount) =>
       '${amount.payerAmountSat}\u0000$address',
     InvoiceBitcoinQuoteInstruction(

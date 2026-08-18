@@ -27,7 +27,7 @@ void main() {
   }) {
     return LightningAddressFacade(
       prepareWallet: () => throw UnimplementedError(),
-      lookupRegistration: ({required npubHex}) => throw UnimplementedError(),
+      lookupRegistration: ({required signer}) => throw UnimplementedError(),
       registerWalletOwned: ({required nym}) => throw UnimplementedError(),
       lookupWalletOwnedRegistration: () async {
         if (lookupError != null) throw lookupError;

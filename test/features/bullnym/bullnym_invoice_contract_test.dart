@@ -224,7 +224,8 @@ Map<String, dynamic> _payerQuoteView({
       'payer_amount_sat': payerAmountSat,
       if (kind == 'lightning_boltz_reverse' || kind == 'bitcoin_boltz_chain')
         'quote_offer_id': 'offer-$versionNumber',
-      if (kind == 'lightning_boltz_reverse') 'pr': 'lnbc1050n1test',
+      if (kind == 'lightning_boltz_reverse' || kind == 'lightning_direct')
+        'pr': 'lnbc1050n1test',
       if (kind == 'liquid_direct' || kind.startsWith('bitcoin_'))
         'address': kind == 'liquid_direct' ? 'lq1qquote' : 'bc1qquote',
       if (kind.startsWith('bitcoin_'))
@@ -1029,6 +1030,15 @@ void main() {
             payerAmountSat: 100000,
           ),
           type: BullnymLiquidQuoteInstruction,
+        ),
+        (
+          rail: BullnymPayerQuoteRail.lightning,
+          view: _payerQuoteView(
+            rail: 'lightning',
+            kind: 'lightning_direct',
+            payerAmountSat: 100000,
+          ),
+          type: BullnymLightningDirectQuoteInstruction,
         ),
         (
           rail: BullnymPayerQuoteRail.bitcoin,

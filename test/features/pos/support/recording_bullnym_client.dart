@@ -75,6 +75,8 @@ class RecordingBullnymClient implements BullnymClientPort {
   @override
   Future<Result<BullnymLookupResult, BullnymFailure>> lookupRegistration({
     required String npubHex,
+    required int timestamp,
+    required String signatureHex,
   }) async {
     throw UnimplementedError();
   }

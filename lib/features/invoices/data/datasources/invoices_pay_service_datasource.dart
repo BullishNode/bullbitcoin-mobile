@@ -468,6 +468,7 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
     }
     final direct =
         response.instruction is BullnymLiquidQuoteInstruction ||
+        response.instruction is BullnymLightningDirectQuoteInstruction ||
         response.instruction is BullnymBitcoinDirectQuoteInstruction;
     final payerAmountSat = response.instruction.payerAmountSat;
     if ((direct && payerAmountSat != quote.merchantAmountSat) ||
@@ -486,6 +487,8 @@ class InvoicesPayServiceDatasource implements InvoicesPayServicePort {
           pr: pr,
           amount: payerAmount,
         ),
+      BullnymLightningDirectQuoteInstruction(:final pr) =>
+        InvoiceLightningQuoteInstruction(pr: pr, amount: payerAmount),
       BullnymLiquidQuoteInstruction(:final address) =>
         InvoiceLiquidQuoteInstruction(address: address, amount: payerAmount),
       BullnymBitcoinDirectQuoteInstruction(:final address, :final bip21) =>

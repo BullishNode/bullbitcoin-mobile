@@ -398,7 +398,7 @@ void main() {
     final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
 
     final response = _unwrap(
-      await facade.lookupRegistration(npubHex: 'aa' * 32),
+      await facade.lookupRegistration(signer: signer),
     );
 
     expect(response.nym, 'alice');
@@ -407,7 +407,9 @@ void main() {
     final request = stub.captured.requests.single;
     expect(request.method, 'GET');
     expect(request.path, '/register/lookup');
-    expect(request.queryParameters['npub'], 'aa' * 32);
+    expect(request.queryParameters['npub'], signer.npubHex);
+    expect(request.queryParameters['timestamp'], isNotNull);
+    expect(request.queryParameters['signature'], isNotNull);
   });
 
   test('rejects malformed lookup npub before network request', () async {
@@ -417,7 +419,12 @@ void main() {
     final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
 
     final failure = _unwrapFailure(
-      await facade.lookupRegistration(npubHex: 'not-hex'),
+      await facade.lookupRegistration(
+        signer: BullnymAuthSigner(
+          npubHex: 'not-hex',
+          signHashHex: (messageHashHex) async => 'cc' * 64,
+        ),
+      ),
     );
     expect(
       failure,
@@ -435,7 +442,7 @@ void main() {
     final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
 
     final response = _unwrap(
-      await facade.lookupRegistration(npubHex: 'aa' * 32),
+      await facade.lookupRegistration(signer: signer),
     );
 
     expect(response.nym, 'alice');
@@ -453,7 +460,7 @@ void main() {
     final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
 
     final failure = _unwrapFailure(
-      await facade.lookupRegistration(npubHex: 'aa' * 32),
+      await facade.lookupRegistration(signer: signer),
     );
     expect(
       failure,
@@ -484,7 +491,7 @@ void main() {
     final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
 
     final failure = _unwrapFailure(
-      await facade.lookupRegistration(npubHex: 'aa' * 32),
+      await facade.lookupRegistration(signer: signer),
     );
     expect(
       failure,
@@ -621,7 +628,7 @@ void main() {
       final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
 
       final failure = _unwrapFailure(
-        await facade.lookupRegistration(npubHex: 'aa' * 32),
+        await facade.lookupRegistration(signer: signer),
       );
       expect(
         failure,
