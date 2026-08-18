@@ -8,6 +8,7 @@ import 'package:bb_mobile/features/btcpay/presentation/btcpay_failure_l10n.dart'
 import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_cubit.dart';
 import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_state.dart';
 import 'package:bb_mobile/features/btcpay/ui/screens/btcpay_pairing_scanner_screen.dart';
+import 'package:bull_ui/bull_ui.dart' show BullWalletBehaviorSwitches;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -79,11 +80,19 @@ class _BtcpaySettingsScreenState extends State<BtcpaySettingsScreen> {
                         ],
                       ),
                     )
+                  : state.isUnavailable
+                  ? _BtcpayUnavailableView(
+                      onRetry: context.read<BtcpayPairingCubit>().load,
+                    )
                   : state.shouldShowConnection
                   ? _BtcpayConnectionView(
                       connection: state.connection!,
                       walletBehaviors: state.walletBehaviors,
+                      walletBehaviorsStatus: state.walletBehaviorsStatus,
                       walletSettingsSaving: state.walletSettingsSaving,
+                      onRetryWalletBehaviors: context
+                          .read<BtcpayPairingCubit>()
+                          .retryWalletBehaviors,
                     )
                   : _BtcpayPairingForm(
                       formKey: _formKey,
@@ -182,6 +191,42 @@ class _BtcpaySettingsScreenState extends State<BtcpaySettingsScreen> {
 
   String _walletSummary(BuildContext context) {
     return context.loc.btcpayPairingWalletsBitcoinAndLiquid;
+  }
+}
+
+class _BtcpayUnavailableView extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _BtcpayUnavailableView({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.loc.btcpaySettingsUnavailableTitle,
+            style: context.font.titleLarge,
+          ),
+          const Gap(8),
+          Text(
+            context.loc.btcpaySettingsUnavailableBody,
+            style: context.font.bodyMedium?.copyWith(
+              color: context.appColors.textMuted,
+            ),
+          ),
+          const Gap(24),
+          BBButton.big(
+            label: context.loc.retry,
+            onPressed: onRetry,
+            bgColor: context.appColors.secondary,
+            textColor: context.appColors.onSecondary,
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -290,12 +335,16 @@ class _BtcpayPairingFailurePanel extends StatelessWidget {
 class _BtcpayConnectionView extends StatelessWidget {
   final BtcpayConnectionViewModel connection;
   final List<BtcpayWalletBehaviorViewModel> walletBehaviors;
+  final BtcpayWalletBehaviorStatus walletBehaviorsStatus;
   final bool walletSettingsSaving;
+  final VoidCallback onRetryWalletBehaviors;
 
   const _BtcpayConnectionView({
     required this.connection,
     required this.walletBehaviors,
+    required this.walletBehaviorsStatus,
     required this.walletSettingsSaving,
+    required this.onRetryWalletBehaviors,
   });
 
   @override
@@ -345,7 +394,36 @@ class _BtcpayConnectionView extends StatelessWidget {
               : context.loc.btcpayConnectionUpdatedAt,
           value: connection.displayDate.toLocal().toString().substring(0, 16),
         ),
-        if (walletBehaviors.isNotEmpty) ...[
+        if (walletBehaviorsStatus == BtcpayWalletBehaviorStatus.loading) ...[
+          const Gap(24),
+          Text(
+            context.loc.btcpayWalletSettingsTitle,
+            style: context.font.titleMedium,
+          ),
+          const Gap(8),
+          const LoadingLineContent(),
+        ] else if (walletBehaviorsStatus ==
+            BtcpayWalletBehaviorStatus.unavailable) ...[
+          const Gap(24),
+          Text(
+            context.loc.btcpayWalletSettingsTitle,
+            style: context.font.titleMedium,
+          ),
+          const Gap(8),
+          Text(
+            context.loc.btcpayWalletSettingsUnavailable,
+            style: context.font.bodyMedium?.copyWith(
+              color: context.appColors.textMuted,
+            ),
+          ),
+          const Gap(12),
+          BBButton.big(
+            label: context.loc.retry,
+            onPressed: onRetryWalletBehaviors,
+            bgColor: context.appColors.secondary,
+            textColor: context.appColors.onSecondary,
+          ),
+        ] else if (walletBehaviors.isNotEmpty) ...[
           const Gap(24),
           Text(
             context.loc.btcpayWalletSettingsTitle,
@@ -411,34 +489,35 @@ class _BtcpayWalletBehaviorTile extends StatelessWidget {
       BtcpayPairingWallet.bitcoin => context.loc.btcpayPairingWalletsBitcoin,
       BtcpayPairingWallet.liquid => context.loc.btcpayPairingWalletsLiquid,
     };
+    final cubit = context.read<BtcpayPairingCubit>();
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
           ListTile(title: Text(title)),
-          SwitchListTile(
-            value: behavior.hideOnHome,
-            onChanged: saving
-                ? null
-                : (value) {
-                    context.read<BtcpayPairingCubit>().updateWalletBehavior(
-                      walletId: behavior.walletId,
-                      hideOnHome: value,
-                    );
-                  },
-            title: Text(context.loc.btcpayHideWalletOnHome),
-          ),
-          SwitchListTile(
-            value: behavior.autoSweepEnabled,
-            onChanged: saving
-                ? null
-                : (value) {
-                    context.read<BtcpayPairingCubit>().updateWalletBehavior(
-                      walletId: behavior.walletId,
-                      autoSweepEnabled: value,
-                    );
-                  },
-            title: Text(context.loc.btcpayAutoSweepWallet),
+          BullWalletBehaviorSwitches(
+            autoSweepSwitchKey: Key(
+              'btcpay_auto_sweep_switch_${behavior.walletId}',
+            ),
+            hideOnHomeSwitchKey: Key(
+              'btcpay_hide_on_home_switch_${behavior.walletId}',
+            ),
+            hideOnHome: behavior.hideOnHome,
+            autoSweepEnabled: behavior.autoSweepEnabled,
+            canHideOnHome: behavior.canHideOnHome,
+            saving: saving,
+            autoSweepLabel: context.loc.btcpayAutoSweepWallet,
+            hideOnHomeLabel: context.loc.btcpayHideWalletOnHome,
+            hideOnHomeUnavailableInfo:
+                context.loc.getPaidWalletHideOnHomeNeedsAutoSweep,
+            onAutoSweepChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior.walletId,
+              autoSweepEnabled: value,
+            ),
+            onHideOnHomeChanged: (value) => cubit.updateWalletBehavior(
+              walletId: behavior.walletId,
+              hideOnHome: value,
+            ),
           ),
         ],
       ),

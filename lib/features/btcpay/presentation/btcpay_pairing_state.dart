@@ -1,6 +1,16 @@
+import 'package:bb_mobile/core/wallet/domain/wallet_behavior_rule.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_failure.dart';
 
-enum BtcpayPairingStatus { loading, idle, submitting, success, failure }
+enum BtcpayPairingStatus {
+  loading,
+  idle,
+  submitting,
+  success,
+  failure,
+  unavailable,
+}
+
+enum BtcpayWalletBehaviorStatus { loading, loaded, unavailable }
 
 enum BtcpayPairingRail { bitcoin, liquid, lightning }
 
@@ -11,6 +21,7 @@ class BtcpayPairingState {
   final BtcpayFailure? failure;
   final BtcpayConnectionViewModel? connection;
   final List<BtcpayWalletBehaviorViewModel> walletBehaviors;
+  final BtcpayWalletBehaviorStatus walletBehaviorsStatus;
   final bool walletSettingsSaving;
   final bool showPairingForm;
 
@@ -19,6 +30,7 @@ class BtcpayPairingState {
     this.failure,
     this.connection,
     this.walletBehaviors = const [],
+    this.walletBehaviorsStatus = BtcpayWalletBehaviorStatus.loading,
     this.walletSettingsSaving = false,
     this.showPairingForm = false,
   });
@@ -27,6 +39,7 @@ class BtcpayPairingState {
   bool get isSubmitting => status == BtcpayPairingStatus.submitting;
   bool get isSuccess => status == BtcpayPairingStatus.success;
   bool get isFailure => status == BtcpayPairingStatus.failure;
+  bool get isUnavailable => status == BtcpayPairingStatus.unavailable;
   bool get shouldShowConnection =>
       connection != null && !showPairingForm && !isSuccess;
 
@@ -35,6 +48,7 @@ class BtcpayPairingState {
     BtcpayFailure? failure,
     BtcpayConnectionViewModel? connection,
     List<BtcpayWalletBehaviorViewModel>? walletBehaviors,
+    BtcpayWalletBehaviorStatus? walletBehaviorsStatus,
     bool? walletSettingsSaving,
     bool clearFailure = false,
     bool clearConnection = false,
@@ -45,6 +59,8 @@ class BtcpayPairingState {
       failure: clearFailure ? null : failure ?? this.failure,
       connection: clearConnection ? null : connection ?? this.connection,
       walletBehaviors: walletBehaviors ?? this.walletBehaviors,
+      walletBehaviorsStatus:
+          walletBehaviorsStatus ?? this.walletBehaviorsStatus,
       walletSettingsSaving: walletSettingsSaving ?? this.walletSettingsSaving,
       showPairingForm: showPairingForm ?? this.showPairingForm,
     );
@@ -75,6 +91,28 @@ class BtcpayWalletBehaviorViewModel {
       autoSweepEnabled: autoSweepEnabled ?? this.autoSweepEnabled,
     );
   }
+
+  /// The behavior a requested toggle actually produces, with the auto-sweep /
+  /// hide-on-home rule applied — what the write will persist, so an optimistic
+  /// UI update shows the truth instead of a combination the store will refuse.
+  BtcpayWalletBehaviorViewModel withRequestedChange({
+    bool? hideOnHome,
+    bool? autoSweepEnabled,
+  }) {
+    final resolved = resolveWalletBehaviorChange(
+      hideOnHome: this.hideOnHome,
+      autoSweepEnabled: this.autoSweepEnabled,
+      requestedHideOnHome: hideOnHome,
+      requestedAutoSweepEnabled: autoSweepEnabled,
+    );
+    return copyWith(
+      hideOnHome: resolved.hideOnHome,
+      autoSweepEnabled: resolved.autoSweepEnabled,
+    );
+  }
+
+  /// Hiding this wallet from home is only offered while auto-sweep empties it.
+  bool get canHideOnHome => autoSweepEnabled;
 }
 
 class BtcpayConnectionViewModel {

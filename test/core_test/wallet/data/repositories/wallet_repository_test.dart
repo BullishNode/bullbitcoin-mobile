@@ -119,6 +119,74 @@ void main() {
       expect(stored.autoSweepEnabled, isTrue);
     });
 
+    test('unhides a recorded hidden wallet when auto-sweep fills off', () async {
+      // The BTCPay Bitcoin posture recovery applies: hide-on-home was recorded
+      // before, auto-sweep was not, and its default is off. Filling the two
+      // switches independently would leave the wallet hidden while it keeps its
+      // funds, so the wallet has to come back visible.
+      final stored = await storedAfterDefaults(
+        existing: _metadata(hideOnHome: true),
+        hideOnHome: false,
+        autoSweepEnabled: false,
+      );
+
+      expect(stored.hideOnHome, isFalse);
+      expect(stored.autoSweepEnabled, isFalse);
+    });
+
+    test(
+      'keeps a recorded hidden wallet hidden when auto-sweep fills on',
+      () async {
+        final stored = await storedAfterDefaults(
+          existing: _metadata(hideOnHome: true),
+          hideOnHome: false,
+          autoSweepEnabled: true,
+        );
+
+        expect(stored.hideOnHome, isTrue);
+        expect(stored.autoSweepEnabled, isTrue);
+      },
+    );
+
+    test(
+      'a deliberate toggle after the defaults still changes and persists',
+      () async {
+        var current = _metadata();
+        when(
+          () => walletMetadataDatasource.fetch(walletId),
+        ).thenAnswer((_) async => current);
+        when(() => walletMetadataDatasource.store(any())).thenAnswer((
+          invocation,
+        ) async {
+          current =
+              invocation.positionalArguments.single as WalletMetadataModel;
+        });
+
+        await repository.applyWalletBehaviorDefaultsIfMissing(
+          walletId: walletId,
+          hideOnHome: false,
+          autoSweepEnabled: false,
+        );
+
+        expect(current.autoSweepEnabled, isFalse);
+
+        await repository.updateWalletBehavior(
+          walletId: walletId,
+          autoSweepEnabled: true,
+        );
+
+        expect(current.autoSweepEnabled, isTrue);
+
+        await repository.updateWalletBehavior(
+          walletId: walletId,
+          hideOnHome: true,
+        );
+
+        expect(current.hideOnHome, isTrue);
+        expect(current.autoSweepEnabled, isTrue);
+      },
+    );
+
     test('throws when the wallet does not exist', () async {
       when(
         () => walletMetadataDatasource.fetch(walletId),
