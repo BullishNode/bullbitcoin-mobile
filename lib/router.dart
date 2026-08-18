@@ -170,6 +170,7 @@ class AppRouter {
           GetPaidRouter.route,
         ],
       ),
+      ExchangeRouter.authRoute,
       OnboardingRouter.route,
       AppUnlockRouter.route,
       FiatSettlementRouter.route,

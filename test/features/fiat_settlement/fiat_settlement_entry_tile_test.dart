@@ -2,15 +2,21 @@ import 'package:bb_mobile/core/settings/domain/get_settings_usecase.dart';
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/entities/fiat_settlement.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_failure.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_configuration_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/is_fiat_settlement_available_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/presentation/fiat_settlement_entry_cubit.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_configuration_events.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_tile.dart';
-import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:bb_mobile/locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockFacade extends Mock implements FiatSettlementFacade {}
+class _MockGetConfiguration extends Mock
+    implements GetFiatSettlementConfigurationUsecase {}
 
 class _FakeGetSettings implements GetSettingsUsecase {
   @override
@@ -22,6 +28,21 @@ class _FakeGetSettings implements GetSettingsUsecase {
 }
 
 Future<void> _pumpTile(WidgetTester tester) async {
+  locator.registerFactory<IsFiatSettlementAvailableUsecase>(
+    () => IsFiatSettlementAvailableUsecase(locator<GetSettingsUsecase>()),
+  );
+  locator.registerFactoryParam<
+    FiatSettlementEntryCubit,
+    FiatSettlementProduct,
+    void
+  >(
+    (product, _) => FiatSettlementEntryCubit(
+      product: product,
+      availability: locator<IsFiatSettlementAvailableUsecase>(),
+      getConfiguration: locator<GetFiatSettlementConfigurationUsecase>(),
+      events: locator<FiatSettlementConfigurationEvents>(),
+    ),
+  );
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.themeData(AppThemeType.light),
@@ -42,13 +63,18 @@ void main() {
   testWidgets('shows an honest unavailable state on a read failure', (
     tester,
   ) async {
-    final facade = _MockFacade();
+    final getConfiguration = _MockGetConfiguration();
     when(
-      () => facade.configuration(),
+      () => getConfiguration.execute(),
     ).thenAnswer((_) async => const Err(FiatSettlementFailure.unexpected()));
     locator
       ..registerSingleton<GetSettingsUsecase>(_FakeGetSettings())
-      ..registerSingleton<FiatSettlementFacade>(facade);
+      ..registerSingleton<GetFiatSettlementConfigurationUsecase>(
+        getConfiguration,
+      )
+      ..registerSingleton<FiatSettlementConfigurationEvents>(
+        FiatSettlementConfigurationEvents(),
+      );
 
     await _pumpTile(tester);
 
@@ -62,15 +88,20 @@ void main() {
   testWidgets('shows the confirmed summary when configuration loads', (
     tester,
   ) async {
-    final facade = _MockFacade();
-    when(() => facade.configuration()).thenAnswer(
+    final getConfiguration = _MockGetConfiguration();
+    when(() => getConfiguration.execute()).thenAnswer(
       (_) async => const Ok(
         FiatSettlementConfigurationView(products: [], credentialActive: false),
       ),
     );
     locator
       ..registerSingleton<GetSettingsUsecase>(_FakeGetSettings())
-      ..registerSingleton<FiatSettlementFacade>(facade);
+      ..registerSingleton<GetFiatSettlementConfigurationUsecase>(
+        getConfiguration,
+      )
+      ..registerSingleton<FiatSettlementConfigurationEvents>(
+        FiatSettlementConfigurationEvents(),
+      );
 
     await _pumpTile(tester);
 
@@ -79,4 +110,49 @@ void main() {
     expect(find.text('Bitcoin only'), findsOneWidget);
     expect(find.text('Fiat settlement — status unavailable'), findsNothing);
   });
+
+  testWidgets(
+    're-reads when the configuration revision bumps after an outside mutation',
+    (tester) async {
+      // Regression: the activation-time chooser saves fiat settlement WITHOUT
+      // passing through the tile's own tap round-trip. The tile used to keep
+      // its mount-time snapshot ("Bitcoin only") until the screen was
+      // revisited; it must re-read when the shared revision notifies.
+      final getConfiguration = _MockGetConfiguration();
+      final revision = FiatSettlementConfigurationEvents();
+      var config = const FiatSettlementConfigurationView(
+        products: [],
+        credentialActive: false,
+      );
+      when(
+        () => getConfiguration.execute(),
+      ).thenAnswer((_) async => Ok(config));
+      locator
+        ..registerSingleton<GetSettingsUsecase>(_FakeGetSettings())
+        ..registerSingleton<GetFiatSettlementConfigurationUsecase>(
+          getConfiguration,
+        )
+        ..registerSingleton<FiatSettlementConfigurationEvents>(revision);
+
+      await _pumpTile(tester);
+      expect(find.text('Bitcoin only'), findsOneWidget);
+
+      // The chooser saves 100% fiat EUR elsewhere; the facade bumps.
+      config = const FiatSettlementConfigurationView(
+        products: [
+          FiatSettlementProductConfig(
+            product: FiatSettlementProduct.invoice,
+            fiatPercentage: 100,
+            currency: FiatCurrency.eur,
+          ),
+        ],
+        credentialActive: true,
+      );
+      revision.notifyChanged();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bitcoin only'), findsNothing);
+      expect(find.textContaining('100%'), findsOneWidget);
+    },
+  );
 }

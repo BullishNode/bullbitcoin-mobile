@@ -1,5 +1,3 @@
-import 'package:bb_mobile/core/utils/constants.dart';
-
 bool isAllowedExchangeAuthNavigation({
   required String requestUrl,
   required String authBaseUrl,
@@ -12,10 +10,8 @@ bool isAllowedExchangeAuthNavigation({
     return false;
   }
 
-  final authOrigin = validateHttpsOrigin(
-    authBaseUrl,
-    configurationName: 'Bull Bitcoin auth origin',
-  );
+  final authOrigin = _httpsOrigin(authBaseUrl);
+  if (authOrigin == null) return false;
   if (request.origin == authOrigin) return true;
 
   if (request.origin != 'https://www.bullbitcoin.com') {
@@ -23,4 +19,21 @@ bool isAllowedExchangeAuthNavigation({
   }
 
   return request.path.contains('terms') || request.path.contains('privacy');
+}
+
+String? _httpsOrigin(String value) {
+  if (value != value.trim()) return null;
+
+  final uri = Uri.tryParse(value);
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty ||
+      (uri.path.isNotEmpty && uri.path != '/') ||
+      uri.hasQuery ||
+      uri.hasFragment) {
+    return null;
+  }
+
+  return uri.origin;
 }
