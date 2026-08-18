@@ -1,17 +1,25 @@
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
+import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 
 enum RecoveredProductsHealStatus { finished, timedOut }
 
+/// Runs post-recovery liveness checks for Bullnym-backed products.
 final class HealRecoveredProductsUsecase {
   static const _lightningAddressReservationId = 'lightning_address_wallet_seed';
   static const _paymentPageReservationId = 'payment_page_wallet_seed';
+  static const _posReservationId = 'pos_wallet_seed';
 
   final LightningAddressFacade _lightningAddress;
   final PaymentPageFacade _paymentPage;
+  final PosFacade _pos;
 
-  const HealRecoveredProductsUsecase(this._lightningAddress, this._paymentPage);
+  const HealRecoveredProductsUsecase(
+    this._lightningAddress,
+    this._paymentPage,
+    this._pos,
+  );
 
   Future<RecoveredProductsHealStatus> execute(
     Set<String> reactivationReservationIds, {
@@ -24,6 +32,10 @@ final class HealRecoveredProductsUsecase {
 
     if (reactivationReservationIds.contains(_paymentPageReservationId)) {
       await _healPaymentPage();
+    }
+
+    if (reactivationReservationIds.contains(_posReservationId)) {
+      await _healPos();
     }
 
     return RecoveredProductsHealStatus.finished;
@@ -73,6 +85,25 @@ final class HealRecoveredProductsUsecase {
     } catch (error, stack) {
       log.warning(
         'Payment Page recovery heal failed',
+        error: error.runtimeType,
+        trace: stack,
+      );
+    }
+  }
+
+  Future<void> _healPos() async {
+    try {
+      final outcome = await _pos.ensurePosLive();
+      if (outcome.liveness == PosLiveness.needsReactivation ||
+          outcome.liveness == PosLiveness.unreachable) {
+        log.warning(
+          'Point of Sale recovery heal did not complete: '
+          '${outcome.liveness.name}',
+        );
+      }
+    } catch (error, stack) {
+      log.warning(
+        'Point of Sale recovery heal failed',
         error: error.runtimeType,
         trace: stack,
       );

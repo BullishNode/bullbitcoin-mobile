@@ -7,6 +7,7 @@ import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_fa
 import 'package:bb_mobile/features/keychain_recovery/public/keychain_recovery_facade.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
+import 'package:bb_mobile/features/pos/public/pos_facade.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/recover_remote_keychain_manifest_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/heal_recovered_products_usecase.dart';
@@ -19,6 +20,7 @@ void main() {
   late _FakeKeychainRecoveryFacade recovery;
   late _FakeLightningAddressFacade lightningAddress;
   late _FakePaymentPageFacade paymentPage;
+  late _FakePosFacade pos;
 
   RecoverRemoteKeychainManifestUsecase buildUsecase({
     Clock clock = const SystemClock(),
@@ -29,7 +31,7 @@ void main() {
       walletBackup,
       manifest,
       recovery,
-      HealRecoveredProductsUsecase(lightningAddress, paymentPage),
+      HealRecoveredProductsUsecase(lightningAddress, paymentPage, pos),
       clock: clock,
       budget: budget,
     );
@@ -41,6 +43,7 @@ void main() {
     recovery = _FakeKeychainRecoveryFacade();
     lightningAddress = _FakeLightningAddressFacade();
     paymentPage = _FakePaymentPageFacade();
+    pos = _FakePosFacade();
   });
 
   test(
@@ -200,6 +203,29 @@ void main() {
     expect(result.status, RemoteKeychainRecoveryStatus.restored);
     expect(result.createdWalletIds, ['payment-page-wallet']);
     expect(paymentPage.ensureCalls, 1);
+  });
+
+  test('heals a restored point of sale that requests reactivation', () async {
+    final plan = _plan(entries: [_posEntry()]);
+    walletBackup.fetchResult = Ok(_manifestImport());
+    manifest.plan = plan;
+    recovery.result = const KeychainRecoveryResult(
+      walletOutcomes: [
+        KeychainRecoveryWalletRestoreOutcome(
+          intent: _posIntent,
+          status:
+              KeychainRecoveryWalletRestoreStatus.requiresProductReactivation,
+          materializedWalletId: 'pos-wallet',
+          created: true,
+        ),
+      ],
+    );
+
+    final result = await buildUsecase().execute();
+
+    expect(result.status, RemoteKeychainRecoveryStatus.restored);
+    expect(result.createdWalletIds, ['pos-wallet']);
+    expect(pos.ensureCalls, 1);
   });
 
   test('reports partial restoration without discarding successes', () async {
@@ -448,6 +474,31 @@ KeychainManifestImportEntryIntent _paymentPageEntry() {
   );
 }
 
+KeychainManifestImportEntryIntent _posEntry() {
+  const path = "39'/0'/12'/103'";
+  return KeychainManifestImportEntryIntent(
+    entryId: 'fedcba98:$path',
+    parentFingerprint: 'fedcba98',
+    bip85DerivationPath: path,
+    reservationId: 'pos_wallet_seed',
+    entryType: 'walletSeed',
+    ownerFeature: 'pos',
+    bip85Application: 39,
+    bip85Index: 103,
+    walletMaterializations: [
+      KeychainManifestWalletMaterializationIntent(
+        entryId: 'fedcba98:$path',
+        reservationId: 'pos_wallet_seed',
+        bip85DerivationPath: path,
+        walletId: 'pos-wallet',
+        childSeedFingerprint: 'def01234',
+        network: Network.liquidMainnet,
+        scriptType: ScriptType.bip84,
+      ),
+    ],
+  );
+}
+
 const _btcpayIntent = KeychainRecoveryWalletIntent(
   entryId: "fedcba98:39'/0'/12'/100'",
   reservationId: 'btcpay_wallet_seed',
@@ -484,6 +535,16 @@ const _paymentPageIntent = KeychainRecoveryWalletIntent(
   bip85DerivationPath: "39'/0'/12'/102'",
   walletId: 'payment-page-wallet',
   childSeedFingerprint: 'cdef0123',
+  network: Network.liquidMainnet,
+  scriptType: ScriptType.bip84,
+);
+
+const _posIntent = KeychainRecoveryWalletIntent(
+  entryId: "fedcba98:39'/0'/12'/103'",
+  reservationId: 'pos_wallet_seed',
+  bip85DerivationPath: "39'/0'/12'/103'",
+  walletId: 'pos-wallet',
+  childSeedFingerprint: 'def01234',
   network: Network.liquidMainnet,
   scriptType: ScriptType.bip84,
 );
@@ -577,6 +638,20 @@ final class _FakePaymentPageFacade implements PaymentPageFacade {
 
   @override
   Future<PaymentPageHealOutcome> ensurePageLive() async {
+    ensureCalls++;
+    return outcome;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+final class _FakePosFacade implements PosFacade {
+  int ensureCalls = 0;
+  PosHealOutcome outcome = const PosHealOutcome(liveness: PosLiveness.live);
+
+  @override
+  Future<PosHealOutcome> ensurePosLive() async {
     ensureCalls++;
     return outcome;
   }

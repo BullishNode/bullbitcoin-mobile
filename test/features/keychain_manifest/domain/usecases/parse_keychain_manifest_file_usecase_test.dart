@@ -195,10 +195,10 @@ void main() {
   test('rejects more entries than the registry reserves', () {
     // Pinned to the registry size: every valid entry maps to a distinct
     // reservation, so a file carrying more entries than the registry holds
-    // (currently seven) can never validate and is bounded before per-entry
+    // (currently eight) can never validate and is bounded before per-entry
     // validation runs.
     final reservationCount = const Bip85RegistryFacade().reservations.length;
-    expect(reservationCount, 7);
+    expect(reservationCount, 8);
     final extraEntries = StringBuffer();
     for (var i = 0; i < reservationCount; i++) {
       final index = 200 + i;
@@ -350,6 +350,24 @@ void main() {
     );
     expect(plan.entries.single.reservationId, 'payment_page_wallet_seed');
     expect(plan.entries.single.bip85DerivationPath, "39'/0'/12'/102'");
+  });
+
+  test('parses Point of Sale wallet manifests into import plans', () {
+    final payload = _manifestPayloadForReservation(
+      reservationId: 'pos_wallet_seed',
+      path: "39'/0'/12'/103'",
+      ownerFeature: 'pos',
+      bip85Application: 39,
+      bip85Index: 103,
+      materializations: _lightningAddressMaterialization,
+    );
+
+    final plan = usecase.execute(
+      payload,
+      expectedParentFingerprint: 'fedcba98',
+    );
+    expect(plan.entries.single.reservationId, 'pos_wallet_seed');
+    expect(plan.entries.single.bip85DerivationPath, "39'/0'/12'/103'");
   });
 
   test('rejects duplicate wallet materializations in the same entry', () {
