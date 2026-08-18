@@ -365,6 +365,7 @@ void main() {
       String settlementStatus = 'none',
       String presentationStatus = 'payment_detected',
       String observationState = 'mempool',
+      String observationRail = 'bitcoin',
       int confirmations = 0,
       int firstSeenAtUnix = 200,
     }) {
@@ -387,7 +388,7 @@ void main() {
         bitcoinDirectObservations: [
           BullnymBitcoinDirectObservation(
             source: confirmations == 0 ? 'mempool' : 'chain',
-            rail: 'bitcoin',
+            rail: observationRail,
             txid: 'ab' * 32,
             vout: 1,
             address: 'bc1qmerchant',
@@ -629,6 +630,30 @@ void main() {
         InvoicePaymentProblem.reorged,
       );
       expect(snapshot.isMonitoringComplete, isFalse);
+    });
+
+    test('rejects an unknown bitcoin observation rail', () async {
+      when(
+        () => bullnym.getInvoiceStatus(invoiceId: any(named: 'invoiceId')),
+      ).thenAnswer((_) async => Ok(observedStatus(observationRail: 'future')));
+
+      final failure = _unwrapFailure(
+        await datasource.getInvoiceStatus(InvoiceId('inv-1')),
+      );
+      expect(failure.kind, InvoicesFailureKind.invalidServerResponse);
+    });
+
+    test('rejects a known but wrong bitcoin observation rail', () async {
+      when(
+        () => bullnym.getInvoiceStatus(invoiceId: any(named: 'invoiceId')),
+      ).thenAnswer(
+        (_) async => Ok(observedStatus(observationRail: 'lightning')),
+      );
+
+      final failure = _unwrapFailure(
+        await datasource.getInvoiceStatus(InvoiceId('inv-1')),
+      );
+      expect(failure.kind, InvoicesFailureKind.invalidServerResponse);
     });
 
     test(

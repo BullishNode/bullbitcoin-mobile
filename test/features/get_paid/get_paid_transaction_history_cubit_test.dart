@@ -120,9 +120,21 @@ void main() {
           ),
         ),
       );
-      when(
-        () => list.execute(cursor: 'page-2', limit: 20),
-      ).thenAnswer((_) async => const Err(GetPaidFailure.unavailable()));
+      var attempts = 0;
+      when(() => list.execute(cursor: 'page-2', limit: 20)).thenAnswer((
+        _,
+      ) async {
+        attempts++;
+        if (attempts == 1) {
+          return const Err(GetPaidFailure.unavailable());
+        }
+        return Ok(
+          GetPaidTransactionPage(
+            transactions: [_transaction(secondId)],
+            nextCursor: null,
+          ),
+        );
+      });
 
       await cubit.load();
       await cubit.loadMore();
@@ -131,6 +143,57 @@ void main() {
       expect(cubit.state.transactions.single.transactionId, firstId);
       expect(cubit.state.nextCursor, 'page-2');
       expect(cubit.state.isLoadingMore, isFalse);
+      expect(cubit.state.loadMoreFailed, isTrue);
+
+      await cubit.loadMore();
+
+      expect(cubit.state.transactions.map((item) => item.transactionId), [
+        firstId,
+        secondId,
+      ]);
+      expect(cubit.state.nextCursor, isNull);
+      expect(cubit.state.loadMoreFailed, isFalse);
+      expect(attempts, 2);
+    },
+  );
+
+  test(
+    'rejects a non-adjacent cursor cycle without losing loaded rows',
+    () async {
+      when(() => list.execute(cursor: '', limit: 20)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(
+            transactions: [_transaction(firstId)],
+            nextCursor: 'page-2',
+          ),
+        ),
+      );
+      when(() => list.execute(cursor: 'page-2', limit: 20)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(
+            transactions: [_transaction(secondId)],
+            nextCursor: 'page-3',
+          ),
+        ),
+      );
+      when(() => list.execute(cursor: 'page-3', limit: 20)).thenAnswer(
+        (_) async => Ok(
+          GetPaidTransactionPage(
+            transactions: [_transaction(thirdId)],
+            nextCursor: 'page-2',
+          ),
+        ),
+      );
+
+      await cubit.load();
+      await cubit.loadMore();
+      await cubit.loadMore();
+
+      expect(cubit.state.transactions.map((item) => item.transactionId), [
+        firstId,
+        secondId,
+      ]);
+      expect(cubit.state.nextCursor, isNull);
       expect(cubit.state.loadMoreFailed, isTrue);
     },
   );

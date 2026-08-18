@@ -1286,7 +1286,7 @@ class BullnymHttpClient implements BullnymClientPort {
       twitter: _optionalString(json, 'twitter'),
       instagram: _optionalString(json, 'instagram'),
       kind: kind,
-      posMode: _requiredBool(json, 'pos_mode'),
+      posMode: kind == bullnymDonationPageKindPos,
       enabled: _requiredBool(json, 'enabled'),
       isArchived: _requiredBool(json, 'is_archived'),
       avatarSha256: _optionalString(json, 'avatar_sha256'),
@@ -1795,7 +1795,7 @@ class BullnymHttpClient implements BullnymClientPort {
         ),
       );
     }
-    return [
+    final observations = <BullnymBitcoinDirectObservation>[
       for (final raw in rawObservations)
         if (raw is Map<String, dynamic>)
           BullnymBitcoinDirectObservation(
@@ -1818,6 +1818,14 @@ class BullnymHttpClient implements BullnymClientPort {
             ),
           ),
     ];
+    if (observations.any((observation) => observation.rail != 'bitcoin')) {
+      throw const _BullnymClientException(
+        BullnymFailure.invalidServerResponse(
+          logMessage: 'Bitcoin observation has an unsupported rail',
+        ),
+      );
+    }
+    return observations;
   }
 }
 

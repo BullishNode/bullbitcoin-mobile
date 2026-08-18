@@ -99,7 +99,6 @@ Map<String, dynamic> _donationPageView({
     'twitter': 'me',
     'instagram': null,
     'kind': kind,
-    'pos_mode': false,
     'enabled': enabled,
     'is_archived': isArchived,
     'avatar_sha256': null,
@@ -455,6 +454,38 @@ void main() {
       },
     );
 
+    test('derives posMode from kind for a view without pos_mode', () async {
+      final stub = _stubDio([
+        _donationPageView(kind: 'payment_page'),
+        _donationPageView(kind: 'pos'),
+      ]);
+      final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
+
+      final page = _unwrap(
+        await facade.getDonationPage(nym: 'alice', kind: 'payment_page'),
+      );
+      final pos = _unwrap(
+        await facade.getDonationPage(nym: 'alice', kind: 'pos'),
+      );
+
+      expect(page.kind, 'payment_page');
+      expect(page.posMode, isFalse);
+      expect(pos.kind, 'pos');
+      expect(pos.posMode, isTrue);
+    });
+
+    test('rejects a view missing the kind discriminator', () async {
+      final stub = _stubDio([_donationPageView()..remove('kind')]);
+      final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
+
+      expect(
+        _unwrapFailure(
+          await facade.getDonationPage(nym: 'alice', kind: 'payment_page'),
+        ).kind,
+        BullnymFailureKind.invalidServerResponse,
+      );
+    });
+
     test('maps DonationPageNotFound envelope to a typed rejection', () async {
       final stub = _stubDio([
         {
@@ -640,7 +671,12 @@ void main() {
       final stub = _stubDio([
         {
           'currencies': [
+            {'code': 'USD', 'precision': 2},
             {'code': 'CAD', 'precision': 2},
+            {'code': 'CRC', 'precision': 0},
+            {'code': 'EUR', 'precision': 2},
+            {'code': 'MXN', 'precision': 2},
+            {'code': 'ARS', 'precision': 2},
             {'code': 'COP', 'precision': 0},
           ],
         },
@@ -649,7 +685,15 @@ void main() {
 
       final currencies = _unwrap(await facade.getSupportedCurrencies());
 
-      expect(currencies.currencies.map((c) => c.code), ['CAD', 'COP']);
+      expect(currencies.currencies.map((c) => c.code), [
+        'USD',
+        'CAD',
+        'CRC',
+        'EUR',
+        'MXN',
+        'ARS',
+        'COP',
+      ]);
       expect(currencies.currencies.last.precision, 0);
       final request = stub.captured.requests.single;
       expect(request.method, 'GET');
@@ -678,6 +722,41 @@ void main() {
         {
           'currencies': [
             {'code': 'CAD', 'precision': -1},
+          ],
+        },
+      ]);
+      final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
+
+      final failure = _unwrapFailure(await facade.getSupportedCurrencies());
+      expect(failure.kind, BullnymFailureKind.invalidServerResponse);
+    });
+
+    test(
+      'rejects unsupported currency codes and non-canonical precision',
+      () async {
+        for (final currency in [
+          {'code': 'XYZ', 'precision': 2},
+          {'code': 'CAD', 'precision': 0},
+        ]) {
+          final stub = _stubDio([
+            {
+              'currencies': [currency],
+            },
+          ]);
+          final facade = _facadeForClient(BullnymHttpClient.withDio(stub.dio));
+
+          final failure = _unwrapFailure(await facade.getSupportedCurrencies());
+          expect(failure.kind, BullnymFailureKind.invalidServerResponse);
+        }
+      },
+    );
+
+    test('rejects duplicate currency entries', () async {
+      final stub = _stubDio([
+        {
+          'currencies': [
+            {'code': 'CAD', 'precision': 2},
+            {'code': 'CAD', 'precision': 2},
           ],
         },
       ]);

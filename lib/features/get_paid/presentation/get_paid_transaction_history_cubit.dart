@@ -10,6 +10,7 @@ class GetPaidTransactionHistoryCubit
 
   final ListGetPaidTransactionsUsecase _listTransactions;
   int _generation = 0;
+  Set<String> _seenCursors = const {};
 
   GetPaidTransactionHistoryCubit({required this._listTransactions})
     : super(const GetPaidTransactionHistoryState());
@@ -18,6 +19,7 @@ class GetPaidTransactionHistoryCubit
 
   Future<void> refresh() async {
     final generation = ++_generation;
+    _seenCursors = {''};
     emit(
       const GetPaidTransactionHistoryState(
         status: GetPaidTransactionHistoryStatus.loading,
@@ -53,6 +55,16 @@ class GetPaidTransactionHistoryCubit
     }
 
     final generation = _generation;
+    if (_seenCursors.contains(cursor)) {
+      emit(
+        state.copyWith(
+          clearNextCursor: true,
+          isLoadingMore: false,
+          loadMoreFailed: true,
+        ),
+      );
+      return;
+    }
     emit(state.copyWith(isLoadingMore: true, loadMoreFailed: false));
     final result = await _listTransactions.execute(
       cursor: cursor,
@@ -61,6 +73,19 @@ class GetPaidTransactionHistoryCubit
     if (_isStale(generation)) return;
     switch (result) {
       case Ok(:final value):
+        final pageCursors = {..._seenCursors, cursor};
+        if (value.nextCursor != null &&
+            pageCursors.contains(value.nextCursor)) {
+          emit(
+            state.copyWith(
+              clearNextCursor: true,
+              isLoadingMore: false,
+              loadMoreFailed: true,
+            ),
+          );
+          return;
+        }
+        _seenCursors = pageCursors;
         emit(
           state.copyWith(
             transactions: _mergeByStableKey(

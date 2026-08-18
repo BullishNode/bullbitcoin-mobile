@@ -272,6 +272,35 @@ void main() {
     },
   );
 
+  test(
+    'cancel does not stop settlement polling before status completion',
+    () async {
+      var statusCalls = 0;
+      when(() => facade.status(any())).thenAnswer((_) async {
+        statusCalls++;
+        return Ok(_snapshot(InvoiceStatus.unpaid));
+      });
+      when(() => facade.cancel(any())).thenAnswer(
+        (_) async => Ok(
+          CancelInvoiceResult(
+            invoiceId: InvoiceId('inv-1'),
+            finalStatus: InvoiceStatus.cancelled,
+          ),
+        ),
+      );
+
+      final cubit = build(initial: const Duration(milliseconds: 5));
+      await cubit.load();
+      await cubit.cancel();
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+
+      expect(cubit.state.cancelFinalStatus, InvoiceStatus.cancelled);
+      expect(cubit.state.isTerminal, isFalse);
+      expect(statusCalls, greaterThan(2));
+      await cubit.close();
+    },
+  );
+
   test('fiat detail explicitly loads the first available quote rail', () async {
     final now = DateTime.utc(2026, 1, 1, 12);
     when(() => facade.status(any())).thenAnswer(
