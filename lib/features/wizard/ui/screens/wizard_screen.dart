@@ -9,6 +9,7 @@ import 'package:bb_mobile/features/wizard/presentation/bloc/wizard_bloc.dart';
 import 'package:bb_mobile/features/wizard/ui/wizard_page.dart';
 import 'package:bb_mobile/features/wizard/ui/widgets/customize_step.dart';
 import 'package:bb_mobile/features/wizard/ui/widgets/journey_step.dart';
+import 'package:bb_mobile/features/wizard/ui/widgets/metadata_backup_choice_actions.dart';
 import 'package:bb_mobile/features/wizard/ui/widgets/mission_consent_row.dart';
 import 'package:bb_mobile/features/wizard/ui/widgets/mission_step.dart';
 import 'package:bb_mobile/features/wizard/ui/widgets/metadata_backup_step.dart';
@@ -87,10 +88,10 @@ class _WizardScreenState extends State<WizardScreen> {
 
   void _pickMetadataBackup(bool enabled) {
     context.read<WizardBloc>().add(WizardEvent.metadataBackupPicked(enabled));
-    _controller.nextPage(duration: _pageDuration, curve: _pageCurve);
   }
 
   void _tryFinish(WizardChoices choices) {
+    if (context.read<WizardBloc>().state.persistenceSaving) return;
     if (choices.metadataBackupEnabled == null) {
       _controller.animateToPage(
         WizardPage.metadataBackup.index,
@@ -132,6 +133,7 @@ class _WizardScreenState extends State<WizardScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        if (context.read<WizardBloc>().state.persistenceSaving) return;
         if (!_page.isFirst) {
           _controller.previousPage(duration: _pageDuration, curve: _pageCurve);
         }
@@ -147,128 +149,175 @@ class _WizardScreenState extends State<WizardScreen> {
           children: [
             if (isWelcome) const WelcomeBgPattern(),
             SafeArea(
-              child: BlocBuilder<WizardBloc, WizardState>(
-                buildWhen: (a, b) => a.choices != b.choices,
-                builder: (context, state) {
-                  final c = state.choices;
-                  final bloc = context.read<WizardBloc>();
-                  return Stack(
-                    children: [
-                      // Page content fills the whole SafeArea. The
-                      // bottom chrome (dots + button or Yes/No) floats
-                      // on top via a Positioned overlay so steps can
-                      // scroll their content past it without a hard
-                      // visual cut. Each step's `WizardStepLayout`
-                      // adds bottom padding equal to `kWizardChromeHeight`
-                      // so the last item can settle right above the
-                      // chrome at max-scroll.
-                      Column(
+              child: BlocListener<WizardBloc, WizardState>(
+                listenWhen: (previous, current) =>
+                    (previous.metadataBackupSaving &&
+                        !current.metadataBackupSaving) ||
+                    (previous.completionSaving && !current.completionSaving),
+                listener: (context, state) {
+                  if (state.metadataBackupSaveFailed) {
+                    SnackBarUtils.showSnackBar(
+                      context,
+                      context.loc.wizardMetadataBackupSaveFailed,
+                    );
+                    return;
+                  }
+                  if (state.completionSaveFailed) {
+                    SnackBarUtils.showSnackBar(
+                      context,
+                      context.loc.wizardChoicesSaveFailed,
+                    );
+                    return;
+                  }
+                  if (_page == WizardPage.metadataBackup) {
+                    _controller.nextPage(
+                      duration: _pageDuration,
+                      curve: _pageCurve,
+                    );
+                  }
+                },
+                child: BlocBuilder<WizardBloc, WizardState>(
+                  buildWhen: (a, b) =>
+                      a.choices != b.choices ||
+                      a.metadataBackupSaving != b.metadataBackupSaving ||
+                      a.completionSaving != b.completionSaving,
+                  builder: (context, state) {
+                    final c = state.choices;
+                    final bloc = context.read<WizardBloc>();
+                    return AbsorbPointer(
+                      absorbing: state.persistenceSaving,
+                      child: Stack(
                         children: [
-                          if (!isWelcome)
-                            WizardHeader(onSkip: () => _tryFinish(c)),
-                          Expanded(
-                            child: PageView(
-                              controller: _controller,
-                              onPageChanged: (i) =>
-                                  setState(() => _page = WizardPage.values[i]),
-                              children: [
-                                const WelcomeStep(),
-                                const MetadataBackupStep(),
-                                CustomizeStep(
-                                  themeMode: c.themeMode,
-                                  language: c.language,
-                                  defaultCurrency: c.defaultCurrency,
-                                  onThemePicked: (m) =>
-                                      bloc.add(WizardEvent.themePicked(m)),
-                                  onLanguagePicked: (l) =>
-                                      bloc.add(WizardEvent.languagePicked(l)),
-                                  onCurrencyPicked: (code) => bloc.add(
-                                    WizardEvent.currencyPicked(code),
-                                  ),
+                          // Page content fills the whole SafeArea. The
+                          // bottom chrome (dots + button or Yes/No) floats
+                          // on top via a Positioned overlay so steps can
+                          // scroll their content past it without a hard
+                          // visual cut. Each step's `WizardStepLayout`
+                          // adds bottom padding equal to `kWizardChromeHeight`
+                          // so the last item can settle right above the
+                          // chrome at max-scroll.
+                          Column(
+                            children: [
+                              if (!isWelcome)
+                                WizardHeader(
+                                  onSkip: state.persistenceSaving
+                                      ? null
+                                      : () => _tryFinish(c),
                                 ),
-                                const MissionStep(),
-                                const JourneyStep(),
-                              ],
+                              Expanded(
+                                child: PageView(
+                                  controller: _controller,
+                                  physics: state.persistenceSaving
+                                      ? const NeverScrollableScrollPhysics()
+                                      : null,
+                                  onPageChanged: (i) => setState(
+                                    () => _page = WizardPage.values[i],
+                                  ),
+                                  children: [
+                                    const WelcomeStep(),
+                                    const MetadataBackupStep(),
+                                    CustomizeStep(
+                                      themeMode: c.themeMode,
+                                      language: c.language,
+                                      defaultCurrency: c.defaultCurrency,
+                                      onThemePicked: (m) =>
+                                          bloc.add(WizardEvent.themePicked(m)),
+                                      onLanguagePicked: (l) => bloc.add(
+                                        WizardEvent.languagePicked(l),
+                                      ),
+                                      onCurrencyPicked: (code) => bloc.add(
+                                        WizardEvent.currencyPicked(code),
+                                      ),
+                                    ),
+                                    const MissionStep(),
+                                    const JourneyStep(),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                hPad,
+                                vGap,
+                                hPad,
+                                hPad,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Dots hidden on the welcome splash — the
+                                  // page reads as a self-contained intro
+                                  // without progress chrome competing with
+                                  // the centered logo + tagline.
+                                  if (!isWelcome) ...[
+                                    // Small pill behind the dots so they
+                                    // stay legible on top of the page
+                                    // content scrolling underneath.
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: context.appColors.background,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: WizardDots(
+                                        count: WizardPage.total,
+                                        index: _page.index,
+                                      ),
+                                    ),
+                                    SizedBox(height: vGap),
+                                  ],
+                                  if (isMetadataBackup)
+                                    MetadataBackupChoiceActions(
+                                      choice: c.metadataBackupEnabled,
+                                      saving: state.persistenceSaving,
+                                      onEnable: () => _pickMetadataBackup(true),
+                                      onDecline: () =>
+                                          _pickMetadataBackup(false),
+                                    )
+                                  else if (isMission)
+                                    MissionConsentRow(
+                                      consent: c.reportingConsent,
+                                      onYes: () => _pickConsent(true),
+                                      onNo: () => _pickConsent(false),
+                                    )
+                                  else
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: BBButton.big(
+                                        label: isLast
+                                            ? context.loc.getStartedButton
+                                            : context.loc.wizardNextButton,
+                                        onPressed: () => _advance(c),
+                                        disabled: state.persistenceSaving,
+                                        // Same scheme as `CreateWalletButton`
+                                        // on the splash: high-contrast
+                                        // against the red bg on page 1;
+                                        // brand red elsewhere.
+                                        bgColor: isWelcome
+                                            ? context.appColors.secondaryFixed
+                                            : context.appColors.primary,
+                                        textColor: isWelcome
+                                            ? context.appColors.onSecondaryFixed
+                                            : context.appColors.onPrimary,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: Padding(
-                          padding: EdgeInsets.fromLTRB(hPad, vGap, hPad, hPad),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Dots hidden on the welcome splash — the
-                              // page reads as a self-contained intro
-                              // without progress chrome competing with
-                              // the centered logo + tagline.
-                              if (!isWelcome) ...[
-                                // Small pill behind the dots so they
-                                // stay legible on top of the page
-                                // content scrolling underneath.
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: context.appColors.background,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: WizardDots(
-                                    count: WizardPage.total,
-                                    index: _page.index,
-                                  ),
-                                ),
-                                SizedBox(height: vGap),
-                              ],
-                              if (isMetadataBackup)
-                                MissionConsentRow(
-                                  consent: c.metadataBackupEnabled,
-                                  onYes: () => _pickMetadataBackup(true),
-                                  onNo: () => _pickMetadataBackup(false),
-                                  yesLabel:
-                                      context.loc.wizardMetadataBackupEnable,
-                                  noLabel:
-                                      context.loc.wizardMetadataBackupNotNow,
-                                )
-                              else if (isMission)
-                                MissionConsentRow(
-                                  consent: c.reportingConsent,
-                                  onYes: () => _pickConsent(true),
-                                  onNo: () => _pickConsent(false),
-                                )
-                              else
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: BBButton.big(
-                                    label: isLast
-                                        ? context.loc.getStartedButton
-                                        : context.loc.wizardNextButton,
-                                    onPressed: () => _advance(c),
-                                    // Same scheme as `CreateWalletButton`
-                                    // on the splash: high-contrast
-                                    // against the red bg on page 1;
-                                    // brand red elsewhere.
-                                    bgColor: isWelcome
-                                        ? context.appColors.secondaryFixed
-                                        : context.appColors.primary,
-                                    textColor: isWelcome
-                                        ? context.appColors.onSecondaryFixed
-                                        : context.appColors.onPrimary,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ],

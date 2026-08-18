@@ -18,6 +18,7 @@ class MetadataBackupStep extends StatelessWidget {
     return WizardStepLayout(
       page: WizardPage.metadataBackup,
       title: context.loc.wizardMetadataBackupTitle,
+      bottomPadding: kWizardBackupChoiceChromeHeight,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

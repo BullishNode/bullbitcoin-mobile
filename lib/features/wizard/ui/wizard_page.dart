@@ -5,6 +5,9 @@
 /// hidden behind it.
 const double kWizardChromeHeight = 140;
 
+/// The backup decision stacks two actions instead of one horizontal row.
+const double kWizardBackupChoiceChromeHeight = 200;
+
 /// The five fixed pages of the install/upgrade wizard, in render order.
 /// Used by `WizardScreen` to gate chrome (header, dots, Next button,
 /// Yes/No row) and by each step widget to forward its position to

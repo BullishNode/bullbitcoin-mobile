@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 class WizardHeader extends StatelessWidget {
   const WizardHeader({super.key, required this.onSkip});
 
-  final VoidCallback onSkip;
+  final VoidCallback? onSkip;
 
   @override
   Widget build(BuildContext context) {

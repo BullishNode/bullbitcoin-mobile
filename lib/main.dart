@@ -23,6 +23,7 @@ import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dar
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:bb_mobile/features/wizard/data/datasource/wizard_local_datasource.dart';
 import 'package:bb_mobile/features/wizard/data/repository/wizard_repository_impl.dart';
+import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/apply_pending_wizard_choices_usecase.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/is_wizard_complete_usecase.dart';
@@ -163,8 +164,18 @@ Future main() async {
           repository: preInitRepo,
         ).execute();
         if (!isComplete) {
+          final initialChoices =
+              await ReadPendingWizardChoicesUsecase(
+                repository: preInitRepo,
+              ).execute() ??
+              const WizardChoices();
           final completer = Completer<void>();
-          runApp(WizardApp(onDone: (_) => completer.complete()));
+          runApp(
+            WizardApp(
+              initialChoices: initialChoices,
+              onDone: (_) => completer.complete(),
+            ),
+          );
           await completer.future;
         }
         await Bull.init();

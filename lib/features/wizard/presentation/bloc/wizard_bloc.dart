@@ -1,7 +1,10 @@
 import 'package:bb_mobile/core/settings/domain/settings_entity.dart';
+import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/mark_wizard_complete_usecase.dart';
+import 'package:bb_mobile/features/wizard/domain/usecase/save_metadata_backup_choice_usecase.dart';
 import 'package:bb_mobile/features/wizard/domain/usecase/save_pending_wizard_choices_usecase.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -13,28 +16,38 @@ part 'wizard_state.dart';
 /// index stays in `WizardScreen`'s ephemeral state (PageController is
 /// intrinsically UI). Consumed only by [WizardApp], which manually
 /// wires the bloc's deps because the `GetIt` locator isn't yet up at
-/// pre-init time. On `completed`, stages the blob via
+/// pre-init time. The backup decision is staged before its page advances so a
+/// restart cannot silently discard consent. On `completed`, stages the blob via
 /// [SavePendingWizardChoicesUsecase] and bumps the version marker via
 /// [MarkWizardCompleteUsecase]. The post-locator
 /// `ApplyPendingWizardChoicesUsecase` (called from `Bull.init`) then
 /// reads the blob, flushes touched fields to SQLite, calls
 /// `markComplete()` again (idempotent), and clears pending.
 class WizardBloc extends Bloc<WizardEvent, WizardState> {
-  WizardBloc({required this._savePending, required this._markComplete})
-    : super(const WizardState()) {
+  WizardBloc({
+    required this._savePending,
+    required this._saveMetadataBackupChoice,
+    required this._markComplete,
+    WizardChoices initialChoices = const WizardChoices(),
+  }) : super(WizardState(choices: initialChoices)) {
     on<_WizardThemePicked>(_onThemePicked);
     on<_WizardLanguagePicked>(_onLanguagePicked);
     on<_WizardCurrencyPicked>(_onCurrencyPicked);
-    on<_WizardMetadataBackupPicked>(_onMetadataBackupPicked);
+    on<_WizardMetadataBackupPicked>(
+      _onMetadataBackupPicked,
+      transformer: droppable(),
+    );
     on<_WizardConsentPicked>(_onConsentPicked);
     on<_WizardThemeDetected>(_onThemeDetected);
-    on<_WizardCompleted>(_onCompleted);
+    on<_WizardCompleted>(_onCompleted, transformer: droppable());
   }
 
   final SavePendingWizardChoicesUsecase _savePending;
+  final SaveMetadataBackupChoiceUsecase _saveMetadataBackupChoice;
   final MarkWizardCompleteUsecase _markComplete;
 
   void _onThemePicked(_WizardThemePicked event, Emitter<WizardState> emit) {
+    if (state.persistenceSaving) return;
     emit(
       state.copyWith(choices: state.choices.copyWith(themeMode: event.mode)),
     );
@@ -44,6 +57,7 @@ class WizardBloc extends Bloc<WizardEvent, WizardState> {
     _WizardLanguagePicked event,
     Emitter<WizardState> emit,
   ) {
+    if (state.persistenceSaving) return;
     emit(
       state.copyWith(choices: state.choices.copyWith(language: event.language)),
     );
@@ -53,6 +67,7 @@ class WizardBloc extends Bloc<WizardEvent, WizardState> {
     _WizardCurrencyPicked event,
     Emitter<WizardState> emit,
   ) {
+    if (state.persistenceSaving) return;
     emit(
       state.copyWith(
         choices: state.choices.copyWith(defaultCurrency: event.code),
@@ -61,6 +76,7 @@ class WizardBloc extends Bloc<WizardEvent, WizardState> {
   }
 
   void _onConsentPicked(_WizardConsentPicked event, Emitter<WizardState> emit) {
+    if (state.persistenceSaving) return;
     emit(
       state.copyWith(
         choices: state.choices.copyWith(
@@ -70,20 +86,40 @@ class WizardBloc extends Bloc<WizardEvent, WizardState> {
     );
   }
 
-  void _onMetadataBackupPicked(
+  Future<void> _onMetadataBackupPicked(
     _WizardMetadataBackupPicked event,
     Emitter<WizardState> emit,
-  ) {
+  ) async {
+    if (state.persistenceSaving) return;
     emit(
       state.copyWith(
-        choices: state.choices.copyWith(
-          metadataBackupEnabled: ConsentValue(event.enabled),
-        ),
+        metadataBackupSaving: true,
+        metadataBackupSaveFailed: false,
+        completionSaveFailed: false,
       ),
     );
+    switch (await _saveMetadataBackupChoice.execute(event.enabled)) {
+      case Ok():
+        emit(
+          state.copyWith(
+            choices: state.choices.copyWith(
+              metadataBackupEnabled: ConsentValue(event.enabled),
+            ),
+            metadataBackupSaving: false,
+          ),
+        );
+      case Err():
+        emit(
+          state.copyWith(
+            metadataBackupSaving: false,
+            metadataBackupSaveFailed: true,
+          ),
+        );
+    }
   }
 
   void _onThemeDetected(_WizardThemeDetected event, Emitter<WizardState> emit) {
+    if (state.persistenceSaving) return;
     emit(
       state.copyWith(
         choices: state.choices.copyWithSilent(themeMode: event.mode),
@@ -95,8 +131,20 @@ class WizardBloc extends Bloc<WizardEvent, WizardState> {
     _WizardCompleted event,
     Emitter<WizardState> emit,
   ) async {
-    await _savePending.execute(state.choices);
-    await _markComplete.execute();
-    emit(state.copyWith(finished: true));
+    if (state.persistenceSaving) return;
+    emit(
+      state.copyWith(
+        completionSaving: true,
+        completionSaveFailed: false,
+        metadataBackupSaveFailed: false,
+      ),
+    );
+    try {
+      await _savePending.execute(state.choices);
+      await _markComplete.execute();
+      emit(state.copyWith(finished: true, completionSaving: false));
+    } on Exception {
+      emit(state.copyWith(completionSaving: false, completionSaveFailed: true));
+    }
   }
 }
