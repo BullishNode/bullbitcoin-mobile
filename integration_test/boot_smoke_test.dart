@@ -1,6 +1,8 @@
 import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
+import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/deterministic_wallets/public/deterministic_wallets_facade.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoice_create_cubit.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_list_cubit.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
@@ -17,7 +19,7 @@ import 'package:bb_mobile/features/bip85_entropy/router.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:bb_mobile/features/wallet/ui/wallet_router.dart';
 import 'package:bb_mobile/locator.dart';
-import 'package:bb_mobile/main.dart';
+import 'support/integration_test_profile.dart';
 import 'package:bb_mobile/router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,7 +35,7 @@ import 'package:integration_test/integration_test.dart';
 // pr12 upward.
 Future<void> main({bool isInitialized = false}) async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  if (!isInitialized) await Bull.init();
+  await initializeIntegrationTestApp(isInitialized: isInitialized);
 
   test('Bull.init builds the real DI graph without a duplicate registration', () {
     // Resolving NostrIdentityFacade is the crux: the pr12 duplicate
@@ -57,6 +59,11 @@ Future<void> main({bool isInitialized = false}) async {
     expect(() => locator<InvoicesFacade>(), returnsNormally);
     expect(() => locator<InvoicesListCubit>(), returnsNormally);
     expect(() => locator<InvoiceCreateCubit>(), returnsNormally);
+    // F-08 wiring: the read-only BTCPay connection facade and the Get Paid hub
+    // cubit (which reads the LA/PaymentPage/POS/BTCPay public facades) resolve
+    // once from the real graph.
+    expect(() => locator<BtcpayFacade>(), returnsNormally);
+    expect(() => locator<GetPaidDashboardCubit>(), returnsNormally);
     // PR25 wiring (SPEC-BOOT-01+): the LUD-22 direct-pay port + usecases
     // resolve once from the real graph (the SendCubit consumes them).
     expect(() => locator<LiquidDirectPayPort>(), returnsNormally);
