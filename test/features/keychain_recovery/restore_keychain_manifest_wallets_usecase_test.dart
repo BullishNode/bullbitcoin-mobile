@@ -1,3 +1,4 @@
+import 'package:bb_mobile/core/nostr/nostr_keychain_handle.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/apply_wallet_behavior_defaults_usecase.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
@@ -566,6 +567,78 @@ void main() {
       'pos_wallet_seed',
     );
   });
+
+  test('carries a recovered Nostr key description through unchanged', () async {
+    final nostrUsecase = RestoreKeychainManifestWalletsUsecase(
+      walletMaterializer: materializer,
+      keychainManifest: keychainManifest,
+      applyWalletBehaviorDefaults: applyDefaults,
+      bip85Registry: const Bip85RegistryFacade(),
+      backupWallet: const _BackupWallet(),
+    );
+    final publicKeyHex = NostrKeychainHandle.deriveFromBip85Path(
+      xprvBase58: _xprv,
+      hardenedPath: "128002'/1'/1'",
+    ).publicKeyHex;
+    final plan = KeychainManifestImportPlan(
+      parentFingerprint: _nostrParentFingerprint,
+      entries: [
+        KeychainManifestImportEntryIntent(
+          entryId: "$_nostrParentFingerprint:128002'/1'/1'",
+          parentFingerprint: _nostrParentFingerprint,
+          bip85DerivationPath: "128002'/1'/1'",
+          reservationId: 'nostr_user_key',
+          entryType: 'userGenerated',
+          ownerFeature: 'nostr',
+          bip85Application: 128002,
+          bip85Index: 1,
+          nostrKeyMaterializations: [
+            KeychainManifestNostrKeyMaterializationIntent(
+              entryId: "$_nostrParentFingerprint:128002'/1'/1'",
+              reservationId: 'nostr_user_key',
+              bip85DerivationPath: "128002'/1'/1'",
+              publicKeyHex: publicKeyHex,
+              keyKind: KeychainManifestNostrKeyKind.userGenerated,
+              purpose: 'personal identity',
+              description: 'long-form notes and replies',
+              createdAt: 10,
+              updatedAt: 12,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final result = await nostrUsecase.execute(plan);
+
+    expect(result.hasFailures, false);
+    expect(keychainManifest.recoveredNostrRequests, hasLength(1));
+    expect(
+      keychainManifest.recoveredNostrRequests.single.description,
+      'long-form notes and replies',
+    );
+    expect(
+      keychainManifest.recoveredNostrRequests.single.purpose,
+      'personal identity',
+    );
+  });
+}
+
+const _xprv =
+    'xprv9s21ZrQH143K2LBWUUQRFXhucrQqBpKdRRxNVq2zBqsx8HVqFk2uYo8kmbaLLHRdqtQ'
+    'pUm98uKfu3vca1LqdGhUtyoFnCNkfmXRyPXLjbKb';
+const _nostrParentFingerprint = '73c5da0a';
+
+final class _BackupWallet implements KeychainManifestBackupWalletPort {
+  const _BackupWallet();
+
+  @override
+  Future<KeychainManifestBackupWallet> deriveDefaultWallet() async {
+    return const KeychainManifestBackupWallet(
+      xprvBase58: _xprv,
+      parentFingerprint: _nostrParentFingerprint,
+    );
+  }
 }
 
 KeychainManifestImportPlan _plan(
@@ -693,9 +766,24 @@ class _FakeWalletMaterializer
 
 class _FakeKeychainManifestFacade implements KeychainManifestFacade {
   final recordRequests = <KeychainManifestReservedDerivationRequest>[];
+  final recoveredNostrRequests = <KeychainManifestNostrKeyRequest>[];
   KeychainManifestException? recordError;
   int recoveredRecordCalls = 0;
   int reservedRecordCalls = 0;
+
+  @override
+  Future<List<KeychainManifestNostrKeyRecord>> getNostrKeys(
+    String parentFingerprint,
+  ) async => const [];
+
+  @override
+  Future<void> recordRecoveredNostrKey(
+    KeychainManifestNostrKeyRequest request, {
+    DateTime? now,
+    DateTime? updatedAt,
+  }) async {
+    recoveredNostrRequests.add(request);
+  }
 
   @override
   Future<void> recordReservedDerivation(

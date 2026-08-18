@@ -17648,7 +17648,7 @@
   "@settingsNostrKeysEmpty": {
     "description": "Empty Nostr keys screen message"
   },
-  "settingsNostrKeysCreate": "Create Nostr key",
+  "settingsNostrKeysCreate": "Create nostr key",
   "@settingsNostrKeysCreate": {
     "description": "Button to create a user Nostr key"
   },
@@ -17679,5 +17679,129 @@
   "settingsNostrKeysFailure": "Nostr key action failed. Try again.",
   "@settingsNostrKeysFailure": {
     "description": "Generic failure shown for Nostr key settings actions"
+  },
+  "settingsNostrKeysName": "Name",
+  "@settingsNostrKeysName": {
+    "description": "Nostr key name label and form field"
+  },
+  "settingsNostrKeysNameRequiredError": "Enter a name for this key.",
+  "@settingsNostrKeysNameRequiredError": {
+    "description": "Validation error when the Nostr key name is empty"
+  },
+  "settingsNostrKeysNameTooLongError": "Name must be 80 characters or fewer.",
+  "@settingsNostrKeysNameTooLongError": {
+    "description": "Validation error when the Nostr key name is too long"
+  },
+  "settingsNostrKeysDescription": "Description",
+  "@settingsNostrKeysDescription": {
+    "description": "Nostr key description label and form field"
+  },
+  "settingsNostrKeysDescriptionHint": "Optional note about how you use this key",
+  "@settingsNostrKeysDescriptionHint": {
+    "description": "Nostr key description input hint"
+  },
+  "settingsNostrKeysDescriptionTooLongError": "Description must be 200 characters or fewer.",
+  "@settingsNostrKeysDescriptionTooLongError": {
+    "description": "Validation error when the Nostr key description is too long"
+  },
+  "settingsNostrKeysDerivationPath": "Derivation path",
+  "@settingsNostrKeysDerivationPath": {
+    "description": "Nostr key BIP85 derivation path label"
+  },
+  "settingsNostrKeysNpub": "npub",
+  "@settingsNostrKeysNpub": {
+    "description": "Nostr public key label"
+  },
+  "settingsNostrKeysShowNpub": "Show npub",
+  "@settingsNostrKeysShowNpub": {
+    "description": "Action revealing a system Nostr key npub"
+  },
+  "settingsNostrKeysDetailTitle": "Nostr key",
+  "@settingsNostrKeysDetailTitle": {
+    "description": "Nostr key detail screen title"
+  },
+  "settingsNostrKeysEdit": "Edit",
+  "@settingsNostrKeysEdit": {
+    "description": "Action to edit a user Nostr key"
+  },
+  "settingsNostrKeysEditTitle": "Edit Nostr key",
+  "@settingsNostrKeysEditTitle": {
+    "description": "Edit Nostr key screen title"
+  },
+  "settingsNostrKeysUpdated": "Nostr key updated",
+  "@settingsNostrKeysUpdated": {
+    "description": "Confirmation after editing a Nostr key"
+  },
+  "settingsNostrKeysShowSystemKeys": "Show system keys",
+  "@settingsNostrKeysShowSystemKeys": {
+    "description": "Low-prominence action revealing app-owned Nostr keys"
+  },
+  "settingsNostrKeysHideSystemKeys": "Hide system keys",
+  "@settingsNostrKeysHideSystemKeys": {
+    "description": "Action hiding app-owned Nostr keys again"
+  },
+  "settingsNostrKeysSystemKeysSection": "System keys",
+  "@settingsNostrKeysSystemKeysSection": {
+    "description": "Muted section header above app-owned Nostr keys"
+  },
+  "settingsNostrKeysSystemKeysWarningTitle": "System keys",
+  "@settingsNostrKeysSystemKeysWarningTitle": {
+    "description": "Title of the warning shown before revealing app-owned Nostr keys"
+  },
+  "settingsNostrKeysSystemKeysWarningMessage": "These keys are managed by the app for troubleshooting and recovery. They are not your identities. Do not use or share them.",
+  "@settingsNostrKeysSystemKeysWarningMessage": {
+    "description": "Warning shown before revealing app-owned Nostr keys"
+  },
+  "settingsNostrKeysSystemNpubWarningTitle": "System key npub",
+  "@settingsNostrKeysSystemNpubWarningTitle": {
+    "description": "Title of the warning shown before revealing a system Nostr key npub"
+  },
+  "settingsNostrKeysSystemNpubWarningMessage": "Do not use this npub for anything else. Viewing this npub is strictly for troubleshooting bugs. Do not share it with anyone.",
+  "@settingsNostrKeysSystemNpubWarningMessage": {
+    "description": "Warning shown before revealing a system Nostr key npub"
+  },
+  "settingsNostrKeysSystemNsecWarningTitle": "System key nsec",
+  "@settingsNostrKeysSystemNsecWarningTitle": {
+    "description": "Title of the warning shown before revealing a system Nostr key nsec"
+  },
+  "settingsNostrKeysSystemNsecWarningMessage": "Do not use this nsec for any other purpose. Do not share this nsec with anyone. Showing this nsec is only for emergency recovery or troubleshooting.",
+  "@settingsNostrKeysSystemNsecWarningMessage": {
+    "description": "Warning shown before revealing a system Nostr key nsec"
+  },
+  "settingsNostrKeysUserNsecWarningTitle": "Show your nsec",
+  "@settingsNostrKeysUserNsecWarningTitle": {
+    "description": "Title of the warning shown before revealing a user Nostr key nsec"
+  },
+  "settingsNostrKeysUserNsecWarningMessage": "Your nsec is the private key for this identity. Anyone who has it controls the identity. DO NOT SHARE WITH ANYONE.",
+  "@settingsNostrKeysUserNsecWarningMessage": {
+    "description": "Warning shown before revealing a user Nostr key nsec"
+  },
+  "settingsNostrKeysWarningUnderstand": "I understand",
+  "@settingsNostrKeysWarningUnderstand": {
+    "description": "Confirm label on Nostr key warning sheets"
+  },
+  "settingsNostrKeysSystemMetadataBackup": "Metadata backup",
+  "@settingsNostrKeysSystemMetadataBackup": {
+    "description": "Display name of the app-owned Nostr metadata backup key"
+  },
+  "settingsNostrKeysSystemBullnymAuth": "Bullnym Auth key",
+  "@settingsNostrKeysSystemBullnymAuth": {
+    "description": "Display name of the app-owned Nostr Bullnym authentication key"
+  },
+  "settingsNostrKeysSystemNip05Verification": "Nostr NIP-05 Public Nym Verification",
+  "@settingsNostrKeysSystemNip05Verification": {
+    "description": "Display name of the app-owned Nostr NIP-05 verification key"
+  },
+  "settingsNostrKeysSystemMetadataBackupDescription": "Identifies and signs your encrypted metadata backup so the app can find and restore it. Managed automatically — you never need to use this key yourself.",
+  "@settingsNostrKeysSystemMetadataBackupDescription": {
+    "description": "Explanation of the app-owned Nostr metadata backup key"
+  },
+  "settingsNostrKeysSystemBullnymAuthDescription": "Authenticates this wallet to the Bull Bitcoin payment server for your Lightning address, invoices, Payment Page and Point of Sale. Managed automatically — you never need to use this key yourself.",
+  "@settingsNostrKeysSystemBullnymAuthDescription": {
+    "description": "Explanation of the app-owned Nostr Bullnym authentication key"
+  },
+  "settingsNostrKeysSystemNip05VerificationDescription": "Reserved for verifying your payment name publicly over Nostr. Not used by the app yet — it exists so a future version can enable verification without changing your keys.",
+  "@settingsNostrKeysSystemNip05VerificationDescription": {
+    "description": "Explanation of the app-owned Nostr NIP-05 verification key"
   }
 }

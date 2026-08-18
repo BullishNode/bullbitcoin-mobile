@@ -17,6 +17,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keyc
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/update_keychain_manifest_nostr_key_purpose_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../support/unavailable_manifest_nostr_operations.dart';
 
 void main() {
   late _InMemoryKeychainManifestStore store;
@@ -36,11 +37,14 @@ void main() {
       recordNostrKey: RecordKeychainManifestNostrKeyUsecase(
         repository: store,
         registry: const Bip85RegistryFacade(),
-      ),
-      getNostrKeys: GetKeychainManifestNostrKeysUsecase(repository: store),
+      ).execute,
+      getNostrKeys: GetKeychainManifestNostrKeysUsecase(
+        repository: store,
+      ).execute,
+      getDefaultNostrKeys: UnavailableManifestNostrOperations.getDefault,
       updateNostrKeyPurpose: UpdateKeychainManifestNostrKeyPurposeUsecase(
         repository: store,
-      ),
+      ).execute,
       buildManifestFile: BuildKeychainManifestFileUsecase(
         repository: store,
         registry: const Bip85RegistryFacade(),
@@ -53,6 +57,7 @@ void main() {
       reservationWalletIds: GetKeychainManifestReservationWalletIdsUsecase(
         repository: store,
       ),
+      createNostrKey: UnavailableManifestNostrOperations.create,
     );
     addTearDown(facade.close);
   });
@@ -423,6 +428,10 @@ void main() {
         repository: store,
         bip85Registry: const Bip85RegistryFacade(),
       ),
+      recordNostrKey: UnavailableManifestNostrOperations.record,
+      getNostrKeys: UnavailableManifestNostrOperations.get,
+      getDefaultNostrKeys: UnavailableManifestNostrOperations.getDefault,
+      updateNostrKeyPurpose: UnavailableManifestNostrOperations.update,
       buildManifestFile: BuildKeychainManifestFileUsecase(
         repository: store,
         registry: const Bip85RegistryFacade(),
@@ -441,6 +450,7 @@ void main() {
       reservationWalletIds: GetKeychainManifestReservationWalletIdsUsecase(
         repository: store,
       ),
+      createNostrKey: UnavailableManifestNostrOperations.create,
     );
 
     expect(
@@ -627,10 +637,11 @@ class _InMemoryKeychainManifestStore
   }
 
   @override
-  Future<void> updateNostrKeyPurpose({
+  Future<void> updateNostrKeyMetadata({
     required String parentFingerprint,
     required String entryId,
     required String purpose,
+    required String? description,
     required int updatedAt,
   }) async {}
 }

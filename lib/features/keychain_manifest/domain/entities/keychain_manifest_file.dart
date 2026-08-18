@@ -324,6 +324,10 @@ class KeychainManifestFileNostrKeyMaterialization
   final String publicKeyHex;
   final String keyKind;
   final String purpose;
+
+  /// Optional free-form context. Absent in manifests written before the field
+  /// existed, so this is nullable on the wire and never defaulted to a string.
+  final String? description;
   @override
   final int createdAt;
   @override
@@ -334,10 +338,15 @@ class KeychainManifestFileNostrKeyMaterialization
     required String publicKeyHex,
     required this.keyKind,
     required String purpose,
+    String? description,
     required this.createdAt,
     required this.updatedAt,
   }) : publicKeyHex = publicKeyHex.toLowerCase(),
-       purpose = purpose.trim() {
+       purpose = purpose.trim(),
+       description =
+           KeychainManifestNostrKeyMaterialization.normalizeDescription(
+             description,
+           ) {
     if (entryId.trim().isEmpty || keyKind.trim().isEmpty) {
       throw KeychainManifestInvalidEntryException(
         'manifest file Nostr materialization metadata is required',
@@ -358,6 +367,24 @@ class KeychainManifestFileNostrKeyMaterialization
         'manifest file Nostr key purpose contains a control character',
       );
     }
+    final normalizedDescription = description;
+    if (normalizedDescription != null) {
+      if (normalizedDescription.length >
+          KeychainManifestNostrKeyMaterialization.maxDescriptionLength) {
+        throw KeychainManifestInvalidEntryException(
+          'manifest file Nostr key description must contain at most '
+          '${KeychainManifestNostrKeyMaterialization.maxDescriptionLength} '
+          'characters',
+        );
+      }
+      if (normalizedDescription.contains(
+        KeychainManifestNostrKeyMaterialization.controlCharacterPattern,
+      )) {
+        throw KeychainManifestInvalidEntryException(
+          'manifest file Nostr key description contains a control character',
+        );
+      }
+    }
     if (createdAt < 0 || updatedAt < 0) {
       throw KeychainManifestInvalidEntryException(
         'manifest file Nostr materialization timestamps must be non-negative',
@@ -374,6 +401,7 @@ class KeychainManifestFileNostrKeyMaterialization
       publicKeyHex: materialization.publicKeyHex,
       keyKind: materialization.keyKind.name,
       purpose: materialization.purpose,
+      description: materialization.description,
       createdAt: materialization.createdAt,
       updatedAt: materialization.updatedAt,
     );

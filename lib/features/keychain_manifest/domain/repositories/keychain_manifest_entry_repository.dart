@@ -19,10 +19,16 @@ abstract interface class KeychainManifestEntryRepository {
     List<KeychainManifestNostrKeyRecord> records,
   );
 
-  Future<void> updateNostrKeyPurpose({
+  /// Writes a Nostr key's editable metadata as one row state.
+  ///
+  /// Both fields are always written, so callers that only change one of them
+  /// pass the stored value for the other. Deciding what "unchanged" means
+  /// belongs to the use case that already holds the record, not here.
+  Future<void> updateNostrKeyMetadata({
     required String parentFingerprint,
     required String entryId,
     required String purpose,
+    required String? description,
     required int updatedAt,
   });
 }

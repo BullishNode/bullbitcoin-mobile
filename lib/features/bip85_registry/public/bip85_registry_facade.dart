@@ -103,4 +103,18 @@ class Bip85RegistryFacade {
     }
     return null;
   }
+
+  /// The reservation whose reserved path is exactly [path], or null when the
+  /// path is not reserved.
+  ///
+  /// Callers classifying a stored derivation resolve it here rather than
+  /// matching on labels or reservation ids: the reserved path is the only
+  /// identity the registry guarantees.
+  Bip85Reservation? reservationByExactPath(String path) {
+    final normalized = path.trim();
+    for (final reservation in reservations) {
+      if (reservation.scope.matchesExactPath(normalized)) return reservation;
+    }
+    return null;
+  }
 }

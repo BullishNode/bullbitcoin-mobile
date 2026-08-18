@@ -36,6 +36,9 @@ final class NostrKeychainHandle {
 
   String get publicKeyHex => _key.getPublic().toXOnlyHex();
 
+  /// NIP-19 `npub` display encoding of [publicKeyHex].
+  String get npub => NostrPublicKeyEncoding.npubFromPublicKeyHex(publicKeyHex);
+
   String signHashHex(String messageHashHex) {
     final digest = hex.decode(messageHashHex);
     if (digest.length != 32) {
@@ -94,6 +97,32 @@ void _validateNostrBip85Path(String hardenedPath) {
       hardenedPath,
       'hardenedPath',
       'Nostr account zero is reserved by BIP85',
+    );
+  }
+}
+
+/// NIP-19 bech32 display encoding for Nostr public keys.
+///
+/// A stored 32-byte x-only public key is never shown as hex in the UI: `npub`
+/// is the only representation users see, so every surface encodes through here
+/// instead of formatting the hex itself. Shares the bech32 encoder and bit
+/// converter used for `nsec`, so the two encodings cannot drift apart.
+final class NostrPublicKeyEncoding {
+  const NostrPublicKeyEncoding._();
+
+  static final _publicKeyHexPattern = RegExp(r'^[0-9a-fA-F]{64}$');
+
+  static String npubFromPublicKeyHex(String publicKeyHex) {
+    final normalized = publicKeyHex.trim().toLowerCase();
+    if (!_publicKeyHexPattern.hasMatch(normalized)) {
+      throw ArgumentError.value(
+        publicKeyHex,
+        'publicKeyHex',
+        'Nostr public key must be 32-byte hex',
+      );
+    }
+    return bech32.encode(
+      Bech32('npub', _convertBits(hex.decode(normalized), 8, 5, true)),
     );
   }
 }
