@@ -4,8 +4,10 @@
 
 `wallet_backup` owns the seed-bound encrypted Bull backup container and its single opaque Bullnym remote object.
 This slice includes the outer envelope, the manifest section adapter, authenticated encryption, BIP85 encryption-key derivation, unified Nostr request signer, remote repository, and conditional manifest publication.
-This slice also owns one durable `WalletBackupState` row and the public lifecycle controls for that unified backup.
-Scheduling and recovery orchestration are added by their later owning PRs.
+This slice also owns one durable `WalletBackupState` row, the public lifecycle
+controls for that unified backup, and the read-only remote manifest import-plan
+boundary. Scheduling and recovery application are added by their later owning
+PRs.
 
 This is one backup lifecycle, not a wrapper around separate manifest and
 metadata backup systems. `keychain_manifest` remains the source of truth for
@@ -98,15 +100,54 @@ A head conflict causes exactly one refetch, re-merge, re-encrypt, and retry.
 A second conflict returns a typed failure.
 If the merged manifest already equals the authenticated remote manifest, no write occurs and the existing canonical content hash and checkpoint are returned.
 
+## Remote Manifest Import
+
+`WalletBackupFacade.fetchManifestImport` derives the active default
+wallet's signer, fetches the same `wallet_backup` object, derives the encryption
+key only when ciphertext exists, and authenticates/decrypts the outer
+envelope. It then passes only the manifest payload and the locally verified
+parent fingerprint to `KeychainManifestFacade.parseManifestFilePayload`.
+Registry validation and construction of the existing
+`KeychainManifestImportPlan` remain owned by `keychain_manifest`. The public
+wallet-backup boundary returns a feature-owned `WalletBackupManifestImport`
+containing the validated payload and parent fingerprint; the recovery
+orchestrator reparses it through the manifest facade before application rather
+than leaking a manifest-owned entity through this facade.
+
+`Ok(null)` means the remote object is absent. A present canonical empty
+manifest returns a present import value rather than being treated as absent or
+invalid. Remote unavailable, invalid, too-large, head-conflict, unsupported
+envelope/section, and manifest-invalid outcomes remain distinct typed
+`WalletBackupFailure` values. Any conflict discovered while applying the
+validated plan belongs to the recovery-owning PR, not this read-only fetch.
+
+Observing a newer outer-envelope version persists the existing
+unsupported-version write block before returning the failure. Unsupported
+section-wrapper versions remain section-scoped failures and do not masquerade
+as an absent backup. The wrapper version is the sole section-version
+discriminator; an incompatible payload that does not bump it is invalid.
+Fetching an import does not enable backup, publish, delete, clear dirty state,
+or apply any recovery intent.
+
 ## Lifecycle Controls
 
-`WalletBackupFacade` is the only public lifecycle boundary. It exposes typed results for state reads, state watching, enable/disable, explicit publication, and confirmed remote deletion.
+`WalletBackupFacade` is the only public remote/lifecycle boundary. It exposes
+typed results for state reads, state watching, enable/disable, explicit
+publication, confirmed remote deletion, and remote manifest import planning.
 
 Enabling marks the current inventory dirty. Disabling stops future publication without deleting remote data or clearing pending dirty work. An explicit publication is a no-op when the state is already clean and is rejected while disabled or blocked by a newer outer-envelope version. Observing such a version during publication persists the block before returning the typed failure.
 
 Remote deletion requires an explicit confirmation argument. It fetches the current head and uses its generation and ETag for conditional deletion. The local remote checkpoint is cleared only after the remote reports success; enablement and dirty state remain unchanged.
 
-The active default Bitcoin wallet seed is loaded and its canonical root xprv is derived only inside a publication or confirmed deletion operation. BIP85 application derivation is network-independent, so both mainnet and testnet wallets serialize the root with canonical xprv version bytes rather than tprv bytes. The stored seed fingerprint, wallet fingerprint, and parsed root fingerprint must all agree before signing, encryption, fetch, or deletion. The xprv is passed directly to the encryption and signing use cases and is not written to Drift, preferences, logs, or facade state.
+The active default Bitcoin wallet seed is loaded and its canonical root xprv
+is derived only inside publication, confirmed deletion, or authenticated
+remote-import operations. BIP85 application derivation is network-independent,
+so both mainnet and testnet wallets serialize the root with canonical xprv
+version bytes rather than tprv bytes. The stored seed fingerprint, wallet
+fingerprint, and parsed root fingerprint must all agree before signing,
+encryption, fetch, or deletion. The xprv is passed directly to the encryption
+and signing use cases and is not written to Drift, preferences, logs, or
+facade state.
 
 A newly enabled wallet with no manifest materializations publishes a canonical empty manifest section. This establishes a verified remote checkpoint and clears the dirty revision instead of treating ordinary empty inventory as corruption. Later metadata commits can add a non-empty metadata section without changing this policy.
 
