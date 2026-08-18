@@ -33,7 +33,9 @@ class PrepareLightningAddressWalletUsecase {
     required this._bip85Registry,
   });
 
-  Future<PreparedLightningAddressWallet> execute() async {
+  Future<PreparedLightningAddressWallet> execute({
+    bool recordAsRecovery = false,
+  }) async {
     PreparedDeterministicWallets? preparedWallets;
     var manifestRecorded = false;
     try {
@@ -47,7 +49,10 @@ class PrepareLightningAddressWalletUsecase {
         case Err(:final failure):
           throw _mapDeterministicWalletFailure(failure);
       }
-      await _recordKeychainManifestEntry(preparedWallets);
+      await _recordKeychainManifestEntry(
+        preparedWallets,
+        recordAsRecovery: recordAsRecovery,
+      );
       manifestRecorded = true;
       final preparedWallet = preparedWallets.wallets.single;
       await _applyLightningAddressWalletDefaults(preparedWallet.walletId);
@@ -99,25 +104,27 @@ class PrepareLightningAddressWalletUsecase {
   }
 
   Future<void> _recordKeychainManifestEntry(
-    PreparedDeterministicWallets preparedWallets,
-  ) {
+    PreparedDeterministicWallets preparedWallets, {
+    required bool recordAsRecovery,
+  }) {
     final reservation = _bip85Registry.lightningAddressWalletSeed;
     final preparedWallet = preparedWallets.wallets.single;
-    return _keychainManifest.recordReservedDerivation(
-      KeychainManifestReservedDerivationRequest(
-        reservationId: reservation.id,
-        parentFingerprint: preparedWallets.parentFingerprint,
-        derivationPath: preparedWallets.derivationPath,
-        materializations: [
-          KeychainManifestWalletMaterializationRequest(
-            walletId: preparedWallet.walletId,
-            childSeedFingerprint: preparedWallets.childSeedFingerprint,
-            network: preparedWallet.network,
-            scriptType: preparedWallet.scriptType,
-          ),
-        ],
-      ),
+    final request = KeychainManifestReservedDerivationRequest(
+      reservationId: reservation.id,
+      parentFingerprint: preparedWallets.parentFingerprint,
+      derivationPath: preparedWallets.derivationPath,
+      materializations: [
+        KeychainManifestWalletMaterializationRequest(
+          walletId: preparedWallet.walletId,
+          childSeedFingerprint: preparedWallets.childSeedFingerprint,
+          network: preparedWallet.network,
+          scriptType: preparedWallet.scriptType,
+        ),
+      ],
     );
+    return recordAsRecovery
+        ? _keychainManifest.recordRecoveredDerivation(request)
+        : _keychainManifest.recordReservedDerivation(request);
   }
 
   Future<void> _applyLightningAddressWalletDefaults(String walletId) async {

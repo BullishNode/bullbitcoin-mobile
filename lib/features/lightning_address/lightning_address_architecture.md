@@ -8,6 +8,8 @@ This PR owns:
 
 - the public Lightning Address facade;
 - domain use cases for prepare wallet, register, lookup/status, wallet-owned registration/status composition, wallet-owned activation composition, and receive-readiness lookup (plus an internal, non-facade-exposed delete use case);
+- conditional recovery healing that looks up the seed-owned registration and
+  re-registers the same known nym only when Bullnym reports it inactive;
 - deterministic Liquid receive wallet materialization through the Deterministic Wallets facade;
 - keychain manifest metadata recording through the Keychain Manifest facade;
 - Lightning Address receive-wallet behavior defaults so the Liquid receive wallet is hidden on Home and eligible for generic autosweep;
@@ -48,6 +50,14 @@ This follows the canonical rollback-timing rule in `ARCHITECTURE.md` (Error hand
 If local wallet creation fails before manifest recording, the use case rolls back newly created deterministic wallets best-effort and returns a local preparation error.
 Once manifest recording succeeds, defaults failures return a local preparation error without rolling back the wallet, so durable recovery metadata never points at a removed wallet.
 Recovered Lightning Address wallets require product reactivation because the manifest can restore wallet materialization metadata but cannot prove an active Bullnym server registration.
+`ensureRegistrationLive` performs that post-materialization check. An active
+registration is left untouched; an inactive registration with a server-returned
+nym is silently re-registered; an absent registration never guesses a nym and
+remains user-reactivation-required. Network failures remain retryable recovery
+outcomes. Recovery-originated wallet preparation records the manifest through
+`recordRecoveredDerivation` so healing does not schedule backup publication.
+The operation accepts the shared recovery deadline and does not begin
+re-registration after a lookup exhausts that budget.
 
 The existing `xprvBase58` and confidential descriptor registration inputs remain foundation inputs for internal protocol use cases.
 They are not exported by the public facade and must not be passed from routed UI.

@@ -51,6 +51,21 @@ class KeychainManifestFacade {
   Future<void> recordReservedDerivation(
     KeychainManifestReservedDerivationRequest request, {
     DateTime? now,
+  }) => _recordDerivation(request, now: now);
+
+  /// Records inventory reconstructed from an authenticated remote backup.
+  ///
+  /// This semantic boundary lets the later backup coordinator exclude recovery
+  /// writes from automatic publication. Recovery must never turn a remote read
+  /// into a remote write.
+  Future<void> recordRecoveredDerivation(
+    KeychainManifestReservedDerivationRequest request, {
+    DateTime? now,
+  }) => _recordDerivation(request, now: now);
+
+  Future<void> _recordDerivation(
+    KeychainManifestReservedDerivationRequest request, {
+    DateTime? now,
   }) async {
     try {
       await _recordEntry.execute(request, now: now);

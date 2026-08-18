@@ -51,6 +51,10 @@ must not be presented as importable or recoverable.
 - The public boundary records wallet materializations only. Product features do
   not receive inserted-row rollback tokens or a public delete API for
   current-attempt rollback.
+- New local materializations use `recordReservedDerivation`; authenticated
+  recovery uses `recordRecoveredDerivation`. Both enforce the same registry and
+  persistence invariants, while the semantic distinction prevents automatic
+  backup coordination from turning a remote read into a remote write.
 - The public boundary may build a manifest file payload, but file operations
   must not mutate local manifest inventory.
 - `keychain_manifest` owns the canonical manifest payload used by

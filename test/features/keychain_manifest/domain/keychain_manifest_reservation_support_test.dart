@@ -47,13 +47,13 @@ void main() {
       KeychainManifestReservationSupport.classificationFor(
         ln,
       )!.reactivationOnRecovery,
-      KeychainManifestReactivationOnRecovery.autoHealOnRecoveryPr23,
+      KeychainManifestReactivationOnRecovery.autoHealOnRecovery,
     );
     expect(
       KeychainManifestReservationSupport.classificationFor(
         page,
       )!.reactivationOnRecovery,
-      KeychainManifestReactivationOnRecovery.autoHealOnRecoveryPr23,
+      KeychainManifestReactivationOnRecovery.autoHealOnRecovery,
     );
     expect(
       KeychainManifestReservationSupport.classificationFor(

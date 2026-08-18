@@ -13,13 +13,11 @@ Payment Page and Nostr reservations are not recovered or activated by this featu
 
 Which reserved seeds are exportable vs recoverable at this stack level is the
 `KeychainManifestReservationSupport` classification (`supportsV1Export` vs
-`supportsV1Recovery`): 100/101/102 are exported into the backup, but only
-BTCPay (100) is recovered here because remote recovery is dormant/unwired.
-PR23 FORWARD-OBLIGATION (DG-3): when PR23 wires the recovery UI it must flip
-`recoverableV1` for the bullnym-backed products (101/102, and 103/POS once
-reserved), implement the DG-3 auto-heal (seed-npub lookup + reregister-if-
-missing) for them, and re-apply the KC-6 hidden+autosweep posture to those
-newly recoverable products. See the classification file for details.
+`supportsV1Recovery`): 100/101/102 are exported into the backup, while BTCPay
+(100) and Lightning Address (101) are locally recoverable here. Payment Page
+(102), and later POS, become recoverable only in their owning product PRs.
+`remote_keychain_recovery` consumes successful reactivation outcomes and asks
+the owning product facade to verify/heal server state.
 
 ## Boundaries
 
@@ -63,6 +61,7 @@ Restore returns one outcome per wallet materialization:
 - `failedWalletCreation`
 - `failedManifestRecord`
 - `failedConflict`
+- `skippedTimeBudgetExpired`
 
 Unsupported wallet networks do not invalidate the whole manifest file or the whole entry; supported wallet materializations continue and unsupported ones are reported per wallet.
 Invalid manifest file structure, duplicate wallet materializations, and reservation mismatches are rejected before recovery by `keychain_manifest`.
@@ -70,7 +69,20 @@ Because import-plan DTOs cross a public facade boundary, `keychain_recovery` als
 
 `requiresProductReactivation` is a successful local wallet restore with a required follow-up product activation step.
 Lightning Address uses this status because manifest recovery restores the wallet materialization but not Bullnym registration state.
+Each outcome also retains whether the wallet was newly created, independently
+of its status, so a newly created wallet that requires product reactivation is
+not lost from later recovery coordination.
+
+The caller may provide an absolute deadline. Recovery checks it before each
+manifest entry and reports the remaining entry materializations as
+`skippedTimeBudgetExpired` instead of starting more derivation work. Dart
+futures are not cancellable, so an already-started materialization may finish;
+no later entry is started after the deadline.
 
 Once a wallet materialization is returned as `created`, `alreadyPresent`, or `requiresProductReactivation`, it is treated as current local wallet inventory.
 If manifest recording then fails, recovery returns `failedManifestRecord` for those wallets and rolls back newly created deterministic wallets best-effort when the materializer supplies a rollback callback.
 Rollback is only allowed inside the deterministic wallet materializer or through its explicit rollback callback; keychain recovery never edits manifest files directly.
+Successful restore inventory is recorded through
+`KeychainManifestFacade.recordRecoveredDerivation`, keeping its origin
+distinct from a new local materialization so automated backup publication can
+ignore recovery-originated writes.
