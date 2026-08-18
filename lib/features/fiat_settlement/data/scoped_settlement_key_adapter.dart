@@ -21,6 +21,30 @@ class ScopedSettlementKeyAdapter implements ScopedSettlementKeyPort {
   }
 
   @override
+  Future<FiatSettlementConnectionStatus> connectionStatus() async {
+    final settings = await _getSettings.execute();
+    final isTestnet = settings.environment.isTestnet;
+    try {
+      final broad = await _datasource.get(isTestnet: isTestnet);
+      if (broad == null) return FiatSettlementConnectionStatus.notLoggedIn;
+      final scoped = await _datasource.getSellToFiatBalanceApiKey(
+        isTestnet: isTestnet,
+      );
+      // A logged-in account whose scoped key is absent, stale (issued for a
+      // different user) or malformed has not delivered the settlement
+      // permission — a distinct state from having no session at all.
+      if (scoped == null ||
+          scoped.userId != broad.userId ||
+          !scoped.isWellFormed) {
+        return FiatSettlementConnectionStatus.missingSettlementPermission;
+      }
+      return FiatSettlementConnectionStatus.connected;
+    } catch (_) {
+      return FiatSettlementConnectionStatus.notLoggedIn;
+    }
+  }
+
+  @override
   Future<String?> readPlaintext() async {
     return (await _read())?.key;
   }

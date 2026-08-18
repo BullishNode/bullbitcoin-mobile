@@ -2,6 +2,11 @@ import 'dart:async';
 
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/disable_fiat_settlement_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_configuration_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_connection_status_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/set_fiat_settlement_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_configuration_events.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/ui/screens/fiat_settlement_editor_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
@@ -16,6 +21,16 @@ Finder _button(String label) =>
     find.byWidgetPredicate((w) => w is BullButton && w.label == label);
 
 class _MockFacade extends Mock implements FiatSettlementFacade {}
+
+class _MockGetConfiguration extends Mock
+    implements GetFiatSettlementConfigurationUsecase {}
+
+class _MockGetConnectionStatus extends Mock
+    implements GetFiatSettlementConnectionStatusUsecase {}
+
+class _MockSet extends Mock implements SetFiatSettlementUsecase {}
+
+class _MockDisable extends Mock implements DisableFiatSettlementUsecase {}
 
 FiatSettlementConfigurationView _view(
   FiatSettlementProduct product,
@@ -36,6 +51,10 @@ FiatSettlementConfigurationView _view(
 
 void main() {
   late _MockFacade facade;
+  late _MockGetConfiguration getConfiguration;
+  late _MockGetConnectionStatus getConnectionStatus;
+  late _MockSet setSettlement;
+  late _MockDisable disableSettlement;
   const product = FiatSettlementProduct.paymentPage;
 
   setUpAll(() {
@@ -43,19 +62,53 @@ void main() {
     registerFallbackValue(FiatCurrency.cad);
   });
 
-  setUp(() {
+  setUp(() async {
+    await locator.reset();
     facade = _MockFacade();
-    if (locator.isRegistered<FiatSettlementFacade>()) {
-      locator.unregister<FiatSettlementFacade>();
-    }
-    locator.registerFactory<FiatSettlementFacade>(() => facade);
+    getConfiguration = _MockGetConfiguration();
+    getConnectionStatus = _MockGetConnectionStatus();
+    setSettlement = _MockSet();
+    disableSettlement = _MockDisable();
+    when(
+      () => getConfiguration.execute(),
+    ).thenAnswer((_) => facade.configuration());
+    when(
+      () => getConnectionStatus.execute(),
+    ).thenAnswer((_) async => FiatSettlementConnectionStatus.connected);
+    when(
+      () => setSettlement.execute(
+        product: any(named: 'product'),
+        fiatPercentage: any(named: 'fiatPercentage'),
+        currency: any(named: 'currency'),
+      ),
+    ).thenAnswer(
+      (invocation) => facade.set(
+        product: invocation.namedArguments[#product]! as FiatSettlementProduct,
+        fiatPercentage: invocation.namedArguments[#fiatPercentage]! as int,
+        currency: invocation.namedArguments[#currency]! as FiatCurrency,
+      ),
+    );
+    when(
+      () => disableSettlement.execute(product: any(named: 'product')),
+    ).thenAnswer(
+      (invocation) => facade.disable(
+        product: invocation.namedArguments[#product]! as FiatSettlementProduct,
+      ),
+    );
+    locator.registerSingleton<GetFiatSettlementConfigurationUsecase>(
+      getConfiguration,
+    );
+    locator.registerSingleton<GetFiatSettlementConnectionStatusUsecase>(
+      getConnectionStatus,
+    );
+    locator.registerSingleton<SetFiatSettlementUsecase>(setSettlement);
+    locator.registerSingleton<DisableFiatSettlementUsecase>(disableSettlement);
+    locator.registerSingleton<FiatSettlementConfigurationEvents>(
+      FiatSettlementConfigurationEvents(),
+    );
   });
 
-  tearDown(() {
-    if (locator.isRegistered<FiatSettlementFacade>()) {
-      locator.unregister<FiatSettlementFacade>();
-    }
-  });
+  tearDown(() => locator.reset());
 
   Future<void> pump(WidgetTester tester) async {
     // A tall surface so the whole scrolling form (incl. the bottom action
@@ -89,12 +142,12 @@ void main() {
     expect(find.text('A mix of Bitcoin and fiat'), findsOneWidget);
     // Save is offered directly; the old pre-gate reconnect/login panel is gone.
     expect(_button('Save'), findsOneWidget);
-    expect(_button('Reconnect Bull Bitcoin'), findsNothing);
+    expect(_button('Connect Bull Bitcoin'), findsNothing);
     expect(_button('Log in to Bull Bitcoin'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a server credential-required outcome surfaces the Reconnect '
+  testWidgets('a server credential-required outcome surfaces the Connect '
       'action (the only path that needs the exchange login)', (tester) async {
     when(() => facade.configuration()).thenAnswer(
       (_) async => Ok(_view(product, 50, currency: FiatCurrency.cad)),
@@ -114,8 +167,11 @@ void main() {
     await tester.tap(_button('Save'));
     await tester.pumpAndSettle();
 
-    // Reconnect appears ONLY now, as the outcome of the server's answer.
-    expect(_button('Reconnect Bull Bitcoin'), findsOneWidget);
+    // Connect appears ONLY now, as the outcome of the server's answer, and it
+    // is stated as a first connection rather than a repair.
+    expect(_button('Connect Bull Bitcoin'), findsOneWidget);
+    expect(find.text('Connect your Bull Bitcoin account'), findsOneWidget);
+    expect(find.textContaining('Reconnect'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

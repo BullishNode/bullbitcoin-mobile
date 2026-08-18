@@ -5,6 +5,18 @@ enum FiatSettlementEditorStatus { loading, ready, saving, success, loadError }
 /// How the merchant wants to receive funds — the three chooser options.
 enum FiatSettlementReceiveMode { bitcoin, fiat, mix }
 
+/// What a return from the Bull Bitcoin login left behind, when it left the
+/// device unable to settle to fiat. Never a server failure: a local diagnosis
+/// made after the login round-trip, so the merchant is not dropped back on the
+/// same form with nothing said.
+enum FiatSettlementConnectionProblem {
+  /// The login was not completed — no session was established.
+  loginUnfinished,
+
+  /// The login succeeded, but the account issued no settlement permission.
+  missingSettlementPermission,
+}
+
 class FiatSettlementEditorState {
   final FiatSettlementEditorStatus status;
   final FiatSettlementProduct product;
@@ -22,6 +34,10 @@ class FiatSettlementEditorState {
   /// The last operation's failure (save/disable), for the outcome UI.
   final FiatSettlementFailure? failure;
 
+  /// What the last return from the Bull Bitcoin login diagnosed, when it left
+  /// the device still unable to settle to fiat.
+  final FiatSettlementConnectionProblem? connectionProblem;
+
   const FiatSettlementEditorState({
     required this.status,
     required this.product,
@@ -31,6 +47,7 @@ class FiatSettlementEditorState {
     this.currency,
     this.understood = false,
     this.failure,
+    this.connectionProblem,
   });
 
   factory FiatSettlementEditorState.initial(FiatSettlementProduct product) =>
@@ -81,8 +98,10 @@ class FiatSettlementEditorState {
     FiatCurrency? currency,
     bool? understood,
     FiatSettlementFailure? failure,
+    FiatSettlementConnectionProblem? connectionProblem,
     bool clearFailure = false,
     bool clearCurrency = false,
+    bool clearConnectionProblem = false,
   }) {
     return FiatSettlementEditorState(
       status: status ?? this.status,
@@ -93,6 +112,9 @@ class FiatSettlementEditorState {
       currency: clearCurrency ? null : (currency ?? this.currency),
       understood: understood ?? this.understood,
       failure: clearFailure ? null : (failure ?? this.failure),
+      connectionProblem: clearConnectionProblem
+          ? null
+          : (connectionProblem ?? this.connectionProblem),
     );
   }
 }

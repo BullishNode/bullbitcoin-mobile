@@ -5,12 +5,18 @@ import 'package:bb_mobile/core/wallet/data/repositories/wallet_repository.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/data/fiat_settlement_default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/fiat_settlement/data/scoped_settlement_key_adapter.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/entities/fiat_settlement.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_configuration_events.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/scoped_settlement_key_port.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/usecases/disable_fiat_settlement_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_configuration_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/get_fiat_settlement_connection_status_usecase.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/usecases/is_fiat_settlement_available_usecase.dart';
 import 'package:bb_mobile/features/fiat_settlement/domain/usecases/set_fiat_settlement_usecase.dart';
-import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
+import 'package:bb_mobile/features/fiat_settlement/presentation/fiat_settlement_entry_cubit.dart';
+import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart'
+    show FiatSettlementFacade;
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:get_it/get_it.dart';
 
@@ -36,6 +42,11 @@ class FiatSettlementLocator {
         nostrIdentity: locator<NostrIdentityFacade>(),
       ),
     );
+    locator.registerFactory<GetFiatSettlementConnectionStatusUsecase>(
+      () => GetFiatSettlementConnectionStatusUsecase(
+        scopedKey: locator<ScopedSettlementKeyPort>(),
+      ),
+    );
     locator.registerFactory<SetFiatSettlementUsecase>(
       () => SetFiatSettlementUsecase(
         bullnym: locator<BullnymFacade>(),
@@ -51,17 +62,34 @@ class FiatSettlementLocator {
         nostrIdentity: locator<NostrIdentityFacade>(),
       ),
     );
-    // Singleton: every factory-built facade must bump the SAME revision, or
+    locator.registerFactory<IsFiatSettlementAvailableUsecase>(
+      () => IsFiatSettlementAvailableUsecase(locator<GetSettingsUsecase>()),
+    );
+    // Singleton: every writer must publish to the SAME event stream, or
     // the editor's save and a summary tile's listener would see different ones.
-    locator.registerLazySingleton<FiatSettlementConfigurationRevision>(
-      FiatSettlementConfigurationRevision.new,
+    locator.registerLazySingleton<FiatSettlementConfigurationEvents>(
+      FiatSettlementConfigurationEvents.new,
+    );
+    locator.registerFactoryParam<
+      FiatSettlementEntryCubit,
+      FiatSettlementProduct,
+      void
+    >(
+      (product, _) => FiatSettlementEntryCubit(
+        product: product,
+        availability: locator<IsFiatSettlementAvailableUsecase>(),
+        getConfiguration: locator<GetFiatSettlementConfigurationUsecase>(),
+        events: locator<FiatSettlementConfigurationEvents>(),
+      ),
     );
     locator.registerFactory<FiatSettlementFacade>(
       () => FiatSettlementFacade(
         getConfiguration: locator<GetFiatSettlementConfigurationUsecase>(),
+        getConnectionStatus:
+            locator<GetFiatSettlementConnectionStatusUsecase>(),
         set: locator<SetFiatSettlementUsecase>(),
         disable: locator<DisableFiatSettlementUsecase>(),
-        revision: locator<FiatSettlementConfigurationRevision>(),
+        events: locator<FiatSettlementConfigurationEvents>(),
       ),
     );
   }

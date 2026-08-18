@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/fiat_settlement/domain/fiat_settlement_configuration_events.dart';
 import 'package:bb_mobile/features/fiat_settlement/presentation/fiat_settlement_editor_cubit.dart';
 import 'package:bb_mobile/features/fiat_settlement/presentation/fiat_settlement_editor_state.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
@@ -38,13 +39,23 @@ void main() {
     when(
       () => facade.configuration(),
     ).thenAnswer((_) async => Ok(_view(product, 0)));
+    // The default: the login round-trip left a usable credential behind.
+    when(
+      () => facade.connectionStatus(),
+    ).thenAnswer((_) async => FiatSettlementConnectionStatus.connected);
   });
 
   // The cubit has NO local exchange-account dependency: a fiat change is an
   // npub-signed keyless save; a missing server credential is discovered from
   // the server (credentialProblem), never assumed from local state.
-  FiatSettlementEditorCubit build() =>
-      FiatSettlementEditorCubit(facade: facade, product: product);
+  FiatSettlementEditorCubit build() => FiatSettlementEditorCubit(
+    getConfiguration: facade.configuration,
+    getConnectionStatus: facade.connectionStatus,
+    set: facade.set,
+    disable: facade.disable,
+    events: FiatSettlementConfigurationEvents(),
+    product: product,
+  );
 
   test('load maps a saved bitcoin-only config to the bitcoin mode', () async {
     final cubit = build();
@@ -403,6 +414,76 @@ void main() {
       expect(cubit.state.currency, FiatCurrency.cad);
     },
   );
+
+  test('a login that delivers no settlement permission says so instead of '
+      'looping', () async {
+    final cubit = build();
+    await cubit.load();
+    cubit.selectMode(FiatSettlementReceiveMode.fiat);
+    cubit.selectCurrency(FiatCurrency.cad);
+    cubit.setUnderstood(true);
+    when(
+      () => facade.set(
+        product: any(named: 'product'),
+        fiatPercentage: any(named: 'fiatPercentage'),
+        currency: any(named: 'currency'),
+      ),
+    ).thenAnswer(
+      (_) async => const Err(FiatSettlementFailure.credentialProblem()),
+    );
+    await cubit.save();
+    // The account is logged in, but issued no scoped settlement credential —
+    // tonight's production case, and any server-side issuance failure.
+    when(() => facade.connectionStatus()).thenAnswer(
+      (_) async => FiatSettlementConnectionStatus.missingSettlementPermission,
+    );
+
+    await cubit.refreshConnection();
+
+    expect(
+      cubit.state.connectionProblem,
+      FiatSettlementConnectionProblem.missingSettlementPermission,
+    );
+    // The draft survives, so the merchant is not asked to re-enter anything.
+    expect(cubit.state.mode, FiatSettlementReceiveMode.fiat);
+    expect(cubit.state.currency, FiatCurrency.cad);
+  });
+
+  test(
+    'an unfinished login is distinguished from a missing permission',
+    () async {
+      final cubit = build();
+      await cubit.load();
+      when(
+        () => facade.connectionStatus(),
+      ).thenAnswer((_) async => FiatSettlementConnectionStatus.notLoggedIn);
+
+      await cubit.refreshConnection();
+
+      expect(
+        cubit.state.connectionProblem,
+        FiatSettlementConnectionProblem.loginUnfinished,
+      );
+    },
+  );
+
+  test('a completed connection leaves no problem stated', () async {
+    final cubit = build();
+    await cubit.load();
+    when(
+      () => facade.connectionStatus(),
+    ).thenAnswer((_) async => FiatSettlementConnectionStatus.notLoggedIn);
+    await cubit.refreshConnection();
+    expect(cubit.state.connectionProblem, isNotNull);
+
+    when(
+      () => facade.connectionStatus(),
+    ).thenAnswer((_) async => FiatSettlementConnectionStatus.connected);
+    await cubit.refreshConnection();
+
+    expect(cubit.state.connectionProblem, isNull);
+    expect(cubit.state.failure, isNull);
+  });
 
   test('refreshConnection is a no-op off the ready form', () async {
     final cubit = build();
