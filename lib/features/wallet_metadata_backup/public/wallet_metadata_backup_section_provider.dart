@@ -17,6 +17,7 @@ abstract interface class WalletMetadataBackupSectionProvider {
   recoverSection({
     required String payload,
     required Set<String> createdWalletRefs,
+    DateTime? deadline,
   });
 
   Stream<void> get changes;

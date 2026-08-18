@@ -28,10 +28,10 @@ final class RecoverRemoteKeychainManifestUsecase {
     this.budget = defaultRecoveryBudget,
   });
 
-  Future<RemoteKeychainRecoveryResult> execute() async {
-    final deadline = clock.nowUtc().add(budget);
+  Future<RemoteKeychainRecoveryResult> execute({DateTime? deadline}) async {
+    final effectiveDeadline = deadline ?? clock.nowUtc().add(budget);
     try {
-      return await _executeWithin(deadline);
+      return await _executeWithin(effectiveDeadline);
     } on TimeoutException {
       return RemoteKeychainRecoveryResult(
         status: RemoteKeychainRecoveryStatus.timedOut,

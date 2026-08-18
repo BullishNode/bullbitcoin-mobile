@@ -56,6 +56,61 @@ void main() {
     expect(idleReached, isTrue);
   });
 
+  test('explicit publication marks the latest state dirty first', () async {
+    var dirtyRevision = 0;
+    final capturedRevisions = <int>[];
+    final coordinator = WalletBackupCoordinator(
+      manifestChanges: const Stream.empty(),
+      syncResults: const Stream.empty(),
+      publishBackup: () async {
+        capturedRevisions.add(dirtyRevision);
+        return const Ok(null);
+      },
+      markDirty: () async {
+        dirtyRevision++;
+        return const Ok(null);
+      },
+    );
+
+    expect(
+      await coordinator.publishLatest(),
+      isA<Ok<void, WalletBackupFailure>>(),
+    );
+    expect(capturedRevisions, [1]);
+  });
+
+  test(
+    'explicit publication queues latest state behind an older in-flight pass',
+    () async {
+      final first = Completer<Result<void, WalletBackupFailure>>();
+      var dirtyRevision = 0;
+      final capturedRevisions = <int>[];
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () {
+          capturedRevisions.add(dirtyRevision);
+          if (capturedRevisions.length == 1) return first.future;
+          return Future.value(const Ok(null));
+        },
+        markDirty: () async {
+          dirtyRevision++;
+          return const Ok(null);
+        },
+      );
+
+      final olderPublication = coordinator.publish();
+      final latestPublication = coordinator.publishLatest();
+      await pumpEventQueue();
+      expect(capturedRevisions, [0]);
+
+      first.complete(const Ok(null));
+      expect(await latestPublication, isA<Ok<void, WalletBackupFailure>>());
+      await olderPublication;
+      expect(capturedRevisions, [0, 1]);
+    },
+  );
+
   test('clears queue ownership before completing waiting callers', () async {
     final first = Completer<Result<void, WalletBackupFailure>>();
     var publishCalls = 0;
@@ -173,6 +228,45 @@ void main() {
     },
   );
 
+  test(
+    'dispose completes deferred publications when the active pass throws',
+    () async {
+      final publication = Completer<Result<void, WalletBackupFailure>>();
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () => publication.future,
+        markDirty: () async => const Ok(null),
+      );
+
+      final active = expectLater(
+        coordinator.publish(),
+        throwsA(isA<StateError>()),
+      );
+      final lease = expectLater(
+        coordinator.beginRecoveryLease(),
+        throwsA(isA<StateError>()),
+      );
+      final deferred = coordinator.publish();
+      final disposing = coordinator.dispose();
+
+      publication.completeError(StateError('publication failed'));
+
+      await active;
+      await lease;
+      await expectLater(disposing, completes);
+      final deferredResult = await deferred;
+      expect(
+        deferredResult,
+        isA<Err<void, WalletBackupFailure>>().having(
+          (result) => result.failure,
+          'failure',
+          isA<WalletBackupUnexpectedFailure>(),
+        ),
+      );
+    },
+  );
+
   test('deletion lease waits until recovery releases ownership', () async {
     final coordinator = WalletBackupCoordinator(
       manifestChanges: const Stream.empty(),
@@ -196,6 +290,39 @@ void main() {
     deletion.close();
     await coordinator.dispose();
   });
+
+  test(
+    'timed-out lease acquisition does not strand the lifecycle queue',
+    () async {
+      final publication = Completer<Result<void, WalletBackupFailure>>();
+      var publishCalls = 0;
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () {
+          publishCalls++;
+          return publishCalls == 1
+              ? publication.future
+              : Future.value(const Ok(null));
+        },
+        markDirty: () async => const Ok(null),
+      );
+
+      final activePublication = coordinator.publish();
+      await expectLater(
+        coordinator.beginRecoveryLease(
+          timeout: const Duration(milliseconds: 10),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      publication.complete(const Ok(null));
+      await activePublication;
+      final laterLease = await coordinator.beginRecoveryLease();
+      laterLease.close();
+      await coordinator.dispose();
+    },
+  );
 
   testWidgets(
     'a manifest change during publication dirties and queues a second pass',

@@ -30,7 +30,9 @@ final class RemoteKeychainRecoveryLocator {
     );
     locator.registerFactory<RecoverRemoteWalletBackupsUsecase>(
       () => RecoverRemoteWalletBackupsUsecase(
-        () => locator<RecoverRemoteKeychainManifestUsecase>().execute(),
+        (deadline) => locator<RecoverRemoteKeychainManifestUsecase>().execute(
+          deadline: deadline,
+        ),
         locator<WalletBackupFacade>(),
         locator<WalletMetadataBackupFacade>(),
       ),

@@ -6,6 +6,7 @@ import 'package:bb_mobile/features/automatic_fallback/public/automatic_fallback_
 import 'package:bb_mobile/features/btcpay/public/btcpay_facade.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fallback_usecase.dart';
+import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
 import 'package:bb_mobile/features/get_paid/data/get_paid_default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_default_wallet_xprv_port.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
@@ -30,6 +31,13 @@ class GetPaidLocator {
     locator.registerFactory<GetPaidFallbackAttentionUsecase>(
       () =>
           GetPaidFallbackAttentionUsecase(invoices: locator<InvoicesFacade>()),
+    );
+    locator.registerFactory<EnsureGetPaidProductWalletUsecase>(
+      () => EnsureGetPaidProductWalletUsecase(
+        locator<LightningAddressFacade>(),
+        locator<PaymentPageFacade>(),
+        locator<PosFacade>(),
+      ),
     );
     locator.registerFactory<GetPaidDefaultWalletXprvPort>(
       () => GetPaidDefaultWalletXprvAdapter(

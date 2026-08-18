@@ -36,8 +36,9 @@ LightningAddressFacade _laFacade(
     registerWalletOwned: ({required String nym}) async =>
         throw UnimplementedError(),
     lookupWalletOwnedRegistration: lookup,
-    ensureRegistrationLive: ({DateTime? deadline}) async =>
-        throw UnimplementedError(),
+    ensureRegistrationLive:
+        ({DateTime? deadline, bool allowReregister = true}) async =>
+            throw UnimplementedError(),
   );
 }
 
@@ -50,6 +51,7 @@ PaymentPageFacade _pageFacade(
     archive: () async => throw UnimplementedError(),
     supportedCurrencies: () async => throw UnimplementedError(),
     ensurePageLive: () async => throw UnimplementedError(),
+    prepareWallet: () async => throw UnimplementedError(),
   );
 }
 
@@ -62,6 +64,7 @@ PosFacade _posFacade(
     archive: () async => throw UnimplementedError(),
     supportedCurrencies: () async => throw UnimplementedError(),
     ensurePosLive: () async => throw UnimplementedError(),
+    prepareWallet: () async => throw UnimplementedError(),
   );
 }
 

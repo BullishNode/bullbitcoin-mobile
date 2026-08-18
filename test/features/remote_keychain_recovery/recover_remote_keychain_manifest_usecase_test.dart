@@ -184,6 +184,7 @@ void main() {
     expect(result.status, RemoteKeychainRecoveryStatus.restored);
     expect(result.createdWalletIds, ['lightning-wallet']);
     expect(lightningAddress.ensureCalls, 1);
+    expect(lightningAddress.allowReregisterCalls, [false]);
   });
 
   test('heals a restored payment page that requests reactivation', () async {
@@ -230,6 +231,40 @@ void main() {
     expect(result.status, RemoteKeychainRecoveryStatus.restored);
     expect(result.createdWalletIds, ['pos-wallet']);
     expect(pos.ensureCalls, 1);
+  });
+
+  test('payment-page healing respects the shared recovery deadline', () async {
+    final now = DateTime.utc(2026);
+    paymentPage.pending = Completer<PaymentPageHealOutcome>();
+    final healer = HealRecoveredProductsUsecase(
+      lightningAddress,
+      paymentPage,
+      pos,
+      clock: _FakeClock(now),
+    );
+
+    final status = await healer.execute(const {
+      'payment_page_wallet_seed',
+    }, deadline: now);
+
+    expect(status, RecoveredProductsHealStatus.timedOut);
+  });
+
+  test('point-of-sale healing respects the shared recovery deadline', () async {
+    final now = DateTime.utc(2026);
+    pos.pending = Completer<PosHealOutcome>();
+    final healer = HealRecoveredProductsUsecase(
+      lightningAddress,
+      paymentPage,
+      pos,
+      clock: _FakeClock(now),
+    );
+
+    final status = await healer.execute(const {
+      'pos_wallet_seed',
+    }, deadline: now);
+
+    expect(status, RecoveredProductsHealStatus.timedOut);
   });
 
   test('reports partial restoration without discarding successes', () async {
@@ -677,6 +712,7 @@ final class _FakeKeychainRecoveryFacade implements KeychainRecoveryFacade {
 
 final class _FakeLightningAddressFacade implements LightningAddressFacade {
   int ensureCalls = 0;
+  final allowReregisterCalls = <bool>[];
   LightningAddressHealOutcome outcome = const LightningAddressHealOutcome(
     liveness: LightningAddressRegistrationLiveness.live,
   );
@@ -684,8 +720,10 @@ final class _FakeLightningAddressFacade implements LightningAddressFacade {
   @override
   Future<LightningAddressHealOutcome> ensureRegistrationLive({
     DateTime? deadline,
+    bool allowReregister = true,
   }) async {
     ensureCalls++;
+    allowReregisterCalls.add(allowReregister);
     return outcome;
   }
 
@@ -695,6 +733,7 @@ final class _FakeLightningAddressFacade implements LightningAddressFacade {
 
 final class _FakePaymentPageFacade implements PaymentPageFacade {
   int ensureCalls = 0;
+  Completer<PaymentPageHealOutcome>? pending;
   PaymentPageHealOutcome outcome = const PaymentPageHealOutcome(
     liveness: PaymentPageLiveness.live,
   );
@@ -702,6 +741,8 @@ final class _FakePaymentPageFacade implements PaymentPageFacade {
   @override
   Future<PaymentPageHealOutcome> ensurePageLive() async {
     ensureCalls++;
+    final pending = this.pending;
+    if (pending != null) return pending.future;
     return outcome;
   }
 
@@ -711,11 +752,14 @@ final class _FakePaymentPageFacade implements PaymentPageFacade {
 
 final class _FakePosFacade implements PosFacade {
   int ensureCalls = 0;
+  Completer<PosHealOutcome>? pending;
   PosHealOutcome outcome = const PosHealOutcome(liveness: PosLiveness.live);
 
   @override
   Future<PosHealOutcome> ensurePosLive() async {
     ensureCalls++;
+    final pending = this.pending;
+    if (pending != null) return pending.future;
     return outcome;
   }
 

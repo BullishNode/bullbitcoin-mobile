@@ -16,7 +16,9 @@ import 'package:bb_mobile/features/lightning_address/domain/usecases/register_wa
 ///                                offline is an intentional product state;
 /// - active:false + nym     -> silent re-register -> [reregistered], or a
 ///                             rejection -> [needsReactivation] for legacy
-///                             servers only;
+///                             servers only. With [allowReregister] false the
+///                             re-register write is skipped and the outcome is
+///                             [needsReactivation] instead (read-only mode);
 /// - NymNotFound             -> [needsReactivation] (the nym is not recoverable
 ///                             locally — it is not in the frozen manifest);
 /// - network/timeout/server  -> [unreachable] (liveness UNKNOWN; never [live]).
@@ -34,7 +36,15 @@ class EnsureLightningAddressRegistrationLiveUsecase {
     this._register,
   );
 
-  Future<LightningAddressHealOutcome> execute({DateTime? deadline}) async {
+  /// [allowReregister] governs the single write this check can make: the legacy
+  /// active:false + nym silent re-register. Restoration passes it false so
+  /// recovery never modifies a Bullnym product (UX-1 / master-doc contract #4);
+  /// a lapsed-but-known legacy registration is then reported as
+  /// [needsReactivation] for the user-driven flows to reactivate.
+  Future<LightningAddressHealOutcome> execute({
+    DateTime? deadline,
+    bool allowReregister = true,
+  }) async {
     if (_deadlineReached(deadline)) return _timedOut;
 
     final LightningAddressStatus status;
@@ -75,6 +85,17 @@ class EnsureLightningAddressRegistrationLiveUsecase {
       return LightningAddressHealOutcome(
         liveness: LightningAddressRegistrationLiveness.needsReactivation,
         nym: permanentName.nym,
+      );
+    }
+
+    // Read-only mode (restoration): never re-register. A lapsed-but-known
+    // legacy registration is surfaced for user-driven reactivation instead of
+    // being silently turned back on, because recovery must not write to a
+    // Bullnym product.
+    if (!allowReregister) {
+      return LightningAddressHealOutcome(
+        liveness: LightningAddressRegistrationLiveness.needsReactivation,
+        nym: status.nym,
       );
     }
 

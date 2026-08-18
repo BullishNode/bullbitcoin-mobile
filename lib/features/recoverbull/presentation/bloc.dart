@@ -425,11 +425,16 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
     switch (await _restoreVaultUsecase.execute(
       decryptedVault: decryptedVault,
     )) {
-      case Ok():
-        // Recreate manifest wallets before WalletBloc reads its first
-        // inventory. The wrapper is bounded and failure-tolerant, so an
-        // unavailable Bull backup still completes with the default wallets.
-        await _recoverRemoteKeychainUsecase.execute();
+      case Ok(:final value):
+        // The vault only restores the default wallets. Recreate any manifest
+        // (bip85) wallets - e.g. Donation Page 102 and POS 103 - from the
+        // remote keychain manifest BEFORE the wallet inventory loads, passing
+        // the restored default wallet ids so metadata recovery covers them too.
+        // The usecase is bounded by its own time budget and never throws, so a
+        // recovery failure lets the restore finish silently with the defaults.
+        await _recoverRemoteKeychainUsecase.execute(
+          defaultCreatedWalletIds: value.toSet(),
+        );
         _walletBloc.add(const WalletStarted());
         log.fine('Vault recovered');
         emit(state.copyWith(isFlowFinished: true, isLoading: false));

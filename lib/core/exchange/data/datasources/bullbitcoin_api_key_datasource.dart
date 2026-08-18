@@ -1,12 +1,17 @@
 import 'dart:convert';
 
 import 'package:bb_mobile/core/exchange/data/models/api_key_model.dart';
+import 'package:bb_mobile/core/exchange/data/models/scoped_api_key_model.dart';
 import 'package:bb_mobile/core/storage/data/datasources/key_value_storage/key_value_storage_datasource.dart';
 import 'package:bb_mobile/core/utils/logger.dart' show log;
 
 class BullbitcoinApiKeyDatasource {
   static const String _apiKeyStorageKey = 'exchange_api_key';
   static const String _apiKeyTestnetStorageKey = 'exchange_api_key_testnet';
+  static const String _sellToFiatBalanceApiKeyStorageKey =
+      'sell_to_fiat_balance_api_key';
+  static const String _sellToFiatBalanceApiKeyTestnetStorageKey =
+      'sell_to_fiat_balance_api_key_testnet';
 
   final KeyValueStorageDatasource<String> _secureStorage;
 
@@ -21,12 +26,49 @@ class BullbitcoinApiKeyDatasource {
       final key = isTestnet ? _apiKeyTestnetStorageKey : _apiKeyStorageKey;
       await _secureStorage.saveValue(key: key, value: jsonString);
       log.fine('Exchange API key stored successfully');
-    } catch (e) {
-      log.severe(
-        message: 'Error storing API key',
-        error: e,
-        trace: StackTrace.current,
-      );
+    } catch (_) {
+      log.warning('Unable to store Bull Bitcoin API key');
+      rethrow;
+    }
+  }
+
+  Future<void> storeSellToFiatBalanceApiKey(
+    ScopedApiKeyModel scopedApiKey, {
+    required bool isTestnet,
+  }) async {
+    try {
+      final key = isTestnet
+          ? _sellToFiatBalanceApiKeyTestnetStorageKey
+          : _sellToFiatBalanceApiKeyStorageKey;
+      // Persist the userId binding alongside the plaintext so the credential
+      // lifecycle can distinguish same-user re-login from an account switch.
+      final jsonString = jsonEncode(scopedApiKey.toJson());
+      await _secureStorage.saveValue(key: key, value: jsonString);
+      log.fine('Scoped API key stored successfully');
+    } catch (_) {
+      // Never include the scoped value in a log line.
+      log.warning('Unable to store scoped Bull Bitcoin API key');
+      rethrow;
+    }
+  }
+
+  Future<ScopedApiKeyModel?> getSellToFiatBalanceApiKey({
+    required bool isTestnet,
+  }) async {
+    try {
+      final key = isTestnet
+          ? _sellToFiatBalanceApiKeyTestnetStorageKey
+          : _sellToFiatBalanceApiKeyStorageKey;
+      final jsonString = await _secureStorage.getValue(key);
+
+      if (jsonString == null || jsonString.isEmpty) {
+        return null;
+      }
+
+      final json = jsonDecode(jsonString) as Map<String, dynamic>;
+      return ScopedApiKeyModel.fromJson(json);
+    } catch (_) {
+      log.warning('Unable to retrieve scoped Bull Bitcoin API key');
       rethrow;
     }
   }
@@ -43,12 +85,8 @@ class BullbitcoinApiKeyDatasource {
 
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
       return ExchangeApiKeyModel.fromJson(json);
-    } catch (e) {
-      log.severe(
-        message: 'Error retrieving API key',
-        error: e,
-        trace: StackTrace.current,
-      );
+    } catch (_) {
+      log.warning('Unable to retrieve Bull Bitcoin API key');
       return null;
     }
   }
@@ -58,12 +96,21 @@ class BullbitcoinApiKeyDatasource {
       final key = isTestnet ? _apiKeyTestnetStorageKey : _apiKeyStorageKey;
       await _secureStorage.deleteValue(key);
       log.fine('API key deleted successfully');
-    } catch (e) {
-      log.severe(
-        message: 'Error deleting API key',
-        error: e,
-        trace: StackTrace.current,
-      );
+    } catch (_) {
+      log.warning('Unable to delete Bull Bitcoin API key');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteSellToFiatBalanceApiKey({required bool isTestnet}) async {
+    try {
+      final key = isTestnet
+          ? _sellToFiatBalanceApiKeyTestnetStorageKey
+          : _sellToFiatBalanceApiKeyStorageKey;
+      await _secureStorage.deleteValue(key);
+      log.fine('Scoped API key deleted successfully');
+    } catch (_) {
+      log.warning('Unable to delete scoped Bull Bitcoin API key');
       rethrow;
     }
   }

@@ -18,7 +18,13 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 class ExchangeAuthScreen extends StatefulWidget {
-  const ExchangeAuthScreen({super.key});
+  const ExchangeAuthScreen({super.key, this.returnToCaller = false});
+
+  /// When true, completing (or dismissing) the login pops back to the screen
+  /// that pushed it instead of navigating to the wallet home. Used by the fiat
+  /// settlement reconnect flow so the merchant returns to their in-progress
+  /// activation with selections preserved.
+  final bool returnToCaller;
 
   @override
   State<ExchangeAuthScreen> createState() => _ExchangeAuthScreenState();
@@ -28,9 +34,11 @@ class _ExchangeAuthScreenState extends State<ExchangeAuthScreen> {
   late final WebViewController _controller = WebViewController();
   late final WebviewCookieManager _cookieManager = WebviewCookieManager();
   late final String _bbAuthUrl;
+  late final bool _isTestnet;
   String? _basicAuthUsername;
   String? _basicAuthPassword;
   bool _isGeneratingApiKey = false;
+  bool _credentialImportComplete = false;
   bool _isClosing = false;
 
   @override
@@ -38,11 +46,11 @@ class _ExchangeAuthScreenState extends State<ExchangeAuthScreen> {
     super.initState();
 
     final settingsState = context.read<SettingsCubit>().state;
-    final isTestnet = settingsState.environment == Environment.testnet;
-    _bbAuthUrl = isTestnet
+    _isTestnet = settingsState.environment == Environment.testnet;
+    _bbAuthUrl = _isTestnet
         ? ApiServiceConstants.bbAuthTestUrl
         : ApiServiceConstants.bbAuthUrl;
-    if (isTestnet) {
+    if (_isTestnet) {
       _basicAuthUsername = settingsState.exchangeTestnetBasicAuthUsername;
       _basicAuthPassword = settingsState.exchangeTestnetBasicAuthPassword;
     }
@@ -56,7 +64,11 @@ class _ExchangeAuthScreenState extends State<ExchangeAuthScreen> {
             if (!_isClosing && mounted) {
               _isClosing = true;
               // Navigate immediately
-              context.goNamed(WalletRoute.walletHome.name);
+              if (widget.returnToCaller && context.canPop()) {
+                context.pop();
+              } else {
+                context.goNamed(WalletRoute.walletHome.name);
+              }
             }
           }
         },
@@ -118,7 +130,13 @@ class _ExchangeAuthScreenState extends State<ExchangeAuthScreen> {
           },
           onUrlChange: (UrlChange change) async {
             final url = change.url;
-            if (url == null) return;
+            if (url == null ||
+                !mounted ||
+                _isClosing ||
+                _isGeneratingApiKey ||
+                _credentialImportComplete) {
+              return;
+            }
 
             // During sign-up, the bb_session cookie is set before email
             // verification. Skip processing on these paths so the WebView
@@ -131,7 +149,13 @@ class _ExchangeAuthScreenState extends State<ExchangeAuthScreen> {
             }
 
             // Check if the URL contains the bb_session cookie
-            final bbSessionCookie = await _tryGetBBSessionCookie(change.url!);
+            final bbSessionCookie = await _tryGetBBSessionCookie(url);
+            if (!mounted ||
+                _isClosing ||
+                _isGeneratingApiKey ||
+                _credentialImportComplete) {
+              return;
+            }
             // If no bb_session cookie is found, do nothing as the user is not
             //  logged in yet.
             if (bbSessionCookie == null) return;
@@ -139,35 +163,36 @@ class _ExchangeAuthScreenState extends State<ExchangeAuthScreen> {
             // If the bb_session cookie is found, the user is logged in and
             //  we can proceed to try to generate and save the API key.
 
+            final exchangeCubit = context.read<ExchangeCubit>();
             try {
               // Set the flag to indicate that we are generating the API key
               setState(() => _isGeneratingApiKey = true);
 
               final apiKeyData = await _generateApiKey();
-              if (apiKeyData['error'] != null) {
-                setState(() => _isGeneratingApiKey = false);
-                return;
-              }
               // Save the API key so it can be used for future requests
-              if (!mounted) return;
-              await context.read<ExchangeCubit>().storeApiKey(apiKeyData);
+              if (!mounted || _isClosing) return;
+              await exchangeCubit.storeApiKey(
+                apiKeyData,
+                isTestnet: _isTestnet,
+              );
 
               // Check if the API key was successfully stored
-              if (!mounted) return;
-              final saveApiKeyException = context
-                  .read<ExchangeCubit>()
-                  .state
-                  .saveApiKeyException;
+              final saveApiKeyException =
+                  exchangeCubit.state.saveApiKeyException;
               if (saveApiKeyException != null) {
-                throw saveApiKeyException;
+                throw StateError('Unable to import Bull Bitcoin credentials');
               }
-            } catch (e) {
-              log.severe(
-                message: 'Error generating or saving API key',
-                error: e,
-                trace: StackTrace.current,
-              );
-              await _handleLoginError();
+
+              _credentialImportComplete = true;
+            } catch (_) {
+              log.warning('Unable to import Bull Bitcoin credentials');
+              if (mounted && !_isClosing) {
+                try {
+                  await _handleLoginError();
+                } catch (_) {
+                  log.warning('Unable to reset Bull Bitcoin login');
+                }
+              }
             } finally {
               // Reset the flag after the API key generation process is done
               //  and if the widget is still mounted.
@@ -175,6 +200,10 @@ class _ExchangeAuthScreenState extends State<ExchangeAuthScreen> {
                 setState(() => _isGeneratingApiKey = false);
               }
             }
+
+            if (!_credentialImportComplete) return;
+
+            await _refreshAccountAfterCredentialImport(exchangeCubit);
           },
           onNavigationRequest: (NavigationRequest request) {
             if (request.url.startsWith('https://accounts')) {
@@ -254,14 +283,14 @@ class _ExchangeAuthScreenState extends State<ExchangeAuthScreen> {
           xhr.setRequestHeader('Content-Type', 'application/json');
           xhr.withCredentials = true;
           try {
-            xhr.send(JSON.stringify({ apiKeyName: 'test-key-' + new Date().getTime() }));
+            xhr.send(JSON.stringify({ apiKeyName: 'test-key-' + new Date().getTime(), includeSellToFiatBalanceApiKey: true }));
             if (xhr.status >= 200 && xhr.status < 300) {
-              try { return xhr.responseText; } catch (e) { return JSON.stringify({error: 'Failed to parse response: ' + e.toString()}); }
+              try { return xhr.responseText; } catch (e) { return JSON.stringify({error: 'Credential response unavailable'}); }
             } else {
-              return JSON.stringify({ error: 'Request failed with status: ' + xhr.status, statusText: xhr.statusText || 'Unknown error' });
+              return JSON.stringify({error: 'Credential request failed'});
             }
           } catch (e) {
-            return JSON.stringify({error: 'XHR Error: ' + e.toString()});
+            return JSON.stringify({error: 'Credential request failed'});
           }
         })();
       ''')
@@ -303,6 +332,36 @@ class _ExchangeAuthScreenState extends State<ExchangeAuthScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _refreshAccountAfterCredentialImport(
+    ExchangeCubit exchangeCubit,
+  ) async {
+    if (await exchangeCubit.fetchUserSummary()) return;
+    if (await exchangeCubit.fetchUserSummary()) return;
+
+    while (mounted && !_isClosing) {
+      final shouldRetry = await BlurredDialog.show<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(context.loc.errorGenericTitle),
+          content: Text(context.loc.exchangeAccountInfoLoadErrorMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(context.loc.closeDialogButton),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(context.loc.tryAgainButton),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldRetry != true || !mounted || _isClosing) return;
+      if (await exchangeCubit.fetchUserSummary()) return;
+    }
   }
 
   @override
