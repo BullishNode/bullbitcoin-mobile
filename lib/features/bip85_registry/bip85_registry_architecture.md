@@ -45,9 +45,12 @@ Payment Page reserves BIP85 path `39'/0'/12'/102'`, which is a BIP39 English
 12-word child mnemonic at child index `102`.
 
 Nostr role keys reserve the app-owned Nostr namespace paths under the current
-bitcoin/bips#2126 proposal. This rewrite reviewed PR #2126 at commit
-`e6df9dbf1093444302331565a1a8f58144175a21`; re-check that pin immediately
-before publishing the rewritten stack.
+bitcoin/bips#2126 proposal. The publication review re-checked PR #2126 at
+commit `1e0bf69d4d859a43d092b035d083a9227eed4709`: the path remains
+`128002'/{identity}'/{account_index}'`, and the derived private key remains the
+first 32 bytes of the BIP85 entropy interpreted as a secp256k1 scalar. The
+proposal is still open, so this pin documents the reviewed draft rather than a
+final standard.
 
 - `128002'/100'/1'` for unified Bull backup signing.
 - `128002'/101'/1'` for Bullnym server authentication.
@@ -58,12 +61,18 @@ assigned roles are `100'` unified Bull backup signing, `101'` Bullnym
 authentication, and `102'` NIP-05 public verification. User-created identities
 must not use the reserved range.
 
-These Nostr reservations are static namespace policy only. They do not implement
-Nostr signing, relay publish/fetch, wallet manifest transport, DMs, NIP-05
-registration, verification, lookup, NIP-05 UI, or product behavior.
+These Nostr-compatible reservations are static namespace policy only. They do
+not require Nostr events or relays. The wallet-backup role signs Bullnym backup
+requests; the other roles retain their existing product responsibilities.
 The exact app number and role segments are the locked namespace allocation;
 later Nostr behavior work may consume these ids and paths, but should not infer
 runtime semantics from this registry entry alone.
+
+Wallet Backup reserves BIP85 path `1642'/0'/1'` as the encryption key for the
+unified Bull backup envelope. This is a Bull-owned custom application namespace
+and must not be reused for RecoverBull vault backups, Nostr signing, Bullnym
+authentication, or wallet-seed materialization. `wallet_backup` owns encryption
+and encrypted-envelope semantics; the registry only blocks and names the path.
 
 Future reservations should add typed entries here only when a first-party
 feature needs a stable, blocked path. User-created ad hoc BIP85 outputs remain

@@ -84,6 +84,18 @@ class Bip85Reservations {
     ],
   );
 
+  static final walletBackupEncryptionKey = Bip85KeyReservation(
+    id: 'wallet_backup_encryption_key',
+    deterministicAlias: 'Wallet Backup Encryption',
+    owner: Bip85ReservationOwner.walletBackup,
+    purpose: Bip85ReservationPurpose.backupEncryptionKey,
+    application: const Bip85ApplicationSpec(number: 1642),
+    segments: const [
+      Bip85PathSegment(name: 'namespace', value: 0),
+      Bip85PathSegment(name: 'key', value: 1),
+    ],
+  );
+
   static final List<Bip85Reservation> all = List.unmodifiable([
     btcpayWalletSeed,
     lightningAddressWalletSeed,
@@ -91,5 +103,6 @@ class Bip85Reservations {
     nostrWalletBackupKey,
     nostrBullnymServerAuthKey,
     nostrNip05PublicNymVerificationKey,
+    walletBackupEncryptionKey,
   ]);
 }

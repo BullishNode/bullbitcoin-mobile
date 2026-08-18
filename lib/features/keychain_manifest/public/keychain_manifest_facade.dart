@@ -70,6 +70,7 @@ class KeychainManifestFacade {
       }
       return KeychainManifestFilePayload._(
         payload: _manifestFileCodec.encode(manifestFile),
+        parentFingerprint: manifestFile.parentFingerprint,
         entryCount: manifestFile.entryCount,
         materializationCount: manifestFile.materializationCount,
         generatedAt: manifestFile.generatedAt,
@@ -79,6 +80,25 @@ class KeychainManifestFacade {
       if (e is! KeychainManifestException) {
         log.warning(
           'Keychain manifest file build failed',
+          error: e,
+          trace: stack,
+        );
+      }
+      throw KeychainManifestException.fromInternal(e);
+    }
+  }
+
+  /// Validates a manifest payload and returns its canonical wire encoding.
+  ///
+  /// Cross-feature containers use this to reject reordered or unknown
+  /// manifest fields rather than hashing or overwriting non-canonical content.
+  static String canonicalizeManifestFilePayload(String payload) {
+    try {
+      return _manifestFileCodec.encode(_manifestFileCodec.decode(payload));
+    } catch (e, stack) {
+      if (e is! KeychainManifestException) {
+        log.warning(
+          'Keychain manifest canonicalization failed',
           error: e,
           trace: stack,
         );
@@ -120,6 +140,7 @@ class KeychainManifestFacade {
 
 class KeychainManifestFilePayload {
   final String payload;
+  final String parentFingerprint;
   final int entryCount;
   final int materializationCount;
   final int generatedAt;
@@ -129,6 +150,7 @@ class KeychainManifestFilePayload {
 
   const KeychainManifestFilePayload._({
     required this.payload,
+    required this.parentFingerprint,
     required this.entryCount,
     required this.materializationCount,
     required this.generatedAt,
