@@ -193,19 +193,34 @@ void main() {
   });
 
   test('rejects more entries than the registry reserves', () {
-    final extraEntry =
-        '{"entryId":"fedcba98:39\'/0\'/12\'/101\'",'
-        '"bip85DerivationPath":"39\'/0\'/12\'/101\'",'
+    // Pinned to the registry size: every valid entry maps to a distinct
+    // reservation, so a file carrying more entries than the registry holds
+    // (currently six) can never validate and is bounded before per-entry
+    // validation runs.
+    final reservationCount = const Bip85RegistryFacade().reservations.length;
+    expect(reservationCount, 6);
+    final extraEntries = StringBuffer();
+    for (var i = 0; i < reservationCount; i++) {
+      final index = 200 + i;
+      final path = "39'/0'/12'/$index'";
+      extraEntries.write(
+        ',{"entryId":"fedcba98:$path",'
+        '"bip85DerivationPath":"$path",'
         '"reservationId":"btcpay_wallet_seed","entryType":"walletSeed",'
-        '"ownerFeature":"btcpay","bip85Application":39,"bip85Index":101,'
+        '"ownerFeature":"btcpay","bip85Application":39,"bip85Index":$index,'
         '"createdAt":10,"updatedAt":12,"materializations":[{"type":"wallet",'
-        '"walletId":"extra-wallet","childSeedFingerprint":"0123abcd",'
+        '"walletId":"extra-wallet-$i","childSeedFingerprint":"0123abcd",'
         '"network":"bitcoinMainnet",'
-        '"scriptType":"bip84","createdAt":10,"updatedAt":10}]}';
+        '"scriptType":"bip84","createdAt":10,"updatedAt":10}]}',
+      );
+    }
     final payload = _manifestPayload
-        .replaceFirst(']}]}', ']},$extraEntry]}')
-        .replaceFirst('"entryCount":1', '"entryCount":2')
-        .replaceFirst('"materializationCount":2', '"materializationCount":3');
+        .replaceFirst(']}]}', ']}$extraEntries]}')
+        .replaceFirst('"entryCount":1', '"entryCount":${1 + reservationCount}')
+        .replaceFirst(
+          '"materializationCount":2',
+          '"materializationCount":${2 + reservationCount}',
+        );
 
     expect(
       () => usecase.execute(payload, expectedParentFingerprint: 'fedcba98'),
@@ -273,6 +288,65 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('rejects non-wallet reservations in wallet manifest files', () {
+    final payload = _manifestPayload
+        .replaceFirst('btcpay_wallet_seed', 'nostr_wallet_manifest_key')
+        .replaceFirst('walletSeed', 'nonWalletNostrKey')
+        .replaceFirst('btcpay', 'nostr')
+        .replaceFirst('39,"bip85Index":100', '9000,"bip85Index":1')
+        .replaceFirst("39'/0'/12'/100'", "9000'/1'/1'")
+        .replaceFirst("39'/0'/12'/100'", "9000'/1'/1'");
+
+    expect(
+      () => usecase.execute(payload, expectedParentFingerprint: 'fedcba98'),
+      throwsA(
+        isA<KeychainManifestFileParseException>().having(
+          (error) => error.reason,
+          'reason',
+          KeychainManifestFileParseFailureReason.invalidMetadata,
+        ),
+      ),
+    );
+  });
+
+  test('parses Lightning Address wallet manifests into import plans', () {
+    final payload = _manifestPayloadForReservation(
+      reservationId: 'lightning_address_wallet_seed',
+      path: "39'/0'/12'/101'",
+      ownerFeature: 'lightningAddress',
+      bip85Application: 39,
+      bip85Index: 101,
+    );
+
+    // Exportable products round-trip through the frozen v1 format; the import
+    // plan carries them even though their RECOVERY (materialization) is
+    // deferred to PR23. Parse covers export; restore gates recovery
+    // (ruling A/B, R2-KC3/F1b).
+    final plan = usecase.execute(
+      payload,
+      expectedParentFingerprint: 'fedcba98',
+    );
+    expect(plan.entries.single.reservationId, 'lightning_address_wallet_seed');
+    expect(plan.entries.single.bip85DerivationPath, "39'/0'/12'/101'");
+  });
+
+  test('parses Payment Page wallet manifests into import plans', () {
+    final payload = _manifestPayloadForReservation(
+      reservationId: 'payment_page_wallet_seed',
+      path: "39'/0'/12'/102'",
+      ownerFeature: 'paymentPage',
+      bip85Application: 39,
+      bip85Index: 102,
+    );
+
+    final plan = usecase.execute(
+      payload,
+      expectedParentFingerprint: 'fedcba98',
+    );
+    expect(plan.entries.single.reservationId, 'payment_page_wallet_seed');
+    expect(plan.entries.single.bip85DerivationPath, "39'/0'/12'/102'");
   });
 
   test('rejects duplicate wallet materializations in the same entry', () {
@@ -462,3 +536,22 @@ const _manifestPayload =
     '"walletId":"lbtc-wallet","childSeedFingerprint":"0123abcd",'
     '"network":"liquidMainnet","scriptType":"bip84",'
     '"createdAt":11,"updatedAt":11}]}]}';
+
+String _manifestPayloadForReservation({
+  required String reservationId,
+  required String path,
+  required String ownerFeature,
+  required int bip85Application,
+  required int bip85Index,
+}) {
+  return _manifestPayload
+      .replaceFirst("fedcba98:39'/0'/12'/100'", 'fedcba98:$path')
+      .replaceFirst("39'/0'/12'/100'", path)
+      .replaceFirst('btcpay_wallet_seed', reservationId)
+      .replaceFirst('btcpay', ownerFeature)
+      .replaceFirst(
+        '"bip85Application":39',
+        '"bip85Application":$bip85Application',
+      )
+      .replaceFirst('"bip85Index":100', '"bip85Index":$bip85Index');
+}
