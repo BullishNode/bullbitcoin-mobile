@@ -41,6 +41,10 @@ later receive/Bullnym product features. The concrete reservation paths stay in
 `features/bip85_registry`; this feature consumes the current wallet-backup and
 Bullnym-auth reservations through its public facade.
 
-These roles are reserved for Bullnym backup signing, Bullnym auth, and public
-nym verification. This PR exposes only wallet-backup and Bullnym-auth
-public-key/signing helpers; it does not implement those protocols or events.
+`features/bip85_registry`; this feature consumes the current wallet-backup,
+Bullnym-auth, and Bullnym NIP-05 verification reservations through its public
+facade.
+
+The Bullnym authentication role alone exposes signing. The NIP-05 verification
+role exposes only its public key so registration cannot accidentally use the
+public identity as an authentication signer.
