@@ -13472,11 +13472,19 @@
   "@btcpayPairingGenericError": {
     "description": "Generic error message when BTCPay pairing fails"
   },
+  "btcpayPairingLocalSetupError": "Dedicated BTCPay wallets were kept, but local setup did not finish. Retry to reuse them and finish setup.",
+  "@btcpayPairingLocalSetupError": {
+    "description": "Error shown when dedicated BTCPay wallets were prepared locally but setup failed before server submission"
+  },
+  "btcpayPairingKeychainConflictError": "Dedicated BTCPay wallets already have different recovery metadata. Do not retry with this pairing request; contact support before continuing.",
+  "@btcpayPairingKeychainConflictError": {
+    "description": "Error shown when BTCPay wallet materialization conflicts with existing keychain manifest metadata"
+  },
   "btcpayPairingInvalidRequestError": "The SamRock pairing URL is invalid.",
   "@btcpayPairingInvalidRequestError": {
     "description": "Error shown when the BTCPay pairing URL cannot be parsed or is unsupported"
   },
-  "btcpayPairingRejectedError": "BTCPay Server rejected the pairing request.",
+  "btcpayPairingRejectedError": "BTCPay Server rejected the pairing request. Dedicated BTCPay wallets were kept. Check the pairing URL or create a new pairing request in BTCPay, then retry.",
   "@btcpayPairingRejectedError": {
     "description": "Error shown when BTCPay Server rejects the SamRock pairing setup"
   },
@@ -13484,7 +13492,7 @@
   "@btcpayPairingUncertainError": {
     "description": "Error shown when BTCPay pairing was submitted but completion could not be confirmed"
   },
-  "btcpayPairingConfirmTitle": "Create BTCPay wallets?",
+  "btcpayPairingConfirmTitle": "Pair BTCPay Server?",
   "@btcpayPairingConfirmTitle": {
     "description": "Title for the consent dialog before BTCPay wallet descriptors are shared"
   },
@@ -13511,7 +13519,7 @@
   "@btcpayPairingConfirmCancel": {
     "description": "Cancel button text for the BTCPay pairing consent dialog"
   },
-  "btcpayPairingConfirmSubmit": "Create wallets and share details",
+  "btcpayPairingConfirmSubmit": "Pair and share details",
   "@btcpayPairingConfirmSubmit": {
     "description": "Confirm button text for the BTCPay pairing consent dialog"
   },
@@ -13582,6 +13590,10 @@
   "deterministicWalletsGenericError": "Something went wrong preparing wallets.",
   "@deterministicWalletsGenericError": {
     "description": "Generic error message when deterministic wallet preparation fails"
+  },
+  "keychainManifestGenericError": "Could not update recovery metadata.",
+  "@keychainManifestGenericError": {
+    "description": "Generic error shown when keychain manifest metadata cannot be recorded"
   },
   "exchangeSettingsDeleteAccountTitle": "Delete Account",
   "@exchangeSettingsDeleteAccountTitle": {
