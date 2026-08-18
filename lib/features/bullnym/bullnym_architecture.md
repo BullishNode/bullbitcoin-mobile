@@ -1,19 +1,23 @@
 # Bullnym
 
 Bullnym owns the shared Bullnym HTTP protocol foundation for authenticated
-Bullnym registration, deletion, lookup, and opaque wallet-backup transport.
+registration, deletion, lookup, donation-page, currency, recipient-invoice,
+and opaque wallet-backup transport calls.
 
 ## Scope
 
-This PR owns:
+This feature owns:
 
 - Bullnym registration, delete, and lookup protocol calls;
 - opaque `wallet_backup` fetch, conditional store, and conditional delete;
-- Bullnym registration/delete signing payload construction;
+- Bullnym registration, delete, donation-page, and invoice signing payload
+  construction;
 - wallet-backup signing-message and deterministic ETag construction;
 - a narrow domain use-case boundary and outbound Bullnym client port;
 - a small Dio HTTP client in the data layer that implements the port;
-- a public facade for later feature callers.
+- a sealed `BullnymFailure` family returned through typed `Result` values;
+- raw recipient-invoice wire DTOs used by the owning `invoices` feature;
+- a public facade for feature callers.
 
 It does not own Lightning Address UI, wallet materialization, the encrypted
 wallet-backup envelope, backup lifecycle/state/publication/recovery, NIP-05
@@ -21,7 +25,7 @@ registration, relay publishing, invoices, payment pages, DMs, local storage,
 or autosweep behavior. Those backup responsibilities belong to
 `features/wallet_backup`.
 
-## PR9 Protocol Subset
+## Protocol subset
 
 The current protocol subset reflects the mobile Bullnym client contract. The
 mobile adapter accepts optional fields only when the server returns them; product
@@ -97,6 +101,21 @@ Signing payload and timestamp construction are internal to the Bullnym domain us
 cases. Public callers provide the signer and operation inputs; they do not
 construct wire messages or choose protocol timestamps.
 
+## Recipient-invoice wire surface
+
+Bullnym carries the signed create/cancel/list endpoints and unsigned public
+status endpoint for recipient invoices. These shapes stay raw at this boundary:
+the `invoices` feature maps them into its own domain and owns all settlement
+meaning and UI behavior.
+
+The deployed status contract includes nullable `presentation_status` and the
+required `bitcoin_direct_observations` list. Each observation preserves
+`source`, `rail`, `txid`, `vout`, `address`, `amount_sat`, `confirmations`,
+nullable `block_height`, `state`, `first_seen_at_unix`, and
+`last_seen_at_unix`. The authenticated list contract additionally carries
+nullable `presentation_status` and optional `memo`. Unknown fields are ignored;
+known fields fail closed when their wire types are invalid.
+
 ## Boundaries
 
 Later features should import `features/bullnym/public/bullnym_facade.dart`, not
@@ -106,14 +125,27 @@ The intended dependency direction is:
 
 `public facade -> domain use cases -> BullnymClientPort -> data HTTP client`.
 
-The data HTTP client owns Dio and JSON decoding. Domain models are stable Bullnym
-operation results, not backend DTOs, and contain no JSON parsing.
+The data HTTP client owns Dio and JSON decoding. The facade returns only typed
+Bullnym values and `Result<T, BullnymFailure>`; foreign library exceptions stop
+at the data boundary, while programmer `Error`s remain uncaught.
 
 The Bullnym server URL is configurable. `BullnymHttpClient` accepts an explicit
 `baseUrl` from DI/callers, and its default comes from the `BULLNYM_BASE_URL`
 `--dart-define` with a production fallback. Product wiring must not hardcode a
 single Bullnym server URL outside this data boundary.
 
-Server `reason` fields are diagnostic-only. Future UI must map stable Bullnym
-error categories to localized user-facing copy instead of displaying backend
-text directly.
+Server `reason` fields and `Failure.logMessage` are diagnostic-only. UI maps the
+sealed variants through `BullnymFailureL10n` and never displays backend text.
+
+## Wallet Backup Blobs
+
+Bullnym exposes one authenticated opaque-object contract for the single
+`wallet_backup` stream. Public keys are carried in signed request bodies rather
+than URLs. The client signs the SHA-256 digest of the fixed NUL-separated
+`bullbitcoin-wallet-backup-v1` message and never gives Bullnym an xprv.
+
+The facade exposes fetch, conditional store, and conditional delete. Dio,
+base64 JSON, status mapping, hash verification, and endpoint paths remain in
+the data client. A decoded ciphertext is bounded to 2 MiB. Bullnym can observe
+source IP, timing, stream pseudonym, and object size, but authenticated
+encryption hides the sectioned wallet-backup envelope.
