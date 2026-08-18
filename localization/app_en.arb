@@ -334,6 +334,79 @@
   "@backupSettingsScreenTitle": {
     "description": "AppBar title for backup settings screen"
   },
+  "walletBackupSettingsTitle": "Bull backup",
+  "@walletBackupSettingsTitle": {
+    "description": "Title for the automatic encrypted Bull backup controls"
+  },
+  "walletBackupSettingsDescription": "Automatically stores one encrypted, seed-bound backup of your wallet recovery data.",
+  "@walletBackupSettingsDescription": {
+    "description": "Description for the automatic Bull backup"
+  },
+  "walletBackupSettingsEnabled": "Automatic Bull backup",
+  "@walletBackupSettingsEnabled": {
+    "description": "Switch label for automatic Bull backup"
+  },
+  "walletBackupSettingsPending": "Backup pending",
+  "@walletBackupSettingsPending": {
+    "description": "Status shown when local backup changes have not been published"
+  },
+  "walletBackupSettingsOff": "Automatic backup is off",
+  "@walletBackupSettingsOff": {
+    "description": "Status shown while automatic Bull backup is disabled"
+  },
+  "walletBackupSettingsNeverBackedUp": "Not backed up yet",
+  "@walletBackupSettingsNeverBackedUp": {
+    "description": "Status shown before the first successful Bull backup"
+  },
+  "walletBackupSettingsLastBackup": "Last backup: {date}",
+  "@walletBackupSettingsLastBackup": {
+    "description": "Status showing the last successful Bull backup time",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "walletBackupSettingsBackupNow": "Back up now",
+  "@walletBackupSettingsBackupNow": {
+    "description": "Button to publish the Bull backup immediately"
+  },
+  "walletBackupSettingsDelete": "Delete backup",
+  "@walletBackupSettingsDelete": {
+    "description": "Button to delete the remote Bull backup"
+  },
+  "walletBackupSettingsDeleteTitle": "Delete Bull backup?",
+  "@walletBackupSettingsDeleteTitle": {
+    "description": "Title of the remote Bull backup deletion confirmation"
+  },
+  "walletBackupSettingsDeleteDescription": "This removes the remote backup. Your wallets and local data stay on this device.",
+  "@walletBackupSettingsDeleteDescription": {
+    "description": "Description of remote Bull backup deletion"
+  },
+  "walletBackupSettingsCancel": "Cancel",
+  "@walletBackupSettingsCancel": {
+    "description": "Cancel remote Bull backup deletion"
+  },
+  "walletBackupSettingsDeleteConfirm": "Delete",
+  "@walletBackupSettingsDeleteConfirm": {
+    "description": "Confirm remote Bull backup deletion"
+  },
+  "walletBackupSettingsUnavailable": "Bull backup is temporarily unavailable.",
+  "@walletBackupSettingsUnavailable": {
+    "description": "Error when the Bull backup service cannot be reached"
+  },
+  "walletBackupSettingsDisabled": "Enable automatic Bull backup first.",
+  "@walletBackupSettingsDisabled": {
+    "description": "Error shown when backup now is requested while disabled"
+  },
+  "walletBackupSettingsUpdateRequired": "Update the app before changing this backup.",
+  "@walletBackupSettingsUpdateRequired": {
+    "description": "Error or status for a backup written by a newer app"
+  },
+  "walletBackupSettingsFailed": "Bull backup could not be completed.",
+  "@walletBackupSettingsFailed": {
+    "description": "Generic sanitized Bull backup error"
+  },
   "settingsExchangeSettingsTitle": "Exchange Settings",
   "@settingsExchangeSettingsTitle": {
     "description": "Title for the exchange settings section in the settings menu"

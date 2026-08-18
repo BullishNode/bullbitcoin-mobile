@@ -126,6 +126,7 @@ class Bull {
 
   static Future<void> initLocator() async {
     await AppLocator.setup(locator, SqliteDatabase());
+    AppLocator.startForeground(locator);
     Bloc.observer = AppBlocObserver();
   }
 

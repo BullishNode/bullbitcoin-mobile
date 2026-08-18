@@ -32,6 +32,7 @@ import 'package:bb_mobile/features/wallet_backup/domain/usecases/set_wallet_back
 import 'package:bb_mobile/features/wallet_backup/domain/usecases/watch_wallet_backup_state_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_wallet_port.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
+import 'package:bb_mobile/features/wallet_backup/watchers/wallet_backup_coordinator.dart';
 import 'package:bip39_mnemonic/bip39_mnemonic.dart' as bip39;
 import 'package:test/test.dart';
 
@@ -322,16 +323,22 @@ void main() {
   test('WalletBackupFacade exposes the unified lifecycle only', () async {
     final state = _FakeStateRepository(_state());
     final wallet = _FakeWalletPort();
+    final backupNow = BackupWalletNowUsecase(
+      state: state,
+      wallet: wallet,
+      sync: ({required parentFingerprint, required xprvBase58}) async =>
+          Ok(_syncResult()),
+      clock: _SequenceClock([1, 2]),
+    );
     final facade = WalletBackupFacade(
       getState: GetWalletBackupStateUsecase(state),
       watchState: WatchWalletBackupStateUsecase(state),
       setEnabled: SetWalletBackupEnabledUsecase(state),
-      backupNow: BackupWalletNowUsecase(
-        state: state,
-        wallet: wallet,
-        sync: ({required parentFingerprint, required xprvBase58}) async =>
-            Ok(_syncResult()),
-        clock: _SequenceClock([]),
+      coordinator: WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: backupNow.execute,
+        markDirty: state.markDirty,
       ),
       delete: _deleteUsecase(
         wallet: wallet,

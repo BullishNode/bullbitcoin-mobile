@@ -4,8 +4,11 @@ import 'package:bb_mobile/core/widgets/navbar/top_bar.dart';
 import 'package:bb_mobile/core/widgets/settings_entry_item.dart';
 import 'package:bb_mobile/features/backup_settings/presentation/backup_settings_failure_l10n.dart';
 import 'package:bb_mobile/features/backup_settings/presentation/cubit/backup_settings_cubit.dart';
+import 'package:bb_mobile/features/backup_settings/presentation/cubit/wallet_backup_settings_cubit.dart';
+import 'package:bb_mobile/features/backup_settings/presentation/cubit/wallet_backup_settings_state.dart';
 import 'package:bb_mobile/features/backup_settings/ui/backup_settings_router.dart';
 import 'package:bb_mobile/features/backup_settings/ui/widgets/view_vault_key_warning_bottom_sheet.dart';
+import 'package:bb_mobile/features/backup_settings/ui/widgets/wallet_backup_controls.dart';
 import 'package:bb_mobile/features/labels/labels_facade.dart';
 import 'package:bb_mobile/features/transactions/ui/transactions_router.dart';
 import 'package:bb_mobile/features/recoverbull/presentation/bloc.dart';
@@ -27,8 +30,15 @@ class BackupSettingsScreen extends StatefulWidget {
 class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => locator<BackupSettingsCubit>()..checkBackupStatus(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => locator<BackupSettingsCubit>()..checkBackupStatus(),
+        ),
+        BlocProvider(
+          create: (_) => locator<WalletBackupSettingsCubit>()..load(),
+        ),
+      ],
       child: const _Screen(),
     );
   }
@@ -39,14 +49,27 @@ class _Screen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<BackupSettingsCubit, BackupSettingsState>(
-      listenWhen: (p, c) => p.failure != c.failure && c.failure != null,
-      listener: (context, state) {
-        SnackBarUtils.showSnackBar(
-          context,
-          state.failure!.toTranslated(context),
-        );
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<BackupSettingsCubit, BackupSettingsState>(
+          listenWhen: (p, c) => p.failure != c.failure && c.failure != null,
+          listener: (context, state) {
+            SnackBarUtils.showSnackBar(
+              context,
+              state.failure!.toTranslated(context),
+            );
+          },
+        ),
+        BlocListener<WalletBackupSettingsCubit, WalletBackupSettingsState>(
+          listenWhen: (previous, current) =>
+              previous.failureRevision != current.failureRevision,
+          listener: (context, state) {
+            final failure = state.failure;
+            if (failure == null) return;
+            SnackBarUtils.showSnackBar(context, failure.toTranslated(context));
+          },
+        ),
+      ],
       child: BlocBuilder<BackupSettingsCubit, BackupSettingsState>(
         builder: (context, state) {
           return Scaffold(
@@ -69,6 +92,8 @@ class _Screen extends StatelessWidget {
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: _BackupTestStatusWidget(),
                       ),
+                      const Gap(32),
+                      const WalletBackupControls(),
                       const Gap(40),
                       const _StartBackupButton(),
                       if (state.lastEncryptedBackup != null)
