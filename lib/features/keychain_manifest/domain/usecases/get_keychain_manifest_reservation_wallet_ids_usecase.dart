@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 
 /// Reads the local manifest (wallet truth) for the wallet ids materialized under
@@ -7,8 +9,8 @@ class GetKeychainManifestReservationWalletIdsUsecase {
   final KeychainManifestEntryRepository _repository;
 
   const GetKeychainManifestReservationWalletIdsUsecase({
-    required this._repository,
-  });
+    required KeychainManifestEntryRepository repository,
+  }) : _repository = repository;
 
   Future<List<String>> execute({
     required String parentFingerprint,

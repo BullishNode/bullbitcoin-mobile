@@ -2,6 +2,7 @@ import 'package:bb_mobile/core/storage/sqlite_database.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart' show SqliteException;
 
 class DriftKeychainManifestEntryRepository
@@ -52,6 +53,34 @@ class DriftKeychainManifestEntryRepository
     });
   }
 
+  @override
+  Future<List<KeychainManifestNostrKeyRecord>>
+  fetchNostrKeyRecordsByParentFingerprint(String parentFingerprint) async {
+    final normalized = KeychainManifestFingerprint.normalize(parentFingerprint);
+    return _database.transaction(() async {
+      final entryQuery = _database.select(_database.keychainManifestEntries)
+        ..where((table) => table.parentFingerprint.equals(normalized));
+      final entries = await entryQuery.get();
+      if (entries.isEmpty) return const [];
+
+      final records = <KeychainManifestNostrKeyRecord>[];
+      for (final entry in entries) {
+        final keyQuery = _database.select(_database.keychainManifestNostrKeys)
+          ..where((table) => table.entryId.equals(entry.entryId));
+        final key = await keyQuery.getSingleOrNull();
+        if (key == null) continue;
+        records.add(
+          KeychainManifestNostrKeyRecord(
+            entry: _rowToEntry(entry),
+            nostrKeyMaterialization: _rowToNostrKey(key),
+          ),
+        );
+      }
+      records.sort(_compareNostrKeyRecords);
+      return records;
+    });
+  }
+
   int _compareRecords(
     KeychainManifestWalletMaterializationRecord left,
     KeychainManifestWalletMaterializationRecord right,
@@ -67,6 +96,17 @@ class DriftKeychainManifestEntryRepository
     );
     if (networkCompare != 0) return networkCompare;
     return left.walletId.compareTo(right.walletId);
+  }
+
+  int _compareNostrKeyRecords(
+    KeychainManifestNostrKeyRecord left,
+    KeychainManifestNostrKeyRecord right,
+  ) {
+    final pathCompare = left.entry.bip85DerivationPath.compareTo(
+      right.entry.bip85DerivationPath,
+    );
+    if (pathCompare != 0) return pathCompare;
+    return left.entryId.compareTo(right.entryId);
   }
 
   @override
@@ -129,6 +169,123 @@ class DriftKeychainManifestEntryRepository
       }
       rethrow;
     }
+  }
+
+  @override
+  Future<void> insertNostrKeyRecords(
+    List<KeychainManifestNostrKeyRecord> records,
+  ) async {
+    if (records.isEmpty) return;
+    try {
+      await _database.transaction(() async {
+        for (final record in records) {
+          await _ensureEntry(record.entry);
+          final existingQuery = _database.select(
+            _database.keychainManifestNostrKeys,
+          )..where((row) => row.entryId.equals(record.entryId));
+          final existing = await existingQuery.getSingleOrNull();
+          if (existing != null) {
+            final existingMaterialization = _rowToNostrKey(existing);
+            if (existingMaterialization.sameRecordAs(
+              record.nostrKeyMaterialization,
+            )) {
+              continue;
+            }
+            throw KeychainManifestEntryConflictException(
+              'keychain manifest Nostr key already exists',
+            );
+          }
+          try {
+            await _database
+                .into(_database.keychainManifestNostrKeys)
+                .insert(
+                  KeychainManifestNostrKeysCompanion.insert(
+                    entryId: record.entryId,
+                    publicKeyHex: record.nostrKeyMaterialization.publicKeyHex,
+                    keyKind: record.nostrKeyMaterialization.keyKind.name,
+                    purpose: record.nostrKeyMaterialization.purpose,
+                    createdAt: record.nostrKeyMaterialization.createdAt,
+                    updatedAt: record.nostrKeyMaterialization.updatedAt,
+                  ),
+                );
+          } catch (error) {
+            if (!_isUniqueConstraintFailure(error)) rethrow;
+            final inserted = await existingQuery.getSingleOrNull();
+            if (inserted == null ||
+                !_rowToNostrKey(
+                  inserted,
+                ).sameRecordAs(record.nostrKeyMaterialization)) {
+              throw KeychainManifestEntryConflictException(
+                'keychain manifest Nostr key already exists',
+                cause: error,
+              );
+            }
+            continue;
+          }
+        }
+      });
+    } catch (e) {
+      if (_isUniqueConstraintFailure(e)) {
+        throw KeychainManifestDuplicateException(
+          'keychain manifest Nostr key already exists',
+          cause: e,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateNostrKeyPurpose({
+    required String parentFingerprint,
+    required String entryId,
+    required String purpose,
+    required int updatedAt,
+  }) async {
+    final normalizedParentFingerprint = KeychainManifestFingerprint.normalize(
+      parentFingerprint,
+    );
+    final normalizedPurpose = KeychainManifestNostrKeyMaterialization(
+      entryId: entryId,
+      publicKeyHex: '0' * 64,
+      keyKind: KeychainManifestNostrKeyKind.userGenerated,
+      purpose: purpose,
+      createdAt: 0,
+      updatedAt: updatedAt,
+    ).purpose;
+    await _database.transaction(() async {
+      final entryQuery = _database.select(_database.keychainManifestEntries)
+        ..where((row) => row.entryId.equals(entryId));
+      final entry = await entryQuery.getSingleOrNull();
+      final keyQuery = _database.select(_database.keychainManifestNostrKeys)
+        ..where((row) => row.entryId.equals(entryId));
+      final key = await keyQuery.getSingleOrNull();
+      if (entry == null ||
+          entry.parentFingerprint != normalizedParentFingerprint ||
+          key == null) {
+        throw KeychainManifestInvalidEntryException(
+          'keychain manifest Nostr key does not exist',
+        );
+      }
+      final purposeChanged = key.purpose != normalizedPurpose;
+      if (!purposeChanged && updatedAt <= key.updatedAt) return;
+      final effectiveUpdatedAt = purposeChanged && updatedAt <= key.updatedAt
+          ? key.updatedAt + 1
+          : updatedAt;
+      await (_database.update(
+        _database.keychainManifestNostrKeys,
+      )..where((row) => row.entryId.equals(entryId))).write(
+        KeychainManifestNostrKeysCompanion(
+          purpose: Value(normalizedPurpose),
+          updatedAt: Value(effectiveUpdatedAt),
+        ),
+      );
+      await (_database.update(
+        _database.keychainManifestEntries,
+      )..where((row) => row.entryId.equals(entryId))).write(
+        KeychainManifestEntriesCompanion(updatedAt: Value(effectiveUpdatedAt)),
+      );
+    });
   }
 
   Future<void> _ensureEntry(KeychainManifestEntry entry) async {
@@ -210,6 +367,24 @@ class DriftKeychainManifestEntryRepository
       childSeedFingerprint: row.childSeedFingerprint,
       network: row.network,
       scriptType: row.scriptType,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
+  }
+
+  KeychainManifestNostrKeyMaterialization _rowToNostrKey(
+    KeychainManifestNostrKeyRow row,
+  ) {
+    final keyKind = KeychainManifestNostrKeyKind.values.firstWhere(
+      (value) => value.name == row.keyKind,
+      orElse: () =>
+          throw KeychainManifestInvalidEntryException('unknown Nostr key kind'),
+    );
+    return KeychainManifestNostrKeyMaterialization(
+      entryId: row.entryId,
+      publicKeyHex: row.publicKeyHex,
+      keyKind: keyKind,
+      purpose: row.purpose,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );

@@ -17,6 +17,8 @@ class DeriveNostrIdentityHandleUsecase {
 
   const DeriveNostrIdentityHandleUsecase(this._registry);
 
+  Bip85RegistryFacade get registry => _registry;
+
   NostrKeychainHandle execute({
     required String xprvBase58,
     required NostrIdentityRole role,

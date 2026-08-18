@@ -12,6 +12,9 @@ import 'package:bb_mobile/features/keychain_manifest/domain/usecases/get_keychai
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/merge_keychain_manifest_file_payloads_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/get_keychain_manifest_nostr_keys_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_nostr_key_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/update_keychain_manifest_nostr_key_purpose_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -29,6 +32,14 @@ void main() {
       recordEntry: RecordKeychainManifestEntryUsecase(
         repository: store,
         bip85Registry: const Bip85RegistryFacade(),
+      ),
+      recordNostrKey: RecordKeychainManifestNostrKeyUsecase(
+        repository: store,
+        registry: const Bip85RegistryFacade(),
+      ),
+      getNostrKeys: GetKeychainManifestNostrKeysUsecase(repository: store),
+      updateNostrKeyPurpose: UpdateKeychainManifestNostrKeyPurposeUsecase(
+        repository: store,
       ),
       buildManifestFile: BuildKeychainManifestFileUsecase(
         repository: store,
@@ -550,6 +561,7 @@ class _InMemoryKeychainManifestStore
     implements KeychainManifestEntryRepository {
   final entries = <KeychainManifestEntry>[];
   final records = <KeychainManifestWalletMaterializationRecord>[];
+  final nostrRecords = <KeychainManifestNostrKeyRecord>[];
 
   @override
   Future<List<KeychainManifestWalletMaterializationRecord>>
@@ -598,4 +610,27 @@ class _InMemoryKeychainManifestStore
       ..clear()
       ..addAll(nextRecords);
   }
+
+  @override
+  Future<List<KeychainManifestNostrKeyRecord>>
+  fetchNostrKeyRecordsByParentFingerprint(String parentFingerprint) async {
+    return nostrRecords
+        .where((record) => record.entry.parentFingerprint == parentFingerprint)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> insertNostrKeyRecords(
+    List<KeychainManifestNostrKeyRecord> records,
+  ) async {
+    nostrRecords.addAll(records);
+  }
+
+  @override
+  Future<void> updateNostrKeyPurpose({
+    required String parentFingerprint,
+    required String entryId,
+    required String purpose,
+    required int updatedAt,
+  }) async {}
 }

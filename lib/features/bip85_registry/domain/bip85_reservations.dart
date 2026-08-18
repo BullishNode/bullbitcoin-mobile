@@ -6,6 +6,11 @@ class Bip85Reservations {
   /// BIP85 Nostr application number currently proposed by bitcoin/bips#2126.
   static const nostrApplicationNumber = 128002;
 
+  static const nostrUserKeyReservationId = 'nostr_user_key';
+  static const nostrUserIdentityStart = 1;
+  static const nostrUserIdentityEnd = 0x7fffffff;
+  static const nostrUserAccount = 1;
+
   /// Identity range owned by Bull Bitcoin application roles. User-created
   /// identities must never allocate from this range, including identities that
   /// do not yet have a materialized reservation.

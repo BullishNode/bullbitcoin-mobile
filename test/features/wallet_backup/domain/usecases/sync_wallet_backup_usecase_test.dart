@@ -545,6 +545,11 @@ final class _StaticManifestStore implements KeychainManifestEntryRepository {
   const _StaticManifestStore(this.records);
 
   @override
+  Future<List<KeychainManifestNostrKeyRecord>>
+  fetchNostrKeyRecordsByParentFingerprint(String parentFingerprint) async =>
+      const [];
+
+  @override
   Future<List<KeychainManifestWalletMaterializationRecord>>
   fetchWalletMaterializationRecordsByParentFingerprint(
     String parentFingerprint,
@@ -558,6 +563,19 @@ final class _StaticManifestStore implements KeychainManifestEntryRepository {
   Future<void> insertWalletMaterializationRecords(
     List<KeychainManifestWalletMaterializationRecord> records,
   ) async {}
+
+  @override
+  Future<void> insertNostrKeyRecords(
+    List<KeychainManifestNostrKeyRecord> records,
+  ) async {}
+
+  @override
+  Future<void> updateNostrKeyPurpose({
+    required String parentFingerprint,
+    required String entryId,
+    required String purpose,
+    required int updatedAt,
+  }) async {}
 }
 
 final class _FixedClock implements Clock {

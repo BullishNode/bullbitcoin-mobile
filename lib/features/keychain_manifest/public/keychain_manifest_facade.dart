@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:async';
 
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart'
@@ -16,44 +18,76 @@ export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_im
     show
         KeychainManifestImportPlan,
         KeychainManifestImportEntryIntent,
-        KeychainManifestWalletMaterializationIntent;
+        KeychainManifestWalletMaterializationIntent,
+        KeychainManifestNostrKeyMaterializationIntent;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_reservation_support.dart'
     show KeychainManifestReservationSupport;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart'
     show
         KeychainManifestReservedDerivationRequest,
-        KeychainManifestWalletMaterializationRequest;
+        KeychainManifestWalletMaterializationRequest,
+        KeychainManifestNostrKeyRequest;
+export 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart'
+    show KeychainManifestNostrKeyKind, KeychainManifestNostrKeyRecord;
+export 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_backup_wallet.dart'
+    show KeychainManifestBackupWalletPort;
+export 'package:bb_mobile/features/keychain_manifest/domain/usecases/create_keychain_manifest_nostr_key_usecase.dart'
+    show CreatedKeychainManifestNostrKey;
 
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/create_keychain_manifest_nostr_key_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/get_default_wallet_nostr_keys_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/get_keychain_manifest_nostr_keys_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/get_keychain_manifest_reservation_wallet_ids_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/merge_keychain_manifest_file_payloads_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_nostr_key_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/reveal_keychain_manifest_nostr_key_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/update_keychain_manifest_nostr_key_purpose_usecase.dart';
 
 class KeychainManifestFacade {
   static const _manifestFileCodec = KeychainManifestFileCodec();
 
   final RecordKeychainManifestEntryUsecase _recordEntry;
+  final RecordKeychainManifestNostrKeyUsecase? _recordNostrKey;
+  final GetKeychainManifestNostrKeysUsecase? _getNostrKeys;
+  final GetDefaultWalletNostrKeysUsecase? _getDefaultNostrKeys;
+  final UpdateKeychainManifestNostrKeyPurposeUsecase? _updateNostrKeyPurpose;
   final BuildKeychainManifestFileUsecase _buildManifestFile;
   final MergeKeychainManifestFilePayloadsUsecase _mergeManifestFiles;
   final ParseKeychainManifestFileUsecase _parseManifestFile;
   final GetKeychainManifestReservationWalletIdsUsecase _reservationWalletIds;
+  final CreateKeychainManifestNostrKeyUsecase? _createNostrKey;
+  final RevealKeychainManifestNostrKeyUsecase? _revealNostrKey;
   final StreamController<void> _committedChanges =
       StreamController<void>.broadcast();
 
   KeychainManifestFacade({
     required this._recordEntry,
+    RecordKeychainManifestNostrKeyUsecase? recordNostrKey,
+    GetKeychainManifestNostrKeysUsecase? getNostrKeys,
+    GetDefaultWalletNostrKeysUsecase? getDefaultNostrKeys,
+    UpdateKeychainManifestNostrKeyPurposeUsecase? updateNostrKeyPurpose,
     required this._buildManifestFile,
     required this._mergeManifestFiles,
     required this._parseManifestFile,
     required this._reservationWalletIds,
-  });
+    CreateKeychainManifestNostrKeyUsecase? createNostrKey,
+    RevealKeychainManifestNostrKeyUsecase? revealNostrKey,
+  }) : _recordNostrKey = recordNostrKey,
+       _getNostrKeys = getNostrKeys,
+       _getDefaultNostrKeys = getDefaultNostrKeys,
+       _updateNostrKeyPurpose = updateNostrKeyPurpose,
+       _createNostrKey = createNostrKey,
+       _revealNostrKey = revealNostrKey;
 
   /// Returns the wallet ids durably recorded for a reservation.
   ///
@@ -74,6 +108,69 @@ class KeychainManifestFacade {
     if (changed) _committedChanges.add(null);
   }
 
+  Future<List<KeychainManifestNostrKeyRecord>> getNostrKeys(
+    String parentFingerprint,
+  ) {
+    final usecase = _getNostrKeys;
+    if (usecase == null) throw StateError('Nostr key access is not configured');
+    return usecase.execute(parentFingerprint);
+  }
+
+  Future<List<KeychainManifestNostrKeyRecord>> getDefaultWalletNostrKeys() {
+    final usecase = _getDefaultNostrKeys;
+    if (usecase == null) throw StateError('Nostr key access is not configured');
+    return usecase.execute();
+  }
+
+  Future<CreatedKeychainManifestNostrKey> createUserNostrKey({
+    required String purpose,
+    DateTime? now,
+  }) async {
+    final usecase = _createNostrKey;
+    if (usecase == null) {
+      throw StateError('User Nostr key creation is not configured');
+    }
+    final created = await usecase.execute(purpose: purpose, now: now);
+    _committedChanges.add(null);
+    return created;
+  }
+
+  Future<String> revealNostrKeyNsec(KeychainManifestNostrKeyRecord record) {
+    final usecase = _revealNostrKey;
+    if (usecase == null) throw StateError('Nostr key reveal is not configured');
+    return usecase.execute(record);
+  }
+
+  Future<void> recordNostrKey(
+    KeychainManifestNostrKeyRequest request, {
+    DateTime? now,
+  }) async {
+    await _recordNostrKeyInternal(request, now: now, publishChange: true);
+  }
+
+  Future<void> updateNostrKeyPurpose({
+    required String parentFingerprint,
+    required String entryId,
+    required String purpose,
+    DateTime? now,
+  }) async {
+    final usecase = _updateNostrKeyPurpose;
+    if (usecase == null) {
+      throw StateError('Nostr key editing is not configured');
+    }
+    try {
+      await usecase.execute(
+        parentFingerprint: parentFingerprint,
+        entryId: entryId,
+        purpose: purpose,
+        now: now,
+      );
+      _committedChanges.add(null);
+    } catch (e) {
+      throw KeychainManifestException.fromInternal(e);
+    }
+  }
+
   /// Records inventory reconstructed from an authenticated remote backup.
   ///
   /// This semantic boundary lets the later backup coordinator exclude recovery
@@ -85,6 +182,17 @@ class KeychainManifestFacade {
   }) async {
     await _recordDerivation(request, now: now);
   }
+
+  Future<void> recordRecoveredNostrKey(
+    KeychainManifestNostrKeyRequest request, {
+    DateTime? now,
+    DateTime? updatedAt,
+  }) => _recordNostrKeyInternal(
+    request,
+    now: now,
+    updatedAt: updatedAt,
+    publishChange: false,
+  );
 
   /// Emits after a normal local inventory transaction commits.
   ///
@@ -100,6 +208,28 @@ class KeychainManifestFacade {
   }) async {
     try {
       return await _recordEntry.execute(request, now: now);
+    } catch (e) {
+      throw KeychainManifestException.fromInternal(e);
+    }
+  }
+
+  Future<void> _recordNostrKeyInternal(
+    KeychainManifestNostrKeyRequest request, {
+    DateTime? now,
+    DateTime? updatedAt,
+    required bool publishChange,
+  }) async {
+    final usecase = _recordNostrKey;
+    if (usecase == null) {
+      throw StateError('Nostr key recording is not configured');
+    }
+    try {
+      final changed = await usecase.execute(
+        request,
+        now: now,
+        updatedAt: updatedAt,
+      );
+      if (publishChange && changed) _committedChanges.add(null);
     } catch (e) {
       throw KeychainManifestException.fromInternal(e);
     }

@@ -5,6 +5,7 @@ import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/utils/constants.dart';
 import 'package:bb_mobile/core/widgets/settings_entry_item.dart';
 import 'package:bb_mobile/features/exchange/presentation/exchange_cubit.dart';
+import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_routes.dart';
 import 'package:bb_mobile/features/exchange/ui/exchange_router.dart';
 import 'package:bb_mobile/features/exchange_support_chat/ui/exchange_support_chat_router.dart';
 import 'package:bb_mobile/features/settings/presentation/bloc/settings_cubit.dart';
@@ -126,6 +127,12 @@ class _AllSettingsScreenState extends State<AllSettingsScreen> {
                   onTap: () {
                     context.pushNamed(SettingsRoute.appSettings.name);
                   },
+                ),
+                SettingsEntryItem(
+                  icon: Icons.key,
+                  title: context.loc.settingsNostrKeysTitle,
+                  onTap: () =>
+                      context.pushNamed(KeychainManifestRoutes.nostrKeysName),
                 ),
 
                 SettingsEntryItem(

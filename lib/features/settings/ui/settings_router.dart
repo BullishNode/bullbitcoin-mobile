@@ -16,6 +16,7 @@ import 'package:bb_mobile/features/exchange_settings/presentation/statistics_cub
 import 'package:bb_mobile/features/legacy_seed_view/presentation/legacy_seed_view_cubit.dart';
 import 'package:bb_mobile/features/legacy_seed_view/ui/legacy_seed_view_screen.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
+import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_routes.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_routes.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_routes.dart';
 import 'package:bb_mobile/features/pos/public/pos_routes.dart';
@@ -244,6 +245,7 @@ class SettingsRouter {
         path: SettingsRoute.theme.path,
         builder: (context, state) => const ThemeSettingsScreen(),
       ),
+      KeychainManifestRoutes.nostrKeys,
 
       GoRoute(
         path: SettingsRoute.pinCode.path,

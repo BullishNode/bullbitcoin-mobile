@@ -1,4 +1,5 @@
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
+import 'package:bb_mobile/core/nostr/nostr_key_materialization_recorder.dart';
 import 'package:bb_mobile/features/nostr_identity/domain/derive_nostr_identity_handle_usecase.dart';
 import 'package:bb_mobile/features/nostr_identity/public/nostr_identity_facade.dart';
 import 'package:get_it/get_it.dart';
@@ -9,7 +10,12 @@ class NostrIdentityLocator {
       () => DeriveNostrIdentityHandleUsecase(locator<Bip85RegistryFacade>()),
     );
     locator.registerFactory<NostrIdentityFacade>(
-      () => NostrIdentityFacade(locator<DeriveNostrIdentityHandleUsecase>()),
+      () => NostrIdentityFacade(
+        locator<DeriveNostrIdentityHandleUsecase>(),
+        recorder: locator.isRegistered<NostrKeyMaterializationRecorder>()
+            ? locator<NostrKeyMaterializationRecorder>()
+            : null,
+      ),
     );
   }
 }

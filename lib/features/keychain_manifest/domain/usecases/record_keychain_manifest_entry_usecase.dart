@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:bb_mobile/core/utils/clock.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/bip85_registry/public/bip85_registry_facade.dart';
@@ -12,10 +14,12 @@ class RecordKeychainManifestEntryUsecase {
   final Clock _clock;
 
   RecordKeychainManifestEntryUsecase({
-    required this._repository,
-    required this._bip85Registry,
-    this._clock = const SystemClock(),
-  });
+    required KeychainManifestEntryRepository repository,
+    required Bip85RegistryFacade bip85Registry,
+    Clock clock = const SystemClock(),
+  }) : _repository = repository,
+       _bip85Registry = bip85Registry,
+       _clock = clock;
 
   Future<bool> execute(
     KeychainManifestReservedDerivationRequest request, {

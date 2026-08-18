@@ -59,7 +59,7 @@ class KeychainManifestFile {
       );
     }
     final entryIds = <String>{};
-    final walletIds = <String>{};
+    final materializationIds = <String>{};
     for (final entry in this.entries) {
       if (entry.parentFingerprint != this.parentFingerprint) {
         throw KeychainManifestInvalidEntryException(
@@ -72,9 +72,15 @@ class KeychainManifestFile {
         );
       }
       for (final materialization in entry.materializations) {
-        if (!walletIds.add(materialization.walletId)) {
+        final materializationId = switch (materialization) {
+          KeychainManifestFileWalletMaterialization(:final walletId) =>
+            'wallet:$walletId',
+          KeychainManifestFileNostrKeyMaterialization(:final entryId) =>
+            'nostr:$entryId',
+        };
+        if (!materializationIds.add(materializationId)) {
           throw KeychainManifestInvalidEntryException(
-            'manifest file wallet ids must be unique',
+            'manifest file materializations must be unique',
           );
         }
       }
@@ -118,7 +124,7 @@ class KeychainManifestFileEntry {
   final int bip85Index;
   final int createdAt;
   final int updatedAt;
-  final List<KeychainManifestFileWalletMaterialization> materializations;
+  final List<KeychainManifestFileMaterialization> materializations;
 
   KeychainManifestFileEntry({
     String? entryId,
@@ -131,7 +137,7 @@ class KeychainManifestFileEntry {
     required this.bip85Index,
     required this.createdAt,
     required this.updatedAt,
-    required List<KeychainManifestFileWalletMaterialization> materializations,
+    required List<KeychainManifestFileMaterialization> materializations,
   }) : parentFingerprint = KeychainManifestFingerprint.normalize(
          parentFingerprint,
        ),
@@ -223,17 +229,48 @@ class KeychainManifestFileEntry {
       materializations: materializations,
     );
   }
+
+  factory KeychainManifestFileEntry.fromNostrKeyRecord(
+    KeychainManifestNostrKeyRecord record,
+  ) {
+    final entry = record.entry;
+    return KeychainManifestFileEntry(
+      entryId: entry.entryId,
+      parentFingerprint: entry.parentFingerprint,
+      bip85DerivationPath: entry.bip85DerivationPath,
+      reservationId: entry.reservationId,
+      entryType: entry.entryType,
+      ownerFeature: entry.ownerFeature,
+      bip85Application: entry.bip85Application,
+      bip85Index: entry.bip85Index,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      materializations: [
+        KeychainManifestFileNostrKeyMaterialization.fromRecord(record),
+      ],
+    );
+  }
 }
 
-class KeychainManifestFileWalletMaterialization {
+sealed class KeychainManifestFileMaterialization {
+  String get entryId;
+  int get createdAt;
+  int get updatedAt;
+}
+
+class KeychainManifestFileWalletMaterialization
+    extends KeychainManifestFileMaterialization {
   static const type = 'wallet';
 
   final String walletId;
+  @override
   final String entryId;
   final String childSeedFingerprint;
   final String network;
   final String scriptType;
+  @override
   final int createdAt;
+  @override
   final int updatedAt;
 
   KeychainManifestFileWalletMaterialization({
@@ -272,6 +309,71 @@ class KeychainManifestFileWalletMaterialization {
       childSeedFingerprint: materialization.childSeedFingerprint,
       network: materialization.network,
       scriptType: materialization.scriptType,
+      createdAt: materialization.createdAt,
+      updatedAt: materialization.updatedAt,
+    );
+  }
+}
+
+class KeychainManifestFileNostrKeyMaterialization
+    extends KeychainManifestFileMaterialization {
+  static const type = 'nostrKey';
+
+  @override
+  final String entryId;
+  final String publicKeyHex;
+  final String keyKind;
+  final String purpose;
+  @override
+  final int createdAt;
+  @override
+  final int updatedAt;
+
+  KeychainManifestFileNostrKeyMaterialization({
+    required this.entryId,
+    required String publicKeyHex,
+    required this.keyKind,
+    required String purpose,
+    required this.createdAt,
+    required this.updatedAt,
+  }) : publicKeyHex = publicKeyHex.toLowerCase(),
+       purpose = purpose.trim() {
+    if (entryId.trim().isEmpty || keyKind.trim().isEmpty) {
+      throw KeychainManifestInvalidEntryException(
+        'manifest file Nostr materialization metadata is required',
+      );
+    }
+    if (!RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(publicKeyHex)) {
+      throw KeychainManifestInvalidEntryException(
+        'manifest file Nostr public key must be 32-byte hex',
+      );
+    }
+    if (purpose.isEmpty || purpose.length > 80) {
+      throw KeychainManifestInvalidEntryException(
+        'manifest file Nostr key purpose must contain 1 to 80 characters',
+      );
+    }
+    if (purpose.contains(RegExp(r'[\u0000-\u001F\u007F]'))) {
+      throw KeychainManifestInvalidEntryException(
+        'manifest file Nostr key purpose contains a control character',
+      );
+    }
+    if (createdAt < 0 || updatedAt < 0) {
+      throw KeychainManifestInvalidEntryException(
+        'manifest file Nostr materialization timestamps must be non-negative',
+      );
+    }
+  }
+
+  factory KeychainManifestFileNostrKeyMaterialization.fromRecord(
+    KeychainManifestNostrKeyRecord record,
+  ) {
+    final materialization = record.nostrKeyMaterialization;
+    return KeychainManifestFileNostrKeyMaterialization(
+      entryId: materialization.entryId,
+      publicKeyHex: materialization.publicKeyHex,
+      keyKind: materialization.keyKind.name,
+      purpose: materialization.purpose,
       createdAt: materialization.createdAt,
       updatedAt: materialization.updatedAt,
     );

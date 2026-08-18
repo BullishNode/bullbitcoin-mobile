@@ -3,6 +3,7 @@ import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_er
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -45,9 +46,9 @@ void main() {
     expect(manifestFile.entries, hasLength(1));
     expect(manifestFile.entries.single.bip85DerivationPath, "39'/0'/12'/100'");
     expect(
-      manifestFile.entries.single.materializations.map(
-        (materialization) => materialization.walletId,
-      ),
+      manifestFile.entries.single.materializations
+          .whereType<KeychainManifestFileWalletMaterialization>()
+          .map((materialization) => materialization.walletId),
       ['btc-wallet', 'lbtc-wallet'],
     );
   });
@@ -119,6 +120,7 @@ void main() {
       ]);
       final exportedWalletIds = manifestFile.entries
           .expand((entry) => entry.materializations)
+          .whereType<KeychainManifestFileWalletMaterialization>()
           .map((materialization) => materialization.walletId);
       expect(exportedWalletIds, isNot(contains('unknown-wallet')));
     },
@@ -166,6 +168,7 @@ KeychainManifestWalletMaterializationRecord _record({
 class _InMemoryKeychainManifestStore
     implements KeychainManifestEntryRepository {
   final records = <KeychainManifestWalletMaterializationRecord>[];
+  final nostrRecords = <KeychainManifestNostrKeyRecord>[];
 
   @override
   Future<List<KeychainManifestWalletMaterializationRecord>>
@@ -183,4 +186,27 @@ class _InMemoryKeychainManifestStore
   ) async {
     this.records.addAll(records);
   }
+
+  @override
+  Future<List<KeychainManifestNostrKeyRecord>>
+  fetchNostrKeyRecordsByParentFingerprint(String parentFingerprint) async {
+    return nostrRecords
+        .where((record) => record.entry.parentFingerprint == parentFingerprint)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> insertNostrKeyRecords(
+    List<KeychainManifestNostrKeyRecord> records,
+  ) async {
+    nostrRecords.addAll(records);
+  }
+
+  @override
+  Future<void> updateNostrKeyPurpose({
+    required String parentFingerprint,
+    required String entryId,
+    required String purpose,
+    required int updatedAt,
+  }) async {}
 }
