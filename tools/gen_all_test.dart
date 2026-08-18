@@ -14,7 +14,14 @@ import 'dart:io';
 // Files matching *_test.dart that must NOT be aggregated: the generated file
 // itself, plus any test with no callable main(isInitialized:) (e.g. payjoin is
 // commented out and needs funded testnet wallets).
-const skip = {'all_test.dart', 'payjoin_test.dart'};
+const skip = {
+  'all_test.dart',
+  'payjoin_test.dart',
+  // SPEC-PP-01: app-startup timers make this non-deterministic in the
+  // aggregated process. The deterministic Donation Page gates are the L0
+  // usecase/cubit suites.
+  'payment_page_lifecycle_test.dart',
+};
 
 void main() {
   final files =
