@@ -14,6 +14,9 @@ sealed class GetPaidFailure extends Failure {
 
   const factory GetPaidFailure.invalidResponse({String? logMessage}) =
       GetPaidInvalidResponseFailure;
+
+  const factory GetPaidFailure.incompleteHistory({String? logMessage}) =
+      GetPaidIncompleteHistoryFailure;
 }
 
 final class GetPaidUnavailableFailure extends GetPaidFailure {
@@ -29,4 +32,14 @@ final class GetPaidLocalPreparationFailure extends GetPaidFailure {
 final class GetPaidInvalidResponseFailure extends GetPaidFailure {
   const GetPaidInvalidResponseFailure({super.logMessage})
     : super._(retryable: true);
+}
+
+/// The full-history walk could not be completed: the server exhausted the page
+/// cap while still offering a continuation cursor, or it looped by repeating a
+/// cursor. The export must fail rather than present a truncated file as the
+/// complete accounting history. Not retryable — the same walk yields the same
+/// truncation.
+final class GetPaidIncompleteHistoryFailure extends GetPaidFailure {
+  const GetPaidIncompleteHistoryFailure({super.logMessage})
+    : super._(retryable: false);
 }

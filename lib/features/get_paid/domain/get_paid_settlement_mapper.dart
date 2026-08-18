@@ -17,6 +17,8 @@ GetPaidSettlement? mapBullnymSettlementToGetPaid(
         ? null
         : _overrideReason(settlement.overrideReason!),
     fiatPercentage: settlement.fiatPercentage,
+    creationRateMinorPerBtc: settlement.creationRateMinorPerBtc,
+    creationRateCurrency: settlement.creationRateCurrency,
   );
 }
 
@@ -31,6 +33,7 @@ GetPaidFiatSettlementLeg _fiatLeg(BullnymFiatSettlementLeg leg) =>
     GetPaidFiatSettlementLeg(
       amountMinor: leg.amountMinor,
       quotedAmountMinor: leg.quotedAmountMinor,
+      executionRateMinorPerBtc: leg.executionRateMinorPerBtc,
       currency: leg.currency,
       orderId: leg.orderId,
       status: _legStatus(leg.status),

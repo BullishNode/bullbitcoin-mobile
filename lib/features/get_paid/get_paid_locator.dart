@@ -10,10 +10,13 @@ import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_automatic_fal
 import 'package:bb_mobile/features/get_paid/domain/ensure_get_paid_product_wallet_usecase.dart';
 import 'package:bb_mobile/features/get_paid/data/get_paid_default_wallet_xprv_adapter.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_default_wallet_xprv_port.dart';
+import 'package:bb_mobile/features/get_paid/domain/export_get_paid_transactions_csv_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/get_paid_fallback_attention_usecase.dart';
 import 'package:bb_mobile/features/get_paid/domain/list_get_paid_transactions_usecase.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_dashboard_cubit.dart';
+import 'package:bb_mobile/features/get_paid/presentation/get_paid_export_cubit.dart';
 import 'package:bb_mobile/features/get_paid/presentation/get_paid_transaction_history_cubit.dart';
+import 'package:bb_mobile/core/export/domain/transaction_export_saver.dart';
 import 'package:bb_mobile/features/lightning_address/public/lightning_address_facade.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -57,6 +60,17 @@ class GetPaidLocator {
     locator.registerFactory<GetPaidTransactionHistoryCubit>(
       () => GetPaidTransactionHistoryCubit(
         listTransactions: locator<ListGetPaidTransactionsUsecase>(),
+      ),
+    );
+    locator.registerFactory<ExportGetPaidTransactionsCsvUsecase>(
+      () => ExportGetPaidTransactionsCsvUsecase(
+        listTransactions: locator<ListGetPaidTransactionsUsecase>(),
+      ),
+    );
+    locator.registerFactory<GetPaidExportCubit>(
+      () => GetPaidExportCubit(
+        exportCsv: locator<ExportGetPaidTransactionsCsvUsecase>(),
+        saver: locator<TransactionExportSaver>(),
       ),
     );
     locator.registerFactory<GetPaidDashboardCubit>(
