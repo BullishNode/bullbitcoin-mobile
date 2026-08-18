@@ -6,15 +6,10 @@ import 'package:bb_mobile/features/payment_page/domain/payment_page_validation.d
 import 'package:bb_mobile/features/payment_page/domain/usecases/prepare_payment_page_wallet_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/resolve_payment_page_identity_usecase.dart';
 
-/// The Donation Page save orchestrator (§3.6/§4.18).
-///
-/// Order: validate locally → resolve nym + signer → prepare wallet 102 (ALWAYS,
-/// so the descriptor is ALWAYS sent — KR-1) → signed PUT with kind=payment_page
-/// and enabled=true. Preparing a new wallet commits its keychain-manifest entry;
-/// the wallet-backup coordinator observes that commit independently. Failures
-/// are wrapped as localPreparation (pre-commitment, retryable, wallet rollback
-/// owned by prepare) or submission (the signed PUT may have reached the server
-/// on a transport failure).
+/// Validates, prepares wallet 102, and submits the server-authoritative
+/// Payment Page row. Alias claims are explicit; omitted aliases preserve the
+/// existing server value. Wallet preparation remains the only source of the
+/// confidential descriptor and records the manifest independently.
 class SavePaymentPageUsecase {
   final ResolvePaymentPageIdentityUsecase _resolveIdentity;
   final PreparePaymentPageWalletUsecase _prepareWallet;
@@ -33,9 +28,8 @@ class SavePaymentPageUsecase {
     String website = '',
     String twitter = '',
     String instagram = '',
+    String? aliasClaim,
   }) async {
-    // Local pre-filter (UX; the server remains the authority). A validation
-    // failure never touches the wire or the wallet.
     SavePaymentPageCommand(
       header: header,
       description: description,
@@ -43,18 +37,17 @@ class SavePaymentPageUsecase {
       website: website,
       twitter: twitter,
       instagram: instagram,
+      aliasClaim: aliasClaim,
     ).validate();
+    final normalizedAliasClaim = aliasClaim == null
+        ? null
+        : normalizePaymentPageAlias(aliasClaim);
 
     final ResolvedPaymentPageIdentity identity;
     final String ctDescriptor;
     try {
       identity = await _resolveIdentity.execute();
       final preparedWallet = await _prepareWallet.execute();
-      // KR-1: the descriptor is ALWAYS the prepared wallet's non-empty
-      // external public descriptor — never empty, never absent. This runtime
-      // guard makes the invariant explicit and fails BEFORE signing/wire so
-      // page funds can never route to the LA wallet (101) via the server's
-      // empty-descriptor -> NULL fallback.
       ctDescriptor = preparedWallet.ctDescriptor;
       if (ctDescriptor.isEmpty) {
         throw const PaymentPageException.localPreparationFailed(
@@ -79,10 +72,21 @@ class SavePaymentPageUsecase {
         instagram: instagram,
         enabled: true,
         kind: bullnymDonationPageKindPaymentPage,
+        aliasIntent: normalizedAliasClaim == null
+            ? const BullnymAliasIntent.preserve()
+            : BullnymAliasIntent.claim(
+                BullnymPublicName.aliasClaim(normalizedAliasClaim),
+              ),
       );
       switch (result) {
         case Ok(:final value):
-          return PaymentPage.fromBullnym(value);
+          final page = PaymentPage.fromBullnym(value);
+          if (page.nym != identity.nym ||
+              (normalizedAliasClaim != null &&
+                  page.alias != normalizedAliasClaim)) {
+            throw const PaymentPageException.invalidServerResponse();
+          }
+          return page;
         case Err(:final failure):
           throw PaymentPageException.fromBullnym(failure);
       }

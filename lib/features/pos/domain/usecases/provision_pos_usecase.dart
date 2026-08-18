@@ -6,49 +6,39 @@ import 'package:bb_mobile/features/pos/domain/pos_validation.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/prepare_pos_wallet_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/resolve_pos_identity_usecase.dart';
 
-/// The Point of Sale provision/edit orchestrator (§3.6/§4.20).
-///
-/// Order: validate locally → resolve nym + signer → prepare wallet 103 (ALWAYS,
-/// so the 103 descriptor is ALWAYS sent - KR-1) → signed PUT with kind=pos,
-/// label in the `header` slot, description/socials empty, enabled=true.
-/// Preparing a new wallet commits its keychain-manifest entry; the wallet-backup
-/// coordinator observes that commit independently. Unlike the page, the server
-/// has NO empty-descriptor fallback for kind=pos, so an empty descriptor both
-/// cannot be constructed here (the `EmptyPosDescriptor` guard) AND is
-/// hard-rejected by the server: POS sales settle to 103, never 101/102.
+/// Validates, prepares wallet 103, and submits the server-authoritative POS
+/// row. The server-returned public URL is already validated by Bullnym; no
+/// client-side terminal URL base is accepted here.
 class ProvisionPosUsecase {
   final ResolvePosIdentityUsecase _resolveIdentity;
   final PreparePosWalletUsecase _prepareWallet;
   final BullnymFacade _bullnym;
-  final String _terminalBaseUrl;
 
   const ProvisionPosUsecase({
     required this._resolveIdentity,
     required this._prepareWallet,
     required this._bullnym,
-    required this._terminalBaseUrl,
   });
 
   Future<PosTerminal> execute({
     required String label,
     required String displayCurrency,
+    String? aliasClaim,
   }) async {
-    // Local pre-filter (UX; the server remains the authority). A validation
-    // failure never touches the wire or the wallet.
     PosProvisionCommand(
       label: label,
       displayCurrency: displayCurrency,
+      aliasClaim: aliasClaim,
     ).validate();
+    final normalizedAliasClaim = aliasClaim == null
+        ? null
+        : normalizePosAlias(aliasClaim);
 
     final ResolvedPosIdentity identity;
     final String ctDescriptor;
     try {
       identity = await _resolveIdentity.execute();
       final preparedWallet = await _prepareWallet.execute();
-      // KR-1: the descriptor is ALWAYS the prepared 103 wallet's non-empty
-      // external public descriptor - never empty, never absent. This runtime
-      // guard makes the invariant explicit and fails BEFORE signing/wire so
-      // POS sales can never route anywhere but wallet 103.
       ctDescriptor = preparedWallet.ctDescriptor;
       if (ctDescriptor.isEmpty) {
         throw const PosException.localPreparationFailed(
@@ -73,10 +63,21 @@ class ProvisionPosUsecase {
         instagram: '',
         enabled: true,
         kind: bullnymDonationPageKindPos,
+        aliasIntent: normalizedAliasClaim == null
+            ? const BullnymAliasIntent.preserve()
+            : BullnymAliasIntent.claim(
+                BullnymPublicName.aliasClaim(normalizedAliasClaim),
+              ),
       );
       switch (result) {
         case Ok(:final value):
-          return PosTerminal.fromBullnym(value, baseUrl: _terminalBaseUrl);
+          final terminal = PosTerminal.fromBullnym(value);
+          if (terminal.nym != identity.nym ||
+              (normalizedAliasClaim != null &&
+                  terminal.alias != normalizedAliasClaim)) {
+            throw const PosException.invalidServerResponse();
+          }
+          return terminal;
         case Err(:final failure):
           throw PosException.fromBullnym(failure);
       }
