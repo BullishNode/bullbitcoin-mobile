@@ -20,6 +20,7 @@ import 'package:bb_mobile/core/tor/domain/ports/tor_config_port.dart';
 import 'package:bb_mobile/core/tor/tor_status.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/features/recoverbull/domain/complete_encrypted_vault_backup_usecase.dart';
 import 'package:bb_mobile/features/recoverbull/domain/recoverbull_failure.dart';
 import 'package:bb_mobile/features/recoverbull/recover_remote_keychain_usecase.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
@@ -36,6 +37,8 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
   final ConnectToGoogleDriveUsecase _connectToGoogleDriveUsecase;
   final SaveVaultToGoogleDriveUsecase _saveToGoogleDriveUsecase;
   final CreateEncryptedVaultUsecase _createEncryptedVaultUsecase;
+  final CompleteEncryptedVaultBackupUsecase
+  _completeEncryptedVaultBackupUsecase;
   final StoreVaultKeyIntoServerUsecase _storeVaultKeyIntoServerUsecase;
   final CheckServerConnectionUsecase _checkKeyServerConnectionUsecase;
   final FetchVaultKeyFromServerUsecase _fetchVaultKeyFromServerUsecase;
@@ -56,6 +59,7 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
     required this._pickVaultUsecase,
     required this._saveFileToSystemUsecase,
     required this._createEncryptedVaultUsecase,
+    required this._completeEncryptedVaultBackupUsecase,
     required this._storeVaultKeyIntoServerUsecase,
     required this._checkKeyServerConnectionUsecase,
     required this._fetchVaultKeyFromServerUsecase,
@@ -269,10 +273,12 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
 
       final EncryptedVault vault;
       final String vaultKey;
+      final String walletId;
       switch (await _createEncryptedVaultUsecase.execute()) {
         case Ok(:final value):
           vault = value.vault;
           vaultKey = value.vaultKey;
+          walletId = value.walletId;
         case Err():
           emit(state.copyWith(failure: const VaultCreationFailure()));
           return;
@@ -319,6 +325,18 @@ class RecoverBullBloc extends Bloc<RecoverBullEvent, RecoverBullState> {
         // credentials) instead of collapsing it to the generic creation error.
         emit(state.copyWith(failure: _storeKeyFailure(failure)));
         return;
+      }
+
+      final completed = await _completeEncryptedVaultBackupUsecase.execute(
+        walletId: walletId,
+      );
+      if (completed case Err()) {
+        // The user-controlled vault and its server key are already durable.
+        // A local timestamp failure must not make the entire operation appear
+        // retryable: retrying would generate and store a different vault.
+        log.warning(
+          'Encrypted vault backup completed but its local status marker failed',
+        );
       }
 
       emit(state.copyWith(vault: vault, vaultProvider: event.provider));

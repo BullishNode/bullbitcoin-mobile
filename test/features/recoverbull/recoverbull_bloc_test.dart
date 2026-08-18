@@ -20,6 +20,7 @@ import 'package:bb_mobile/core/tor/data/usecases/tor_status_usecase.dart';
 import 'package:bb_mobile/core/tor/domain/ports/tor_config_port.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/recoverbull/domain/recoverbull_failure.dart';
+import 'package:bb_mobile/features/recoverbull/domain/complete_encrypted_vault_backup_usecase.dart';
 import 'package:bb_mobile/features/recoverbull/presentation/bloc.dart';
 import 'package:bb_mobile/features/recoverbull/recover_remote_keychain_usecase.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
@@ -32,6 +33,9 @@ class _MockPickVault extends Mock implements PickVaultUsecase {}
 class _MockSaveFile extends Mock implements SaveFileToSystemUsecase {}
 
 class _MockCreateVault extends Mock implements CreateEncryptedVaultUsecase {}
+
+class _MockCompleteEncryptedVaultBackup extends Mock
+    implements CompleteEncryptedVaultBackupUsecase {}
 
 class _MockStoreKey extends Mock implements StoreVaultKeyIntoServerUsecase {}
 
@@ -74,6 +78,7 @@ void main() {
   late _MockPickVault pickVault;
   late _MockSaveFile saveFile;
   late _MockCreateVault createVault;
+  late _MockCompleteEncryptedVaultBackup completeEncryptedVaultBackup;
   late _MockStoreKey storeKey;
   late _MockCheckConnection checkConnection;
   late _MockFetchKey fetchKey;
@@ -100,6 +105,12 @@ void main() {
     pickVault = _MockPickVault();
     saveFile = _MockSaveFile();
     createVault = _MockCreateVault();
+    completeEncryptedVaultBackup = _MockCompleteEncryptedVaultBackup();
+    when(
+      () => completeEncryptedVaultBackup.execute(
+        walletId: any(named: 'walletId'),
+      ),
+    ).thenAnswer((_) async => const Ok(null));
     storeKey = _MockStoreKey();
     checkConnection = _MockCheckConnection();
     fetchKey = _MockFetchKey();
@@ -133,6 +144,7 @@ void main() {
     pickVaultUsecase: pickVault,
     saveFileToSystemUsecase: saveFile,
     createEncryptedVaultUsecase: createVault,
+    completeEncryptedVaultBackupUsecase: completeEncryptedVaultBackup,
     storeVaultKeyIntoServerUsecase: storeKey,
     checkKeyServerConnectionUsecase: checkConnection,
     fetchVaultKeyFromServerUsecase: fetchKey,
@@ -200,6 +212,61 @@ void main() {
 
   group('OnVaultCreation store-key failure mapping', () {
     test(
+      'local completion-marker failure does not make a stored vault retryable',
+      () async {
+        final vault = _MockEncryptedVault();
+        when(() => vault.toFile()).thenReturn('{}');
+        when(() => vault.filename).thenReturn('vault.json');
+        when(() => createVault.execute()).thenAnswer(
+          (_) async =>
+              Ok((vault: vault, vaultKey: 'deadbeef', walletId: 'btc-wallet')),
+        );
+        when(() => checkConnection.execute()).thenAnswer((_) async => true);
+        when(
+          () => saveFile.execute(
+            content: any(named: 'content'),
+            filename: any(named: 'filename'),
+          ),
+        ).thenAnswer((_) async => const Ok(null));
+        when(
+          () => storeKey.execute(
+            password: any(named: 'password'),
+            vault: any(named: 'vault'),
+            vaultKey: any(named: 'vaultKey'),
+          ),
+        ).thenAnswer((_) async => const Ok(null));
+        when(
+          () => completeEncryptedVaultBackup.execute(walletId: 'btc-wallet'),
+        ).thenAnswer(
+          (_) async =>
+              const Err(VaultStatusPersistenceFailure('local marker failed')),
+        );
+
+        final bloc = buildBloc(flow: RecoverBullFlow.secureVault);
+        addTearDown(bloc.close);
+        bloc.add(
+          const OnVaultCreation(
+            provider: VaultProvider.customLocation,
+            password: 'pw',
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(bloc.state.vault, same(vault));
+        expect(bloc.state.vaultProvider, VaultProvider.customLocation);
+        expect(bloc.state.failure, isNull);
+        verify(() => createVault.execute()).called(1);
+        verify(
+          () => storeKey.execute(
+            password: 'pw',
+            vault: vault,
+            vaultKey: 'deadbeef',
+          ),
+        ).called(1);
+      },
+    );
+
+    test(
       'rate-limited storeVaultKey -> VaultRateLimitedFailure (cooldown kept)',
       () async {
         const cooldown = Duration(minutes: 5);
@@ -207,9 +274,10 @@ void main() {
         when(() => vault.toFile()).thenReturn('{}');
         when(() => vault.filename).thenReturn('vault.json');
 
-        when(
-          () => createVault.execute(),
-        ).thenAnswer((_) async => Ok((vault: vault, vaultKey: 'deadbeef')));
+        when(() => createVault.execute()).thenAnswer(
+          (_) async =>
+              Ok((vault: vault, vaultKey: 'deadbeef', walletId: 'btc-wallet')),
+        );
         when(() => checkConnection.execute()).thenAnswer((_) async => true);
         when(
           () => saveFile.execute(
