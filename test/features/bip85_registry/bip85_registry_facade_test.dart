@@ -18,7 +18,7 @@ void main() {
       'btcpay_wallet_seed',
       'lightning_address_wallet_seed',
       'payment_page_wallet_seed',
-      'nostr_wallet_manifest_key',
+      'nostr_wallet_backup_key',
       'nostr_bullnym_server_auth_key',
       'nostr_nip05_public_nym_verification_key',
     ]);
@@ -71,26 +71,26 @@ void main() {
 
   test('models Nostr role keys as index-free reserved policy only', () {
     final reservations = [
-      _keyReservation('nostr_wallet_manifest_key'),
+      _keyReservation('nostr_wallet_backup_key'),
       _keyReservation('nostr_bullnym_server_auth_key'),
       _keyReservation('nostr_nip05_public_nym_verification_key'),
     ];
 
     expect(reservations.map((reservation) => reservation.scope.exactPath), [
-      "9000'/1'/1'",
-      "9000'/2'/1'",
-      "9000'/3'/1'",
+      "128002'/100'/1'",
+      "128002'/101'/1'",
+      "128002'/102'/1'",
     ]);
     expect(
       reservations.map(
         (reservation) => reservation.scope.segmentValue('identity'),
       ),
-      [1, 2, 3],
+      [100, 101, 102],
     );
     for (final reservation in reservations) {
       expect(reservation.owner, Bip85ReservationOwner.nostr);
       expect(reservation.purpose, Bip85ReservationPurpose.nonWalletNostrKey);
-      expect(reservation.application.number, 9000);
+      expect(reservation.application.number, 128002);
       expect(reservation.scope.segments.map((segment) => segment.name), [
         'identity',
         'account',
@@ -119,7 +119,7 @@ void main() {
         deterministicAlias: 'Malformed',
         owner: Bip85ReservationOwner.nostr,
         purpose: Bip85ReservationPurpose.nonWalletNostrKey,
-        application: const Bip85ApplicationSpec(number: 9000),
+        application: const Bip85ApplicationSpec(number: 128002),
         segments: const [Bip85PathSegment(name: 'index', value: 1)],
       ),
       throwsArgumentError,
@@ -130,7 +130,7 @@ void main() {
         deterministicAlias: 'Malformed',
         owner: Bip85ReservationOwner.nostr,
         purpose: Bip85ReservationPurpose.walletSeed,
-        application: const Bip85ApplicationSpec(number: 9000),
+        application: const Bip85ApplicationSpec(number: 128002),
         segments: const [Bip85PathSegment(name: 'identity', value: 1)],
       ),
       throwsArgumentError,
@@ -145,6 +145,43 @@ void main() {
 
     expect(ids.toSet(), hasLength(registry.reservations.length));
     expect(paths.toSet(), hasLength(registry.reservations.length));
+  });
+
+  test('exposes the reserved Bull Bitcoin Nostr identity range', () {
+    expect(registry.nostrApplicationNumber, 128002);
+    expect(registry.nostrAppReservedIdentityStart, 100);
+    expect(registry.nostrAppReservedIdentityEnd, 199);
+    expect(registry.isNostrAppReservedIdentity(99), isFalse);
+    expect(registry.isNostrAppReservedIdentity(100), isTrue);
+    expect(registry.isNostrAppReservedIdentity(199), isTrue);
+    expect(registry.isNostrAppReservedIdentity(200), isFalse);
+  });
+
+  test('keeps every Nostr reservation inside the app-owned namespace', () {
+    final nostrReservations = registry.reservations
+        .where(
+          (reservation) => reservation.owner == Bip85ReservationOwner.nostr,
+        )
+        .toList();
+    final identities = nostrReservations
+        .map((reservation) => reservation.scope.segmentValue('identity'))
+        .toList();
+
+    expect(nostrReservations, isNotEmpty);
+    expect(
+      nostrReservations.every(
+        (reservation) => reservation.application.number == 128002,
+      ),
+      isTrue,
+    );
+    expect(
+      nostrReservations.every(
+        (reservation) => reservation.scope.segmentValue('account') == 1,
+      ),
+      isTrue,
+    );
+    expect(identities.every(registry.isNostrAppReservedIdentity), isTrue);
+    expect(identities.toSet(), hasLength(identities.length));
   });
 
   test('exposes the reserved wallet-seed exclusion sets for the allocator', () {

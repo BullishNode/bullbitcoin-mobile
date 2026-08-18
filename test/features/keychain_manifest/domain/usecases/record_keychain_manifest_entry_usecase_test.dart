@@ -159,8 +159,8 @@ void main() {
     await expectLater(
       usecase.execute(
         _command(
-          reservationId: 'nostr_wallet_manifest_key',
-          derivationPath: "9000'/1'/1'",
+          reservationId: 'nostr_wallet_backup_key',
+          derivationPath: "128002'/100'/1'",
         ),
       ),
       throwsA(isA<KeychainManifestReservationMismatchException>()),
@@ -251,7 +251,7 @@ void main() {
           'btcpay_wallet_seed',
           'lightning_address_wallet_seed',
           'payment_page_wallet_seed',
-          'nostr_wallet_manifest_key',
+          'nostr_wallet_backup_key',
           'nostr_bullnym_server_auth_key',
           'nostr_nip05_public_nym_verification_key',
         ],

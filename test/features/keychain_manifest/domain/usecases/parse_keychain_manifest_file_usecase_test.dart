@@ -292,12 +292,12 @@ void main() {
 
   test('rejects non-wallet reservations in wallet manifest files', () {
     final payload = _manifestPayload
-        .replaceFirst('btcpay_wallet_seed', 'nostr_wallet_manifest_key')
+        .replaceFirst('btcpay_wallet_seed', 'nostr_wallet_backup_key')
         .replaceFirst('walletSeed', 'nonWalletNostrKey')
         .replaceFirst('btcpay', 'nostr')
-        .replaceFirst('39,"bip85Index":100', '9000,"bip85Index":1')
-        .replaceFirst("39'/0'/12'/100'", "9000'/1'/1'")
-        .replaceFirst("39'/0'/12'/100'", "9000'/1'/1'");
+        .replaceFirst('"bip85Application":39', '"bip85Application":128002')
+        .replaceFirst("39'/0'/12'/100'", "128002'/100'/1'")
+        .replaceFirst("39'/0'/12'/100'", "128002'/100'/1'");
 
     expect(
       () => usecase.execute(payload, expectedParentFingerprint: 'fedcba98'),
