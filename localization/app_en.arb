@@ -17803,5 +17803,102 @@
   "settingsNostrKeysSystemNip05VerificationDescription": "Reserved for verifying your payment name publicly over Nostr. Not used by the app yet — it exists so a future version can enable verification without changing your keys.",
   "@settingsNostrKeysSystemNip05VerificationDescription": {
     "description": "Explanation of the app-owned Nostr NIP-05 verification key"
+  },
+  "getPaidTransactionsReceiptIdLabel": "Receipt ID",
+  "@getPaidTransactionsReceiptIdLabel": {
+    "description": "Detail screen: label for the server's transaction_id of a Get Paid entry — the Bull Bitcoin receipt identifier, never a chain transaction id."
+  },
+  "getPaidSettlementNetworkLabel": "Settlement network",
+  "@getPaidSettlementNetworkLabel": {
+    "description": "Detail screen: label for the network a bitcoin settlement leg settles on."
+  },
+  "getPaidInvoicePricingLabel": "Pricing",
+  "@getPaidInvoicePricingLabel": {
+    "description": "Detail screen invoice section: label for the invoice pricing mode (fiat- or sat-priced)."
+  },
+  "getPaidInvoiceToleranceLabel": "Payment tolerance",
+  "@getPaidInvoiceToleranceLabel": {
+    "description": "Detail screen invoice section: label for the invoice payment tolerance in sats."
+  },
+  "getPaidInvoiceRateLockedUntilLabel": "Rate locked until",
+  "@getPaidInvoiceRateLockedUntilLabel": {
+    "description": "Detail screen invoice section: label for the moment the invoice's fiat rate lock expired."
+  },
+  "getPaidInvoiceExpiresAtLabel": "Expires",
+  "@getPaidInvoiceExpiresAtLabel": {
+    "description": "Detail screen invoice section: label for the invoice expiry timestamp."
+  },
+  "getPaidInvoicePaidViaLabel": "Paid via",
+  "@getPaidInvoicePaidViaLabel": {
+    "description": "Detail screen invoice section: label for the rail the invoice was paid over."
+  },
+  "getPaidInvoicePaidAtLabel": "Paid at",
+  "@getPaidInvoicePaidAtLabel": {
+    "description": "Detail screen invoice section: label for the moment the invoice was paid."
+  },
+  "getPaidInvoiceEventFirstSeenLabel": "First seen",
+  "@getPaidInvoiceEventFirstSeenLabel": {
+    "description": "Detail screen payment-history section: label for when a payment was first observed."
+  },
+  "getPaidInvoiceEventLastSeenLabel": "Last seen",
+  "@getPaidInvoiceEventLastSeenLabel": {
+    "description": "Detail screen payment-history section: label for when a payment was last observed."
+  },
+  "getPaidInvoiceEventOutputIndexLabel": "Output index",
+  "@getPaidInvoiceEventOutputIndexLabel": {
+    "description": "Detail screen payment-history section: label for the output index of a payment transaction."
+  },
+  "getPaidCardDetailsSectionTitle": "Details",
+  "@getPaidCardDetailsSectionTitle": {
+    "description": "Detail screen: title of the core-facts section of the Get Paid card."
+  },
+  "getPaidCardSettlementSectionTitle": "Settlement",
+  "@getPaidCardSettlementSectionTitle": {
+    "description": "Detail screen: title of the settlement section of the Get Paid card."
+  },
+  "getPaidCardSettlementKindLabel": "Settled as",
+  "@getPaidCardSettlementKindLabel": {
+    "description": "Detail screen settlement section: label for the server-provided settlement kind."
+  },
+  "getPaidCardPayerInstructionsSectionTitle": "Payer instructions",
+  "@getPaidCardPayerInstructionsSectionTitle": {
+    "description": "Detail screen: title of the section holding the invoice's payer-facing payment instructions."
+  },
+  "getPaidCardBitcoinChainAddressLabel": "Bitcoin chain address",
+  "@getPaidCardBitcoinChainAddressLabel": {
+    "description": "Detail screen payer-instructions section: label for the invoice's bitcoin_chain_address, distinct from bitcoin_address."
+  },
+  "getPaidCardBitcoinChainBip21Label": "Bitcoin payment URI",
+  "@getPaidCardBitcoinChainBip21Label": {
+    "description": "Detail screen payer-instructions section: label for the invoice's BIP21 bitcoin payment URI."
+  },
+  "getPaidSettlementOverriddenAmbiguousCreate": "A conversion attempt could not be confirmed, so the funds stayed in Bitcoin.",
+  "@getPaidSettlementOverriddenAmbiguousCreate": {
+    "description": "Detail screen: fiat conversion overridden to Bitcoin because the server could not confirm the outcome of a conversion attempt (contract 0.3 ambiguous_create)."
+  },
+  "getPaidCardPayerQuoteRateLabel": "Payer quote rate",
+  "@getPaidCardPayerQuoteRateLabel": {
+    "description": "Detail screen payer-instructions section: label for the live payer quote rate, deliberately distinct from the Rate at creation reference rate."
+  },
+  "getPaidCardPayerQuoteRateSubline": "the live quote when this invoice was read",
+  "@getPaidCardPayerQuoteRateSubline": {
+    "description": "Detail screen payer-instructions section: muted qualifier under the payer quote rate, stating that it was the live quote at fetch time and not a durable rate."
+  },
+  "getPaidCardRatePerBtcValue": "{rate} / BTC",
+  "@getPaidCardRatePerBtcValue": {
+    "description": "Detail screen: a plain exchange rate value. No approximation marker and no execution wording — used for a rate that is neither a reference index nor an executed rate.",
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "getPaidInvoicePaidAmountLabel": "Amount paid",
+  "@getPaidInvoicePaidAmountLabel": {
+    "description": "Detail screen invoice section: label for the satoshi amount actually paid, distinct from the core-facts Received timestamp."
+  },
+  "getPaidCardQuoteRailsLabel": "Payer quote rails",
+  "@getPaidCardQuoteRailsLabel": {
+    "description": "Detail screen payer-instructions section: label for which rails a payer quote is available on."
   }
 }

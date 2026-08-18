@@ -1,48 +1,8 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
+import 'package:bb_mobile/features/invoices/public/invoice_copy.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:flutter/material.dart';
-
-/// Localized label for an invoice status (shared by the list chips + detail).
-String invoiceStatusText(BuildContext context, InvoiceStatus status) {
-  return switch (status) {
-    InvoiceStatus.unpaid => context.loc.invoiceStatusUnpaid,
-    InvoiceStatus.inProgress => context.loc.invoiceStatusInProgress,
-    InvoiceStatus.partiallyPaid => context.loc.invoiceStatusPartiallyPaid,
-    InvoiceStatus.paid => context.loc.invoiceStatusPaid,
-    InvoiceStatus.underpaid => context.loc.invoiceStatusUnderpaid,
-    InvoiceStatus.overpaid => context.loc.invoiceStatusOverpaid,
-    InvoiceStatus.expired => context.loc.invoiceStatusExpired,
-    InvoiceStatus.cancelled => context.loc.invoiceStatusCancelled,
-    InvoiceStatus.unsupported => context.loc.invoiceStatusUnsupported,
-  };
-}
-
-String invoiceFallbackStateText(
-  BuildContext context,
-  InvoiceFallbackState state,
-) {
-  return switch (state) {
-    InvoiceFallbackState.delayed => context.loc.invoiceFallbackDelayed,
-    InvoiceFallbackState.inProgress => context.loc.invoiceFallbackInProgress,
-    InvoiceFallbackState.confirming => context.loc.invoiceFallbackConfirming,
-    InvoiceFallbackState.settled => context.loc.invoiceFallbackSettled,
-    InvoiceFallbackState.integrityHold =>
-      context.loc.invoiceFallbackIntegrityHold,
-  };
-}
-
-String? invoiceSettlementSupportingText(
-  BuildContext context,
-  InvoiceSettlementState settlementState,
-) {
-  return switch (settlementState) {
-    InvoiceSettlementState.none => null,
-    InvoiceSettlementState.pending => context.loc.invoiceSettlementPending,
-    InvoiceSettlementState.settled => context.loc.invoiceSettlementComplete,
-    InvoiceSettlementState.problem => context.loc.invoiceSettlementProblem,
-  };
-}
 
 /// A single row in the invoices list: status, settlement, optional memo, and
 /// amount.

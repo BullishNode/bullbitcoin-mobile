@@ -38,11 +38,17 @@ enum BullnymSettlementLegStatus {
   unknown,
 }
 
-/// Why a configured fiat conversion was overridden to all-Bitcoin.
+/// Why a configured fiat conversion was overridden to all-Bitcoin. `unknown`
+/// covers a reason this client version does not recognize — it is NOT a wire
+/// value, so every reason the contract defines must be mapped explicitly.
 enum BullnymFiatConversionOverrideReason {
   belowMinimum,
   invalidSplit,
   conversionUnavailable,
+
+  /// The server could not confirm the outcome of a conversion attempt, so the
+  /// funds stayed in Bitcoin (contract 0.3 `ambiguous_create`).
+  ambiguousCreate,
   unknown,
 }
 
@@ -310,6 +316,7 @@ class BullnymGetPaidSettlement {
     'invalid_split' => BullnymFiatConversionOverrideReason.invalidSplit,
     'conversion_unavailable' =>
       BullnymFiatConversionOverrideReason.conversionUnavailable,
+    'ambiguous_create' => BullnymFiatConversionOverrideReason.ambiguousCreate,
     _ => BullnymFiatConversionOverrideReason.unknown,
   };
 

@@ -6,6 +6,7 @@ import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_list_cubit.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_list_state.dart';
 import 'package:bb_mobile/features/invoices/presentation/invoices_failure_l10n.dart';
+import 'package:bb_mobile/features/invoices/public/invoice_copy.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_facade.dart';
 import 'package:bb_mobile/features/invoices/public/invoices_routes.dart';
 import 'package:bb_mobile/features/invoices/ui/widgets/invoice_list_item.dart';
@@ -107,13 +108,17 @@ class InvoicesListScreen extends StatelessWidget {
           _supervisionNotice(context, context.loc.invoiceFallbackOverflow),
         Expanded(
           child: state.isEmpty
-              ? _empty(context)
+              ? _empty(context, state, cubit)
               : RefreshIndicator(
                   onRefresh: cubit.refresh,
                   child: ListView.separated(
-                    itemCount: state.visibleInvoices.length,
+                    itemCount:
+                        state.visibleInvoices.length + (state.hasMore ? 1 : 0),
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
+                      if (index == state.visibleInvoices.length) {
+                        return _loadMore(context, state, cubit);
+                      }
                       final invoice = state.visibleInvoices[index];
                       return InvoiceListItem(
                         invoice: invoice,
@@ -152,6 +157,28 @@ class InvoicesListScreen extends StatelessWidget {
     );
   }
 
+  Widget _loadMore(
+    BuildContext context,
+    InvoicesListState state,
+    InvoicesListCubit cubit,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: state.loadingMore
+          ? const Center(child: CircularProgressIndicator())
+          : BBButton.big(
+              label: state.loadMoreFailed
+                  ? context.loc.invoicesRetryMoreButton
+                  : context.loc.invoicesLoadMoreButton,
+              iconData: state.loadMoreFailed ? Icons.refresh : null,
+              iconFirst: true,
+              onPressed: cubit.loadMore,
+              bgColor: context.appColors.secondary,
+              textColor: context.appColors.onSecondary,
+            ),
+    );
+  }
+
   Widget _filterBar(
     BuildContext context,
     InvoicesListState state,
@@ -179,7 +206,12 @@ class InvoicesListScreen extends StatelessWidget {
     );
   }
 
-  Widget _empty(BuildContext context) {
+  Widget _empty(
+    BuildContext context,
+    InvoicesListState state,
+    InvoicesListCubit cubit,
+  ) {
+    final filtered = state.filter != null && state.invoices.isNotEmpty;
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -187,13 +219,17 @@ class InvoicesListScreen extends StatelessWidget {
         Icon(Icons.receipt_long, size: 56, color: context.appColors.textMuted),
         const Gap(16),
         Text(
-          context.loc.invoicesEmptyTitle,
+          filtered
+              ? context.loc.invoicesFilteredEmptyTitle
+              : context.loc.invoicesEmptyTitle,
           textAlign: TextAlign.center,
           style: context.font.titleLarge,
         ),
         const Gap(8),
         Text(
-          context.loc.invoicesEmptyBody,
+          filtered
+              ? context.loc.invoicesFilteredEmptyBody
+              : context.loc.invoicesEmptyBody,
           textAlign: TextAlign.center,
           style: context.font.bodyMedium?.copyWith(
             color: context.appColors.textMuted,
@@ -201,11 +237,19 @@ class InvoicesListScreen extends StatelessWidget {
         ),
         const Gap(24),
         BBButton.big(
-          label: context.loc.invoicesCreateButton,
-          onPressed: () => _openCreate(context),
+          label: filtered
+              ? context.loc.invoicesClearFilterButton
+              : context.loc.invoicesCreateButton,
+          onPressed: filtered
+              ? () => cubit.setFilter(null)
+              : () => _openCreate(context),
           bgColor: context.appColors.primary,
           textColor: context.appColors.onPrimary,
         ),
+        if (filtered && state.hasMore) ...[
+          const Gap(12),
+          _loadMore(context, state, cubit),
+        ],
       ],
     );
   }

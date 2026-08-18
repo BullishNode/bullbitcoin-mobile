@@ -48,6 +48,7 @@ GetPaidSettlement _mixedFaceUsdLegCad({
   bitcoin: const [
     GetPaidBitcoinSettlementLeg(
       amountSat: 60000,
+      network: 'liquid',
       status: GetPaidSettlementLegStatus.settled,
     ),
   ],
