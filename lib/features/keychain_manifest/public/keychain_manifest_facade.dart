@@ -4,30 +4,42 @@ export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_er
         KeychainManifestEntryConflictException,
         KeychainManifestException,
         KeychainManifestExceptionType,
+        KeychainManifestFileParseException,
+        KeychainManifestFileParseFailureReason,
         KeychainManifestGenericException,
         KeychainManifestInvalidEntryException,
-        KeychainManifestReservationMismatchException;
+        KeychainManifestReservationMismatchException,
+        KeychainManifestUnsupportedVersionException;
+export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart'
+    show
+        KeychainManifestImportPlan,
+        KeychainManifestImportEntryIntent,
+        KeychainManifestWalletMaterializationIntent;
 export 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart'
     show
         KeychainManifestReservedDerivationRequest,
         KeychainManifestWalletMaterializationRequest;
 
-import 'dart:convert';
-
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_file.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_import.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_request.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 
 class KeychainManifestFacade {
+  static const _manifestFileCodec = KeychainManifestFileCodec();
+
   final RecordKeychainManifestEntryUsecase _recordEntry;
   final BuildKeychainManifestFileUsecase _buildManifestFile;
+  final ParseKeychainManifestFileUsecase _parseManifestFile;
 
   KeychainManifestFacade({
     required this._recordEntry,
     required this._buildManifestFile,
+    required this._parseManifestFile,
   });
 
   Future<void> recordReservedDerivation(
@@ -55,7 +67,7 @@ class KeychainManifestFacade {
         throw KeychainManifestEmptyInventoryException();
       }
       return KeychainManifestFilePayload._(
-        payload: const _KeychainManifestFileEncoder().encode(manifestFile),
+        payload: _manifestFileCodec.encode(manifestFile),
         entryCount: manifestFile.entryCount,
         materializationCount: manifestFile.materializationCount,
         generatedAt: manifestFile.generatedAt,
@@ -65,6 +77,36 @@ class KeychainManifestFacade {
       if (e is! KeychainManifestException) {
         log.warning(
           'Keychain manifest file build failed',
+          error: e,
+          trace: stack,
+        );
+      }
+      throw KeychainManifestException.fromInternal(e);
+    }
+  }
+
+  /// Parses a serialized manifest file into an import plan.
+  ///
+  /// Throws a [KeychainManifestException]. Consumers MUST distinguish the
+  /// unsupported-version case: [KeychainManifestExceptionType.unsupportedFileVersion]
+  /// means the backup exists but was written by a newer app version and MUST be
+  /// shown as "update the app", never as "no backup found" (KC-2). Use
+  /// `toTranslated` for the user-facing copy.
+  KeychainManifestImportPlan parseManifestFilePayload(
+    String payload, {
+    required String expectedParentFingerprint,
+    bool allowEmpty = false,
+  }) {
+    try {
+      return _parseManifestFile.execute(
+        payload,
+        expectedParentFingerprint: expectedParentFingerprint,
+        allowEmpty: allowEmpty,
+      );
+    } catch (e, stack) {
+      if (e is! KeychainManifestException) {
+        log.warning(
+          'Keychain manifest file parse failed',
           error: e,
           trace: stack,
         );
@@ -90,55 +132,4 @@ class KeychainManifestFilePayload {
     required this.generatedAt,
     required this.inventoryUpdatedAt,
   });
-}
-
-class _KeychainManifestFileEncoder {
-  const _KeychainManifestFileEncoder();
-
-  String encode(KeychainManifestFile manifestFile) {
-    return jsonEncode(_manifestToJson(manifestFile));
-  }
-
-  Map<String, Object?> _manifestToJson(KeychainManifestFile manifestFile) {
-    return {
-      'version': manifestFile.version,
-      'parentFingerprint': manifestFile.parentFingerprint,
-      'generatedAt': manifestFile.generatedAt,
-      'inventoryUpdatedAt': manifestFile.inventoryUpdatedAt,
-      'entryCount': manifestFile.entryCount,
-      'materializationCount': manifestFile.materializationCount,
-      'entries': manifestFile.entries.map(_entryToJson).toList(growable: false),
-    };
-  }
-
-  Map<String, Object?> _entryToJson(KeychainManifestFileEntry entry) {
-    return {
-      'entryId': entry.entryId,
-      'bip85DerivationPath': entry.bip85DerivationPath,
-      'reservationId': entry.reservationId,
-      'entryType': entry.entryType,
-      'ownerFeature': entry.ownerFeature,
-      'bip85Application': entry.bip85Application,
-      'bip85Index': entry.bip85Index,
-      'createdAt': entry.createdAt,
-      'updatedAt': entry.updatedAt,
-      'materializations': entry.materializations
-          .map(_materializationToJson)
-          .toList(growable: false),
-    };
-  }
-
-  Map<String, Object?> _materializationToJson(
-    KeychainManifestFileWalletMaterialization materialization,
-  ) {
-    return {
-      'type': KeychainManifestFileWalletMaterialization.type,
-      'walletId': materialization.walletId,
-      'childSeedFingerprint': materialization.childSeedFingerprint,
-      'network': materialization.network,
-      'scriptType': materialization.scriptType,
-      'createdAt': materialization.createdAt,
-      'updatedAt': materialization.updatedAt,
-    };
-  }
 }

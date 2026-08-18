@@ -1,14 +1,21 @@
 import 'package:bb_mobile/core/errors/bull_exception.dart';
-import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:flutter/widgets.dart';
 
 enum KeychainManifestExceptionType {
   invalidEntry,
   emptyInventory,
+  fileParse,
+  unsupportedFileVersion,
   reservationMismatch,
   conflict,
   duplicate,
   generic,
+}
+
+enum KeychainManifestFileParseFailureReason {
+  malformedFile,
+  wrongParentFingerprint,
+  unknownReservation,
+  invalidMetadata,
 }
 
 sealed class KeychainManifestException extends BullException {
@@ -22,10 +29,6 @@ sealed class KeychainManifestException extends BullException {
       KeychainManifestException() => error,
       _ => KeychainManifestGenericException(cause: error),
     };
-  }
-
-  String toTranslated(BuildContext context) {
-    return context.loc.keychainManifestGenericError;
   }
 }
 
@@ -41,6 +44,35 @@ final class KeychainManifestEmptyInventoryException
     : super._(
         KeychainManifestExceptionType.emptyInventory,
         'keychain manifest inventory is empty',
+      );
+}
+
+final class KeychainManifestFileParseException
+    extends KeychainManifestException {
+  final KeychainManifestFileParseFailureReason reason;
+
+  KeychainManifestFileParseException({required this.reason, Object? cause})
+    : super._(
+        KeychainManifestExceptionType.fileParse,
+        'keychain manifest file parse failed',
+        cause: cause,
+      );
+}
+
+/// A well-formed manifest written by a NEWER format version than this app
+/// understands. Consumers MUST present this as "this backup needs a newer app
+/// version - update the app", never as "no backup found": the backup exists and
+/// is intact, the app simply cannot read it yet. Surfacing it as "no backup"
+/// would steer a user with a real backup toward creating a new one and losing
+/// recovery of the old funds (KC-2).
+final class KeychainManifestUnsupportedVersionException
+    extends KeychainManifestException {
+  final int version;
+
+  KeychainManifestUnsupportedVersionException(this.version)
+    : super._(
+        KeychainManifestExceptionType.unsupportedFileVersion,
+        'unsupported keychain manifest file version',
       );
 }
 
