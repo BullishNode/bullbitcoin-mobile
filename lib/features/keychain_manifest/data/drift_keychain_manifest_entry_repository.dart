@@ -1,6 +1,6 @@
 import 'package:bb_mobile/core/storage/sqlite_database.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_error.dart';
-import 'package:bb_mobile/features/keychain_manifest/domain/keychain_manifest_entry.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/entities/keychain_manifest_entry.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:drift/native.dart' show SqliteException;
 
@@ -19,6 +19,37 @@ class DriftKeychainManifestEntryRepository
     final binding = await bindingQuery.getSingleOrNull();
     if (binding == null) return null;
     return _recordForBinding(binding);
+  }
+
+  @override
+  Future<List<KeychainManifestWalletMaterializationRecord>>
+  fetchWalletMaterializationRecordsByParentFingerprint(
+    String parentFingerprint,
+  ) async {
+    final normalized = KeychainManifestFingerprint.normalize(parentFingerprint);
+    return _database.transaction(() async {
+      final entryQuery = _database.select(_database.keychainManifestEntries)
+        ..where((table) => table.parentFingerprint.equals(normalized));
+      final entries = await entryQuery.get();
+      if (entries.isEmpty) return const [];
+
+      final records = <KeychainManifestWalletMaterializationRecord>[];
+      for (final entry in entries) {
+        final bindingQuery = _database.select(
+          _database.keychainManifestWalletBindings,
+        )..where((table) => table.entryId.equals(entry.entryId));
+        final bindings = await bindingQuery.get();
+        for (final binding in bindings) {
+          records.add(
+            KeychainManifestWalletMaterializationRecord(
+              entry: _rowToEntry(entry),
+              walletMaterialization: _rowToWalletBinding(binding),
+            ),
+          );
+        }
+      }
+      return records;
+    });
   }
 
   @override
