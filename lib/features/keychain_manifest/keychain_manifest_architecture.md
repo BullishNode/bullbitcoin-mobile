@@ -15,9 +15,10 @@ persistence failure keep the manifest entry. This PR intentionally treats the
 manifest as local retry/recovery metadata and inventory, not product rollback
 state. Later retries of the same record operation may idempotently add missing
 proven entries, but this PR does not implement a separate repair API or flow.
-If a multi-wallet record call partially succeeds and later materializations
-fail, the successfully recorded rows remain durable. A later retry must record
-missing proven materializations idempotently instead of rolling back valid rows.
+Multi-wallet record calls are atomic: all wallet materializations for the call
+are committed together, or none are committed. A later retry may idempotently
+skip already-recorded identical rows and add missing proven materializations,
+but no caller should observe a half-recorded batch from one failed call.
 
 It can build an on-demand manifest file payload from local records for a
 requested parent fingerprint. The local Drift records remain the source of
@@ -43,7 +44,7 @@ are out of scope for v1.
 - The public boundary may build a manifest file payload, but file operations
   must not mutate local manifest inventory.
 - `keychain_manifest` must not import BTCPay, Get Paid, external receive
-  wallets, Nostr, UI features, or wallet creation/restoration features.
+  wallets, keychain recovery, Nostr, or UI features.
 
 ## Entry Identity
 
@@ -71,8 +72,9 @@ redundant string into the persisted schema and the manifest file contract.
 
 The manifest file is a serialized projection generated from local
 `keychain_manifest` records. It is not the current-device source of truth, is
-not maintained as a separate local file, and does not become a recovery artifact
-until a later restore flow defines those semantics.
+not maintained as a separate local file, and does not create wallets. Validated
+import plans may be consumed by `keychain_recovery`, which owns local wallet
+restore semantics.
 
 Current-device source of truth:
 
@@ -179,10 +181,12 @@ Rules:
   metadata into import intents in `domain/usecases`. Public import parsing
   requires the caller's expected parent fingerprint and rejects files from a
   different wallet before returning a plan. Wallet creation and restore semantics
-  belong to later consumer features.
+  belong to `keychain_recovery`.
 - Import parsing refuses an empty plan unless the caller explicitly opts in,
   mirroring the empty-export gate: silently returning a plan with nothing to
   recover would be indistinguishable from a successful import.
+- V1 decode rejects duplicate entry ids and duplicate wallet materialization ids
+  before recovery can perform wallet side effects.
 
 ### Consumer obligations
 
