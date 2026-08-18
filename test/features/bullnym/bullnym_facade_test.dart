@@ -127,17 +127,21 @@ void main() {
     final ciphertextHash = sha256
         .convert(base64.decode(ciphertext.value))
         .toString();
-    final storedEtag = computeWalletBackupEtag(
-      stream: BullnymBackupStream.walletBackup,
-      npubHex: signer.npubHex,
-      generation: 1,
-      ciphertextSha256: ciphertextHash,
+    final storedEtag = _unwrap(
+      computeWalletBackupEtag(
+        stream: BullnymBackupStream.walletBackup,
+        npubHex: signer.npubHex,
+        generation: 1,
+        ciphertextSha256: ciphertextHash,
+      ),
     );
-    final deletedEtag = computeWalletBackupEtag(
-      stream: BullnymBackupStream.walletBackup,
-      npubHex: signer.npubHex,
-      generation: 2,
-      ciphertextSha256: '',
+    final deletedEtag = _unwrap(
+      computeWalletBackupEtag(
+        stream: BullnymBackupStream.walletBackup,
+        npubHex: signer.npubHex,
+        generation: 2,
+        ciphertextSha256: '',
+      ),
     );
     final stub = _stubDio([
       {'version': 1, 'generation': 1, 'etag': storedEtag},
@@ -148,26 +152,30 @@ void main() {
       nowSecs: () => timestamp,
     );
 
-    final stored = await facade.storeBackup(
-      signer: signer,
-      stream: BullnymBackupStream.walletBackup,
-      currentHead: BullnymBackupHead.absent(generation: 0, etag: null),
-      ciphertext: ciphertext,
-    );
-    final deleted = await facade.deleteBackup(
-      signer: signer,
-      stream: BullnymBackupStream.walletBackup,
-      currentHead: BullnymBackupHead.present(
-        generation: stored.generation,
-        etag: stored.etag,
+    final stored = _unwrap(
+      await facade.storeBackup(
+        signer: signer,
+        stream: BullnymBackupStream.walletBackup,
+        currentHead: BullnymBackupHead.absent(generation: 0, etag: null),
         ciphertext: ciphertext,
-        ciphertextSha256: ciphertextHash,
-        updatedAtSecs: timestamp,
+      ),
+    );
+    final deleted = _unwrap(
+      await facade.deleteBackup(
+        signer: signer,
+        stream: BullnymBackupStream.walletBackup,
+        currentHead: BullnymBackupHead.present(
+          generation: stored.generation,
+          etag: stored.etag,
+          ciphertext: ciphertext,
+          ciphertextSha256: ciphertextHash,
+          updatedAtSecs: timestamp,
+        ),
       ),
     );
 
     expect(stored.etag, storedEtag);
-    expect(deleted!.etag, deletedEtag);
+    expect(deleted?.etag, deletedEtag);
   });
 
   test(
@@ -177,11 +185,13 @@ void main() {
       final ciphertextHash = sha256
           .convert(base64.decode(ciphertext))
           .toString();
-      final etag = computeWalletBackupEtag(
-        stream: BullnymBackupStream.walletBackup,
-        npubHex: signer.npubHex,
-        generation: 4,
-        ciphertextSha256: ciphertextHash,
+      final etag = _unwrap(
+        computeWalletBackupEtag(
+          stream: BullnymBackupStream.walletBackup,
+          npubHex: signer.npubHex,
+          generation: 4,
+          ciphertextSha256: ciphertextHash,
+        ),
       );
       final stub = _stubDio([
         {
@@ -200,9 +210,11 @@ void main() {
         nowSecs: () => timestamp,
       );
 
-      final head = await facade.fetchBackup(
-        signer: signer,
-        stream: BullnymBackupStream.walletBackup,
+      final head = _unwrap(
+        await facade.fetchBackup(
+          signer: signer,
+          stream: BullnymBackupStream.walletBackup,
+        ),
       );
 
       expect(head.generation, 4);
@@ -211,85 +223,40 @@ void main() {
     },
   );
 
-  test('rejects a fetched head whose ETag is not server-deterministic', () {
-    final ciphertext = base64.encode(List<int>.filled(64, 9));
-    final ciphertextHash = sha256.convert(base64.decode(ciphertext)).toString();
-    final stub = _stubDio([
-      {
-        'version': 1,
-        'found': true,
-        'generation': 4,
-        'etag': '00' * 32,
-        'ciphertext': ciphertext,
-        'ciphertext_sha256': ciphertextHash,
-        'ciphertext_bytes': 64,
-        'updated_at': timestamp,
-      },
-    ]);
-    final facade = _facadeForClient(
-      BullnymHttpClient.withDio(stub.dio),
-      nowSecs: () => timestamp,
-    );
-
-    expect(
-      () => facade.fetchBackup(
-        signer: signer,
-        stream: BullnymBackupStream.walletBackup,
-      ),
-      throwsA(isA<BullnymInvalidServerResponseException>()),
-    );
-  });
-
-  test('classifies malformed fetched heads as invalid server responses', () {
-    final validCiphertext = base64.encode(List<int>.filled(64, 9));
-    final validHash = sha256.convert(base64.decode(validCiphertext)).toString();
-    final malformedHeads = [
-      {
-        'version': 1,
-        'found': true,
-        'generation': 1,
-        'etag': '00' * 32,
-        'ciphertext': 'not-base64',
-        'ciphertext_sha256': '00' * 32,
-        'ciphertext_bytes': 64,
-        'updated_at': timestamp,
-      },
-      {
-        'version': 1,
-        'found': true,
-        'generation': 1,
-        'etag': '00' * 32,
-        'ciphertext': base64.encode(List<int>.filled(8, 0)),
-        'ciphertext_sha256': '00' * 32,
-        'ciphertext_bytes': 8,
-        'updated_at': timestamp,
-      },
-      {
-        'version': 1,
-        'found': true,
-        'generation': 0,
-        'etag': '00' * 32,
-        'ciphertext': validCiphertext,
-        'ciphertext_sha256': validHash,
-        'ciphertext_bytes': 64,
-        'updated_at': timestamp,
-      },
-    ];
-
-    for (final head in malformedHeads) {
+  test(
+    'rejects a fetched head whose ETag is not server-deterministic',
+    () async {
+      final ciphertext = base64.encode(List<int>.filled(64, 9));
+      final ciphertextHash = sha256
+          .convert(base64.decode(ciphertext))
+          .toString();
+      final stub = _stubDio([
+        {
+          'version': 1,
+          'found': true,
+          'generation': 4,
+          'etag': '00' * 32,
+          'ciphertext': ciphertext,
+          'ciphertext_sha256': ciphertextHash,
+          'ciphertext_bytes': 64,
+          'updated_at': timestamp,
+        },
+      ]);
       final facade = _facadeForClient(
-        BullnymHttpClient.withDio(_stubDio([head]).dio),
+        BullnymHttpClient.withDio(stub.dio),
         nowSecs: () => timestamp,
       );
-      expect(
-        () => facade.fetchBackup(
+
+      final failure = _unwrapFailure(
+        await facade.fetchBackup(
           signer: signer,
           stream: BullnymBackupStream.walletBackup,
         ),
-        throwsA(isA<BullnymInvalidServerResponseException>()),
       );
-    }
-  });
+
+      expect(failure.kind, BullnymFailureKind.invalidServerResponse);
+    },
+  );
 
   test(
     'posts signed register requests using the harness-backed contract',

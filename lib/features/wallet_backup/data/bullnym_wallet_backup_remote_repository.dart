@@ -19,49 +19,14 @@ final class BullnymWalletBackupRemoteRepository
   Future<Result<WalletBackupRemoteHead, WalletBackupFailure>> fetch(
     WalletBackupSigner signer,
   ) async {
-    try {
-      final head = await _bullnym.fetchBackup(
-        signer: _adaptSigner(signer),
-        stream: BullnymBackupStream.walletBackup,
-      );
-      if (!head.found) {
-        return Ok(
-          WalletBackupRemoteHead.absent(
-            generation: head.generation,
-            etag: head.etag,
-          ),
-        );
-      }
-      return Ok(
-        WalletBackupRemoteHead.present(
-          generation: head.generation,
-          etag: head.etag!,
-          ciphertext: WalletBackupCiphertext(head.ciphertext!.value),
-          ciphertextSha256: head.ciphertextSha256!,
-          updatedAtSecs: head.updatedAtSecs!,
-        ),
-      );
-    } on BullnymException catch (error, trace) {
-      return Err(_mapBullnymFailure(error, trace));
-    } on AuthenticatedBackupCipherException catch (error, trace) {
-      return Err(_mapCipherFailure(error, trace));
-    } on ArgumentError catch (error, trace) {
-      log.warning(
-        'Bullnym returned an invalid wallet backup head',
-        error: error.runtimeType,
-        trace: trace,
-      );
-      return Err(
-        WalletBackupInvalidRemoteFailure(error.runtimeType.toString()),
-      );
-    } on Exception catch (error, trace) {
-      log.warning(
-        'Unexpected wallet backup fetch failure',
-        error: error.runtimeType,
-        trace: trace,
-      );
-      return Err(WalletBackupUnexpectedFailure(error.runtimeType.toString()));
-    }
+    final result = await _bullnym.fetchBackup(
+      signer: _adaptSigner(signer),
+      stream: BullnymBackupStream.walletBackup,
+    );
+    return switch (result) {
+      Err(:final failure) => Err(_mapBullnymFailure(failure)),
+      Ok(:final value) => _mapHead(value),
+    };
   }
 
   @override
@@ -72,20 +37,21 @@ final class BullnymWalletBackupRemoteRepository
     required WalletBackupCiphertext ciphertext,
   }) async {
     try {
-      final receipt = await _bullnym.storeBackup(
+      final result = await _bullnym.storeBackup(
         signer: _adaptSigner(signer),
         stream: BullnymBackupStream.walletBackup,
         currentHead: _adaptHead(current),
         ciphertext: AuthenticatedBackupCiphertext(ciphertext.value),
       );
-      return Ok(
-        WalletBackupRemoteCheckpoint(
-          generation: receipt.generation,
-          etag: receipt.etag,
+      return switch (result) {
+        Err(:final failure) => Err(_mapBullnymFailure(failure)),
+        Ok(:final value) => Ok(
+          WalletBackupRemoteCheckpoint(
+            generation: value.generation,
+            etag: value.etag,
+          ),
         ),
-      );
-    } on BullnymException catch (error, trace) {
-      return Err(_mapBullnymFailure(error, trace));
+      };
     } on AuthenticatedBackupCipherException catch (error, trace) {
       return Err(_mapCipherFailure(error, trace));
     } on ArgumentError catch (error, trace) {
@@ -97,13 +63,6 @@ final class BullnymWalletBackupRemoteRepository
       return Err(
         WalletBackupInvalidRemoteFailure(error.runtimeType.toString()),
       );
-    } on Exception catch (error, trace) {
-      log.warning(
-        'Unexpected wallet backup store failure',
-        error: error.runtimeType,
-        trace: trace,
-      );
-      return Err(WalletBackupUnexpectedFailure(error.runtimeType.toString()));
     }
   }
 
@@ -113,39 +72,55 @@ final class BullnymWalletBackupRemoteRepository
     required WalletBackupSigner signer,
     required WalletBackupRemoteHead current,
   }) async {
-    try {
-      final receipt = await _bullnym.deleteBackup(
-        signer: _adaptSigner(signer),
-        stream: BullnymBackupStream.walletBackup,
-        currentHead: _adaptHead(current),
-      );
-      if (receipt == null) return const Ok(null);
+    final result = await _bullnym.deleteBackup(
+      signer: _adaptSigner(signer),
+      stream: BullnymBackupStream.walletBackup,
+      currentHead: _adaptHead(current),
+    );
+    return switch (result) {
+      Err(:final failure) => Err(_mapBullnymFailure(failure)),
+      Ok(:final value) =>
+        value == null
+            ? const Ok(null)
+            : Ok(
+                WalletBackupRemoteCheckpoint(
+                  generation: value.generation,
+                  etag: value.etag,
+                ),
+              ),
+    };
+  }
+
+  Result<WalletBackupRemoteHead, WalletBackupFailure> _mapHead(
+    BullnymBackupHead head,
+  ) {
+    if (!head.found) {
       return Ok(
-        WalletBackupRemoteCheckpoint(
-          generation: receipt.generation,
-          etag: receipt.etag,
+        WalletBackupRemoteHead.absent(
+          generation: head.generation,
+          etag: head.etag,
         ),
       );
-    } on BullnymException catch (error, trace) {
-      return Err(_mapBullnymFailure(error, trace));
-    } on AuthenticatedBackupCipherException catch (error, trace) {
-      return Err(_mapCipherFailure(error, trace));
+    }
+    try {
+      return Ok(
+        WalletBackupRemoteHead.present(
+          generation: head.generation,
+          etag: head.etag!,
+          ciphertext: WalletBackupCiphertext(head.ciphertext!.value),
+          ciphertextSha256: head.ciphertextSha256!,
+          updatedAtSecs: head.updatedAtSecs!,
+        ),
+      );
     } on ArgumentError catch (error, trace) {
       log.warning(
-        'Bullnym returned an invalid wallet backup delete receipt',
+        'Bullnym returned an invalid wallet backup head',
         error: error.runtimeType,
         trace: trace,
       );
       return Err(
         WalletBackupInvalidRemoteFailure(error.runtimeType.toString()),
       );
-    } on Exception catch (error, trace) {
-      log.warning(
-        'Unexpected wallet backup delete failure',
-        error: error.runtimeType,
-        trace: trace,
-      );
-      return Err(WalletBackupUnexpectedFailure(error.runtimeType.toString()));
     }
   }
 
@@ -174,30 +149,23 @@ final class BullnymWalletBackupRemoteRepository
   }
 }
 
-WalletBackupFailure _mapBullnymFailure(
-  BullnymException error,
-  StackTrace trace,
-) {
-  log.warning(
-    'Bullnym wallet backup request failed',
-    error: error.code,
-    trace: trace,
-  );
-  return switch (error.code) {
+WalletBackupFailure _mapBullnymFailure(BullnymFailure failure) {
+  log.warning('Bullnym wallet backup request failed', error: failure.code);
+  return switch (failure.code) {
     'BackupHeadConflict' => const WalletBackupHeadConflictFailure(),
     'BackupBlobTooLarge' => const WalletBackupTooLargeFailure(),
-    'InvalidServerResponse' => WalletBackupInvalidRemoteFailure(error.code),
+    'InvalidServerResponse' => WalletBackupInvalidRemoteFailure(failure.code),
     'BackupInvalidRequest' ||
-    'BackupAuthError' => WalletBackupRemoteRejectedFailure(error.code),
-    'SigningFailed' => WalletBackupSigningFailure(error.code),
+    'BackupAuthError' => WalletBackupRemoteRejectedFailure(failure.code),
+    'SigningFailed' => WalletBackupSigningFailure(failure.code),
     'NetworkError' ||
     'Timeout' ||
     'HttpError' ||
     'EmptyResponse' ||
     'RateLimited' ||
     'BackupCapacityExceeded' ||
-    'InternalError' => WalletBackupRemoteUnavailableFailure(error.code),
-    _ => WalletBackupUnexpectedFailure(error.code),
+    'InternalError' => WalletBackupRemoteUnavailableFailure(failure.code),
+    _ => WalletBackupUnexpectedFailure(failure.code),
   };
 }
 
