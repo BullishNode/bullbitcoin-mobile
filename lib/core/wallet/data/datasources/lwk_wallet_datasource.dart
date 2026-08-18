@@ -10,11 +10,13 @@ import 'package:bb_mobile/core/wallet/data/models/transaction_output_model.dart'
 import 'package:bb_mobile/core/wallet/data/models/wallet_model.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_transaction_model.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_utxo_model.dart';
+import 'package:bb_mobile/core/wallet/data/slip77_blinding_key_deriver.dart';
 import 'package:bb_mobile/core/electrum/domain/value_objects/electrum_connection.dart';
 import 'package:bb_mobile/core/wallet/domain/consolidation_required_exception.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:flutter/material.dart';
 import 'package:bull_sdk/lwk.dart' as lwk;
+import 'package:bitcoin_base/bitcoin_base.dart' show ECPrivate;
 
 class LwkWalletDatasource {
   @visibleForTesting
@@ -197,6 +199,49 @@ class LwkWalletDatasource {
         confidential: addressInfo.confidential,
       );
       return address;
+    } catch (e) {
+      if (e is lwk.LwkError) {
+        throw e.msg;
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  // Returns the address and its matching per-address blinding secret as one
+  // SDK result so callers cannot accidentally pair key material from another
+  // derivation index.
+  Future<
+    ({String standard, String confidential, int index, String blindingSecret})
+  >
+  getAddressWithBlindingSecretByIndex(
+    int index, {
+    required WalletModel wallet,
+  }) async {
+    try {
+      final lwkWallet = await LwkFacade.createPublicWallet(wallet);
+      final addressInfo = await lwkWallet.address(index: index);
+      final masterKeyExpression = await lwkWallet.blindingKey();
+      final blindingSecret = await const Slip77BlindingKeyDeriver().derive(
+        masterKeyExpression: masterKeyExpression,
+        standardAddress: addressInfo.standard,
+      );
+      final expectedPublicKey = addressInfo.blindingKey;
+      final derivedPublicKey = ECPrivate.fromHex(
+        blindingSecret,
+      ).getPublic().toHex();
+      if (expectedPublicKey == null ||
+          derivedPublicKey.toLowerCase() != expectedPublicKey.toLowerCase()) {
+        throw const FormatException(
+          'Derived Liquid blinding key does not match the address',
+        );
+      }
+      return (
+        index: addressInfo.index!,
+        standard: addressInfo.standard,
+        confidential: addressInfo.confidential,
+        blindingSecret: blindingSecret,
+      );
     } catch (e) {
       if (e is lwk.LwkError) {
         throw e.msg;

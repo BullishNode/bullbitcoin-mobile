@@ -33,6 +33,7 @@ import 'package:bb_mobile/features/mempool_settings/mempool_settings_locator.dar
 import 'package:bb_mobile/features/fund_exchange/fund_exchange_locator.dart';
 import 'package:bb_mobile/features/import_mnemonic/locator.dart';
 import 'package:bb_mobile/features/import_watch_only_wallet/import_watch_only_locator.dart';
+import 'package:bb_mobile/features/invoices/invoices_locator.dart';
 import 'package:bb_mobile/features/keychain_manifest/keychain_manifest_locator.dart';
 import 'package:bb_mobile/features/keychain_recovery/keychain_recovery_locator.dart';
 import 'package:bb_mobile/features/ledger/ledger_locator.dart';
@@ -119,6 +120,7 @@ class AppLocator {
     LightningAddressLocator.setup(locator);
     PaymentPageLocator.setup(locator);
     PosLocator.setup(locator);
+    InvoicesLocator.setup(locator);
     RemoteKeychainRecoveryLocator.setup(locator);
     BtcpayLocator.setup(locator);
     TransactionsLocator.registerUsecases(locator);
