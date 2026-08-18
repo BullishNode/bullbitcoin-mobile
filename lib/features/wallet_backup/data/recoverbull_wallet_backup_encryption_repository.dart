@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:bb_mobile/core/backup/authenticated_backup_cipher.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
@@ -6,6 +8,7 @@ import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_e
 import 'package:bb_mobile/features/wallet_backup/domain/entities/wallet_backup_envelope.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/repositories/wallet_backup_encryption_repository.dart';
 import 'package:bb_mobile/features/wallet_backup/domain/wallet_backup_failure.dart';
+import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 
 final class RecoverBullWalletBackupEncryptionRepository
@@ -17,6 +20,27 @@ final class RecoverBullWalletBackupEncryptionRepository
     this._envelopeCodec = const WalletBackupEnvelopeCodec(),
     this._cipher = const RecoverBullAuthenticatedBackupCipher(),
   });
+
+  @override
+  @useResult
+  Result<String, WalletBackupFailure> contentHash(
+    WalletBackupEnvelope envelope,
+  ) {
+    try {
+      return Ok(
+        sha256.convert(utf8.encode(_envelopeCodec.encode(envelope))).toString(),
+      );
+    } on WalletBackupEnvelopeCodecException catch (error, trace) {
+      return Err(_mapCodecFailure(error, trace));
+    } on Exception catch (error, trace) {
+      log.warning(
+        'Failed to hash wallet backup',
+        error: error.runtimeType,
+        trace: trace,
+      );
+      return Err(WalletBackupUnexpectedFailure(error.runtimeType.toString()));
+    }
+  }
 
   @override
   @useResult

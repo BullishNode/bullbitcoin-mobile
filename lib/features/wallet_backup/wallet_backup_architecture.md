@@ -2,11 +2,9 @@
 
 ## Scope
 
-`wallet_backup` owns the seed-bound encrypted Bull backup container. This slice
-introduces the outer envelope, the manifest section adapter, authenticated
-encryption, and BIP85 encryption-key derivation. Bullnym transport, durable
-state, lifecycle controls, scheduling, and recovery orchestration are added by
-their later owning PRs.
+`wallet_backup` owns the seed-bound encrypted Bull backup container and its single opaque Bullnym remote object.
+This slice includes the outer envelope, the manifest section adapter, authenticated encryption, BIP85 encryption-key derivation, unified Nostr request signer, remote repository, and conditional manifest publication.
+Durable state, lifecycle controls, scheduling, and recovery orchestration are added by their later owning PRs.
 
 This is one backup lifecycle, not a wrapper around separate manifest and
 metadata backup systems. `keychain_manifest` remains the source of truth for
@@ -79,18 +77,30 @@ record and nesting limits still apply. Chunking is out of scope.
 wallet_backup
   -> keychain_manifest/public
   -> bip85_registry/public
+  -> nostr_identity/public
+  -> bullnym/public
 ```
 
 `keychain_manifest` never imports `wallet_backup`. The generic authenticated
 cipher stays in `core/backup` because it is provider-neutral infrastructure;
 the adapter that maps it to wallet-backup entities and failures belongs here.
 
+## Remote Publication
+
+The remote repository maps only the closed Bullnym `wallet_backup` stream into wallet-backup domain heads and typed failures.
+The signer is derived on demand at `128002'/100'/1'`; the private key is never persisted or exposed by this feature.
+
+Publication builds the current local manifest, fetches the remote head, authenticates and decrypts a present envelope, delegates manifest validation and merge behavior to `keychain_manifest/public`, and conditionally stores one new encrypted envelope.
+A remote manifest that is valid for recovery but is not canonical blocks publication so an older writer cannot erase fields it cannot preserve.
+
+A head conflict causes exactly one refetch, re-merge, re-encrypt, and retry.
+A second conflict returns a typed failure.
+If the merged manifest already equals the authenticated remote manifest, no write occurs and the existing canonical content hash and checkpoint are returned.
+
 ## Non-goals in This Slice
 
-- Bullnym fetch/store/delete
-- Nostr request signing
 - durable backup state
-- publication coordination
+- automated publication coordination
 - settings or onboarding UI
 - metadata payload semantics
 - compatibility with pre-release backup streams or encryption reservations

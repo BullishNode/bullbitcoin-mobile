@@ -42,6 +42,26 @@ final class WalletBackupKeyDerivationFailure extends WalletBackupFailure {
   const WalletBackupKeyDerivationFailure([super.logMessage]);
 }
 
+final class WalletBackupSigningFailure extends WalletBackupFailure {
+  const WalletBackupSigningFailure([super.logMessage]);
+}
+
+final class WalletBackupRemoteUnavailableFailure extends WalletBackupFailure {
+  const WalletBackupRemoteUnavailableFailure([super.logMessage]);
+}
+
+final class WalletBackupInvalidRemoteFailure extends WalletBackupFailure {
+  const WalletBackupInvalidRemoteFailure([super.logMessage]);
+}
+
+final class WalletBackupRemoteRejectedFailure extends WalletBackupFailure {
+  const WalletBackupRemoteRejectedFailure([super.logMessage]);
+}
+
+final class WalletBackupHeadConflictFailure extends WalletBackupFailure {
+  const WalletBackupHeadConflictFailure();
+}
+
 final class WalletBackupManifestFailure extends WalletBackupFailure {
   const WalletBackupManifestFailure([super.logMessage]);
 }

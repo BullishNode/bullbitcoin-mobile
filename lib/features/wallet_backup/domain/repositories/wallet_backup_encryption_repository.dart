@@ -6,6 +6,11 @@ import 'package:meta/meta.dart';
 
 abstract interface class WalletBackupEncryptionRepository {
   @useResult
+  Result<String, WalletBackupFailure> contentHash(
+    WalletBackupEnvelope envelope,
+  );
+
+  @useResult
   Result<WalletBackupCiphertext, WalletBackupFailure> encrypt({
     required WalletBackupEnvelope envelope,
     required WalletBackupEncryptionKey key,

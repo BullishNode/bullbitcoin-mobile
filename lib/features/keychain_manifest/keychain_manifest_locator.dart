@@ -5,6 +5,7 @@ import 'package:bb_mobile/features/keychain_manifest/data/drift_keychain_manifes
 import 'package:bb_mobile/features/keychain_manifest/data/models/keychain_manifest_file_model.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/repositories/keychain_manifest_entry_repository.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/build_keychain_manifest_file_usecase.dart';
+import 'package:bb_mobile/features/keychain_manifest/domain/usecases/merge_keychain_manifest_file_payloads_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/parse_keychain_manifest_file_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/domain/usecases/record_keychain_manifest_entry_usecase.dart';
 import 'package:bb_mobile/features/keychain_manifest/public/keychain_manifest_facade.dart';
@@ -37,10 +38,17 @@ class KeychainManifestLocator {
         bip85Registry: locator<Bip85RegistryFacade>(),
       ),
     );
+    locator.registerFactory<MergeKeychainManifestFilePayloadsUsecase>(
+      () => MergeKeychainManifestFilePayloadsUsecase(
+        codec: const KeychainManifestFileCodec(),
+        parseManifest: locator<ParseKeychainManifestFileUsecase>(),
+      ),
+    );
     locator.registerFactory<KeychainManifestFacade>(
       () => KeychainManifestFacade(
         recordEntry: locator<RecordKeychainManifestEntryUsecase>(),
         buildManifestFile: locator<BuildKeychainManifestFileUsecase>(),
+        mergeManifestFiles: locator<MergeKeychainManifestFilePayloadsUsecase>(),
         parseManifestFile: locator<ParseKeychainManifestFileUsecase>(),
       ),
     );
