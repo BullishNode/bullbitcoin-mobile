@@ -12,6 +12,7 @@ import 'package:bb_mobile/features/remote_keychain_recovery/domain/recover_remot
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/remote_keychain_recovery_result.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/domain/usecases/heal_recovered_products_usecase.dart';
 import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
+import 'package:bb_mobile/features/wallet_backup/watchers/wallet_backup_coordinator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -59,12 +60,15 @@ void main() {
   );
 
   test('distinguishes a present empty manifest from no backup', () async {
-    walletBackup.fetchResult = Ok(_manifestImport());
+    walletBackup.fetchResult = Ok(
+      _manifestImport(metadataPayload: '{"sections":[],"records":[]}'),
+    );
     manifest.plan = _plan(entries: const []);
 
     final result = await buildUsecase().execute();
 
     expect(result.status, RemoteKeychainRecoveryStatus.nothingToRestore);
+    expect(result.metadataPayload, '{"sections":[],"records":[]}');
     expect(recovery.restoreCalls, 0);
   });
 
@@ -399,12 +403,70 @@ void main() {
     expect(result.status, RemoteKeychainRecoveryStatus.timedOut);
     expect(lightningAddress.ensureCalls, 0);
   });
+
+  test(
+    'started restoration holds the recovery lease beyond its deadline',
+    () async {
+      final plan = _plan(entries: [_entry()]);
+      final restore = Completer<KeychainRecoveryResult>();
+      walletBackup.fetchResult = Ok(_manifestImport());
+      manifest.plan = plan;
+      recovery.restoreFuture = restore.future;
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () async => const Ok(null),
+        markDirty: () async => const Ok(null),
+      );
+      addTearDown(coordinator.dispose);
+      final lease = await coordinator.beginRecoveryLease();
+      var recoveryFinished = false;
+      final recoveryOperation =
+          buildUsecase(
+            budget: const Duration(milliseconds: 10),
+          ).execute().whenComplete(() {
+            recoveryFinished = true;
+            lease.close();
+          });
+
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(recovery.restoreCalls, 1);
+      expect(recoveryFinished, isFalse);
+      var deletionStarted = false;
+      final deletion = coordinator.beginDeletionLease().then((lease) {
+        deletionStarted = true;
+        lease.close();
+      });
+      await pumpEventQueue();
+      expect(deletionStarted, isFalse);
+
+      restore.complete(
+        const KeychainRecoveryResult(
+          walletOutcomes: [
+            KeychainRecoveryWalletRestoreOutcome(
+              intent: _btcpayIntent,
+              status: KeychainRecoveryWalletRestoreStatus.created,
+              materializedWalletId: 'btcpay-wallet',
+              created: true,
+            ),
+          ],
+        ),
+      );
+
+      final result = await recoveryOperation;
+      await deletion;
+      expect(result.status, RemoteKeychainRecoveryStatus.timedOut);
+      expect(result.restoredCount, 1);
+      expect(deletionStarted, isTrue);
+    },
+  );
 }
 
-WalletBackupManifestImport _manifestImport() {
+WalletBackupManifestImport _manifestImport({String? metadataPayload}) {
   return WalletBackupManifestImport(
     payload: '{"manifest":"payload"}',
     parentFingerprint: 'fedcba98',
+    metadataPayload: metadataPayload,
   );
 }
 
@@ -595,6 +657,7 @@ final class _FakeKeychainRecoveryFacade implements KeychainRecoveryFacade {
     walletOutcomes: [],
   );
   Duration delay = Duration.zero;
+  Future<KeychainRecoveryResult>? restoreFuture;
   void Function()? beforeReturn;
   int restoreCalls = 0;
   final deadlines = <DateTime?>[];
@@ -608,7 +671,7 @@ final class _FakeKeychainRecoveryFacade implements KeychainRecoveryFacade {
     deadlines.add(deadline);
     if (delay > Duration.zero) await Future<void>.delayed(delay);
     beforeReturn?.call();
-    return result;
+    return await (restoreFuture ?? Future.value(result));
   }
 }
 

@@ -17,11 +17,13 @@ final class RemoteKeychainRecoveryResult {
   final int restoredCount;
   final int failedCount;
   final List<String> createdWalletIds;
+  final String? metadataPayload;
 
   const RemoteKeychainRecoveryResult({
     required this.status,
     this.restoredCount = 0,
     this.failedCount = 0,
     this.createdWalletIds = const [],
+    this.metadataPayload,
   });
 }

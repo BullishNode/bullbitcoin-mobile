@@ -31,9 +31,9 @@ final class RecoverRemoteKeychainManifestUsecase {
   Future<RemoteKeychainRecoveryResult> execute() async {
     final deadline = clock.nowUtc().add(budget);
     try {
-      return await _executeWithin(deadline).timeout(budget);
+      return await _executeWithin(deadline);
     } on TimeoutException {
-      return const RemoteKeychainRecoveryResult(
+      return RemoteKeychainRecoveryResult(
         status: RemoteKeychainRecoveryStatus.timedOut,
       );
     } catch (error, stack) {
@@ -80,8 +80,9 @@ final class RecoverRemoteKeychainManifestUsecase {
       );
     }
     if (importPlan.entries.isEmpty) {
-      return const RemoteKeychainRecoveryResult(
+      return RemoteKeychainRecoveryResult(
         status: RemoteKeychainRecoveryStatus.nothingToRestore,
+        metadataPayload: manifestImport.metadataPayload,
       );
     }
     if (_deadlineReached(deadline)) return _timedOut;
@@ -122,6 +123,7 @@ final class RecoverRemoteKeychainManifestUsecase {
       restoredCount: restored.restoredCount,
       failedCount: failedOutcomes.length,
       createdWalletIds: createdWalletIds,
+      metadataPayload: manifestImport.metadataPayload,
     );
   }
 
@@ -147,6 +149,7 @@ final class RecoverRemoteKeychainManifestUsecase {
       WalletBackupWalletUnavailableFailure() ||
       WalletBackupDisabledFailure() ||
       WalletBackupConfirmationRequiredFailure() ||
+      WalletBackupRecoveryBlockedFailure() ||
       WalletBackupUnexpectedFailure() =>
         RemoteKeychainRecoveryStatus.localFailure,
     };

@@ -24,6 +24,30 @@ void main() {
     expect(decoded.manifest.payload, _manifestPayload);
   });
 
+  test('round-trips manifest and metadata in one authenticated envelope', () {
+    final envelope = WalletBackupEnvelope(
+      parentFingerprint: 'fedcba98',
+      createdAt: 2,
+      manifest: WalletBackupManifestSection(
+        payload: _manifestPayload,
+        parentFingerprint: 'fedcba98',
+      ),
+      metadata: WalletBackupMetadataSection(
+        payload: '{"records":[],"sections":[]}',
+        parentFingerprint: 'fedcba98',
+      ),
+    );
+
+    final encoded = codec.encode(envelope);
+    final decoded = codec.decode(
+      encoded,
+      expectedParentFingerprint: 'fedcba98',
+    );
+
+    expect(decoded.metadata?.payload, '{"records":[],"sections":[]}');
+    expect(codec.encode(decoded), encoded);
+  });
+
   test('rejects non-canonical JSON rather than silently normalizing it', () {
     final canonical = codec.encode(_envelope());
 

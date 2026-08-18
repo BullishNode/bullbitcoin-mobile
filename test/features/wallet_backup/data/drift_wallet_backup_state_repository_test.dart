@@ -108,27 +108,32 @@ void main() {
     expect(state.remoteGeneration, 1);
   });
 
-  test('confirmed deletion clears only remote checkpoint state', () async {
-    _expectOk(await repository.setEnabled(true));
-    _expectOk(
-      await repository.recordSuccess(
-        capturedDirtyRevision: 1,
-        succeededAt: 20,
-        syncResult: _syncResult(),
-      ),
-    );
-    _expectOk(await repository.blockUnsupportedVersion(2));
-    _expectOk(await repository.clearRemoteCheckpoint());
+  test(
+    'confirmed deletion clears remote checkpoint and recovery block',
+    () async {
+      _expectOk(await repository.setEnabled(true));
+      _expectOk(
+        await repository.recordSuccess(
+          capturedDirtyRevision: 1,
+          succeededAt: 20,
+          syncResult: _syncResult(),
+        ),
+      );
+      _expectOk(await repository.blockUnsupportedVersion(2));
+      _expectOk(await repository.setRecoveryBlocked(true));
+      _expectOk(await repository.clearRemoteCheckpoint());
 
-    final state = _value(await repository.get());
-    expect(state.enabled, isTrue);
-    expect(state.dirty, isFalse);
-    expect(state.lastSucceededAt, isNull);
-    expect(state.remoteGeneration, 0);
-    expect(state.remoteEtag, isNull);
-    expect(state.contentHash, isNull);
-    expect(state.unsupportedVersion, isNull);
-  });
+      final state = _value(await repository.get());
+      expect(state.enabled, isTrue);
+      expect(state.dirty, isFalse);
+      expect(state.lastSucceededAt, isNull);
+      expect(state.remoteGeneration, 0);
+      expect(state.remoteEtag, isNull);
+      expect(state.contentHash, isNull);
+      expect(state.unsupportedVersion, isNull);
+      expect(state.recoveryBlocked, isFalse);
+    },
+  );
 
   test('watch emits the singleton and later state changes', () async {
     final expectation = expectLater(

@@ -56,7 +56,7 @@ void main() {
       facade.deriveBullnymNip05VerificationPublicKeyFromXprv(xprv),
       NostrKeychainHandle.deriveFromBip85Path(
         xprvBase58: xprv,
-        hardenedPath: "9000'/3'/1'",
+        hardenedPath: "128002'/102'/1'",
       ).publicKeyHex,
     );
   });

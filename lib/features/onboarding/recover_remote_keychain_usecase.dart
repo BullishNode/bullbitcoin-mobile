@@ -1,16 +1,20 @@
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/remote_keychain_recovery/public/remote_keychain_recovery_facade.dart';
+import 'dart:async';
 
 class RecoverRemoteKeychainUsecase {
   final RemoteKeychainRecoveryFacade _remoteRecovery;
 
   const RecoverRemoteKeychainUsecase(this._remoteRecovery);
 
-  /// Recovery is optional, bounded by its own deadline, and never prevents the
-  /// seed-recovery flow from opening the default wallets.
-  Future<void> execute() async {
+  void execute({required Set<String> defaultCreatedWalletIds}) =>
+      unawaited(_recover(defaultCreatedWalletIds));
+
+  Future<void> _recover(Set<String> defaultCreatedWalletIds) async {
     try {
-      final result = await _remoteRecovery.recover();
+      final result = await _remoteRecovery.recover(
+        defaultCreatedWalletIds: defaultCreatedWalletIds,
+      );
       if (result.status != RemoteKeychainRecoveryStatus.noBackup &&
           result.status != RemoteKeychainRecoveryStatus.nothingToRestore &&
           result.status != RemoteKeychainRecoveryStatus.restored) {
@@ -19,7 +23,7 @@ class RecoverRemoteKeychainUsecase {
           '${result.status.name}',
         );
       }
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       log.warning(
         'Optional remote keychain recovery failed',
         error: error.runtimeType,

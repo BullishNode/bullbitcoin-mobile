@@ -79,6 +79,124 @@ void main() {
     expect(publishCalls, 2);
   });
 
+  test(
+    'defers publication requests until recovery releases its lease',
+    () async {
+      var publishCalls = 0;
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () async {
+          publishCalls++;
+          return const Ok(null);
+        },
+        markDirty: () async => const Ok(null),
+      );
+
+      final lease = await coordinator.beginRecoveryLease();
+      final publication = coordinator.publish();
+      await pumpEventQueue();
+      expect(publishCalls, 0);
+
+      lease.close();
+      await publication;
+      expect(publishCalls, 1);
+      await coordinator.dispose();
+    },
+  );
+
+  test(
+    'rolls back a recovery lease when the active publication fails',
+    () async {
+      var publishCalls = 0;
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () async {
+          publishCalls++;
+          if (publishCalls == 1) {
+            throw StateError('publication failed');
+          }
+          return const Ok(null);
+        },
+        markDirty: () async => const Ok(null),
+      );
+
+      await expectLater(coordinator.publish(), throwsA(isA<StateError>()));
+      final lease = await coordinator.beginRecoveryLease();
+      lease.close();
+      await pumpEventQueue();
+      expect(publishCalls, 2);
+
+      await coordinator.publish();
+      expect(publishCalls, 3);
+      await coordinator.dispose();
+    },
+  );
+
+  test(
+    'failed lease acquisition drains publications deferred behind it',
+    () async {
+      final first = Completer<Result<void, WalletBackupFailure>>();
+      var publishCalls = 0;
+      final coordinator = WalletBackupCoordinator(
+        manifestChanges: const Stream.empty(),
+        syncResults: const Stream.empty(),
+        publishBackup: () {
+          publishCalls++;
+          if (publishCalls == 1) return first.future;
+          return Future.value(const Ok(null));
+        },
+        markDirty: () async => const Ok(null),
+      );
+
+      final activePublication = coordinator.publish();
+      final acquisition = coordinator.beginRecoveryLease();
+      final deferredPublication = coordinator.publish();
+      await pumpEventQueue();
+      expect(publishCalls, 1);
+
+      final activeFailure = expectLater(
+        activePublication,
+        throwsA(isA<StateError>()),
+      );
+      final acquisitionFailure = expectLater(
+        acquisition,
+        throwsA(isA<StateError>()),
+      );
+      first.completeError(StateError('publication failed'));
+      await activeFailure;
+      await acquisitionFailure;
+      expect(await deferredPublication, isA<Ok<void, WalletBackupFailure>>());
+      expect(publishCalls, 2);
+      await coordinator.dispose();
+    },
+  );
+
+  test('deletion lease waits until recovery releases ownership', () async {
+    final coordinator = WalletBackupCoordinator(
+      manifestChanges: const Stream.empty(),
+      syncResults: const Stream.empty(),
+      publishBackup: () async => const Ok(null),
+      markDirty: () async => const Ok(null),
+    );
+
+    final recovery = await coordinator.beginRecoveryLease();
+    var deletionAcquired = false;
+    final deletionFuture = coordinator.beginDeletionLease().then((lease) {
+      deletionAcquired = true;
+      return lease;
+    });
+    await pumpEventQueue();
+    expect(deletionAcquired, isFalse);
+
+    recovery.close();
+    final deletion = await deletionFuture;
+    expect(deletionAcquired, isTrue);
+    deletion.close();
+    await coordinator.dispose();
+  });
+
   testWidgets(
     'a manifest change during publication dirties and queues a second pass',
     (tester) async {

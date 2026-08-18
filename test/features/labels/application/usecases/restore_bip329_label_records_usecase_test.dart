@@ -5,6 +5,8 @@ import 'package:bb_mobile/features/labels/adapters/labels_repository_adapter.dar
 import 'package:bb_mobile/features/labels/application/usecases/restore_bip329_label_records_usecase.dart';
 import 'package:bb_mobile/features/labels/bip329_label_record.dart';
 import 'package:bb_mobile/features/labels/domain/label_failure.dart';
+import 'package:bb_mobile/features/labels/domain/new_label.dart';
+import 'package:bb_mobile/features/labels/domain/primitive/label_type.dart';
 import 'package:bb_mobile/features/labels/frameworks/bip329_codec.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,8 +27,8 @@ void main() {
 
   tearDown(() => database.close());
 
-  test('preserves local conflicts and reports additive divergence', () async {
-    final existing = Bip329LabelRecord(
+  test('preserves a label changed after recovery classification', () async {
+    final remote = Bip329LabelRecord(
       type: 'tx',
       reference: 'a' * 64,
       label: 'existing',
@@ -36,16 +38,18 @@ void main() {
       reference: 'b' * 64,
       label: 'local extra',
     );
-    _requireOk(await usecase.execute([existing, extra]));
-    final changed = Bip329LabelRecord(
-      type: 'addr',
-      reference: 'a' * 64,
-      label: 'existing',
-      origin: '[12345678/84h/0h/0h]',
+    _requireOk(await usecase.execute([remote, extra]));
+    await repository.store(
+      NewLabel(
+        type: LabelType.address,
+        reference: 'a' * 64,
+        label: 'existing',
+        origin: '[12345678/84h/0h/0h]',
+      ),
     );
 
-    final first = _requireOk(await usecase.execute([changed]));
-    final second = _requireOk(await usecase.execute([changed]));
+    final first = _requireOk(await usecase.execute([remote]));
+    final second = _requireOk(await usecase.execute([remote]));
     final exported = Bip329LabelsCodec().encodeMetadataRecords(
       await repository.fetchAll(),
     );
@@ -62,8 +66,24 @@ void main() {
     final preserved = exported.singleWhere(
       (record) => record.label == 'existing',
     );
-    expect(preserved.type, 'tx');
-    expect(preserved.origin, isNull);
+    expect(preserved.type, 'addr');
+    expect(preserved.origin, '[12345678/84h/0h/0h]');
+  });
+
+  test('reports an unchanged recovered label as already present', () async {
+    final remote = Bip329LabelRecord(
+      type: 'tx',
+      reference: 'a' * 64,
+      label: 'existing',
+    );
+    _requireOk(await usecase.execute([remote]));
+
+    final result = _requireOk(await usecase.execute([remote]));
+
+    expect(result.restoredCount, 0);
+    expect(result.alreadyPresentCount, 1);
+    expect(result.preservedLocalConflictCount, 0);
+    expect(result.localProjectionMatchesSnapshot, isTrue);
   });
 
   test('rejects duplicate identities before writing', () async {

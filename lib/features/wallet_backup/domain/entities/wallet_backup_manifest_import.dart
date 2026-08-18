@@ -1,10 +1,12 @@
 final class WalletBackupManifestImport {
   final String payload;
   final String parentFingerprint;
+  final String? metadataPayload;
 
   WalletBackupManifestImport({
     required this.payload,
     required String parentFingerprint,
+    this.metadataPayload,
   }) : parentFingerprint = _normalizeFingerprint(parentFingerprint) {
     if (payload.isEmpty) {
       throw ArgumentError.value(

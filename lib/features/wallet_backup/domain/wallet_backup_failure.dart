@@ -78,6 +78,10 @@ final class WalletBackupDisabledFailure extends WalletBackupFailure {
   const WalletBackupDisabledFailure();
 }
 
+final class WalletBackupRecoveryBlockedFailure extends WalletBackupFailure {
+  const WalletBackupRecoveryBlockedFailure();
+}
+
 final class WalletBackupConfirmationRequiredFailure
     extends WalletBackupFailure {
   const WalletBackupConfirmationRequiredFailure();

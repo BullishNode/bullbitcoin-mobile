@@ -120,11 +120,31 @@ void main() {
     );
 
     final result = await repository.applyRecovered([
-      WalletPreferences(walletRef: 'wallet-a', hideOnHome: false),
+      WalletPreferencesRecoveryUpdate(
+        expected: WalletPreferences(
+          walletRef: 'wallet-a',
+          label: 'product default',
+          hideOnHome: true,
+          autoSweepEnabled: true,
+        ),
+        recovered: WalletPreferences(walletRef: 'wallet-a', hideOnHome: false),
+      ),
     ]);
     final row = await database.select(database.walletMetadatas).getSingle();
 
-    expect(result, isA<Ok<Null, WalletPreferencesFailure>>());
+    expect(
+      result,
+      isA<Ok<WalletPreferencesRecoveryApplyResult, WalletPreferencesFailure>>(),
+    );
+    final applied =
+        (result
+                as Ok<
+                  WalletPreferencesRecoveryApplyResult,
+                  WalletPreferencesFailure
+                >)
+            .value;
+    expect(applied.appliedWalletRefs, {'wallet-a'});
+    expect(applied.conflictedWalletRefs, isEmpty);
     expect(row.label, isNull);
     expect(row.hideOnHome, isFalse);
     expect(row.autoSweepEnabled, isNull);
@@ -132,7 +152,7 @@ void main() {
     expect(row.externalPublicDescriptor, 'structural-external');
   });
 
-  test('a missing wallet rolls back the whole recovered batch', () async {
+  test('reports a missing wallet without overwriting it', () async {
     final database = SqliteDatabase(NativeDatabase.memory());
     addTearDown(database.close);
     await _insertWalletMetadata(
@@ -147,13 +167,79 @@ void main() {
     );
 
     final result = await repository.applyRecovered([
-      WalletPreferences(walletRef: 'wallet-a', hideOnHome: false),
-      WalletPreferences(walletRef: 'missing', autoSweepEnabled: true),
+      WalletPreferencesRecoveryUpdate(
+        expected: WalletPreferences(
+          walletRef: 'wallet-a',
+          label: 'local',
+          hideOnHome: true,
+          autoSweepEnabled: false,
+        ),
+        recovered: WalletPreferences(walletRef: 'wallet-a', hideOnHome: false),
+      ),
+      WalletPreferencesRecoveryUpdate(
+        expected: WalletPreferences(walletRef: 'missing'),
+        recovered: WalletPreferences(
+          walletRef: 'missing',
+          autoSweepEnabled: true,
+        ),
+      ),
     ]);
     final row = await database.select(database.walletMetadatas).getSingle();
 
-    expect(result, isA<Err<Null, WalletPreferencesFailure>>());
-    expect(row.label, 'local');
+    final applied = switch (result) {
+      Ok(:final value) => value,
+      Err(:final failure) => throw TestFailure(
+        'expected Ok, got ${failure.runtimeType}',
+      ),
+    };
+    expect(applied.appliedWalletRefs, {'wallet-a'});
+    expect(applied.conflictedWalletRefs, {'missing'});
+    expect(row.label, isNull);
+    expect(row.hideOnHome, isFalse);
+    expect(row.autoSweepEnabled, isNull);
+  });
+
+  test('preserves preferences changed after recovery classification', () async {
+    final database = SqliteDatabase(NativeDatabase.memory());
+    addTearDown(database.close);
+    await _insertWalletMetadata(
+      database,
+      walletRef: 'wallet-a',
+      label: 'product default',
+      hideOnHome: true,
+      autoSweepEnabled: false,
+    );
+    final datasource = WalletMetadataDatasource(sqlite: database);
+    final repository = WalletPreferencesRepositoryImpl(datasource);
+    final classified = WalletPreferences(
+      walletRef: 'wallet-a',
+      label: 'product default',
+      hideOnHome: true,
+      autoSweepEnabled: false,
+    );
+    final current = (await datasource.fetch('wallet-a'))!;
+    await datasource.store(current.copyWith(label: 'user changed'));
+
+    final result = await repository.applyRecovered([
+      WalletPreferencesRecoveryUpdate(
+        expected: classified,
+        recovered: WalletPreferences(
+          walletRef: 'wallet-a',
+          label: 'remote label',
+        ),
+      ),
+    ]);
+    final row = await database.select(database.walletMetadatas).getSingle();
+
+    final applied = switch (result) {
+      Ok(:final value) => value,
+      Err(:final failure) => throw TestFailure(
+        'expected Ok, got ${failure.runtimeType}',
+      ),
+    };
+    expect(applied.appliedWalletRefs, isEmpty);
+    expect(applied.conflictedWalletRefs, {'wallet-a'});
+    expect(row.label, 'user changed');
     expect(row.hideOnHome, isTrue);
     expect(row.autoSweepEnabled, isFalse);
   });
@@ -182,9 +268,20 @@ void main() {
     expect(changes, 1);
 
     final recoveryResult = await repository.applyRecovered([
-      WalletPreferences(walletRef: 'wallet-a', hideOnHome: false),
+      WalletPreferencesRecoveryUpdate(
+        expected: WalletPreferences(
+          walletRef: 'wallet-a',
+          label: 'changed',
+          hideOnHome: true,
+          autoSweepEnabled: false,
+        ),
+        recovered: WalletPreferences(walletRef: 'wallet-a', hideOnHome: false),
+      ),
     ]);
-    expect(recoveryResult, isA<Ok<Null, WalletPreferencesFailure>>());
+    expect(
+      recoveryResult,
+      isA<Ok<WalletPreferencesRecoveryApplyResult, WalletPreferencesFailure>>(),
+    );
     expect(changes, 2);
   });
 }

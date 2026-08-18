@@ -21,16 +21,7 @@ class ExportTransactionsCsvUsecase {
 
     final transactions = await _getTransactionsUsecase.execute();
 
-    // Preserve the input's UTC-ness when rounding up to the next day:
-    // building a plain (local) DateTime from a UTC end's wall-clock fields
-    // shifted the inclusive-day boundary by the machine's UTC offset, so
-    // the same export included or excluded edge transactions depending on
-    // the device's timezone.
-    final exclusiveEnd = end == null
-        ? null
-        : end.isUtc
-        ? DateTime.utc(end.year, end.month, end.day + 1)
-        : DateTime(end.year, end.month, end.day + 1);
+    final exclusiveEnd = end == null ? null : _nextDayStart(end);
 
     final filtered = transactions.where((tx) {
       if (tx.isOrder) return false;
@@ -61,4 +52,8 @@ class ExportTransactionsCsvUsecase {
     if (bt == null) return 1;
     return bt.compareTo(at);
   }
+
+  DateTime _nextDayStart(DateTime date) => date.isUtc
+      ? DateTime.utc(date.year, date.month, date.day + 1)
+      : DateTime(date.year, date.month, date.day + 1);
 }

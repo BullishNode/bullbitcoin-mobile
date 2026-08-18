@@ -2,23 +2,23 @@ import 'package:bb_mobile/core/settings/domain/repositories/settings_repository.
 import 'package:bb_mobile/features/wizard/domain/entity/wizard_choices.dart';
 import 'package:bb_mobile/features/wizard/domain/repository/wizard_repository.dart';
 import 'package:bb_mobile/core/utils/result.dart';
-import 'package:bb_mobile/features/wallet_metadata_backup/public/wallet_metadata_backup_facade.dart';
+import 'package:bb_mobile/features/wallet_backup/public/wallet_backup_facade.dart';
 
 /// Flushes the pre-init wizard's pending choices (collected in
 /// [SharedPreferences] before the locator was up) to the SQLite
-/// settings repository and wallet-metadata facade, then marks the wizard
+/// settings repository and unified wallet-backup facade, then marks the wizard
 /// complete and clears the pending blob. Only commits fields the user actively touched. Safe
 /// to call when nothing is staged — short-circuits.
 class ApplyPendingWizardChoicesUsecase {
   ApplyPendingWizardChoicesUsecase({
     required this._wizardRepository,
     required this._settingsRepository,
-    required this._metadataBackup,
+    required this._walletBackup,
   });
 
   final WizardRepository _wizardRepository;
   final SettingsRepository _settingsRepository;
-  final WalletMetadataBackupFacade _metadataBackup;
+  final WalletBackupFacade _walletBackup;
 
   Future<void> execute() async {
     final choices = await _wizardRepository.readPending();
@@ -35,8 +35,8 @@ class ApplyPendingWizardChoicesUsecase {
     final metadataBackupEnabled = choices.metadataBackupEnabled;
     if (choices.touched.contains(WizardField.metadataBackupEnabled) &&
         metadataBackupEnabled != null) {
-      _requireMetadataUpdate(
-        await _metadataBackup.setEnabled(metadataBackupEnabled),
+      _requireBackupUpdate(
+        await _walletBackup.setEnabled(metadataBackupEnabled),
       );
     }
     final consent = choices.reportingConsent;
@@ -48,12 +48,10 @@ class ApplyPendingWizardChoicesUsecase {
     await _wizardRepository.markComplete();
   }
 
-  void _requireMetadataUpdate(
-    Result<WalletMetadataBackupState, WalletMetadataBackupFailure> result,
-  ) {
+  void _requireBackupUpdate(Result<void, WalletBackupFailure> result) {
     if (result case Err(:final failure)) {
       throw _ApplyPendingWizardChoicesException(
-        'Could not apply wizard metadata backup choice: '
+        'Could not apply wizard wallet backup choice: '
         '${failure.runtimeType}',
       );
     }

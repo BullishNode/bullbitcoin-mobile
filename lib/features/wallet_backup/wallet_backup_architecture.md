@@ -3,7 +3,9 @@
 ## Scope
 
 `wallet_backup` owns the seed-bound encrypted Bull backup container and its single opaque Bullnym remote object.
-This slice includes the outer envelope, the manifest section adapter, authenticated encryption, BIP85 encryption-key derivation, unified Nostr request signer, remote repository, and conditional manifest publication.
+This slice includes the outer envelope, the manifest and metadata section
+adapters, authenticated encryption, BIP85 encryption-key derivation, unified
+Nostr request signer, remote repository, and conditional publication.
 This slice also owns one durable `WalletBackupState` row, the public lifecycle
 controls for that unified backup, and the read-only remote manifest import-plan
 boundary. `remote_keychain_recovery` owns application of that validated
@@ -37,8 +39,8 @@ The current canonical plaintext is:
 by `KeychainManifestFacade.buildManifestFilePayload`. It is embedded as JSON,
 not as an escaped JSON string.
 
-At this point in the stack, `keychain_manifest` is the only supported section.
-An unknown section or unsupported section version is a write-blocking failure;
+The v1 section set is `keychain_manifest` and `wallet_metadata`. An unknown
+section or unsupported section version is a write-blocking failure;
 an older client must never overwrite data it cannot understand. The metadata
 owning PR extends this fixed v1 section set with `wallet_metadata`; it does not
 introduce a generic section registry.
@@ -79,6 +81,7 @@ record and nesting limits still apply. Chunking is out of scope.
 ```text
 wallet_backup
   -> keychain_manifest/public
+  -> wallet_metadata_backup/public
   -> bip85_registry/public
   -> nostr_identity/public
   -> bullnym/public
@@ -93,8 +96,11 @@ the adapter that maps it to wallet-backup entities and failures belongs here.
 The remote repository maps only the closed Bullnym `wallet_backup` stream into wallet-backup domain heads and typed failures.
 The signer is derived on demand at `128002'/100'/1'`; the private key is never persisted or exposed by this feature.
 
-Publication builds the current local manifest, fetches the remote head, authenticates and decrypts a present envelope, delegates manifest validation and merge behavior to `keychain_manifest/public`, and conditionally stores one new encrypted envelope.
-A remote manifest that is valid for recovery but is not canonical blocks publication so an older writer cannot erase fields it cannot preserve.
+Publication builds the current local manifest and metadata sections, fetches the
+remote head, authenticates and decrypts a present envelope, delegates section
+composition to the two public section owners, and conditionally stores one new
+encrypted envelope. A section that is valid for recovery but is not canonical
+blocks publication so an older writer cannot erase fields it cannot preserve.
 
 A head conflict causes exactly one refetch, re-merge, re-encrypt, and retry.
 A second conflict returns a typed failure.
@@ -105,12 +111,15 @@ If the merged manifest already equals the authenticated remote manifest, no writ
 `WalletBackupFacade.fetchManifestImport` derives the active default
 wallet's signer, fetches the same `wallet_backup` object, derives the encryption
 key only when ciphertext exists, and authenticates/decrypts the outer
-envelope. It then passes only the manifest payload and the locally verified
-parent fingerprint to `KeychainManifestFacade.parseManifestFilePayload`.
+envelope. It passes the manifest payload and any metadata section payload
+through the feature-owned recovery boundary. `KeychainManifestFacade` still
+parses and validates the manifest payload, while metadata recovery consumes
+its own section through `wallet_metadata_backup/public`.
 Registry validation and construction of the existing
 `KeychainManifestImportPlan` remain owned by `keychain_manifest`. The public
 wallet-backup boundary returns a feature-owned `WalletBackupManifestImport`
-containing the validated payload and parent fingerprint; the recovery
+containing the validated payload, optional metadata payload, and parent
+fingerprint; the recovery
 orchestrator reparses it through the manifest facade before application rather
 than leaking a manifest-owned entity through this facade.
 
@@ -138,14 +147,19 @@ feature and never applies the plan itself.
 
 `WalletBackupFacade` is the only public remote/lifecycle boundary. It exposes
 typed results for state reads, state watching, enable/disable, explicit
-publication, confirmed remote deletion, and remote manifest import planning.
+publication, confirmed remote deletion, remote manifest import planning,
+recovery fencing, and authenticated remote-head identity checks.
 
 Enabling marks the current inventory dirty. Disabling stops future publication without deleting remote data or clearing pending dirty work. An explicit publication is a no-op when the state is already clean and is rejected while disabled or blocked by a newer outer-envelope version. Observing such a version during publication persists the block before returning the typed failure.
 
-Remote deletion requires an explicit confirmation argument. It fetches the current head and uses its generation and ETag for conditional deletion. The local remote checkpoint is cleared only after the remote reports success; enablement and dirty state remain unchanged.
-Deletion waits for an already-started publication to become idle, so a store
-that began before backup was disabled cannot recreate the remote object after a
-confirmed delete.
+Remote deletion requires an explicit confirmation argument. It fetches the
+current head and uses its generation and ETag for conditional deletion. The
+local remote checkpoint and any recovery block are cleared only after the
+remote reports success; enablement and dirty state remain unchanged. Deletion
+holds the same exclusive lifecycle lease as recovery and waits for an
+already-started publication to become idle. It therefore cannot overlap a
+restore, and a store that began before backup was disabled cannot recreate the
+remote object after a confirmed delete.
 
 The active default Bitcoin wallet seed is loaded and its canonical root xprv
 is derived only inside publication, confirmed deletion, or authenticated
@@ -163,17 +177,34 @@ A newly enabled wallet with no manifest materializations publishes a canonical e
 
 Schema 16 introduces exactly one singleton `wallet_backup_states` table.
 It records enablement, dirty state and its monotonic revision, attempt and success timestamps, the last verified remote generation/ETag/content hash, and a newer unsupported outer-envelope version that blocks publication.
+Schema 18 adds one durable recovery block. Recovery writes this block before
+any local restore and publication refuses to run while it is set.
 The state repository preserves dirty work when a store that captured an older revision succeeds.
 Disabling does not clear dirty work or delete the remote object, and clearing a confirmed remote checkpoint does not change enablement.
 Section owners do not write this table directly; later lifecycle and coordinator PRs connect their committed public change signals to `wallet_backup`.
 
 ## Publication Coordinator
 
-`WalletBackupCoordinator` is the only automatic publication scheduler. It listens to the committed change stream exposed by `keychain_manifest/public`, marks the unified state dirty through a use case, and schedules a publication. A failed dirty-state write remains pending in memory and is retried by the next normal coordinator trigger. Recovery-originated manifest records emit no change signal and therefore never publish or enable backup.
+`WalletBackupCoordinator` is the only automatic publication scheduler. It
+listens to the committed change streams exposed by `keychain_manifest/public`
+and `wallet_metadata_backup/public`, marks the unified state dirty through a
+use case, and schedules one publication. A failed dirty-state write remains
+pending in memory and is retried by the next normal coordinator trigger.
+Recovery-originated records emit no change signal and therefore never publish
+or enable backup.
 
 The coordinator starts only from the foreground application initialization path; background Workmanager locators register the feature but never start another coordinator. It retries already-dirty work at foreground app startup, app resume, and after a successful foreground Electrum wallet sync. Disabled, clean, and newer-version-blocked state remains a cheap no-op or typed failure at the publication use case; no private key is derived merely because a trigger fires.
 
 All explicit and automatic publication passes use the same single-flight queue. Queue ownership is cleared before waiting callers complete, disposal fences pending dirty tasks, and a trigger arriving during a store requests one more pass. The state repository compares the captured dirty revision against the current revision, so a successful older store cannot clear a change that committed while it was in flight.
+
+Recovery and confirmed deletion are serialized by one lifecycle queue. A
+recovery lease first drains existing publication and then defers new
+publication until release. Failed lease acquisition releases that block and
+drains deferred callers. Recovery clears its durable block only after every
+section completes and a second authenticated fetch proves that generation,
+ETag, presence, and ciphertext hash still match the head captured before local
+writes. Errors, process termination, partial apply, or a changed head leave the
+durable block set for a later recovery attempt.
 
 The existing global Wallet Backup settings screen consumes only
 `wallet_backup/public` for the one enable switch, status, “Back up now,” and
@@ -184,5 +215,4 @@ belong to Get Paid settings.
 
 - onboarding consent UI
 - recovery orchestration
-- metadata payload semantics
 - compatibility with pre-release backup streams or encryption reservations

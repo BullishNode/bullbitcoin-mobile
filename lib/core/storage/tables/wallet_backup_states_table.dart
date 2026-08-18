@@ -12,6 +12,8 @@ class WalletBackupStates extends Table {
   TextColumn get remoteEtag => text().nullable()();
   TextColumn get contentHash => text().nullable()();
   IntColumn get unsupportedVersion => integer().nullable()();
+  BoolColumn get recoveryBlocked =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
