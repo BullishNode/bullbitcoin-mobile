@@ -17961,5 +17961,21 @@
   "getPaidWalletHideOnHomeNeedsAutoSweep": "Available only while auto-sweep is on: a wallet keeping its funds stays on your home list.",
   "@getPaidWalletHideOnHomeNeedsAutoSweep": {
     "description": "Explains why Hide on home is unavailable: the wallet must be swept for hiding to be safe."
+  },
+  "lightningAddressNoServerResponseTitle": "The server did not respond",
+  "@lightningAddressNoServerResponseTitle": {
+    "description": "Title shown when a Lightning Address claim timed out or the naming server was unreachable."
+  },
+  "lightningAddressNoServerResponseBody": "Bull Bitcoin did not answer in time, so nothing was claimed and nothing changed. Check your connection and try again.",
+  "@lightningAddressNoServerResponseBody": {
+    "description": "Body for a timed-out or unreachable Lightning Address claim: states that no name was claimed and to retry."
+  },
+  "lightningAddressClaimRetryButton": "Try again",
+  "@lightningAddressClaimRetryButton": {
+    "description": "Retries the Lightning Address claim after the server did not respond."
+  },
+  "getPaidFiatSettlementLoadingStatus": "Checking your current payout settings with Bull Bitcoin...",
+  "@getPaidFiatSettlementLoadingStatus": {
+    "description": "Explains the server round-trip the fiat settlement editor performs while it opens."
   }
 }

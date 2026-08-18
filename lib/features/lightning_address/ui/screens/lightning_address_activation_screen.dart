@@ -195,23 +195,48 @@ class _LightningAddressActivationScreenState
                                   .noDefaultBitcoinWallet
                         ? const _NoDefaultBitcoinWalletView()
                         : state.failure ==
+                              LightningAddressActivationFailure.noServerResponse
+                        ? _ServerOutcomeView(
+                            title: context
+                                .loc
+                                .lightningAddressNoServerResponseTitle,
+                            body: context
+                                .loc
+                                .lightningAddressNoServerResponseBody,
+                            actionLabel:
+                                context.loc.lightningAddressClaimRetryButton,
+                            // Straight to the cubit: it re-validates the nym it
+                            // still holds, and no form is mounted on this view.
+                            onAction: context
+                                .read<LightningAddressActivationCubit>()
+                                .submit,
+                            walletBehavior: state.walletBehavior,
+                            walletBehaviorSaving: state.walletBehaviorSaving,
+                          )
+                        : state.failure ==
                               LightningAddressActivationFailure
                                   .submissionUncertain
-                        ? _UncertainSubmissionView(
-                            onCheckStatus: context
+                        ? _ServerOutcomeView(
+                            title: context.loc.lightningAddressUncertainTitle,
+                            body: context.loc.lightningAddressUncertainBody,
+                            actionLabel:
+                                context.loc.lightningAddressCheckStatusButton,
+                            onAction: context
                                 .read<LightningAddressActivationCubit>()
                                 .load,
-                            body: context.loc.lightningAddressUncertainBody,
                             walletBehavior: state.walletBehavior,
                             walletBehaviorSaving: state.walletBehaviorSaving,
                           )
                         : state.failure ==
                               LightningAddressActivationFailure.toggleUncertain
-                        ? _UncertainSubmissionView(
-                            onCheckStatus: context
+                        ? _ServerOutcomeView(
+                            title: context.loc.lightningAddressUncertainTitle,
+                            body: context.loc.lightningAddressToggleUncertain,
+                            actionLabel:
+                                context.loc.lightningAddressCheckStatusButton,
+                            onAction: context
                                 .read<LightningAddressActivationCubit>()
                                 .load,
-                            body: context.loc.lightningAddressToggleUncertain,
                             walletBehavior: state.walletBehavior,
                             walletBehaviorSaving: state.walletBehaviorSaving,
                           )
@@ -287,6 +312,8 @@ class _LightningAddressActivationScreenState
         context.loc.lightningAddressNoDefaultBitcoinWalletError,
       LightningAddressActivationFailure.setupFailed =>
         context.loc.lightningAddressSetupFailed,
+      LightningAddressActivationFailure.noServerResponse =>
+        context.loc.lightningAddressNoServerResponseBody,
       LightningAddressActivationFailure.submissionUncertain =>
         context.loc.lightningAddressUncertainBody,
       LightningAddressActivationFailure.rejected =>
@@ -574,15 +601,23 @@ class _AddressUnavailableView extends StatelessWidget {
   }
 }
 
-class _UncertainSubmissionView extends StatelessWidget {
-  final VoidCallback onCheckStatus;
+/// An outcome the server left the app to explain: either nothing came back at
+/// all, or something came back that leaves the claim half-known. Each caller
+/// supplies its own wording and its own single next action — retry the claim, or
+/// re-read the status — so neither case borrows the other's story.
+class _ServerOutcomeView extends StatelessWidget {
+  final String title;
   final String body;
+  final String actionLabel;
+  final VoidCallback onAction;
   final GetPaidWalletBehavior? walletBehavior;
   final bool walletBehaviorSaving;
 
-  const _UncertainSubmissionView({
-    required this.onCheckStatus,
+  const _ServerOutcomeView({
+    required this.title,
     required this.body,
+    required this.actionLabel,
+    required this.onAction,
     required this.walletBehavior,
     required this.walletBehaviorSaving,
   });
@@ -592,17 +627,14 @@ class _UncertainSubmissionView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _StatusNotice(
-          icon: Icons.help_outline,
-          title: context.loc.lightningAddressUncertainTitle,
-          body: body,
-        ),
+        _StatusNotice(icon: Icons.help_outline, title: title, body: body),
         const Gap(24),
         BBButton.big(
-          label: context.loc.lightningAddressCheckStatusButton,
+          key: const Key('lightning_address_server_outcome_action'),
+          label: actionLabel,
           iconData: Icons.refresh,
           iconFirst: true,
-          onPressed: onCheckStatus,
+          onPressed: onAction,
           bgColor: context.appColors.secondary,
           textColor: context.appColors.onSecondary,
         ),

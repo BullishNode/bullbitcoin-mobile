@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/fiat_settlement/ui/screens/fiat_settlement_editor_screen.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:bb_mobile/locator.dart';
+import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
 import 'package:bull_ui/bull_ui.dart' show BullButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -114,5 +117,41 @@ void main() {
     // Reconnect appears ONLY now, as the outcome of the server's answer.
     expect(_button('Reconnect Bull Bitcoin'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the wait for the server config is named, in the app\'s own '
+      'loading treatment', (tester) async {
+    final answer =
+        Completer<
+          Result<FiatSettlementConfigurationView, FiatSettlementFailure>
+        >();
+    when(() => facade.configuration()).thenAnswer((_) => answer.future);
+
+    await tester.binding.setSurfaceSize(const Size(1080, 3200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.themeData(AppThemeType.light),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: const FiatSettlementEditorScreen(
+          product: product,
+          activated: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Post-activation, this read is the whole wait before the chooser appears.
+    expect(
+      find.text('Checking your current payout settings with Bull Bitcoin...'),
+      findsOneWidget,
+    );
+    expect(find.byType(LoadingBoxContent), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    answer.complete(Ok(_view(product, 0)));
+    await tester.pumpAndSettle();
   });
 }
