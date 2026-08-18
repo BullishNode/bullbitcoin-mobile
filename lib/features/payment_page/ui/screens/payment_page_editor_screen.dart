@@ -1,23 +1,25 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
-import 'package:bb_mobile/core/widgets/inputs/copy_input.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_box_content.dart';
 import 'package:bb_mobile/core/widgets/loading/loading_line_content.dart';
 import 'package:bb_mobile/core/widgets/snackbar_utils.dart';
 import 'package:bb_mobile/core/widgets/bottom_sheet/x.dart';
 import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_advanced_settings_sheet.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_name_choice.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_nym_claim_step.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_activation_offer.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_entry_tile.dart';
 import 'package:bb_mobile/features/fiat_settlement/public/fiat_settlement_facade.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/payment_page/domain/payment_page_error.dart';
 import 'package:bb_mobile/features/payment_page/domain/payment_page_validation.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_cubit.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class PaymentPageEditorScreen extends StatefulWidget {
   const PaymentPageEditorScreen({super.key});
@@ -34,10 +36,16 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
   final _twitter = TextEditingController();
   final _instagram = TextEditingController();
   final _alias = TextEditingController();
+  final _nym = TextEditingController();
+  final _nymFormKey = GlobalKey<FormState>();
 
   /// The edit form is collapsed behind an Edit button on an existing (live or
   /// archived) page; creation stays form-first. A failed save keeps it open.
   bool _editing = false;
+
+  /// True once the user opts out of the default (the claimed nym) and reveals
+  /// the one-time permanent alias field.
+  bool _claimingAlias = false;
 
   /// Snapshot of the editable fields captured when Edit is opened, so a cancel
   /// can detect unsaved changes and confirm before discarding them.
@@ -57,6 +65,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     _twitter.dispose();
     _instagram.dispose();
     _alias.dispose();
+    _nym.dispose();
     super.dispose();
   }
 
@@ -69,6 +78,10 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     if (_twitter.text != state.twitter) _twitter.text = state.twitter;
     if (_instagram.text != state.instagram) _instagram.text = state.instagram;
     if (_alias.text != state.aliasDraft) _alias.text = state.aliasDraft;
+    if (_nym.text != state.nymDraft) _nym.text = state.nymDraft;
+    // A draft alias carried in state (a failed claim, a restored form) means the
+    // alias branch was already taken — don't hide it behind the choice again.
+    if (state.aliasDraft.isNotEmpty) _claimingAlias = true;
   }
 
   @override
@@ -128,7 +141,7 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
         ),
       ),
       PaymentPageStatus.unsupported => _unsupportedView(context, state),
-      PaymentPageStatus.needsNym => _needsNymView(context, state),
+      PaymentPageStatus.needsNym => _needsNymView(context, state, cubit),
       PaymentPageStatus.loadFailed => _loadFailedView(context, state, cubit),
       PaymentPageStatus.archived => _archivedView(context, state, cubit),
       PaymentPageStatus.create ||
@@ -154,14 +167,25 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     );
   }
 
-  Widget _needsNymView(BuildContext context, PaymentPageState state) {
+  /// No nym yet: the shared minimal claim step, in-flow. A successful claim
+  /// reloads into the create form, so the user continues into the Donation Page
+  /// without being sent to Lightning Address settings.
+  Widget _needsNymView(
+    BuildContext context,
+    PaymentPageState state,
+    PaymentPageCubit cubit,
+  ) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _StatusNotice(
-          icon: Icons.badge_outlined,
-          title: context.loc.paymentPageNeedsPermanentNymTitle,
-          body: context.loc.paymentPageNeedsPermanentNymBody,
+        GetPaidNymClaimStep(
+          formKey: _nymFormKey,
+          controller: _nym,
+          submitting: state.claimingNym,
+          errorText: _nymClaimFailureMessage(context, state),
+          onChanged: cubit.nymDraftChanged,
+          onSubmit: () => _claimNym(cubit),
+          validator: (value) => _nymValidationMessage(context, value ?? ''),
         ),
         if (state.walletBehavior != null)
           _WalletBehaviorControls(
@@ -170,6 +194,38 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           ),
       ],
     );
+  }
+
+  Future<void> _claimNym(PaymentPageCubit cubit) async {
+    if (!_nymFormKey.currentState!.validate()) return;
+    await cubit.claimNym();
+  }
+
+  /// The local syntax + reserved-name prefilter, as the field's own validator.
+  String? _nymValidationMessage(BuildContext context, String value) {
+    try {
+      validatePaymentPageNymClaim(value);
+      return null;
+    } on PaymentPageException catch (e) {
+      return e.kind == PaymentPageErrorKind.nymReserved
+          ? context.loc.getPaidNymReserved
+          : context.loc.getPaidNymInvalid;
+    }
+  }
+
+  /// A claim rejection stated above the field. Everything else stays on the
+  /// screen's failure snackbar.
+  String? _nymClaimFailureMessage(
+    BuildContext context,
+    PaymentPageState state,
+  ) {
+    if (state.invalidField != PaymentPageField.nym) return null;
+    return switch (state.failure?.kind) {
+      PaymentPageErrorKind.nymTaken => context.loc.getPaidNymTaken,
+      PaymentPageErrorKind.nymReserved => context.loc.getPaidNymReserved,
+      PaymentPageErrorKind.nymInvalid => context.loc.getPaidNymInvalid,
+      _ => null,
+    };
   }
 
   Widget _loadFailedView(
@@ -223,24 +279,28 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     // Creation is form-first; an existing page keeps the form collapsed behind
     // the Edit button until the user chooses to edit.
     final showForm = isCreate || _editing;
+    final naming = _namingStep(context, state, cubit);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Product section.
-        if (isArchived)
+        // An archived page leads with why it is off; a live page leads with the
+        // thing the owner came for — its link, as a scannable QR.
+        if (isArchived) ...[
           _StatusNotice(
             icon: Icons.pause_circle_outline,
             title: context.loc.paymentPageArchivedTitle,
             body: context.loc.paymentPageArchivedBody,
-          )
-        else
+          ),
+          const Gap(20),
+        ] else if (isCreate) ...[
           Text(
             context.loc.paymentPageRoutingNotice,
             style: context.font.bodySmall?.copyWith(
               color: context.appColors.textMuted,
             ),
           ),
-        const Gap(20),
+          const Gap(20),
+        ],
         if (state.submissionUncertain) ...[
           _Banner(
             icon: Icons.help_outline,
@@ -248,15 +308,25 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           ),
           const Gap(16),
         ],
-        _permanentAliasSection(context, state, cubit),
-        // Status + link.
+        if (naming != null) ...[naming, const Gap(24)],
+        // Status + link — the shareable page, presented as a scannable QR.
         if (!isCreate && state.publicUrl != null) ...[
+          _shareSection(context, state.publicUrl!),
           const Gap(24),
-          _shareRow(context, state.publicUrl!),
+        ],
+        // The routing notice explains where the money lands, so on a live page
+        // it belongs with the wallet story, under the link.
+        if (!isCreate && !isArchived) ...[
+          Text(
+            context.loc.paymentPageRoutingNotice,
+            style: context.font.bodySmall?.copyWith(
+              color: context.appColors.textMuted,
+            ),
+          ),
+          const Gap(24),
         ],
         // Fiat conversion.
         if (!isCreate) ...[
-          const Gap(24),
           const FiatSettlementEntryTile(
             product: FiatSettlementProduct.paymentPage,
           ),
@@ -406,35 +476,67 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     ];
   }
 
-  Widget _permanentAliasSection(
+  /// The naming step, shown only while creating and only while the name is
+  /// still open — the nym is claimed but no alias is. With both already claimed
+  /// there is nothing to choose, so nothing is asked: offering "use my nym
+  /// instead" needs the server's per-surface advertised-name preference
+  /// (BullishNode/bullnym#277) and is out of scope until then.
+  Widget? _namingStep(
     BuildContext context,
     PaymentPageState state,
     PaymentPageCubit cubit,
   ) {
-    final alias = state.permanentAlias;
-    if (alias != null) {
-      return _PermanentAliasSummary(alias: alias);
+    if (state.status != PaymentPageStatus.create) return null;
+    if (state.permanentAlias != null) return null;
+    if (!_claimingAlias) {
+      return GetPaidNameChoice(
+        nym: state.nym,
+        body: context.loc.paymentPageNameChoiceBody,
+        onChooseAlias: () => setState(() => _claimingAlias = true),
+      );
     }
-    return TextField(
-      key: const Key('payment_page_alias_field'),
-      controller: _alias,
-      enabled: !state.submitting,
-      autocorrect: false,
-      enableSuggestions: false,
-      maxLength: 32,
-      onChanged: cubit.aliasDraftChanged,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        labelText: context.loc.paymentPageAliasLabel,
-        helperText: context.loc.paymentPageAliasHelper,
-        errorText: state.invalidField == PaymentPageField.alias
-            ? (state.aliasTakenFailure
-                  ? context.loc.paymentPageAliasTaken
-                  : context.loc.paymentPageAliasInvalid)
-            : null,
-        errorMaxLines: 2,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const Key('payment_page_alias_field'),
+          controller: _alias,
+          enabled: !state.submitting,
+          autocorrect: false,
+          enableSuggestions: false,
+          maxLength: 32,
+          onChanged: cubit.aliasDraftChanged,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            labelText: context.loc.paymentPageAliasLabel,
+            helperText: context.loc.paymentPageAliasHelper,
+            // Permanence is the point of this field: state it in full rather
+            // than letting the character counter ellipsize it.
+            helperMaxLines: 3,
+            counterText: '',
+            errorText: state.invalidField == PaymentPageField.alias
+                ? (state.aliasTakenFailure
+                      ? context.loc.paymentPageAliasTaken
+                      : context.loc.paymentPageAliasInvalid)
+                : null,
+            errorMaxLines: 2,
+          ),
+        ),
+        TextButton(
+          key: const Key('payment_page_use_nym_instead'),
+          onPressed: state.submitting ? null : () => _useNym(cubit),
+          child: Text(context.loc.getPaidNameChoiceUseNym),
+        ),
+      ],
     );
+  }
+
+  /// Back out of the alias branch to the default: no alias is claimed, so the
+  /// surface keeps advertising the server-returned nym URLs. Any typed draft is
+  /// dropped so the save omits it.
+  void _useNym(PaymentPageCubit cubit) {
+    cubit.aliasDraftChanged('');
+    setState(() => _claimingAlias = false);
   }
 
   Widget _byteCountedField({
@@ -502,9 +604,11 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     );
   }
 
-  Widget _shareRow(BuildContext context, String url) {
+  /// The page's public link, presented exactly as the POS terminal link is: QR
+  /// first, then copy, open and download.
+  Widget _shareSection(BuildContext context, String url) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           context.loc.paymentPageShareLabel,
@@ -513,57 +617,25 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
           ),
         ),
         const Gap(8),
-        CopyInput(text: url, maxLines: 1, overflow: TextOverflow.ellipsis),
-        const Gap(8),
-        BBButton.big(
-          label: context.loc.paymentPageOpenLink,
-          iconData: Icons.open_in_new,
-          iconFirst: true,
-          onPressed: () => _openLink(url),
-          bgColor: context.appColors.secondary,
-          textColor: context.appColors.onSecondary,
+        GetPaidLinkQr(
+          url: url,
+          openLabel: context.loc.paymentPageOpenLink,
+          downloadFileName: 'donation-page-qr.png',
         ),
       ],
     );
   }
 
-  /// Runs the save (confirming a first alias claim first). Returns true when a
-  /// save was actually attempted, false when the user backed out of the alias
-  /// confirmation — so the caller can tell a declined confirm from a failure.
-  Future<bool> _save(PaymentPageCubit cubit) async {
-    final state = cubit.state;
-    if (state.permanentAlias == null && state.aliasDraft.isNotEmpty) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(dialogContext.loc.paymentPageAliasConfirmTitle),
-          content: Text(
-            dialogContext.loc.paymentPageAliasConfirmBody(state.aliasDraft),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(dialogContext.loc.paymentPageAliasConfirmCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(dialogContext.loc.paymentPageAliasConfirmSubmit),
-            ),
-          ],
-        ),
-      );
-      if (!mounted || confirmed != true) return false;
-    }
-    await cubit.save();
-    return true;
-  }
+  /// Runs the save. A first alias claim is NOT confirmed by a dialog: the alias
+  /// branch of the naming choice states the permanence on the field itself.
+  Future<void> _save(PaymentPageCubit cubit) => cubit.save();
 
   /// Save initiated from the revealed editor: on success the form collapses
   /// back to the summary; a failed save keeps the editor open so the user can
   /// correct and retry.
   Future<void> _saveFromEditor(PaymentPageCubit cubit) async {
-    final attempted = await _save(cubit);
-    if (!mounted || !attempted) return;
+    await _save(cubit);
+    if (!mounted) return;
     final after = cubit.state;
     if (after.failure == null && !after.submitting) {
       setState(() {
@@ -642,38 +714,6 @@ class _PaymentPageEditorScreenState extends State<PaymentPageEditorScreen> {
     if (!mounted || confirmed != true) return;
     if (!state.isOnline) return;
     await cubit.setOnline(false);
-  }
-
-  Future<void> _openLink(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-}
-
-class _PermanentAliasSummary extends StatelessWidget {
-  final String alias;
-
-  const _PermanentAliasSummary({required this.alias});
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoRow(label: context.loc.paymentPageAliasLabel, value: alias),
-          const Gap(8),
-          Text(
-            context.loc.paymentPageAliasReadOnly,
-            style: context.font.bodySmall?.copyWith(
-              color: context.appColors.textMuted,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -872,30 +912,6 @@ class _Banner extends StatelessWidget {
             ),
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: context.font.bodySmall?.copyWith(
-            color: context.appColors.textMuted,
-          ),
-        ),
-        const Gap(4),
-        Text(value, style: context.font.bodyLarge),
       ],
     );
   }

@@ -48,7 +48,7 @@ void main() {
     );
   });
 
-  testWidgets('first claim shows one input and the permanence explanation', (
+  testWidgets('first claim shows one input, the owner copy, and no dialog', (
     tester,
   ) async {
     await _pump(
@@ -60,22 +60,20 @@ void main() {
     );
 
     expect(find.byType(TextFormField), findsOneWidget);
-    expect(find.text('Claim your nym'), findsNWidgets(2));
+    expect(find.text('Claim your Bull Nym'), findsOneWidget);
     expect(
       find.text(
-        'A pseudonym tied to your BULL wallet. It allows anyone to send you '
-        'Bitcoin payments anonymously just by typing your nym in their wallet, '
-        'and you will receive it in your instant payments wallet. Choose wisely: '
-        "you can't change it without creating an entirely new Bitcoin wallet.",
+        'This is a permanent anonymous identity linked to your Bitcoin wallet '
+        'and will become your public Lightning Address.',
       ),
       findsOneWidget,
     );
 
-    await tester.ensureVisible(find.text('Claim your nym').last);
-    await tester.tap(find.text('Claim your nym').last);
+    await tester.ensureVisible(find.text('Claim your nym'));
+    await tester.tap(find.text('Claim your nym'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Claim this permanent name?'), findsNothing);
+    expect(find.byType(AlertDialog), findsNothing);
   });
 
   testWidgets(

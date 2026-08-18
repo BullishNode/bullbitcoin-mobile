@@ -1,5 +1,6 @@
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/payment_page/domain/usecases/claim_payment_page_nym_usecase.dart';
 import 'package:bb_mobile/features/payment_page/domain/usecases/get_payment_page_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/payment_page/presentation/payment_page_state.dart';
 import 'package:bb_mobile/features/payment_page/public/payment_page_facade.dart';
@@ -11,12 +12,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class PaymentPageCubit extends Cubit<PaymentPageState> {
   final PaymentPageFacade _facade;
   final GetPaymentPagePermanentNameUsecase _getPermanentName;
+  final ClaimPaymentPageNymUsecase _claimNym;
   final GetPaidSettingsFacade _getPaidSettings;
   int _operationId = 0;
 
   PaymentPageCubit({
     required this._facade,
     required this._getPermanentName,
+    required this._claimNym,
     required this._getPaidSettings,
   }) : super(const PaymentPageState());
 
@@ -81,6 +84,7 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
           status: PaymentPageStatus.needsNym,
           nym: '',
           aliasDraft: '',
+          claimingNym: false,
           clearPage: true,
           clearPermanentAlias: true,
           clearFailure: true,
@@ -207,6 +211,64 @@ class PaymentPageCubit extends Cubit<PaymentPageState> {
         'Donation Page currency retry failed',
         error: e,
         trace: stack,
+      );
+    }
+  }
+
+  void nymDraftChanged(String value) {
+    if (state.claimingNym) return;
+    emit(
+      state.copyWith(
+        nymDraft: normalizePaymentPageNym(value),
+        clearFailure: true,
+        clearInvalidField: state.invalidField == PaymentPageField.nym,
+      ),
+    );
+  }
+
+  /// Claims the wallet's one lifetime nym from inside this flow, then reloads —
+  /// which finds the nym and lands on the create form, so the user continues
+  /// into the Donation Page without leaving for Lightning Address settings.
+  Future<void> claimNym() async {
+    if (state.claimingNym || state.status != PaymentPageStatus.needsNym) return;
+    final String nym;
+    try {
+      nym = validatePaymentPageNymClaim(state.nymDraft);
+    } on PaymentPageException catch (e) {
+      emit(
+        state.copyWith(
+          nymDraft: normalizePaymentPageNym(state.nymDraft),
+          failure: e,
+          invalidField: PaymentPageField.nym,
+        ),
+      );
+      return;
+    }
+
+    final op = ++_operationId;
+    emit(
+      state.copyWith(
+        claimingNym: true,
+        nymDraft: nym,
+        clearFailure: true,
+        clearInvalidField: true,
+      ),
+    );
+    try {
+      await _claimNym.execute(nym: nym);
+      if (_isStale(op)) return;
+      emit(state.copyWith(claimingNym: false, nymDraft: ''));
+      await load();
+    } catch (e, stack) {
+      log.warning('Donation Page nym claim failed', error: e, trace: stack);
+      if (_isStale(op)) return;
+      final failure = _asPaymentPageException(e);
+      emit(
+        state.copyWith(
+          claimingNym: false,
+          failure: failure,
+          invalidField: PaymentPageField.nym,
+        ),
       );
     }
   }

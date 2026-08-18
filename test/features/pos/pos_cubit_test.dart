@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/domain/usecases/get_get_paid_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/get_paid_settings/public/get_paid_settings_facade.dart';
+import 'package:bb_mobile/features/pos/domain/usecases/claim_pos_nym_usecase.dart';
 import 'package:bb_mobile/features/pos/domain/usecases/get_pos_permanent_name_usecase.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_cubit.dart';
 import 'package:bb_mobile/features/pos/presentation/pos_state.dart';
@@ -14,10 +15,12 @@ void main() {
   late _FakePosFacade facade;
   late _FakeGetGetPaidWalletBehaviorsUsecase walletBehaviors;
   late _FakeUpdateWalletBehaviorUsecase updateWalletBehavior;
+  late _FakeClaimPosNymUsecase claimNym;
 
   PosCubit build() => PosCubit(
     facade: facade,
     getPermanentName: permanentName,
+    claimNym: claimNym,
     getPaidSettings: _FakeGetPaidSettings(
       walletBehaviors,
       updateWalletBehavior,
@@ -42,6 +45,7 @@ void main() {
     facade = _FakePosFacade();
     walletBehaviors = _FakeGetGetPaidWalletBehaviorsUsecase();
     updateWalletBehavior = _FakeUpdateWalletBehaviorUsecase();
+    claimNym = _FakeClaimPosNymUsecase();
     facade.currencies = const [
       DisplayCurrency(code: 'CAD', precision: 2),
       DisplayCurrency(code: 'USD', precision: 2),
@@ -57,7 +61,75 @@ void main() {
 
       expect(cubit.state.status, PosStatus.needsNym);
     });
+  });
 
+  group('claimNym', () {
+    test(
+      'claims in-flow, then reloads straight into the create form',
+      () async {
+        permanentName.value = const PosPermanentName.unclaimed();
+        facade.terminal = null;
+        final cubit = build();
+        await cubit.load();
+        expect(cubit.state.status, PosStatus.needsNym);
+
+        cubit.nymDraftChanged('  Alice  ');
+        // The nym the server sees is the normalized one the field displayed.
+        expect(cubit.state.nymDraft, 'alice');
+
+        permanentName.value = const PosPermanentName.claimed(nym: 'alice');
+        await cubit.claimNym();
+
+        expect(claimNym.calls, ['alice']);
+        expect(cubit.state.status, PosStatus.create);
+        expect(cubit.state.nym, 'alice');
+        expect(cubit.state.claimingNym, isFalse);
+        expect(cubit.state.nymDraft, '');
+      },
+    );
+
+    test('a locally invalid nym never reaches the server', () async {
+      permanentName.value = const PosPermanentName.unclaimed();
+      final cubit = build();
+      await cubit.load();
+
+      cubit.nymDraftChanged('-alice');
+      await cubit.claimNym();
+
+      expect(claimNym.calls, isEmpty);
+      expect(cubit.state.status, PosStatus.needsNym);
+      expect(cubit.state.invalidField, PosField.nym);
+      expect(cubit.state.failure?.kind, PosErrorKind.nymInvalid);
+    });
+
+    test('a taken nym flags the claim field and stays on the step', () async {
+      permanentName.value = const PosPermanentName.unclaimed();
+      final cubit = build();
+      await cubit.load();
+      cubit.nymDraftChanged('alice');
+      claimNym.error = const PosException.nymTaken();
+
+      await cubit.claimNym();
+
+      expect(cubit.state.status, PosStatus.needsNym);
+      expect(cubit.state.invalidField, PosField.nym);
+      expect(cubit.state.failure?.kind, PosErrorKind.nymTaken);
+      expect(cubit.state.claimingNym, isFalse);
+    });
+
+    test('is inert once a nym exists', () async {
+      final cubit = build();
+      await cubit.load();
+      expect(cubit.state.status, isNot(PosStatus.needsNym));
+
+      cubit.nymDraftChanged('bob');
+      await cubit.claimNym();
+
+      expect(claimNym.calls, isEmpty);
+    });
+  });
+
+  group('load (continued)', () {
     test('nym but no pos -> create with the fallback currency', () async {
       facade.terminal = null;
       final cubit = build();
@@ -466,4 +538,17 @@ class _FakePosFacade implements PosFacade {
 
   @override
   Future<PreparedPosWallet> prepareWallet() async => throw UnimplementedError();
+}
+
+class _FakeClaimPosNymUsecase implements ClaimPosNymUsecase {
+  final List<String> calls = [];
+  Object? error;
+
+  @override
+  Future<String> execute({required String nym}) async {
+    calls.add(nym);
+    final failure = error;
+    if (failure != null) throw failure;
+    return nym;
+  }
 }

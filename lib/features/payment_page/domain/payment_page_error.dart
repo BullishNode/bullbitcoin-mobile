@@ -1,11 +1,12 @@
-import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/features/bullnym/public/bullnym_facade.dart';
-import 'package:flutter/widgets.dart';
 
 enum PaymentPageErrorKind {
   invalidInput,
   aliasTaken,
   aliasAlreadyAssigned,
+  nymTaken,
+  nymReserved,
+  nymInvalid,
   noNym,
   noDefaultBitcoinWallet,
   localPreparationFailed,
@@ -42,6 +43,14 @@ sealed class PaymentPageException implements Exception {
   const factory PaymentPageException.aliasAlreadyAssigned({
     required String ownedAlias,
   }) = PaymentPageAliasAlreadyAssignedException;
+
+  const factory PaymentPageException.nymTaken() = PaymentPageNymTakenException;
+
+  const factory PaymentPageException.nymReserved() =
+      PaymentPageNymReservedException;
+
+  const factory PaymentPageException.nymInvalid() =
+      PaymentPageNymInvalidException;
 
   const factory PaymentPageException.noNym() = PaymentPageNoNymException;
 
@@ -113,28 +122,6 @@ sealed class PaymentPageException implements Exception {
     };
   }
 
-  String toTranslated(BuildContext context) => switch (kind) {
-    PaymentPageErrorKind.invalidInput =>
-      context.loc.paymentPageErrorInvalidInput,
-    PaymentPageErrorKind.aliasTaken => context.loc.paymentPageAliasTaken,
-    PaymentPageErrorKind.aliasAlreadyAssigned =>
-      context.loc.paymentPageAliasAlreadyAssigned,
-    PaymentPageErrorKind.noNym => context.loc.paymentPageErrorNoNym,
-    PaymentPageErrorKind.noDefaultBitcoinWallet =>
-      context.loc.paymentPageErrorNoDefaultWallet,
-    PaymentPageErrorKind.localPreparationFailed =>
-      context.loc.paymentPageErrorSetupFailed,
-    PaymentPageErrorKind.network => context.loc.paymentPageErrorConnection,
-    PaymentPageErrorKind.timeout => context.loc.paymentPageErrorConnection,
-    PaymentPageErrorKind.notFound => context.loc.paymentPageErrorNotFound,
-    PaymentPageErrorKind.rejected => context.loc.paymentPageErrorRejected,
-    PaymentPageErrorKind.authError => context.loc.paymentPageErrorAuth,
-    PaymentPageErrorKind.server => context.loc.paymentPageErrorServer,
-    PaymentPageErrorKind.invalidServerResponse ||
-    PaymentPageErrorKind.signingFailed ||
-    PaymentPageErrorKind.unexpected => context.loc.paymentPageErrorUnexpected,
-  };
-
   @override
   String toString() => 'PaymentPageException($code)';
 }
@@ -159,6 +146,33 @@ final class PaymentPageAliasAlreadyAssignedException
     : super._(
         kind: PaymentPageErrorKind.aliasAlreadyAssigned,
         code: 'AliasAlreadyAssigned',
+        retryable: false,
+      );
+}
+
+final class PaymentPageNymTakenException extends PaymentPageException {
+  const PaymentPageNymTakenException()
+    : super._(
+        kind: PaymentPageErrorKind.nymTaken,
+        code: 'NameTaken',
+        retryable: false,
+      );
+}
+
+final class PaymentPageNymReservedException extends PaymentPageException {
+  const PaymentPageNymReservedException()
+    : super._(
+        kind: PaymentPageErrorKind.nymReserved,
+        code: 'NymReserved',
+        retryable: false,
+      );
+}
+
+final class PaymentPageNymInvalidException extends PaymentPageException {
+  const PaymentPageNymInvalidException()
+    : super._(
+        kind: PaymentPageErrorKind.nymInvalid,
+        code: 'NymInvalid',
         retryable: false,
       );
 }
@@ -279,6 +293,9 @@ bool _isPaymentPageSubmissionUncertain(PaymentPageException cause) {
     PaymentPageErrorKind.invalidInput ||
     PaymentPageErrorKind.aliasTaken ||
     PaymentPageErrorKind.aliasAlreadyAssigned ||
+    PaymentPageErrorKind.nymTaken ||
+    PaymentPageErrorKind.nymReserved ||
+    PaymentPageErrorKind.nymInvalid ||
     PaymentPageErrorKind.noNym ||
     PaymentPageErrorKind.noDefaultBitcoinWallet ||
     PaymentPageErrorKind.localPreparationFailed ||
@@ -317,9 +334,6 @@ final class PaymentPageSaveException extends PaymentPageException {
         retryable: cause.retryable,
         ownedAlias: cause.ownedAlias,
       );
-
-  @override
-  String toTranslated(BuildContext context) => cause.toTranslated(context);
 
   @override
   String toString() => 'PaymentPageSaveException(phase: $phase, cause: $cause)';

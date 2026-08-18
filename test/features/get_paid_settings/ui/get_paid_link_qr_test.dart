@@ -3,13 +3,13 @@ import 'dart:typed_data';
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/widgets/buttons/button.dart';
 import 'package:bb_mobile/core/widgets/qr_display_widget.dart';
-import 'package:bb_mobile/features/pos/ui/pos_terminal_qr_saver.dart';
-import 'package:bb_mobile/features/pos/ui/widgets/pos_terminal_qr.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr_saver.dart';
 import 'package:bb_mobile/generated/l10n/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _FakeSaver implements PosTerminalQrSaver {
+class _FakeSaver implements GetPaidLinkQrSaver {
   _FakeSaver(this.outcome);
   final QrImageSaveOutcome outcome;
   int calls = 0;
@@ -47,7 +47,14 @@ void main() {
   testWidgets('encodes the EXACT terminal URL with no normalization', (
     tester,
   ) async {
-    await _pump(tester, const PosTerminalQr(terminalUrl: url));
+    await _pump(
+      tester,
+      const GetPaidLinkQr(
+        url: url,
+        openLabel: 'Open terminal',
+        downloadFileName: 'pos-terminal-qr.png',
+      ),
+    );
 
     // The QR component is fed the exact URL string that will be encoded — no
     // reconstruction or normalization.
@@ -59,7 +66,14 @@ void main() {
   testWidgets('shows Copy (the URL), Open and Download actions', (
     tester,
   ) async {
-    await _pump(tester, const PosTerminalQr(terminalUrl: url));
+    await _pump(
+      tester,
+      const GetPaidLinkQr(
+        url: url,
+        openLabel: 'Open terminal',
+        downloadFileName: 'pos-terminal-qr.png',
+      ),
+    );
 
     // Copy: the URL is shown in a CopyInput (SelectableText carries the value).
     expect(find.text(url), findsOneWidget);
@@ -81,8 +95,10 @@ void main() {
     final saver = _FakeSaver(QrImageSaveOutcome.saved);
     await _pump(
       tester,
-      PosTerminalQr(
-        terminalUrl: url,
+      GetPaidLinkQr(
+        url: url,
+        openLabel: 'Open terminal',
+        downloadFileName: 'pos-terminal-qr.png',
         saver: saver,
         captureOverride: fakeCapture,
       ),
@@ -110,8 +126,10 @@ void main() {
     final saver = _FakeSaver(QrImageSaveOutcome.cancelled);
     await _pump(
       tester,
-      PosTerminalQr(
-        terminalUrl: url,
+      GetPaidLinkQr(
+        url: url,
+        openLabel: 'Open terminal',
+        downloadFileName: 'pos-terminal-qr.png',
         saver: saver,
         captureOverride: fakeCapture,
       ),
@@ -135,8 +153,10 @@ void main() {
     final saver = _FakeSaver(QrImageSaveOutcome.failed);
     await _pump(
       tester,
-      PosTerminalQr(
-        terminalUrl: url,
+      GetPaidLinkQr(
+        url: url,
+        openLabel: 'Open terminal',
+        downloadFileName: 'pos-terminal-qr.png',
         saver: saver,
         captureOverride: fakeCapture,
       ),

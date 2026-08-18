@@ -1,4 +1,4 @@
-import 'package:bb_mobile/features/pos/ui/pos_terminal_qr_saver.dart';
+import 'package:bb_mobile/features/get_paid_settings/ui/get_paid_link_qr_saver.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
