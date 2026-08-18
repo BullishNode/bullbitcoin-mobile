@@ -111,7 +111,7 @@ void main() {
           );
         final usecase = LookupLightningAddressRegistrationUsecase(bullnym);
 
-        final result = await usecase.execute(npubHex: 'aa' * 32);
+        final result = await usecase.execute(signer: _testSigner);
 
         expect(result.nym, 'alice');
         expect(result.active, isTrue);
@@ -130,7 +130,7 @@ void main() {
         ..lookup = const BullnymLookupResult(nym: 'alice', active: true);
       final usecase = LookupLightningAddressRegistrationUsecase(bullnym);
 
-      final result = await usecase.execute(npubHex: 'aa' * 32);
+      final result = await usecase.execute(signer: _testSigner);
 
       expect(result.nym, 'alice');
       expect(result.active, isTrue);
@@ -179,6 +179,11 @@ void main() {
   );
 }
 
+final _testSigner = BullnymAuthSigner(
+  npubHex: 'aa' * 32,
+  signHashHex: (messageHashHex) async => 'bb' * 64,
+);
+
 class _FakeBullnymFacade implements BullnymFacade {
   BullnymVersionInfo version = const BullnymVersionInfo(
     publicNamePolicy: bullnymPermanentNamesV1Policy,
@@ -197,7 +202,7 @@ class _FakeBullnymFacade implements BullnymFacade {
 
   @override
   Future<Result<BullnymLookupResult, BullnymFailure>> lookupRegistration({
-    required String npubHex,
+    required BullnymAuthSigner signer,
   }) async => Ok(lookup);
 
   @override

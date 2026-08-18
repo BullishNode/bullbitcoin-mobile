@@ -64,7 +64,7 @@ class BullnymFacade {
        _getVersion = GetBullnymVersionUsecase(client),
        _register = RegisterBullnymUsecase(client, nowSecs),
        _deleteRegistration = DeleteBullnymRegistrationUsecase(client, nowSecs),
-       _lookupRegistration = LookupBullnymRegistrationUsecase(client),
+       _lookupRegistration = LookupBullnymRegistrationUsecase(client, nowSecs),
        _getDonationPage = GetDonationPageUsecase(client),
        _saveDonationPage = SaveDonationPageUsecase(client, nowSecs),
        _archiveDonationPage = ArchiveDonationPageUsecase(client, nowSecs),
@@ -103,9 +103,9 @@ class BullnymFacade {
 
   @useResult
   Future<Result<BullnymLookupResult, BullnymFailure>> lookupRegistration({
-    required String npubHex,
+    required BullnymAuthSigner signer,
   }) {
-    return _lookupRegistration.execute(npubHex: npubHex);
+    return _lookupRegistration.execute(signer: signer);
   }
 
   @useResult

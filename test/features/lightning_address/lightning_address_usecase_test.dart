@@ -97,8 +97,16 @@ void main() {
       final npubHex = nostrIdentity.deriveBullnymServerAuthPublicKeyFromXprv(
         xprv,
       );
+      final signer = BullnymAuthSigner(
+        npubHex: npubHex,
+        signHashHex: (messageHashHex) =>
+            nostrIdentity.signBullnymServerAuthHashFromXprv(
+              xprvBase58: xprv,
+              messageHashHex: messageHashHex,
+            ),
+      );
 
-      final status = await usecase.execute(npubHex: npubHex);
+      final status = await usecase.execute(signer: signer);
 
       expect(status.active, true);
       expect(status.nym, 'alice');
@@ -119,8 +127,16 @@ void main() {
       final npubHex = nostrIdentity.deriveBullnymServerAuthPublicKeyFromXprv(
         xprv,
       );
+      final signer = BullnymAuthSigner(
+        npubHex: npubHex,
+        signHashHex: (messageHashHex) =>
+            nostrIdentity.signBullnymServerAuthHashFromXprv(
+              xprvBase58: xprv,
+              messageHashHex: messageHashHex,
+            ),
+      );
 
-      final status = await usecase.execute(npubHex: npubHex);
+      final status = await usecase.execute(signer: signer);
 
       expect(status.active, false);
       expect(status.nym, 'alice');
@@ -310,9 +326,9 @@ class _FakeBullnymFacade implements BullnymFacade {
 
   @override
   Future<Result<BullnymLookupResult, BullnymFailure>> lookupRegistration({
-    required String npubHex,
+    required BullnymAuthSigner signer,
   }) async {
-    lookupNpubHex = npubHex;
+    lookupNpubHex = signer.npubHex;
     return Ok(lookupResult);
   }
 

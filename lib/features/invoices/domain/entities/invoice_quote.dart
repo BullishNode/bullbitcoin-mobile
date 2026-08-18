@@ -37,11 +37,13 @@ sealed class InvoiceQuoteInstruction {
 }
 
 final class InvoiceLightningQuoteInstruction extends InvoiceQuoteInstruction {
-  final String quoteOfferId;
+  /// Null for `lightning_direct` instructions (100% fiat settlement), which
+  /// carry a plain BOLT11 with no provider swap offer.
+  final String? quoteOfferId;
   final String pr;
 
   const InvoiceLightningQuoteInstruction({
-    required this.quoteOfferId,
+    this.quoteOfferId,
     required this.pr,
     required super.amount,
   });

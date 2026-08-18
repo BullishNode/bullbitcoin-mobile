@@ -49,7 +49,7 @@ LightningAddressFacade _facade(
   Future<LightningAddressStatus> Function() lookup,
 ) => LightningAddressFacade(
   prepareWallet: () async => throw UnimplementedError(),
-  lookupRegistration: ({required npubHex}) async => throw UnimplementedError(),
+  lookupRegistration: ({required signer}) async => throw UnimplementedError(),
   registerWalletOwned: ({required nym}) async => throw UnimplementedError(),
   lookupWalletOwnedRegistration: lookup,
   ensureRegistrationLive: ({deadline, allowReregister = true}) async =>

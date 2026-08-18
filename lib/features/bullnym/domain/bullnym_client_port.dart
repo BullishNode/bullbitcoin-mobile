@@ -48,6 +48,8 @@ abstract interface class BullnymClientPort {
   @useResult
   Future<Result<BullnymLookupResult, BullnymFailure>> lookupRegistration({
     required String npubHex,
+    required int timestamp,
+    required String signatureHex,
   });
 
   /// Public read of the current donation-page row for `nym`/`kind`. Returns a

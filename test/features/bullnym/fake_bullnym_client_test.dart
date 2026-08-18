@@ -218,7 +218,11 @@ void main() {
         );
         expect(
           _unwrap(
-            await client.lookupRegistration(npubHex: 'npub'),
+            await client.lookupRegistration(
+              npubHex: 'npub',
+              timestamp: 1,
+              signatureHex: 'sig',
+            ),
           ).publicNameStatus!.lightningAddressOnline,
           isFalse,
         );
@@ -330,7 +334,11 @@ void main() {
       expect(pos.publicUrl, 'https://example.invalid/a/coffee/pos');
       expect(
         _unwrap(
-          await client.lookupRegistration(npubHex: 'npub'),
+          await client.lookupRegistration(
+              npubHex: 'npub',
+              timestamp: 1,
+              signatureHex: 'sig',
+            ),
         ).publicNameStatus!.alias,
         BullnymPublicName('coffee'),
       );

@@ -11,6 +11,11 @@ import 'package:test/test.dart';
 
 class _MockHttpAdapter extends Mock implements HttpClientAdapter {}
 
+final _lookupSigner = BullnymAuthSigner(
+  npubHex: 'aa' * 32,
+  signHashHex: (messageHashHex) async => 'cc' * 64,
+);
+
 class _Captured {
   final List<RequestOptions> requests = [];
 }
@@ -142,7 +147,7 @@ void main() {
 
         final version = _unwrap(await facade.getVersion());
         final lookupFailure = _unwrapFailure(
-          await facade.lookupRegistration(npubHex: 'aa' * 32),
+          await facade.lookupRegistration(signer: _lookupSigner),
         );
 
         expect(version.supportsPermanentNamesV1, isTrue);
@@ -167,7 +172,7 @@ void main() {
         );
 
         final lookup = _unwrap(
-          await facade.lookupRegistration(npubHex: 'aa' * 32),
+          await facade.lookupRegistration(signer: _lookupSigner),
         );
         final status = lookup.publicNameStatus;
 
@@ -195,7 +200,7 @@ void main() {
       final facade = BullnymFacade(client: BullnymHttpClient.withDio(stub.dio));
 
       final lookup = _unwrap(
-        await facade.lookupRegistration(npubHex: 'aa' * 32),
+        await facade.lookupRegistration(signer: _lookupSigner),
       );
 
       expect(lookup.publicNameStatus!.alias, isNull);
@@ -219,7 +224,7 @@ void main() {
       final facade = BullnymFacade(client: BullnymHttpClient.withDio(stub.dio));
 
       final lookup = _unwrap(
-        await facade.lookupRegistration(npubHex: 'aa' * 32),
+        await facade.lookupRegistration(signer: _lookupSigner),
       );
       final status = lookup.publicNameStatus;
 
@@ -243,7 +248,7 @@ void main() {
 
       expect(
         _unwrapFailure(
-          await facade.lookupRegistration(npubHex: 'aa' * 32),
+          await facade.lookupRegistration(signer: _lookupSigner),
         ).kind,
         BullnymFailureKind.invalidServerResponse,
       );
@@ -261,7 +266,7 @@ void main() {
 
         expect(
           _unwrapFailure(
-            await facade.lookupRegistration(npubHex: 'aa' * 32),
+            await facade.lookupRegistration(signer: _lookupSigner),
           ).kind,
           BullnymFailureKind.invalidServerResponse,
         );
@@ -285,13 +290,13 @@ void main() {
 
         expect(
           _unwrap(
-            await facade.lookupRegistration(npubHex: 'aa' * 32),
+            await facade.lookupRegistration(signer: _lookupSigner),
           ).publicNameStatus,
           isNull,
         );
         expect(
           _unwrap(
-            await facade.lookupRegistration(npubHex: 'aa' * 32),
+            await facade.lookupRegistration(signer: _lookupSigner),
           ).publicNameStatus,
           isNull,
         );
@@ -317,7 +322,7 @@ void main() {
 
       for (var index = 0; index < cases.length; index += 1) {
         final failure = _unwrapFailure(
-          await facade.lookupRegistration(npubHex: 'aa' * 32),
+          await facade.lookupRegistration(signer: _lookupSigner),
         );
         expect(
           failure.kind,
@@ -367,7 +372,7 @@ void main() {
       final facade = BullnymFacade(client: BullnymHttpClient.withDio(stub.dio));
 
       final failure = _unwrapFailure(
-        await facade.lookupRegistration(npubHex: 'aa' * 32),
+        await facade.lookupRegistration(signer: _lookupSigner),
       );
 
       expect(failure.code, 'NameTaken');
@@ -393,7 +398,7 @@ void main() {
         );
 
         final failure = _unwrapFailure(
-          await facade.lookupRegistration(npubHex: 'aa' * 32),
+          await facade.lookupRegistration(signer: _lookupSigner),
         );
 
         expect(failure.code, 'NameTaken');
@@ -421,7 +426,7 @@ void main() {
         );
 
         final failure = _unwrapFailure(
-          await facade.lookupRegistration(npubHex: 'aa' * 32),
+          await facade.lookupRegistration(signer: _lookupSigner),
         );
         final details = failure.ownedNameDetails as BullnymOwnedNymDetails;
 
@@ -448,7 +453,7 @@ void main() {
         );
 
         final failure = _unwrapFailure(
-          await facade.lookupRegistration(npubHex: 'aa' * 32),
+          await facade.lookupRegistration(signer: _lookupSigner),
         );
         final details = failure.ownedNameDetails as BullnymOwnedAliasDetails;
 
@@ -473,7 +478,7 @@ void main() {
 
       expect(
         _unwrapFailure(
-          await facade.lookupRegistration(npubHex: 'aa' * 32),
+          await facade.lookupRegistration(signer: _lookupSigner),
         ).ownedNameDetails,
         isNull,
       );
@@ -491,7 +496,7 @@ void main() {
       final facade = BullnymFacade(client: BullnymHttpClient.withDio(stub.dio));
 
       final failure = _unwrapFailure(
-        await facade.lookupRegistration(npubHex: 'aa' * 32),
+        await facade.lookupRegistration(signer: _lookupSigner),
       );
 
       expect(failure.code, 'FutureConflict');
@@ -518,7 +523,7 @@ void main() {
 
         expect(
           _unwrapFailure(
-            await facade.lookupRegistration(npubHex: 'aa' * 32),
+            await facade.lookupRegistration(signer: _lookupSigner),
           ).kind,
           BullnymFailureKind.invalidServerResponse,
         );

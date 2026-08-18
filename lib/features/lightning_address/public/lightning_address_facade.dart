@@ -1,3 +1,4 @@
+import 'package:bb_mobile/features/bullnym/domain/bullnym_auth_signer.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_registration_liveness.dart';
 import 'package:bb_mobile/features/lightning_address/domain/lightning_address_wallet.dart';
@@ -17,7 +18,9 @@ export 'package:bb_mobile/features/lightning_address/domain/lightning_address_wa
 class LightningAddressFacade {
   final Future<PreparedLightningAddressWallet> Function()
   _prepareWalletCallback;
-  final Future<LightningAddressStatus> Function({required String npubHex})
+  final Future<LightningAddressStatus> Function({
+    required BullnymAuthSigner signer,
+  })
   _lookupRegistrationCallback;
   final Future<WalletOwnedLightningAddressRegistration> Function({
     required String nym,
@@ -33,7 +36,9 @@ class LightningAddressFacade {
 
   const LightningAddressFacade({
     required Future<PreparedLightningAddressWallet> Function() prepareWallet,
-    required Future<LightningAddressStatus> Function({required String npubHex})
+    required Future<LightningAddressStatus> Function({
+      required BullnymAuthSigner signer,
+    })
     lookupRegistration,
     required Future<WalletOwnedLightningAddressRegistration> Function({
       required String nym,
@@ -66,8 +71,10 @@ class LightningAddressFacade {
     return _lookupWalletOwnedRegistrationCallback();
   }
 
-  Future<LightningAddressStatus> lookupRegistration({required String npubHex}) {
-    return _lookupRegistrationCallback(npubHex: npubHex);
+  Future<LightningAddressStatus> lookupRegistration({
+    required BullnymAuthSigner signer,
+  }) {
+    return _lookupRegistrationCallback(signer: signer);
   }
 
   Future<LightningAddressHealOutcome> ensureRegistrationLive({
