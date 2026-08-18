@@ -5,9 +5,12 @@ import 'package:bb_mobile/features/btcpay/domain/btcpay_failure.dart';
 import 'package:bb_mobile/features/btcpay/domain/btcpay_wallet.dart';
 import 'package:bb_mobile/features/btcpay/domain/samrock_pairing_request.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/complete_btcpay_samrock_pairing_usecase.dart';
+import 'package:bb_mobile/core/wallet/domain/usecases/update_wallet_behavior_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_connection_usecase.dart';
+import 'package:bb_mobile/features/btcpay/domain/usecases/get_btcpay_wallet_behaviors_usecase.dart';
 import 'package:bb_mobile/features/btcpay/domain/usecases/preview_btcpay_samrock_pairing_usecase.dart';
 import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_cubit.dart';
+import 'package:bb_mobile/features/btcpay/presentation/btcpay_pairing_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -20,23 +23,44 @@ class _MockGetBtcpayConnectionUsecase extends Mock
 class _MockPreviewBtcpaySamRockPairingUsecase extends Mock
     implements PreviewBtcpaySamRockPairingUsecase {}
 
+class _MockGetBtcpayWalletBehaviorsUsecase extends Mock
+    implements GetBtcpayWalletBehaviorsUsecase {}
+
+class _MockUpdateWalletBehaviorUsecase extends Mock
+    implements UpdateWalletBehaviorUsecase {}
+
 void main() {
   const pairingUrl =
       'https://btcpay.example.com/plugins/store123/samrock/protocol?otp=123&setup=btc';
 
   late _MockCompleteBtcpaySamRockPairingUsecase completePairing;
   late _MockGetBtcpayConnectionUsecase getConnection;
+  late _MockGetBtcpayWalletBehaviorsUsecase getWalletBehaviors;
   late _MockPreviewBtcpaySamRockPairingUsecase previewPairing;
+  late _MockUpdateWalletBehaviorUsecase updateWalletBehavior;
   late BtcpayPairingCubit cubit;
+
+  setUpAll(() {
+    registerFallbackValue(_connection());
+  });
 
   setUp(() {
     completePairing = _MockCompleteBtcpaySamRockPairingUsecase();
     getConnection = _MockGetBtcpayConnectionUsecase();
+    getWalletBehaviors = _MockGetBtcpayWalletBehaviorsUsecase();
     previewPairing = _MockPreviewBtcpaySamRockPairingUsecase();
+    updateWalletBehavior = _MockUpdateWalletBehaviorUsecase();
+    when(
+      () => getWalletBehaviors.execute(connection: any(named: 'connection')),
+    ).thenAnswer(
+      (_) async => const Ok<List<BtcpayWalletBehavior>, BtcpayFailure>([]),
+    );
     cubit = BtcpayPairingCubit(
       completePairing: completePairing,
       getConnection: getConnection,
+      getWalletBehaviors: getWalletBehaviors,
       previewPairing: previewPairing,
+      updateWalletBehavior: updateWalletBehavior,
     );
   });
 
@@ -52,6 +76,68 @@ void main() {
     expect(cubit.state.isSuccess, isTrue);
     expect(cubit.state.connection, isNotNull);
     expect(cubit.state.showPairingForm, isFalse);
+  });
+
+  test(
+    'initial connection read failure is unavailable, never unpaired',
+    () async {
+      when(
+        () => getConnection.execute(),
+      ).thenAnswer((_) async => const Err(BtcpayStorageFailure()));
+
+      await cubit.load();
+
+      expect(cubit.state.isUnavailable, isTrue);
+      expect(cubit.state.failure, isA<BtcpayStorageFailure>());
+      expect(cubit.state.connection, isNull);
+      expect(cubit.state.showPairingForm, isFalse);
+    },
+  );
+
+  test('wallet behavior read failure is represented separately', () async {
+    when(
+      () => getConnection.execute(),
+    ).thenAnswer((_) async => Ok(_connection()));
+    when(
+      () => getWalletBehaviors.execute(connection: any(named: 'connection')),
+    ).thenAnswer((_) async => const Err(BtcpayStorageFailure()));
+
+    await cubit.load();
+
+    expect(cubit.state.connection, isNotNull);
+    expect(
+      cubit.state.walletBehaviorsStatus,
+      BtcpayWalletBehaviorStatus.unavailable,
+    );
+    expect(cubit.state.walletBehaviors, isEmpty);
+    expect(cubit.state.isUnavailable, isFalse);
+  });
+
+  test('wallet behavior retry can recover without re-pairing', () async {
+    var reads = 0;
+    when(
+      () => getConnection.execute(),
+    ).thenAnswer((_) async => Ok(_connection()));
+    when(
+      () => getWalletBehaviors.execute(connection: any(named: 'connection')),
+    ).thenAnswer((_) async {
+      reads++;
+      return reads == 1
+          ? const Err<List<BtcpayWalletBehavior>, BtcpayFailure>(
+              BtcpayStorageFailure(),
+            )
+          : const Ok<List<BtcpayWalletBehavior>, BtcpayFailure>([]);
+    });
+
+    await cubit.load();
+    await cubit.retryWalletBehaviors();
+
+    expect(cubit.state.connection, isNotNull);
+    expect(
+      cubit.state.walletBehaviorsStatus,
+      BtcpayWalletBehaviorStatus.loaded,
+    );
+    expect(reads, 2);
   });
 
   test('rejection keeps the stored connection visible', () async {

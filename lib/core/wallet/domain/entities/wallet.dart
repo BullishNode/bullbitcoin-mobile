@@ -119,6 +119,8 @@ abstract class Wallet with _$Wallet {
     // they silently reintroduce the total-vs-confirmed gap this exists to
     // close.
     BigInt? confirmedBalanceSat,
+    @Default(false) bool hideOnHome,
+    @Default(false) bool autoSweepEnabled,
     @Default(false) bool isEncryptedVaultTested,
     @Default(false) bool isPhysicalBackupTested,
     DateTime? latestEncryptedBackup,
