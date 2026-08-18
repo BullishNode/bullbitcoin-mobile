@@ -25,9 +25,7 @@ void main() {
   setUp(() {
     xprv = _zeroMnemonicXprv();
     nostrIdentity = const NostrIdentityFacade(
-      deriveHandle: DeriveNostrIdentityHandleUsecase(
-        registry: Bip85RegistryFacade(),
-      ),
+      DeriveNostrIdentityHandleUsecase(Bip85RegistryFacade()),
     );
     bullnym = _FakeBullnymFacade();
   });
