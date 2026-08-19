@@ -2146,6 +2146,12 @@ class BullnymHttpClient implements BullnymClientPort {
           bip21: _requiredNonEmptyString(json, 'bip21'),
           payerAmountSat: payerAmountSat,
         ),
+      // The server also has `lightning_current` and
+      // `bitcoin_boltz_chain_current`, both built only on the sat-fixed path
+      // (`sat_fixed_instruction_for_rail`). They are unreachable from here:
+      // `_parsePayerDemandQuoteResponse` rejects any pricing mode other than
+      // `fiat_fixed` before this switch runs. Handle them if that guard ever
+      // relaxes, or they will fail the same way `lightning_direct` did.
       _ => throw const _BullnymClientException(
         BullnymFailure.invalidServerResponse(
           logMessage: 'Payer instruction does not match the selected rail',
