@@ -75,9 +75,15 @@ class Bull {
     // markers are already durable, so a flush failure (e.g. a backup
     // publication failure) only defers application to the next launch.
     // Letting it throw here used to crash-loop the app before runApp.
+    // Bare catch on purpose: in Dart `Error` is not an `Exception`, so
+    // `on Exception` would still let a StateError through — and an
+    // unregistered GetIt dependency throws exactly that, from the
+    // `locator<...>()` call inside this block. Anything escaping here
+    // crash-loops the app before runApp, which is the whole point of
+    // the guard.
     try {
       await locator<ApplyPendingWizardChoicesUsecase>().execute();
-    } on Exception catch (error, stackTrace) {
+    } catch (error, stackTrace) {
       log.severe(
         message: 'Pending wizard choices could not be applied; continuing startup',
         error: error,
